@@ -1,0 +1,31 @@
+{
+  "analysis": "The audit JSON schema uses fields: name, ok, fresh{sig,illegal,steps}, resume{sig,illegal,steps}, moves, visibility{fresh_seen,resume_seen}, effects, and sidecar paths records/log. Signatures match and illegal=0 everywhere, but there is an issue: visibility counts differ between fresh and resume for at least knight and lancer (fresh_seen != resume_seen). Also the moves array appears to include both fresh and resume moves appended together (ranger shows duplicated move entries with same turn 5/6 repeated), which may violate the requirement that JSON plus records/log sidecars list the same resolved moves in order. We need to confirm which rows are actually not clean by checking for any differences (visibility mismatch, move list duplication, effects mismatch) and also compare moves in JSON vs the records.jsonl and trace.tsv outputs. Then fix the engine so resumed runs produce identical visibility and move/effect ordering, and so audit output is structured consistently (likely separate fresh_moves/resume_moves, or stable concatenation order with labels).",
+  "plan": "1) Programmatically find any cases where visibility differs, or where moves/effects indicate duplicates or mismatched counts between fresh and resume. 2) For a failing case (likely knight/lancer/ranger), inspect the associated records.jsonl and trace.tsv to see whether fresh/resume traces differ and how they are combined. 3) Run one-case.sh for one problematic case to reproduce in isolation. 4) Then inspect Go code that computes visibility and/or serializes/restores FOV state; likely resume path fails to restore seen tiles or clears cache, causing fresh_seen>resume_seen. Fix by persisting seen/visibility state in save/resume, or by recomputing deterministically from records after restore. After fix, re-run one-case and matrix.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, collections\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nprint('name\\tok\\tfresh_sig\\tresume_sig\\tfresh_illegal\\tresume_illegal\\tfresh_seen\\tresume_seen\\tmoves\\teffects')\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    print(f\"{c['name']}\\t{c['ok']}\\t{c['fresh']['sig']}\\t{c['resume']['sig']}\\t{c['fresh']['illegal']}\\t{c['resume']['illegal']}\\t{vis.get('fresh_seen')}\\t{vis.get('resume_seen')}\\t{len(c.get('moves',[]))}\\t{len(c.get('effects',[]))}\")\nprint('\\nVisibility mismatches:')\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print(c['name'], vis)\nprint('\\nMove duplicates by (turn,actor,from,to,kind):')\nfor c in data['cases']:\n    moves=c.get('moves',[])\n    key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))\n    ctr=collections.Counter(key(m) for m in moves)\n    dups=[k for k,v in ctr.items() if v>1]\n    if dups:\n        print(c['name'], 'dups:', len(dups), 'total moves:', len(moves))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen') or len(c.get('moves',[]))%2==0 and len(c.get('moves',[]))>0:\n        print(c['name'], 'records=', c.get('records'), 'log=', c.get('log'))\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '120,260p' /app/output/resume-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh knight\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "ls -la /app/output | grep single-knight || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/output/single-knight.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

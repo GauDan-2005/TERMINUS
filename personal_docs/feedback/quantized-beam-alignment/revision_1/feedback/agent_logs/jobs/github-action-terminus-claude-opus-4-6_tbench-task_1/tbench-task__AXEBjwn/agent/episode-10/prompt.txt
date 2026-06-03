@@ -1,0 +1,36 @@
+New Terminal Output:
+
+root@c6ea23a6afa0:/app# cat > /app/tools/run_local.sh << 'SHEOF'
+> #!/bin/bash
+> set -euo pipefail
+> export PATH="/usr/local/cargo/bin:$PATH"
+> mkdir -p /app/output /app/bin
+> cargo build --release --quiet --manifest-path /app/Cargo.toml
+> /app/target/release/local-infer-sandbox /app/output/raw.json
+> go build -o /app/bin/align /app/cmd/align/main.go
+> /app/bin/align /app/output/raw.json /app/output/report.json
+> SHEOF
+root@c6ea23a6afa0:/app# chmod +x /app/tools/run_local.sh
+root@c6ea23a6afa0:/app# rm -f /app/output/raw.json /app/output/report.json
+root@c6ea23a6afa0:/app# bash /app/tools/run_local.sh 2>&1
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@c6ea23a6afa0:/app#

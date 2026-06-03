@@ -1,0 +1,27 @@
+{
+  "analysis": "rook and sentinel reproduce identically in one-case. The only observed discrepancy between fresh vs resume is signature mismatch and resume_seen=8 vs fresh_seen=9; moves listed are identical except for turn numbers (3 vs 2 for rook, 5 vs 4 for sentinel), suggesting the audit is storing both paths’ resolved move but with different computed turn index / ply numbering between fresh and resume, which then affects the signature (signature likely includes turn). Since illegal=0 and moves otherwise the same, fix should make fresh/resume produce identical move canonicalization for signature (e.g., exclude turn from signature, or ensure both paths assign the same turn numbers when opposing turns ran). The audit spec says sig is over resolved move list; if turn is part of move list, numbering must match across paths.",
+  "plan": "1) Locate where signatures are computed (search for 'sig' / hashing) and confirm whether 'turn' is included. 2) Identify why fresh and resume assign different turn numbers for the same step in rook/sentinel (likely off-by-one when resuming from saved state). 3) Patch engine so both execution paths produce the same turn numbering/canonical move representation before signing (most likely normalize turn to a sequential index within resolved move list, or base it on epoch consistently). 4) Re-run matrix and ensure rook/sentinel ok=true and visibility counts match too.",
+  "commands": [
+    {
+      "keystrokes": "rg -n \"sig\" /app | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rg -n \"signature|hash\" /app | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rg -n \"fresh_seen|resume_seen|seen\" /app | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/bin && file /app/bin/rogctl\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/single-rook.json') as f: d=json.load(f)\nprint('rook fresh',d['cases'][0]['fresh'])\nprint('rook resume',d['cases'][0]['resume'])\nprint('rook moves',d['cases'][0]['moves'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

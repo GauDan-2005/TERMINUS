@@ -1,0 +1,51 @@
+{
+  "analysis": "Multiple spec violations are visible in code: (1) Deferred handling in b2/q.js returns next-cycle deferred (slot b+1), but spec says deferred numbers listed on a cycle belong to that same cycle’s row. (2) Factor computation in c3/r.js caches the first dep in a global `saved`, causing cross-row and cross-scenario caching; spec says recompute per row from that row’s descriptor number and position. (3) Carry state in a1/p.js sets carry = cycle.base (input), but spec says each cycle’s native row feeds the next cycle: carry should be previous nativeValue (or the produced native row), and finalCounter should reflect last native row produced, not last input base. (4) Rust r_d: for \"old\" it returns primary only, ignoring carry, but older native revision markers must normalize like newer ones incorporating carried state into the native row. (5) Healthy flag is always false; acceptedOlder computation is based on wrong carry; also healthy definition: acceptedOlder && closing counter equals sum of input bases. (6) Aggregate in d4/s.js sets healthyCount based on acceptedOlder only and status is hardcoded stale; must derive healthyCount from record.healthy and status healthy iff all scenarios healthy.",
+  "plan": "Implement fixes:\n- b2/q.js: make q_b return the current cycle’s deferred values sorted; do not shift to next slot.\n- c3/r.js: remove global cache; compute factor = Number(dep) + index (position) with no shared state.\n- Rust lib r_d: both old and new should incorporate carry: likely return primary + carry for both, keeping rev markers normalized.\n- a1/p.js: update carry to nativeValue each cycle; set finalCounter to last nativeValue. Determine sumBases and compute healthy accordingly: healthy = acceptedOlder && finalCounter == sumBases.\n- d4/s.js: compute healthyCount from record.healthy; status = 'healthy' if healthyCount==recordCount else 'stale'.\nAfter patching, rerun npm run matrix twice and diff outputs to ensure stable. Then inspect report.json using python to confirm fields match spec and no drift across repeated runs.",
+  "commands": [
+    {
+      "keystrokes": "cat > b2/q.js <<'EOF'\nfunction q_b(a, _b, _c) {\n  // Deferred numbers listed on a cycle belong to that same cycle.\n  return (a || []).slice().sort((left, right) => left - right);\n}\n\nfunction scan_b(a) {\n  return Object.keys(a).sort();\n}\n\nmodule.exports = { q_b, scan_b };\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > c3/r.js <<'EOF'\nfunction k_c(a, b, _c) {\n  // Descriptor factors are recomputed per row from that row's descriptor number and position.\n  return Number(a) + Number(b);\n}\n\nfunction lens_c(a) {\n  return String(a).length;\n}\n\nmodule.exports = { k_c, lens_c };\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > src/native/src/lib.rs <<'EOF'\npub fn r_d(_rev: &str, primary: i64, carry: i64) -> i64 {\n    // Older native revision markers must normalize like newer ones,\n    // incorporating carried state into the native row.\n    primary + carry\n}\n\npub fn aux_r(a: i64) -> i64 {\n    a * 2\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > a1/p.js <<'EOF'\nconst { spawnSync } = require('child_process');\nconst { q_b } = require('../b2/q');\nconst { k_c } = require('../c3/r');\n\nfunction resolveCargo() {\n  if (process.env.CARGO && String(process.env.CARGO).trim()) return process.env.CARGO;\n  return '/usr/local/cargo/bin/cargo';\n}\n\nfunction callNative(root, rev, primary, carry) {\n  const cargo = resolveCargo();\n  const env = {\n    ...process.env,\n    PATH: process.env.PATH ? `${process.env.PATH}:/usr/local/cargo/bin` : '/usr/local/cargo/bin'\n  };\n\n  const proc = spawnSync(\n    cargo,\n    ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)],\n    { cwd: root, encoding: 'utf8', env }\n  );\n\n  if (proc.status !== 0) {\n    const err = proc.stderr || proc.stdout || (proc.error && proc.error.message) || 'native worker failed';\n    throw new Error(err);\n  }\n  return Number(String(proc.stdout).trim());\n}\n\nfunction f_a(a, b, c) {\n  let carry = 0;\n  const rows = [];\n  let accepted = true;\n  let lastNative = 0;\n  const sumBases = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base), 0);\n\n  for (let index = 0; index < a.cycles.length; index += 1) {\n    const cycle = a.cycles[index];\n    const owned = q_b(cycle.deferred || [], index, c);\n    const factor = k_c(cycle.dep, index, c);\n    const nativeValue = callNative(b, cycle.native, cycle.base, carry);\n\n    // Acceptance check uses the carried native state.\n    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {\n      accepted = false;\n    }\n\n    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);\n    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });\n\n    carry = nativeValue;\n    lastNative = nativeValue;\n  }\n\n  const finalCounter = lastNative;\n  const healthy = Boolean(accepted && finalCounter === sumBases);\n\n  return {\n    name: a.name,\n    scenario: a.name,\n    rows,\n    finalCounter,\n    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),\n    acceptedOlder: accepted,\n    healthy\n  };\n}\n\nmodule.exports = { f_a };\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > d4/s.js <<'EOF'\nfunction m_e(a, b) {\n  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);\n  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);\n  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);\n  const healthyCount = a.filter((row) => row.healthy).length;\n  const status = healthyCount === a.length ? 'healthy' : 'stale';\n\n  return {\n    source: b.source,\n    recordCount: a.length,\n    totalCounter,\n    dependencyTotal,\n    rowTotal,\n    healthyCount,\n    status\n  };\n}\n\nfunction view_e(a) {\n  return a.map((row) => row.name).join(',');\n}\n\nmodule.exports = { m_e, view_e };\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npm run matrix\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "cp outcome/report.json /tmp/report1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npm run matrix\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "cp outcome/report.json /tmp/report2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /tmp/report1.json /tmp/report2.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='outcome/report.json'\nd=json.load(open(p))\nprint('aggregate:', d['aggregate'])\nfor r in d['records']:\n  sum_bases = None\n  # bases are not in record; recompute from fixtures for a quick check\nprint('healthy scenarios:', [r['name'] for r in d['records'] if r['healthy']])\nfor r in d['records']:\n  rows=r['rows']\n  print('\\n',r['name'],'finalCounter',r['finalCounter'],'acceptedOlder',r['acceptedOlder'],'healthy',r['healthy'])\n  for row in rows:\n    assert row['deferred']==sorted(row['deferred'])\n    print(' ',row)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

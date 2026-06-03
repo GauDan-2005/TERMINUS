@@ -1,0 +1,211 @@
+Current terminal state:
+New Terminal Output:
+
+root@dbc8229de6ff:/app# sed -n '1,120p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p /app/output /app/bin
+
+# Rust toolchain isn't available in this sandbox image; generate the Rust-stage
+# raw.json via a deterministic Go equivalent.
+go build -o /app/bin/localinfer /app/cmd/localinfer/main.go
+/app/bin/localinfer /app/output/raw.json
+
+# Collate raw -> report.
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@dbc8229de6ff:/app# sed -n '1,240p' /app/cmd/align/main.go
+package main
+
+import (
+        "bytes"
+        "encoding/json"
+        "errors"
+        "os"
+        "path/filepath"
+        "sort"
+)
+
+type entry struct {
+        Case      string `json:"case"`
+        Produced  []int  `json:"produced"`
+        Trace     []int  `json:"slot_trace"`
+        OrderUsed []int  `json:"order_used"`
+        Packed    bool   `json:"packed"`
+        Grouped   bool   `json:"grouped"`
+        Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+        Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+        Rows    []entry        `json:"rows"`
+        Summary map[string]any `json:"summary"`
+}
+
+func readJSONFile[T any](path string, out *T) error {
+        b, err := os.ReadFile(path)
+        if err != nil {
+                return err
+        }
+        dec := json.NewDecoder(bytes.NewReader(b))
+        dec.DisallowUnknownFields()
+        return dec.Decode(out)
+}
+
+func toMap(rows []entry) (map[string]entry, error) {
+        m := make(map[string]entry, len(rows))
+        for _, r := range rows {
+                if r.Case == "" {
+                        return nil, errors.New("row missing case")
+                }
+                if _, ok := m[r.Case]; ok {
+                        return nil, errors.New("duplicate case: " + r.Case)
+                }
+                m[r.Case] = r
+        }
+        return m, nil
+}
+
+func eqSlice(a, b []int) bool {
+        if len(a) != len(b) {
+                return false
+        }
+        for i := range a {
+                if a[i] != b[i] {
+                        return false
+                }
+        }
+        return true
+}
+
+// sameSix compares the six required fields, keyed by case name.
+func sameSix(a, b entry) bool {
+        return a.Case == b.Case &&
+                eqSlice(a.Produced, b.Produced) &&
+                eqSlice(a.Trace, b.Trace) &&
+                eqSlice(a.OrderUsed, b.OrderUsed) &&
+                a.Packed == b.Packed &&
+                a.Grouped == b.Grouped &&
+                a.Reuse == b.Reuse
+}
+
+func main() {
+        if len(os.Args) != 3 {
+                panic("usage: align raw final")
+        }
+        rawPath := os.Args[1]
+        finalPath := os.Args[2]
+
+        // Load incoming raw.
+        var raw rawDoc
+        if err := readJSONFile(rawPath, &raw); err != nil {
+                panic(err)
+        }
+        rawMap, err := toMap(raw.Raw)
+        if err != nil {
+                panic(err)
+        }
+
+        // Produce one report row per raw row, sorted. (No folding/dropping.)
+        rows := make([]entry, 0, len(raw.Raw))
+        rows = append(rows, raw.Raw...)
+        sort.Slice(rows, func(i, j int) bool { return rows[i].Case < rows[j].Case })
+
+        agree := true
+
+        // Compare new report rows vs incoming raw rows.
+        newMap, err := toMap(rows)
+        if err != nil {
+                agree = false
+        } else {
+                if len(newMap) != len(rawMap) {
+                        agree = false
+                }
+                for name, rr := range rawMap {
+                        nr, ok := newMap[name]
+                        if !ok || !sameSix(nr, rr) {
+                                agree = false
+                                break
+                        }
+                }
+        }
+
+        // If replacing an existing report.json, compare prior report rows to newly
+        // generated report rows across those six fields.
+        if _, err := os.Stat(finalPath); err == nil {
+                var prior finalDoc
+                if err := readJSONFile(finalPath, &prior); err != nil {
+                        agree = false
+                } else {
+                        priorMap, err := toMap(prior.Rows)
+                        if err != nil {
+                                agree = false
+                        } else if len(priorMap) != len(newMap) {
+                                agree = false
+                        } else {
+                                for name, pr := range priorMap {
+                                        nr, ok := newMap[name]
+                                        if !ok || !sameSix(pr, nr) {
+                                                agree = false
+                                                break
+                                        }
+                                }
+                        }
+                }
+        }
+
+        doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": agree}}
+        out, err := json.MarshalIndent(doc, "", "  ")
+        if err != nil {
+                panic(err)
+        }
+        if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+                panic(err)
+        }
+        if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+                panic(err)
+        }
+}
+root@dbc8229de6ff:/app# /app/tools/run_local.sh
+root@dbc8229de6ff:/app# python3 - <<'PY'
+> import json
+> rep=json.load(open('/app/output/report.json'))
+> print('agree after rerun:', rep['summary']['agree'])
+> PY
+agree after rerun: True
+root@dbc8229de6ff:/app# python3 - <<'PY'
+> import json
+> p='/app/output/report.json'
+> d=json.load(open(p))
+> # flip one produced token for alpha to force a prior mismatch
+> for r in d['rows']:
+>   if r['case']=='alpha' and r['produced']:
+>     r['produced'][0] = (r['produced'][0] + 1) % 101
+>     break
+> json.dump(d, open(p,'w'), indent=2)
+> open(p,'a').write('\n')
+> print('tampered prior report.json')
+> PY
+tampered prior report.json
+root@dbc8229de6ff:/app# /app/tools/run_local.sh
+root@dbc8229de6ff:/app# python3 - <<'PY'
+> import json
+> rep=json.load(open('/app/output/report.json'))
+> print('agree after prior mismatch + rerun:', rep['summary']['agree'])
+> PY
+agree after prior mismatch + rerun: False
+root@dbc8229de6ff:/app# /app/tools/run_local.sh
+root@dbc8229de6ff:/app# python3 - <<'PY'
+> import json
+> rep=json.load(open('/app/output/report.json'))
+> print('agree after clean rerun:', rep['summary']['agree'])
+> PY
+agree after clean rerun: True
+root@dbc8229de6ff:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

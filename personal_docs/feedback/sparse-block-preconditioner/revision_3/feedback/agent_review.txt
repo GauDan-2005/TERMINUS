@@ -1,0 +1,99 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ✅ PASS
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires debugging a C++ sparse-block preconditioned conjugate
+gradient solver codebase that produces incorrect solver audit reports. The
+agent must identify and fix bugs in four source files (BSR layout assembly,
+permutation mapping, preconditioner application, and norm computation) then
+rebuild with CMake so that `run-matrix.sh` produces a correct JSON audit. The
+test suite contains 12 test functions that independently recompute the
+expected PCG results in Python and verify per-case convergence, residual
+agreement, reproducibility, and run-one/matrix-slice consistency.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Vendored Test Wheels Visible to Agent
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 24-26)
+Problem: The Dockerfile downloads pytest and pytest-json-ctrf wheels into
+         /opt/verifier-wheels/ at build time. While not installed into the
+         Python environment, these wheel files are visible inside the agent's
+         container. This is a valid workaround for allow_internet=false, but
+         technically places test-only artefacts in the image.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN python -m pip download --no-cache-dir -d /opt/verifier-wheels \        │
+│      pytest==8.4.1 \                                                        │
+│      pytest-json-ctrf==0.3.5                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Since the task has allow_internet=false, vendoring wheels at build
+time is the correct approach for offline test installation. The agent gains no
+useful information from these wheels, so this is acceptable — but worth noting
+for reviewer awareness.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Instruction Could Mention Number of Affected Files
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 1-8)
+
+Current approach: The instruction describes symptoms ("some iteration tallies
+are off, some residual columns disagree") without hinting at how many source
+modules are affected.
+
+Suggested improvement: For a "hard" task this level of vagueness is defensible,
+but adding a single sentence like "Multiple modules under /app contribute to
+these failures" would give the agent a signal to investigate broadly without
+giving away which files are broken.
+
+Rationale: Reduces the chance an agent fixes one bug then declares victory,
+wasting remaining time on rebuild/test cycles before discovering additional
+issues.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-crafted scientific-computing debugging task. The four injected
+bugs span distinct numerical concerns (indexing, permutation, diagonal
+lookup, norm bias) and require genuine understanding of the PCG algorithm to
+diagnose and repair. The Python reference solver in the test suite provides a
+robust, independent oracle.
+
+Key Strengths:
+  ✓ Strong anti-cheating: bugs require algorithmic understanding, not pattern
+    matching; tests and solution are invisible to the agent
+  ✓ Comprehensive test coverage with independent reference computation that
+    validates all instruction requirements
+  ✓ Clean offline design (vendored wheels, no internet needed at test time)
+
+Key Weaknesses:
+  ✗ None significant — minor note on vendored wheels is acceptable trade-off
+
+Evaluates: C++ debugging, sparse linear algebra, preconditioned iterative
+           solvers, CMake build systems
+
+================================================================================
+  RECOMMENDATION: ✅ READY TO USE
+
+  Task is well-structured, tests are thorough with independent verification,
+  and the difficulty is appropriate for the "hard" rating.
+================================================================================

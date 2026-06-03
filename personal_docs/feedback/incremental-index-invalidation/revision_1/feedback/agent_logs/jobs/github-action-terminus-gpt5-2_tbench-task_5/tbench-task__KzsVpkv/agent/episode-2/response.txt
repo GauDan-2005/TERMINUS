@@ -1,0 +1,43 @@
+{
+  "analysis": "We found the Rust entrypoint (src/main.rs) which calls idxlab::runner::run_all. Traces are simple line-based scripts with `slot <name> <path>` and `query <label> <symbol>`. Current output still points at old locations (ws-old, gen-v1, alias-a, etc.), so the runner likely isn’t actually applying slot changes or is loading a canned report. Next step is to inspect runner.rs/report.rs/io.rs/model.rs to see how traces are executed and how symbol locations are resolved, then fix it to resolve from the currently selected slot’s TypeScript files. We also need determinism on repeated runs.",
+  "plan": "1) Inspect runner.rs, report.rs, io.rs, model.rs, and lib.rs to understand current logic. 2) Inspect fixtures layout for alpha/beta/gamma etc to know which files are current and what symbols exist. 3) Identify where symbol lookup happens; likely a naive parser or hardcoded table. 4) Patch lookup to scan the active slot directory for .ts files and find the symbol definition line deterministically (stable file traversal order). 5) Ensure report serialization is stable (serde_json pretty vs compact, key ordering, array ordering). 6) Rebuild and rerun matrix twice and byte-compare.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/src/lib.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/runner.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/report.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/io.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/model.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app/fixtures -maxdepth 4 -type f -name '*.ts' | head -n 80\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "find /app/fixtures/alpha -type f -maxdepth 5 -print\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/fixtures/alpha/ws-new/src/widget.ts 2>/dev/null || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,160p' /app/fixtures/beta/gen-v2/generated/api.ts 2>/dev/null || true\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

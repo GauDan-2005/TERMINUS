@@ -1,0 +1,145 @@
+New Terminal Output:
+
+root@87f509269b26:/app# cat > /app/drv_u/run_sync.cpp << 'EOF'
+> #include "phases.h"
+>
+> #include <stdio.h>
+> #include <string.h>
+>
+> static int copy_with_flip(const char *src_path, const char *dst_path) {
+>     FILE *in = fopen(src_path, "rb");
+>     if (!in) return -1;
+>     FILE *out = fopen(dst_path, "wb");
+>     if (!out) { fclose(in); return -2; }
+>     unsigned char buf[8192];
+>     size_t total = 0;
+>     size_t r;
+>     while ((r = fread(buf, 1, sizeof(buf), in)) > 0) {
+>         if (total == 0 && r > 8) {
+>             buf[8] ^= 0xFFu;
+>         }
+>         fwrite(buf, 1, r, out);
+>         total += r;
+>     }
+>     fclose(in);
+>     fclose(out);
+>     return 0;
+> }
+>
+> int phase_persist(SimState *st, const char *vault_path, const char *tamper_path,
+>                   const char *log_path, VaultAudit *resume_aud) {
+>     if (emit_p(st, vault_path) != 0) return -1;
+>
+>     FILE *log = fopen(log_path, "a");
+>     if (copy_with_flip(vault_path, tamper_path) == 0) {
+>         SimState probe = *st;
+>         VaultAudit taud;
+>         memset(&taud, 0, sizeof(taud));
+>         load_k(tamper_path, &probe, &taud);
+>         if (log) {
+>             if (taud.reason == REASON_FINGERPRINT) {
+>                 fprintf(log, "REJECTED reason=SIGNATURE_MISMATCH path=%s\n", tamper_path);
+>             } else {
+>                 fprintf(log, "ACCEPTED reason=%d path=%s\n", taud.reason, tamper_path);
+>             }
+>         }
+>     }
+>
+>     int rc = load_k(vault_path, st, resume_aud);
+>     if (log) {
+>         if (resume_aud->reason == REASON_OK) {
+>             fprintf(log, "ACCEPTED reason=OK path=%s\n", vault_path);
+>         } else {
+>             fprintf(log, "REJECTED reason=%d path=%s\n", resume_aud->reason, vault_path);
+>         }
+>         fclose(log);
+>     }
+>
+>     /* Rebuild topo from cell parent info after successful load */
+>     if (rc == 0) {
+>         int changed[MAX_CELLS];
+>         int nch = 0;
+>         for (int i = 0; i < st->grid.n; i++) changed[nch++] = i;
+>         step_n(&st->grid, changed, nch, &st->topo);
+>     }
+>
+>     return rc;
+> }
+> EOF
+root@87f509269b26:/app# cmake --build /app/build -j2 2>&1
+[  5%] Building CXX object CMakeFiles/sim_run.dir/drv_u/run_sync.cpp.o
+[ 10%] Linking CXX executable bin/sim_run
+[100%] Built target sim_run
+root@87f509269b26:/app# bash /app/scripts/run-matrix.sh 2>&1
+root@87f509269b26:/app# cat /app/output/conservation_audit.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [8.7672437499999987, 6.5529421875000002, 7.7783203125],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 3,
+      "halo_q": [0.41972499999999996, 0.7447062499999999, 0.20884374999999999]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7309999999999999],
+      "resumed_total": [9.6048312500000002, 8.8982828124999997, 7.3046359375000005],
+      "drift_ratio": 1.2827533502312611e-16,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 5,
+      "halo_q": [0.56235000000000002, 0.24551874999999998, 0.69988125000000001]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [5.7809999999999997, 3.9449999999999998, 4.5250000000000004],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 4,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [5.3010000000000002, 3.9290000000000003, 4.5380000000000003],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 2,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3824625000000008, 7.6921765625000003, 6.4136734375],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 3,
+      "halo_q": [0.56235000000000002, 0.24551874999999998, 0.69988125000000001]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [10.998628125, 7.7382, 8.8533140624999991],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 5,
+      "halo_q": [0.6499625, 0.48084999999999994, 0.28626875000000002]
+    }
+  ]
+}
+root@87f509269b26:/app#

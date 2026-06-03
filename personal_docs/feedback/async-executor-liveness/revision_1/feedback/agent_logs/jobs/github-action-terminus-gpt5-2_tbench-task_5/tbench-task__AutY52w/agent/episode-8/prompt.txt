@@ -1,0 +1,155 @@
+Current terminal state:
+New Terminal Output:
+
+root@c3345729cf84:/app# python3 -m py_compile /app/scripts/executor_ctl.py
+root@c3345729cf84:/app# sed -n '1,40p' /app/scripts/executor_ctl.py
+#!/usr/bin/env python3
+import argparse, json, os
+from dataclasses import dataclass
+from typing import List, Dict, Tuple
+
+@dataclass
+class Entry:
+    kind: str
+    ident: str
+    lane: str = ""
+    at: int = 0
+    seq: int = 0
+    parent: str = "-"
+
+@dataclass
+class Item:
+    ident: str
+    parent: str
+    depth: int
+    lane: str
+    at: int
+    seq: int
+    chain: Tuple[str, ...]
+
+
+def read_plan(path: str):
+    name = os.path.splitext(os.path.basename(path))[0]
+    cap = 1
+    entries: List[Entry] = []
+    with open(path, 'r', encoding='utf-8') as f:
+        for raw in f:
+            line = raw.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split()
+            if parts[:1] == ["CAP"] and len(parts) == 2:
+                try:
+                    cap = int(parts[1])
+                except ValueError:
+                    cap = 1
+root@c3345729cf84:/app# tail -n 40 /app/scripts/executor_ctl.py
+    ap = argparse.ArgumentParser()
+    ap.add_argument('--case', dest='case_name')
+    ap.add_argument('--root', default='/app')
+    ap.add_argument('--out', default='/app/output/executor-audit.json')
+    ap.add_argument('--work', default='/app/output/runtime')
+    args = ap.parse_args()
+
+    names = [args.case_name] if args.case_name else ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+
+    cases_out = []
+    for name in names:
+        plan_path = os.path.join(args.root, 'data', 'cases', f'{name}.plan')
+        case_name, cap, entries = read_plan(plan_path)
+        items, drops = build_items(entries)
+        items = apply_drops(items, drops)
+        trace, pending = simulate(case_name, cap, items)
+
+        ledger_path = os.path.join(args.work, 'ledgers', f'{case_name}.jsonl')
+        journal_path = os.path.join(args.work, 'journals', f'{case_name}.txt')
+        write_ledger(ledger_path, trace)
+        write_journal(journal_path, trace)
+
+        finished = (len(pending) == 0)
+        cases_out.append({
+            "name": case_name,
+            "ok": finished,
+            "finished": finished,
+            "pending": pending,
+            "trace": trace,
+            "ledger": ledger_path,
+            "journal": journal_path,
+        })
+
+    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    with open(args.out, 'w', encoding='utf-8') as f:
+        json.dump({"cases": cases_out}, f, separators=(",", ":"), ensure_ascii=False)
+        f.write("\n")
+
+if __name__ == '__main__':
+    main()
+root@c3345729cf84:/app# python3 - <<'PY'
+> import json, os
+> from pathlib import Path
+>
+> audit_path = Path('/app/output/executor-audit.json')
+> audit = json.loads(audit_path.read_text())
+>
+> # Basic contract checks
+> wanted = ['amber','cobalt','drake','ember','flint','graphite']
+> assert [c['name'] for c in audit['cases']] == wanted
+>
+> def check_order(trace):
+>     # nondecreasing turn
+>     turns = [r['turn'] for r in trace]
+>     assert turns == sorted(turns)
+>     # within each turn: lanes sorted, within lane seq order is not present; we approximate by ensuring
+>     # stable per-lane order by appearance is consistent with nondecreasing turn then lane.
+>     for t in sorted(set(turns)):
+>         rows = [r for r in trace if r['turn']==t]
+>         lanes = [r['lane'] for r in rows]
+>         assert lanes == sorted(lanes)
+>
+> for case in audit['cases']:
+>     assert case['ok'] and case['finished'] and case['pending']==[]
+>     trace = case['trace']
+>     check_order(trace)
+>
+>     ledger = Path(case['ledger'])
+>     journal = Path(case['journal'])
+>     assert ledger.exists() and journal.exists()
+>
+>     ledger_rows = [json.loads(line) for line in ledger.read_text().splitlines() if line.strip()]
+>     assert ledger_rows == trace
+>
+>     journal_rows = []
+>     for line in journal.read_text().splitlines():
+>         if not line.strip():
+>             continue
+>         parts = line.split()
+>         assert len(parts)==6
+>         c, task, parent, depth, lane, turn = parts
+>         journal_rows.append({
+>             'case': c,
+>             'task': task,
+>             'parent': parent,
+>             'depth': int(depth),
+>             'lane': lane,
+>             'turn': int(turn),
+>         })
+>     assert journal_rows == trace
+>
+> # Specific drop/dedupe expectations
+> cases = {c['name']: c for c in audit['cases']}
+> assert all(r['task']!='drake-cut' and r['task']!='drake-shadow' for r in cases['drake']['trace'])
+> assert all(not r['task'].startswith('ember-left') and r['task'] not in ('ember-deep','ember-side') for r in cases['ember']['trace'])
+> assert all(r['task'] not in ('graphite-d','graphite-e') for r in cases['graphite']['trace'])
+> assert sum(1 for r in cases['flint']['trace'] if r['task']=='flint-a') == 1
+>
+> print('audit/ledger/journal validation OK')
+> PY
+audit/ledger/journal validation OK
+root@c3345729cf84:/app# cp /app/output/executor-audit.json /app/output/executor-audit.json.first
+root@c3345729cf84:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
+root@c3345729cf84:/app# diff -u /app/output/executor-audit.json.first /app/output/executor-audit.json || true
+diff: /app/output/executor-audit.json.first: No such file or directory
+root@c3345729cf84:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

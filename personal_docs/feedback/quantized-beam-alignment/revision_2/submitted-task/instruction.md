@@ -1,0 +1,9 @@
+The local inference sandbox under /app has started drifting on sequence outputs from its compressed integer paths. Repair it so /app/tools/run_local.sh writes two JSON files: /app/output/raw.json from the Rust stage and /app/output/report.json from the Go collation stage. The Rust release binary is required for raw output; cargo is on PATH in the runtime.
+
+The built-in case names are listed in /app/config/sets.txt. /app/output/raw.json is a JSON object whose raw array holds one built-in case row per entry. Each row includes the case name, produced token list, slot_trace list, order_used list, and three booleans — packed, grouped, and reuse — reflecting how that request ran.
+
+When a request runs on the packed path, each column position in a compressed integer row must receive its own scale and bias (for example scales [2, 3, 5] with biases [1, -1, 2]), not one shared scale applied across the whole row.
+
+/app/output/report.json has a rows array in the same shape (one row per built-in case, covering grouped requests and changed candidate order) plus a summary object with total for the full case count and agree. Set agree true iff every report row matches its raw counterpart on produced, slot_trace, order_used, packed, grouped, and reuse for each case name. Matching row counts alone is insufficient. Replacing an existing /app/output/report.json requires comparing incoming raw rows against the report rows already stored at that path; set agree false on any case-level mismatch across those six fields between the two row sets, including cases where newly written report rows match incoming raw but the prior report did not.
+
+For each case name, produced values in report.json must equal the corresponding raw entry. Keep the runner local and deterministic. Do not drop cases, merge rows from different requests, or mark agreement unless raw and final rows match on every field.

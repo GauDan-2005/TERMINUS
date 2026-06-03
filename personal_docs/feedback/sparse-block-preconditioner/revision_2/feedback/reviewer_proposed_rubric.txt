@@ -1,0 +1,31 @@
+Source: evaluations[1].overall_evaluation_result.children_results[claude_code_reviewer].metadata.output_data.rubric
+This is the rubric PROPOSED BY THE claude_code_reviewer AutoEval agent on the
+2026-05-28 evaluation. It is NOT the author-submitted rubric (see ../rubric.txt
+for the author rubric). Archived here for reference only.
+
+Positive-credit sum: 41 (Rubric1 +10, Rubric2 +16, Rubric3 +15).
+
+# Rubric 1
+Agent reads and explores key source files (bsr_n/layout.cpp, perm_p/order.cpp, prec_r/apply.cpp, scale_q/metric.cpp) to understand the solver pipeline before making edits, +2
+Agent identifies that the scripts reference /app/bin/solverctl which does not exist and takes action to either install the binary there or update the scripts, +2
+Agent successfully builds the project with CMake (cmake + make/build) at least once before running the audit scripts, +3
+Agent runs the solver (via scripts or binary directly) to observe failing output before attempting fixes, demonstrating diagnosis-before-repair, +2
+Agent identifies that reordered cases (shale, garnet, mica, opal with reorder=1) are the ones failing while non-reordered cases (basalt, flint) may already work correctly or nearly so, +1
+Agent modifies decoy files (spill_v/bucket.cpp or mirror_w/trace.cpp) that are not on the fix path, -3
+
+# Rubric 2
+Agent fixes the column index mapping in bsr_n/layout.cpp so that reordered layouts use the permutation array (a->perm[bj]) instead of the incorrect (bj+1)%nb shift, +5
+Agent fixes perm_p/order.cpp map_p to apply block-level permutation to the input vector using the permutation array and block size, rather than a plain memcpy, +3
+Agent fixes prec_r/apply.cpp step_r to use the correct diagonal inverse for the current block without the erroneous cyclic shift when reorder is active, +3
+Agent fixes scale_q/metric.cpp norm_q to return the pure L2 norm without the +1e-4 bias that causes residual_agrees to be false, +3
+Agent rebuilds the project after making source code changes (does not skip the rebuild step), +2
+Agent introduces changes to solve_s/driver.cpp or flow_t/report.cpp which do not need modification and risk breaking the PCG algorithm or JSON reporting, -3
+Agent replaces the entire solver logic (e.g., removing the PCG implementation or switching to a different algorithm) rather than fixing the specific bugs in the supporting modules, -5
+
+# Rubric 3
+Agent runs run-matrix.sh successfully after fixes, producing /app/output/solver-audit.json with all 6 cases showing ok=true, +5
+Agent verifies that residual_agrees is true for all cases (final_residual and reported_residual match within tolerance), +3
+Agent verifies that hit_limit is false for all cases (solver converges within the iteration cap), +2
+Agent runs run-one.sh for individual cases and confirms per-case JSON files are produced at /app/output/<name>-audit.json, +2
+Agent checks determinism by running the matrix audit twice and comparing JSON output to confirm equivalent results between runs, +3
+Agent leaves the binary unbuilt or scripts still pointing to a nonexistent path, making the audit scripts unable to produce output, -5

@@ -1,0 +1,20 @@
+New Terminal Output:
+
+root@c99a4b3814f2:/app# cp /app/output/executor-audit.json /tmp/first-run.json
+root@c99a4b3814f2:/app# bash /app/scripts/run-matrix.sh 2>/dev/null
+root@c99a4b3814f2:/app# diff /tmp/first-run.json /app/output/executor-audit.json
+root@c99a4b3814f2:/app# bash /app/scripts/run-one.sh drake /tmp/drake-audit.json /tmp/drake-work 2>/dev/null
+root@c99a4b3814f2:/app# python3 -c "
+> import json
+> with open('/tmp/drake-audit.json') as f:
+>     data = json.load(f)
+> for c in data['cases']:
+>     print(c['name'], c['ok'], c['finished'], c['pending'])
+>     for r in c['trace']:
+>         print(' ', r)
+> "
+drake True True []
+  {'case': 'drake', 'task': 'drake-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0}
+  {'case': 'drake', 'task': 'drake-keep', 'parent': 'drake-root', 'depth': 1, 'lane': 'lane-b', 'turn': 0}
+  {'case': 'drake', 'task': 'drake-late', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 2}
+root@c99a4b3814f2:/app#

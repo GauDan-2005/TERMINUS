@@ -1,0 +1,163 @@
+New Terminal Output:
+
+root@78e85912348b:/app# cat /app/acct_e/acct.c
+#include "../include/stats.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
+void xd3(Stats *a, ssize_t b) {
+    if (b > 0) {
+        a->allocated += (size_t)b + 8;
+    } else {
+        a->allocated -= (size_t)(-b);
+    }
+    if (a->allocated > a->peak) {
+        a->peak = a->allocated;
+    }
+}
+root@78e85912348b:/app# cat /app/acct_e/acct.h
+#ifndef ACCT_H
+#define ACCT_H
+
+#include "../include/stats.h"
+
+#include <sys/types.h>
+
+void xd3(Stats *a, ssize_t b);
+
+#endif
+root@78e85912348b:/app# cat /app/flow_g/report.c
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const CaseResult *res, int last) {
+    FILE *led = fopen(res->ledger_path, "w");
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
+    fprintf(fp, "      \"fl_count\": %d,\n", res->fl_count);
+    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
+    fprintf(fp, "      \"byte_total\": %zu,\n", res->byte_total);
+    fprintf(fp, "      \"ledger\": ");
+    esc(fp, res->ledger_path);
+    fprintf(fp, ",\n      \"steps\": [\n");
+    for (int i = 0; i < res->step_count; i++) {
+        const StepRec *st = &res->steps[i];
+        fprintf(fp,
+                "        {\"seq\": %d, \"op\": ", st->seq);
+        esc(fp, st->op);
+        fprintf(fp,
+                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+                st->byte_total);
+        if (i + 1 < res->step_count) {
+            fprintf(fp, ",");
+        }
+        fprintf(fp, "\n");
+        if (led) {
+            fprintf(led,
+                    "{\"seq\":%d,\"op\":", st->seq);
+            esc(led, st->op);
+            fprintf(led,
+                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+                    st->fl_sig, st->byte_total);
+        }
+    }
+    fprintf(fp, "      ]\n    }");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+    if (led) {
+        fclose(led);
+    }
+}
+
+int emit_e(const CaseResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    int i;
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+root@78e85912348b:/app# cat /app/drive_h/run.c
+#include "../include/plan.h"
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {
+    Arena arena;
+    int seq = 0;
+    memset(res, 0, sizeof(*res));
+    strncpy(res->name, plan->name, sizeof(res->name) - 1);
+    snprintf(res->ledger_path, sizeof(res->ledger_path), "%s/%s.ledger.jsonl", out_dir, plan->name);
+    arena_init(&arena);
+    for (int i = 0; i < plan->op_count; i++) {
+        const PlanOp *op = &plan->ops[i];
+        StepRec *st = &res->steps[res->step_count++];
+        st->seq = seq++;
+        st->index = op->index;
+        st->size = op->size;
+        st->result_index = -1;
+        if (op->kind == OP_ALLOC) {
+            strncpy(st->op, "alloc", sizeof(st->op) - 1);
+            st->result_index = arena_slot_alloc(&arena, op->size);
+        } else if (op->kind == OP_FREE) {
+            strncpy(st->op, "free", sizeof(st->op) - 1);
+            st->result_index = arena_slot_free(&arena, op->index);
+        } else if (op->kind == OP_REALLOC) {
+            strncpy(st->op, "realloc", sizeof(st->op) - 1);
+            st->result_index = arena_slot_realloc(&arena, op->index, op->size);
+        }
+        st->heap_sig = arena_heap_sig(&arena);
+        st->fl_count = arena_fl_count(&arena);
+        st->fl_sig = arena_fl_sig(&arena);
+        st->byte_total = arena.stats.allocated;
+    }
+    res->heap_sig = arena_heap_sig(&arena);
+    res->fl_count = arena_fl_count(&arena);
+    res->fl_sig = arena_fl_sig(&arena);
+    res->byte_total = arena.stats.allocated;
+    res->ok = 1;
+    return 0;
+}
+root@78e85912348b:/app#

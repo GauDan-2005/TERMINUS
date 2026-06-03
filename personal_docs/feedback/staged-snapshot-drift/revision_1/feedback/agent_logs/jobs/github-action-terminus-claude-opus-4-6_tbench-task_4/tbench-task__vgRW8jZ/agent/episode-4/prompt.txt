@@ -1,0 +1,122 @@
+New Terminal Output:
+
+root@a275cf72ec23:/app# cat /app/internal/b1/checkpoint.go
+package b1
+
+func checkpointB(rows []rowX) int {
+        last := 0
+        for _, row := range rows {
+                if row.Seq > last {
+                        last = row.Seq
+                }
+        }
+        return last
+}
+root@a275cf72ec23:/app# cat /app/internal/b1/log.go
+package b1
+
+func pushB(rows []rowX, row rowX) []rowX {
+        return append(rows, row)
+}
+root@a275cf72ec23:/app# cat /app/internal/b1/replay.go
+package b1
+
+import (
+        "sort"
+
+        "staged.local/snapshot/internal/f5"
+)
+
+type rowX = f5.Row
+
+func fold_b(a []rowX, b uint64) ([]rowX, error) {
+        out := make([]rowX, len(a))
+        copy(out, a)
+        sort.SliceStable(out, func(i, j int) bool {
+                return out[i].Seq < out[j].Seq
+        })
+        if b&1 == 1 {
+                for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
+                        out[left], out[right] = out[right], out[left]
+                }
+        }
+        return out, nil
+}
+
+func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
+        var flags uint64
+        if profile.Restart && profile.Ordered {
+                flags |= 1
+        }
+        return fold_b(rows, flags)
+}
+root@a275cf72ec23:/app# cat /app/internal/c2/roll.go
+package c2
+
+import (
+        "sort"
+        "strings"
+
+        "staged.local/snapshot/internal/e4"
+        "staged.local/snapshot/internal/f5"
+)
+
+type mapX struct {
+        Items map[string]entryX
+}
+
+type entryX struct {
+        Path   string
+        Bytes  int
+        Period string
+}
+
+func mark_c(a *mapX, b uint64, c []entryX) error {
+        if a.Items == nil {
+                a.Items = map[string]entryX{}
+        }
+        for _, item := range c {
+                if b&1 == 1 && item.Period == "p1" {
+                        item.Period = "p0"
+                }
+                a.Items[item.Path] = item
+        }
+        return nil
+}
+
+func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
+        bytesByPath, err := e4.NativeBytes(root)
+        if err != nil {
+                return nil, err
+        }
+        entries := []entryX{}
+        for path, size := range bytesByPath {
+                period := "p0"
+                if profile.Roll && strings.HasPrefix(path, "d/") {
+                        period = "p1"
+                }
+                entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
+        }
+        sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+        store := &mapX{}
+        var flags uint64
+        if profile.Restart && profile.Roll {
+                flags |= 1
+        }
+        if err := mark_c(store, flags, entries); err != nil {
+                return nil, err
+        }
+        items := make([]f5.AccountItem, 0, len(store.Items))
+        for _, item := range store.Items {
+                items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
+        }
+        sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+        return items, nil
+}
+root@a275cf72ec23:/app# cat /app/internal/c2/table.go
+package c2
+
+func newC() *mapX {
+        return &mapX{Items: map[string]entryX{}}
+}
+root@a275cf72ec23:/app#

@@ -1,0 +1,106 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ✅ PASS
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires debugging a plugin-style runtime with Node.js orchestration
+and a Rust native helper. The agent must identify and fix logic bugs across
+five source files (four JS modules and one Rust crate) so that `npm run matrix`
+produces correct per-scenario records and a folded aggregate in
+`/app/outcome/report.json`. The solution repairs carry-state propagation,
+deferred-value ownership, descriptor-factor caching, aggregate health
+computation, and native-revision normalization. The test suite contains 12
+functions that verify correct output for six scenarios, aggregate integrity,
+Rust compilation, and deterministic re-runs.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Installed in Dockerfile
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 24-26)
+Problem: pytest and pytest-json-ctrf are installed in the Docker image rather
+         than in test.sh. While this is documented as intentional (test.sh
+         comment at line 3-4) and isolated in /opt/pytest venv, it deviates
+         from the standard pattern where test.sh installs its own dependencies.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN /opt/pytest/bin/pip install --no-cache-dir \                           │
+│          pytest==8.4.1 \                                                    │
+│          pytest-json-ctrf==0.3.5                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: The venv isolation at /opt/pytest mitigates agent access concerns,
+and the test.sh comment documents this as deliberate. However, agents can
+still discover and invoke pytest from PATH. Acceptable if this is a
+project-level convention, but worth noting for portability.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Instruction Clarity on Record Schema Could Use a Structured Example
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 3-4)
+
+Current approach: The schema for report.json is described inline in prose,
+listing field names across two sentences.
+
+Suggested improvement:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  ### Output Schema                                                          │
+│                                                                             │
+│  ```json                                                                    │
+│  {                                                                          │
+│    "records": [                                                             │
+│      { "name": str, "rows": [...], "finalCounter": int,                    │
+│        "dependencyTotal": int, "acceptedOlder": bool, "healthy": bool }    │
+│    ],                                                                       │
+│    "aggregate": { "source": str, "recordCount": int, ... }                 │
+│  }                                                                          │
+│  ```                                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Rationale: A structured example alongside the prose would reduce ambiguity
+for agents unfamiliar with the domain vocabulary. Not blocking since the
+existing prose does name every field.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-crafted debugging task that tests deep code comprehension across
+a polyglot codebase. The bugs are subtle, semantically meaningful, and require
+understanding state propagation—not just syntax fixes. The test suite provides
+thorough coverage with clear docstrings and deterministic behavior.
+
+Key Strengths:
+  ✓ Bugs require genuine reasoning about carry state, caching, and ownership
+  ✓ Comprehensive 12-function test suite with excellent behavior coverage
+  ✓ Strong anti-cheating: agent cannot shortcut without understanding logic
+  ✓ Deterministic stability test ensures no flaky state between runs
+
+Key Weaknesses:
+  ✗ Test dependencies pre-installed in image (minor, intentional deviation)
+
+Evaluates: Multi-language debugging, state-propagation reasoning, Rust/Node
+           interop comprehension, codebase navigation
+
+================================================================================
+  RECOMMENDATION: ✅ READY TO USE
+
+  The task is structurally sound, has excellent behavior coverage, and tests
+  meaningful debugging skills at an appropriate hard difficulty level.
+================================================================================

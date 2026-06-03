@@ -1,0 +1,30 @@
+{
+  "analysis": "I've found the key bugs:\n\n1. **`agg_q/blend.cpp` (fold_q)**: During cell merge/collapse, it sums `q` values directly and divides by count `n`. Since `q` is a density (quantity per volume), the conserved total is `vol*q`. The correct formula is `parent.q[v] = sum(vol[i]*q[i]) / sum_vol`, but code does `sum(q[i]) / n`.\n\n2. **`acc_m/edge_corr.cpp` (op_m)**: Only stores the first subface's flux in the bank, ignoring all other children. Should store one entry per subface.\n\n3. **Snapshot round-trip (`srl_p/serial.cpp` and `rsm_k/resume.cpp`)**: `emit_p` only saves the grid cells. `load_k` zeroes the topo and bank. After persist, `apply_reflux` operates on a zeroed bank (no-op), causing divergence from non-restart runs.\n\nLet me look at the remaining files to confirm understanding, then fix all bugs.",
+  "plan": "Look at remaining source files (ic_loader, case_io, case_spec.h, etc.) to get complete picture, then fix the three bugs.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/include/ic_loader.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/include/case_spec.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/src/case_io.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/sync_b/halo.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/config/cases.toml\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/CMakeLists.txt\n",
+      "duration": 0.1
+    }
+  ]
+}

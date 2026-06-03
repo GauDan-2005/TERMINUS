@@ -1,0 +1,35 @@
+{
+  "analysis": "Determinism check passes (two matrix runs identical). Remaining problem: storm and canyon still drift; balanced remains false for do_flux scenarios because op_m patch did not apply due to perl substitution error (the replacement string contained unescaped '[' in a regex context within the perl one-liner). We need to edit edge_corr.cpp reliably, e.g., overwrite the file with a heredoc using cat. Once op_m records per-subface fluxes, balanced should become true and drift for storm/canyon should drop to ~0. Also basin/dune balanced should become true (they do_flux but may or may not have refined seams). Next: rewrite /app/acc_m/edge_corr.cpp with correct implementation, rebuild, rerun matrix, and verify all scenarios base_match true and balanced true where expected. Also rerun run-replay for basin to ensure still OK.",
+  "plan": "1) Overwrite /app/acc_m/edge_corr.cpp using cat <<'EOF' to avoid fragile regex edits. Implement op_m to loop over subfaces, pushing entries into FluxBank for each leaf with correct flux indexing. 2) Rebuild. 3) Run matrix and inspect audit json to confirm storm/canyon drift_ratio 0 and base_match true; balanced true for flux scenarios with refined cells. 4) Run basin replay again and verify unchanged. 5) Copy audit output to /tmp and optionally compute sha256 to confirm stable.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/acc_m/edge_corr.cpp <<'EOF'\n#include \"../include/flow_record.h\"\n\nvoid op_m(const EdgePulse *a, FluxBank *b) {\n    if (!a || !b) return;\n    if (a->subfaces <= 0) return;\n\n    // Record one reflux entry per refined subface.\n    // EdgePulse::flux_vals layout: flux_vals[j * NVAR + v]\n    for (int j = 0; j < a->subfaces; j++) {\n        if (b->n_pending >= MAX_FACES) return;\n        int slot = b->n_pending++;\n        b->leaf[slot] = a->base_idx + j;\n        for (int v = 0; v < NVAR; v++) {\n            b->flux[slot * NVAR + v] = a->flux_vals[j * NVAR + v];\n        }\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/acc_m/edge_corr.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-replay.sh basin\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cat /app/output/basin-replay.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

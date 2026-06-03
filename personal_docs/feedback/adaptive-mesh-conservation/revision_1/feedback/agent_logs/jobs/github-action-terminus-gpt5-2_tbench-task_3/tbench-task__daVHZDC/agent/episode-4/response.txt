@@ -1,0 +1,27 @@
+{
+  "analysis": "The collapse scenarios (plume, spire) are now conserved: after_total matches base_total (base_match true) and drift_ratio ~ 0. The flux-only scenarios (storm, canyon) still drift exactly as before, so the remaining bug is in the flux/reflux path used when do_flux=1 during/after refinement. Likely the edge pulse application (acc_m/edge_corr.cpp op_m?) or subsequent correction step does not conserve totals (e.g., adding flux to every leaf without balancing, sign error, or missing volume normalization). Next: inspect acc_m/edge_corr.cpp and where the bank is applied; also inspect drv_u/run.cpp / run_sync.cpp for application order. Then fix the correction so that net sum of updates over the k leaves is zero per variable (conservative).",
+  "plan": "1) Inspect flux correction code: acc_m/edge_corr.cpp, include/flow_record.h, and where bank is applied (search for bank.n_pending, op_m, and any apply function). 2) Verify if ep.flux_vals is meant to be added directly to q or to (vol*q). Current computation uses cell->vol*(qbar-q), which already has volume factor; if later code treats it as delta-q, it will drift. 3) Patch application to update conserved mass (vol*q) consistently, i.e., q += flux/vol, and ensure sum(flux) over subfaces is zero. 4) Rebuild and rerun matrix plus storm replay to confirm drift eliminated and reports stable.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/acc_m/edge_corr.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/include/flow_record.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rg -n \"op_m\\(|n_pending|bank\\.\" /app -S\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/run_sync.cpp\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

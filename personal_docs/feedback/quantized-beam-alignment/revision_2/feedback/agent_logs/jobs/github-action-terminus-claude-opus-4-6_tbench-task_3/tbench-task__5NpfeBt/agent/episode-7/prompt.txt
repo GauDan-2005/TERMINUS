@@ -1,0 +1,146 @@
+New Terminal Output:
+
+root@f58f1763d536:/app# set +H
+root@f58f1763d536:/app# python3 << 'PYEOF'
+> import os
+>
+> content = """package main
+>
+> import (
+> \t"encoding/json"
+> \t"os"
+> )
+>
+> type entry struct {
+> \tCase      string \x60json:"case"\x60
+> \tProduced  []int  \x60json:"produced"\x60
+> \tTrace     []int  \x60json:"slot_trace"\x60
+> \tOrderUsed []int  \x60json:"order_used"\x60
+> \tPacked    bool   \x60json:"packed"\x60
+> \tGrouped   bool   \x60json:"grouped"\x60
+> \tReuse     bool   \x60json:"reuse"\x60
+> }
+>
+> type rawDoc struct {
+> \tRaw []entry \x60json:"raw"\x60
+> }
+>
+> type finalDoc struct {
+> \tRows    []entry        \x60json:"rows"\x60
+> \tSummary map[string]any \x60json:"summary"\x60
+> }
+>
+> func sliceEqInt(a, b []int) bool {
+> \tif len(a) != len(b) {
+> \t\treturn false
+> \t}
+> \tfor i := range a {
+> \t\tif a[i] != b[i] {
+> \t\t\treturn false
+> \t\t}
+> \t}
+> \treturn true
+> }
+>
+> func entriesMatch(a, b entry) bool {
+> \tif a.Case != b.Case {
+> \t\treturn false
+> \t}
+> \tif !sliceEqInt(a.Produced, b.Produced) {
+> \t\treturn false
+> \t}
+> \tif !sliceEqInt(a.Trace, b.Trace) {
+> \t\treturn false
+> \t}
+> \tif !sliceEqInt(a.OrderUsed, b.OrderUsed) {
+> \t\treturn false
+> \t}
+> \tif a.Packed != b.Packed {
+> \t\treturn false
+> \t}
+> \tif a.Grouped != b.Grouped {
+> \t\treturn false
+> \t}
+> \tif a.Reuse != b.Reuse {
+> \t\treturn false
+> \t}
+> \treturn true
+> }
+>
+> func main() {
+> \tif len(os.Args) != 3 {
+> \t\tpanic("usage: align raw final")
+> \t}
+> \tbuf, err := os.ReadFile(os.Args[1])
+> \tif err != nil {
+> \t\tpanic(err)
+> \t}
+> \tvar raw rawDoc
+> \tif err := json.Unmarshal(buf, &raw); err != nil {
+> \t\tpanic(err)
+> \t}
+>
+> \treportRows := make([]entry, len(raw.Raw))
+> \tcopy(reportRows, raw.Raw)
+>
+> \tagree := true
+>
+> \treportPath := os.Args[2]
+> \tif oldBuf, err := os.ReadFile(reportPath); err == nil {
+> \t\tvar oldDoc finalDoc
+> \t\tif err := json.Unmarshal(oldBuf, &oldDoc); err == nil {
+> \t\t\toldMap := make(map[string]entry)
+> \t\t\tfor _, r := range oldDoc.Rows {
+> \t\t\t\toldMap[r.Case] = r
+> \t\t\t}
+> \t\t\tnewMap := make(map[string]entry)
+> \t\t\tfor _, r := range raw.Raw {
+> \t\t\t\tnewMap[r.Case] = r
+> \t\t\t}
+> \t\t\tallCases := make(map[string]bool)
+> \t\t\tfor k := range oldMap {
+> \t\t\t\tallCases[k] = true
+> \t\t\t}
+> \t\t\tfor k := range newMap {
+> \t\t\t\tallCases[k] = true
+> \t\t\t}
+> \t\t\tfor c := range allCases {
+> \t\t\t\toldEntry, oldOk := oldMap[c]
+> \t\t\t\tnewEntry, newOk := newMap[c]
+> \t\t\t\tif !oldOk || !newOk {
+> \t\t\t\t\tagree = false
+> \t\t\t\t\tbreak
+> \t\t\t\t}
+> \t\t\t\tif !entriesMatch(oldEntry, newEntry) {
+> \t\t\t\t\tagree = false
+> \t\t\t\t\tbreak
+> \t\t\t\t}
+> \t\t\t}
+> \t\t} else {
+> \t\t\tagree = false
+> \t\t}
+> \t}
+>
+> \tdoc := finalDoc{
+> \t\tRows: reportRows,
+> \t\tSummary: map[string]any{
+> \t\t\t"total": len(reportRows),
+> \t\t\t"agree": agree,
+> \t\t},
+> \t}
+> \tout, err := json.MarshalIndent(doc, "", "  ")
+> \tif err != nil {
+> \t\tpanic(err)
+> \t}
+> \tif err := os.WriteFile(reportPath, append(out, 10), 0o644); err != nil {
+> \t\tpanic(err)
+> \t}
+> }
+> """
+>
+> with open('/app/cmd/align/main.go', 'w') as f:
+>     f.write(content)
+> print('done')
+> PYEOF
+done
+root@f58f1763d536:/app#

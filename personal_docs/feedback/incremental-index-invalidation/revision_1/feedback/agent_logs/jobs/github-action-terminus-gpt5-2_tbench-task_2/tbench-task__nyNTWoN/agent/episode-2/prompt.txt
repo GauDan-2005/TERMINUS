@@ -1,0 +1,47 @@
+New Terminal Output:
+
+root@b06a763a4346:/app# cd /app
+root@b06a763a4346:/app# cat /app/Cargo.toml
+[package]
+name = "incremental-index-invalidation"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "idxlab"
+path = "src/lib.rs"
+
+[[bin]]
+name = "idxlab"
+path = "src/main.rs"
+root@b06a763a4346:/app# find /app/src -maxdepth 2 -type f -name '*.rs' -print
+/app/src/io.rs
+/app/src/lib.rs
+/app/src/main.rs
+/app/src/model.rs
+/app/src/report.rs
+/app/src/runner.rs
+root@b06a763a4346:/app# sed -n '1,200p' /app/src/main.rs
+use std::env;
+use std::path::PathBuf;
+
+fn main() {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() < 2 {
+        eprintln!("usage: idxlab <report> <trace> [trace ...]");
+        std::process::exit(2);
+    }
+    let out = PathBuf::from(&args[0]);
+    let traces: Vec<PathBuf> = args[1..].iter().map(PathBuf::from).collect();
+    if let Err(err) = idxlab::runner::run_all(&out, &traces) {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
+}
+root@b06a763a4346:/app# grep -RIn --line-number "index-report" /app/src /app/r0 /app/r1 /app/r2 /app/r3 /app/r4 /app/r5 /app/r6 /app/r7 /app/r8 || true
+root@b06a763a4346:/app# grep -RIn --line-number "output" /app/src/main.rs /app/src 2>/dev/null | head
+root@b06a763a4346:/app# grep -RIn --line-number "include_str!(\|serde_json::from_str\|fixtures\|ws-old\|app-old\|gen-v1" /app/src /app/r0 /app/r1 /app/r2 /app/r
+3 /app/r4 /app/r5 /app/r6 /app/r7 /app/r8 || true
+bash: !: event not found
+root@b06a763a4346:/app# grep -RIn --line-number "\\\"cases\\\"" /app/src /app/r0 /app/r1 /app/r2 /app/r3 /app/r4 /app/r5 /app/r6 /app/r7 /app/r8 || true
+root@b06a763a4346:/app#

@@ -1,0 +1,43 @@
+{
+  "analysis": "The matrix run is deterministic enough, but our attempt to diff failed because solver-audit.run1.json was deleted: run-matrix.sh calls clean-room.sh which rm -rf /app/output, wiping run1 before run2. So scripts must be adjusted to not delete prior output when doing repeated runs, or at least preserve solver-audit.json elsewhere before the next run. More importantly, correctness: in run_u() true_res is computed via l2_norm, rep_res via norm_q; yet the JSON shows final_residual=0 and reported_residual=0.0001 consistently. That suggests norm_q() is returning a constant 1e-4 (likely a placeholder), and/or l2_norm result is being clobbered or computed on a zero-length vector (view.n maybe 0) or r is all zeros. Need to inspect norm_q implementation and matrix/rhs construction, and likely fix metric.cpp (norm_q) and/or mapping/permutation dims. Also ok uses true_res < 1e-8 so if true_res is wrongly 0, ok could become true but residual_agrees false keeps ok false. We must align reported_residual to independently computed residual and ensure iterations/hit_limit reflect PCG run.",
+  "plan": "1) Fix determinism testing by copying audit output outside /app/output before the next run (e.g., /tmp). Also adjust scripts: clean-room should not delete output for matrix runs, or run-matrix/run-one should write into a fresh temp dir then atomically move resulting json into /app/output, leaving other files intact. 2) Inspect /app/scale_q/metric.cpp for norm_q() returning wrong values, and inspect matrix_view / case loading to ensure view.n is correct. 3) Run solverctl one basalt and add a quick debug by temporarily printing view.n and residual values or use gdb? Prefer code inspection then patch. 4) Patch norm_q to compute true L2 norm in double. If norm_q is intended to compute L2 but currently uses float/int or returns fixed epsilon, correct it. 5) Rebuild, rerun audits, then verify all cases ok/residual_agrees. 6) Update scripts to produce stable JSON and allow two consecutive matrix runs to be diffed.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/include/matrix_view.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/case_io.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RIn \"double norm_q\" -n /app\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /tmp/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /tmp/solver-audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

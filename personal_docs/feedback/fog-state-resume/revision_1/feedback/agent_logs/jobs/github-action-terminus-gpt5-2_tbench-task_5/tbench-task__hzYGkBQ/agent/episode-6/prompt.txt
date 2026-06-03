@@ -1,0 +1,78 @@
+New Terminal Output:
+
+root@81dea2c5d812:/app# grep -nR --line-number -E "func (runDirect|runLoaded|playUntilSave)" /app/internal/f5/run.go
+163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+185:func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+root@81dea2c5d812:/app# grep -nR --line-number -E "runDirect\(|runLoaded\(|playUntilSave\(" /app/internal/f5/run.go | head -n 50
+163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+185:func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+246:    blob, stale := playUntilSave(wFresh, steps, profile, radius)
+247:    freshMoves := runDirect(wFresh, steps, profile, radius)
+251:    playUntilSave(wResume, steps, profile, radius)
+252:    resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+root@81dea2c5d812:/app# sed -n '420,820p' /app/internal/f5/run.go
+root@81dea2c5d812:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: internal/f5/run.go
+> @@
+> -        allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+> +        // The audit's Moves/records/log must describe a single resolved move list
+> +        // (the same list in the same order) for the scenario.
+> +        // Fresh and resume are two execution paths that must reconcile to that list.
+> +        //
+> +        // Previously we concatenated fresh+resume which masked mismatches and made
+> +        // the reported move list diverge from what the per-path signatures covered.
+> +        resolvedMoves := append([]MoveRow{}, freshMoves...)
+> @@
+> -        flushRows(recPath, logPath, name, allMoves)
+> +        flushRows(recPath, logPath, name, resolvedMoves)
+> @@
+> -        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+> -        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+> -        ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+> +        // Signature is over the resolved move list for the path.
+> +        // If the two paths resolve the same move list, their signatures must match.
+> +        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+> +        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+> +        ok := freshIllegal == 0 && resumeIllegal == 0 && len(freshMoves) == len(resumeMoves)
+> +        if ok {
+> +                for i := range freshMoves {
+> +                        if freshMoves[i] != resumeMoves[i] {
+> +                                ok = false
+> +                                break
+> +                        }
+> +                }
+> +        }
+> @@
+>                  Name:       name,
+>                  OK:         ok,
+>                  Fresh:      fresh,
+>                  Resume:     resume,
+> -                Moves:      allMoves,
+> +                Moves:      resolvedMoves,
+>                  Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+>                  Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+>                  Records:    recPath,
+>                  Log:        logPath,
+>          }, nil
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+root@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+root@81dea2c5d812:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+> for c in data['cases']:
+>     print(c['name'], 'ok='+str(c['ok']), 'fresh_sig='+c['fresh']['sig'], 'resume_sig='+c['resume']['sig'], 'moves='+str(len(c['moves'])))
+> PY
+bishop ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+knight ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+lancer ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+rook ok=False fresh_sig=7d3f56fa resume_sig=24ebc3c9 moves=2
+sentinel ok=False fresh_sig=9a98d68 resume_sig=691e8e87 moves=2
+warden ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+root@81dea2c5d812:/app#

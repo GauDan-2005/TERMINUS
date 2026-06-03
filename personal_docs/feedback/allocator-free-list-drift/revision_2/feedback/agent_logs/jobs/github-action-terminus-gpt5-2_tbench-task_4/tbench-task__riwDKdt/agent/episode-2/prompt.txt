@@ -1,0 +1,90 @@
+New Terminal Output:
+
+root@22c06df5625c:/app# python3 - <<'PY'
+> import json,sys
+> p='/app/output/alloc-audit.json'
+> obj=json.load(open(p))
+> print('top keys',sorted(obj.keys()))
+> cases=obj.get('cases')
+> print('cases',len(cases))
+> print('order',[c.get('name') for c in cases])
+> need_case={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> need_step={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> for c in cases:
+>     miss=need_case-set(c)
+>     if miss: print('CASE missing',c.get('name'),miss)
+>     steps=c.get('steps',[])
+>     if not steps:
+>         print('no steps',c.get('name')); continue
+>     # check step fields and monotonic seq
+>     for i,s in enumerate(steps):
+>         m=need_step-set(s)
+>         if m:
+>             print('STEP missing',c.get('name'),i,m)
+>             break
+>         if s['seq']!=i:
+>             print('seq mismatch',c.get('name'),i,'got',s['seq']);break
+>     last=steps[-1]
+>     for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+>         if c.get(k)!=last.get(k):
+>             print('summary!=last',c.get('name'),k,c.get(k),last.get(k))
+> print('done')
+> PY
+top keys ['cases']
+cases 6
+order ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+done
+root@22c06df5625c:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> obj=json.load(open('/app/output/alloc-audit.json'))
+> for c in obj['cases']:
+>     lp=Path(c['ledger'])
+>     if not lp.exists():
+>         print('missing ledger',c['name'],lp); continue
+>     rows=[]
+>     for line in lp.read_text().splitlines():
+>         rows.append(json.loads(line))
+>     if len(rows)!=len(c['steps']):
+>         print('ledger len mismatch',c['name'],len(rows),len(c['steps']))
+>     # ensure required fields present in ledger rows
+>     need={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+>     for i,r in enumerate(rows[:5]):
+>         pass
+>     for i,r in enumerate(rows):
+>         m=need-set(r)
+>         if m:
+>             print('ledger missing fields',c['name'],i,m);break
+>         if r['seq']!=i:
+>             print('ledger seq mismatch',c['name'],i,'got',r['seq']);break
+> print('ledger check done')
+> PY
+ledger check done
+root@22c06df5625c:/app# cp /app/output/alloc-audit.json /app/output/alloc-audit.1.json
+root@22c06df5625c:/app# bash /app/scripts/run-matrix.sh
+root@22c06df5625c:/app# cp /app/output/alloc-audit.json /app/output/alloc-audit.2.json
+root@22c06df5625c:/app# python3 - <<'PY'
+> import hashlib
+> for p in ['/app/output/alloc-audit.1.json','/app/output/alloc-audit.2.json']:
+>     h=hashlib.sha256(open(p,'rb').read()).hexdigest()
+>     print(p,h)
+> PY
+/app/output/alloc-audit.1.json 1529282ff8690b3d8a4fc70ab51473106298f3194bb31ad116ddb4143b3a7442
+/app/output/alloc-audit.2.json 1529282ff8690b3d8a4fc70ab51473106298f3194bb31ad116ddb4143b3a7442
+root@22c06df5625c:/app# diff -u /app/output/alloc-audit.1.json /app/output/alloc-audit.2.json | head -n 80
+root@22c06df5625c:/app# bash /app/scripts/run-one.sh cedar
+root@22c06df5625c:/app# ls -la /app/output/*cedar*
+-rw-r--r-- 1 root root 979 May 28 10:56 /app/output/cedar-audit.json
+-rw-r--r-- 1 root root 608 May 28 10:56 /app/output/cedar.ledger.jsonl
+root@22c06df5625c:/app# python3 - <<'PY'
+> import json
+> p='/app/output/cedar-audit.json'
+> obj=json.load(open(p))
+> print('keys',obj.keys())
+> print('cases type',type(obj.get('cases')).__name__,'len',len(obj.get('cases',[])))
+> print('case keys',sorted(obj['cases'][0].keys()))
+> PY
+keys dict_keys(['cases'])
+cases type list len 1
+case keys ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+root@22c06df5625c:/app#

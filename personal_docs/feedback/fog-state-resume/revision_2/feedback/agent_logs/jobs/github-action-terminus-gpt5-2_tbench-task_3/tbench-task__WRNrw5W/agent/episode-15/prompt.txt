@@ -1,0 +1,92 @@
+New Terminal Output:
+
+root@59645c3f7916:/app# perl -pi -e 's/func runDirect\(w \*World, steps \[\]ScriptStep, profile Profile, radius int\) \[\]MoveRow/func runDirect(w *World, steps
+ []ScriptStep, saveTurn int, profile Profile, radius int) []MoveRow/' /app/internal/exec/run.go
+root@59645c3f7916:/app# perl -0777 -pi -e 's/freshMoves := runDirect\(wFresh, steps, profile, radius\)/freshMoves := runDirect(wFresh, steps, blob.Turn, profile
+, radius)/' /app/internal/exec/run.go
+root@59645c3f7916:/app# perl -0777 -pi -e 's/moves := \[\]MoveRow\{\}\n\s*pastSave := false/{\n\t\tstartTurn := saveTurn\n\t\tpastSave := false\n\t\tfor _, st :
+= range steps {\n\t\t\tif st.Action == "save" {\n\t\t\t\tpastSave = true\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tif !pastSave {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tstar
+tTurn = st.Turn\n\t\t\tbreak\n\t\t}\n\t\tw.Effects = mapSnaps(mod.SyncBoundary(snapToMod(w.Effects), saveTurn, startTurn))\n\t}\n\tmoves := []MoveRow{}\n\tpastS
+ave := false/s' /app/internal/exec/run.go
+root@59645c3f7916:/app# grep -n "func runDirect" -n /app/internal/exec/run.go; sed -n '175,230p' /app/internal/exec/run.go
+193:func runDirect(w *World, steps []ScriptStep, saveTurn int, profile Profile, radius int) []MoveRow {
+                        blob = packWorld(w, vis)
+                        break
+                }
+                if step.Actor == "P" {
+                        applyPlayer(w, step.Arg)
+                        vis.ApplyLit(w, radius, blindNow(w))
+                        visStale = buildObs(w, nil)
+                }
+                if step.Actor == "H" {
+                        // Advance hostiles during the pre-save phase so the packed world
+                        // matches the direct run state at the save boundary.
+                        _ = advanceAll(w, buildObs(w, nil))
+                        vis.ApplyLit(w, radius, blindNow(w))
+                }
+        }
+        return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, saveTurn int, profile Profile, radius int) []MoveRow {
+        {
+                startTurn := saveTurn
+                pastSave := false
+                for _, st := range steps {
+                        if st.Action == "save" {
+                                pastSave = true
+                                continue
+                        }
+                        if !pastSave {
+                                continue
+                        }
+                        startTurn = st.Turn
+                        break
+                }
+                w.Effects = mapSnaps(mod.SyncBoundary(snapToMod(w.Effects), saveTurn, startTurn))
+        }
+        moves := []MoveRow{}
+        pastSave := false
+        for _, step := range steps {
+                if step.Action == "save" {
+                        pastSave = true
+                        continue
+                }
+                if !pastSave {
+                        continue
+                }
+                w.Turn = step.Turn
+                if step.Actor == "P" {
+                        applyPlayer(w, step.Arg)
+                        vis.ApplyLit(w, radius, blindNow(w))
+                }
+                if step.Actor == "H" {
+                        moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+                        vis.ApplyLit(w, radius, blindNow(w))
+                }
+        }
+        return moves
+root@59645c3f7916:/app# make -C /app
+make: Entering directory '/app'
+mkdir -p /app/bin
+go build -o /app/bin/rogctl ./cmd/rogctl
+make: Leaving directory '/app'
+root@59645c3f7916:/app# bash /app/scripts/run-matrix.sh
+root@59645c3f7916:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f:
+>     d=json.load(f)
+> print('bad', sum(1 for c in d['cases'] if not c.get('ok')))
+> for c in d['cases']:
+>     vis=c.get('visibility',{})
+>     if vis.get('fresh_seen')!=vis.get('resume_seen'):
+>         print('VIS_MISMATCH', c['name'], vis)
+> PY
+bad 5
+VIS_MISMATCH knight {'fresh_seen': 7, 'resume_seen': 4}
+VIS_MISMATCH lancer {'fresh_seen': 18, 'resume_seen': 15}
+VIS_MISMATCH ranger {'fresh_seen': 9, 'resume_seen': 8}
+VIS_MISMATCH rook {'fresh_seen': 9, 'resume_seen': 8}
+VIS_MISMATCH sentinel {'fresh_seen': 9, 'resume_seen': 8}
+root@59645c3f7916:/app#

@@ -1,0 +1,31 @@
+{
+  "analysis": "Matrix run now completes and writes /app/output/executor-audit.json; all cases report ok/finished with no pending, and two consecutive runs are identical. However, the Python script file has a corruption/typo introduced during heredoc entry: an extra `\",>` token appears in compute_dropped, though it seemingly didn’t break execution (likely it’s in output transcript but may also be in file and could be ignored if it landed in a comment-less context it should have caused SyntaxError). We must open the file to confirm its actual contents and fix any stray characters to ensure robustness. Also ensure ledger/journal ordering matches trace order and paths exist.",
+  "plan": "1) Inspect /app/scripts/executor_ctl.py around compute_dropped to confirm no syntax corruption; fix if present. 2) Validate that for each case the ledger JSONL and journal TXT exist and have same number of rows as trace and same order. 3) Spot-check a case with DROP (drake/ember/graphite) to confirm dropped descendants are absent and parent/depth retained for accepted rows. 4) Re-run run-one.sh for one case to ensure it works.",
+  "commands": [
+    {
+      "keystrokes": "python3 -m py_compile /app/scripts/executor_ctl.py\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "nl -ba /app/scripts/executor_ctl.py | sed -n '40,110p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,os\np='/app/output/executor-audit.json'\nd=json.load(open(p))\nfor c in d['cases']:\n    led=c['ledger']; jrn=c['journal']\n    lt=sum(1 for _ in open(led))\n    jt=sum(1 for _ in open(jrn))\n    tt=len(c['trace'])\n    print(c['name'], 'trace',tt,'ledger',lt,'journal',jt)\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/executor-audit.json'\nd=json.load(open(p))\nfor nm in ['drake','ember','graphite']:\n    c=next(x for x in d['cases'] if x['name']==nm)\n    tasks=[r['task'] for r in c['trace']]\n    print(nm, tasks)\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -lc 'bash /app/scripts/run-one.sh drake /app/output/one-drake.json /app/output/one-runtime'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 -c 'import json;print(json.load(open(\"/app/output/one-drake.json\"))[\"cases\"][0][\"name\"], len(json.load(open(\"/app/output/one-drake.json\"))[\"cases\"][0][\"trace\"]))'\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,143 @@
+New Terminal Output:
+
+root@1927511641be:/app# cat > /app/host_d/host.rs << 'EOF'
+> use std::collections::BTreeMap;
+>
+> use crate::core_a::E0;
+> use crate::types_f::Item;
+>
+> pub struct S2 {
+>     pub items: BTreeMap<String, Item>,
+> }
+>
+> pub struct R1 {
+>     pub item: Item,
+> }
+>
+> pub struct R2 {
+>     pub item: Item,
+> }
+>
+> impl S2 {
+>     pub fn new() -> Self {
+>         Self { items: BTreeMap::new() }
+>     }
+> }
+>
+> pub fn bind_d(a: &mut S2, b: R1) -> Result<R2, E0> {
+>     let item = b.item.clone();
+>     a.items.insert(item.ident.clone(), item.clone());
+>     Ok(R2 { item })
+> }
+> EOF
+root@1927511641be:/app# cat > /app/gate_c/gate.rs << 'EOF'
+> use std::collections::BTreeSet;
+>
+> use crate::core_a::R0;
+>
+> pub struct S1 {
+>     pub removed: BTreeSet<String>,
+> }
+>
+> impl S1 {
+>     pub fn new(removed: BTreeSet<String>) -> Self {
+>         Self { removed }
+>     }
+> }
+>
+> pub fn mark_c(a: &S1, b: &R0) -> bool {
+>     !b.chain.iter().any(|name| a.removed.contains(name))
+> }
+> EOF
+root@1927511641be:/app# cat > /app/book_b/book.rs << 'EOF'
+> use std::collections::BTreeMap;
+>
+> use crate::core_a::R0;
+>
+> pub fn fold_b(a: &[R0], cap: usize) -> Vec<R0> {
+>     let cap = cap.max(1);
+>     let mut pool: Vec<R0> = a.to_vec();
+>     let mut accepted: Vec<R0> = Vec::new();
+>
+>     let mut turn = 0u64;
+>
+>     while !pool.is_empty() {
+>         let mut eligible_by_lane: BTreeMap<String, Vec<R0>> = BTreeMap::new();
+>         let mut not_eligible: Vec<R0> = Vec::new();
+>
+>         for row in pool.drain(..) {
+>             if row.base_turn <= turn {
+>                 eligible_by_lane.entry(row.lane_name.clone()).or_default().push(row);
+>             } else {
+>                 not_eligible.push(row);
+>             }
+>         }
+>
+>         let mut any_accepted = false;
+>         for (_lane, mut rows) in eligible_by_lane {
+>             rows.sort_by_key(|r| r.seq);
+>             let take = rows.len().min(cap);
+>             for mut row in rows.drain(..take) {
+>                 row.turn = turn;
+>                 accepted.push(row);
+>                 any_accepted = true;
+>             }
+>             not_eligible.extend(rows);
+>         }
+>
+>         pool = not_eligible;
+>
+>         if !any_accepted {
+>             if let Some(next) = pool.iter().map(|r| r.base_turn).min() {
+>                 turn = next;
+>             } else {
+>                 break;
+>             }
+>         } else {
+>             turn += 1;
+>         }
+>     }
+>
+>     accepted.sort_by(|l, r| l.turn.cmp(&r.turn).then(l.lane_name.cmp(&r.lane_name)).then(l.seq.cmp(&r.seq)));
+>     accepted
+> }
+> EOF
+root@1927511641be:/app# cat > /app/flow_e/flow.rs << 'EOF'
+> use std::fs::{self, File};
+> use std::io::{self, Write};
+> use std::path::Path;
+>
+> use crate::serde_f::row_json;
+> use crate::types_f::Record;
+>
+> pub struct S3 {
+>     pub count: usize,
+> }
+>
+> pub fn walk_e(a: &[Record], b: &mut S3) {
+>     b.count += a.len();
+> }
+>
+> pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
+>     if let Some(parent) = a.parent() {
+>         fs::create_dir_all(parent)?;
+>     }
+>     let mut file = File::create(a)?;
+>     for row in b {
+>         writeln!(file, "{}", row_json(row))?;
+>     }
+>     Ok(())
+> }
+>
+> pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
+>     if let Some(parent) = a.parent() {
+>         fs::create_dir_all(parent)?;
+>     }
+>     let mut file = File::create(a)?;
+>     for row in b {
+>         writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
+>     }
+>     Ok(())
+> }
+> EOF
+root@1927511641be:/app#

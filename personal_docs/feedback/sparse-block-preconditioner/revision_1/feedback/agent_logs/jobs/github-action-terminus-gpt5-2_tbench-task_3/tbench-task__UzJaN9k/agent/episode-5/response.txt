@@ -1,0 +1,35 @@
+{
+  "analysis": "Scripts now run without error, but after the second run-matrix.sh the copied solver-audit.run1.json is missing and solver-audit.json is also missing when checked by python. This is because clean-room.sh deletes /app/output at the start of each run; the second matrix run removed solver-audit.run1.json, and the subsequent run-one.sh removed solver-audit.json before the python check. Need to store the first matrix JSON outside /app/output (e.g., /tmp) for diffing, and run the python comparison immediately after generating both files without another clean-room in between (or copy matrix JSON aside before running run-one).",
+  "plan": "1) Run matrix, copy solver-audit.json to /tmp for run1 snapshot. 2) Run matrix again, diff /tmp snapshot against new /app/output/solver-audit.json. 3) Copy current matrix JSON to /tmp/matrix.json, then run one basalt (which wipes /app/output), then compare basalt-audit.json against the basalt slice from /tmp/matrix.json.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /tmp/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.run1.json /app/output/solver-audit.json\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /tmp/solver-audit.matrix.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/tmp/solver-audit.matrix.json'))\none=json.load(open('/app/output/basalt-audit.json'))\nb=[c for c in m['cases'] if c['name']=='basalt']\nassert len(b)==1\nassert one=={'cases': b}\nprint('OK: basalt-audit.json matches matrix slice')\nPY\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": true
+}

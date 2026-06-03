@@ -1,0 +1,52 @@
+New Terminal Output:
+
+root@26548499ec8e:/app# sed -i 's/out.Seen = make(\[\]bool, len(b.Seen))/out.Seen = append([]bool(nil), b.Seen...)/' /app/internal/a0/pack.go
+root@26548499ec8e:/app# cat /app/internal/a0/pack.go
+package a0
+
+type stateX struct {
+        Lit  []bool
+        Seen []bool
+        Turn int
+}
+
+type EffectSnap struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+type HostileSnap struct {
+        ID string
+        X  int
+        Y  int
+}
+
+type ItemY struct {
+        Lit      []bool
+        Seen     []bool
+        Turn     int
+        Obs      map[string]bool
+        Effects  []EffectSnap
+        Width    int
+        Height   int
+        PlayerX  int
+        PlayerY  int
+        Hostiles []HostileSnap
+}
+
+func phase_a(a *stateX, b ItemY) error {
+        a.Lit = append([]bool(nil), b.Lit...)
+        a.Seen = append([]bool(nil), b.Seen...)
+        a.Turn = b.Turn
+        return nil
+}
+
+func PackItem(b ItemY) ItemY {
+        st := &stateX{}
+        _ = phase_a(st, b)
+        out := b
+        out.Seen = append([]bool(nil), b.Seen...)
+        return out
+}
+root@26548499ec8e:/app#

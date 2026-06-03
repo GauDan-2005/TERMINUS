@@ -1,0 +1,132 @@
+New Terminal Output:
+
+root@ae6ae9e1ef3c:/app# cat > /app/src/slot_split.c <<'EOF'
+> #include "../include/arena.h"
+> #include "../list_b/list.h"
+> #include "../pool_a/tag.h"
+> #include "../split_c/split.h"
+>
+> static void adjust_payload(Arena *a, int idx, size_t req) {
+>     size_t old = a->slot_payload[idx];
+>     a->slot_payload[idx] = req;
+>     if (req > old) a->stats.allocated += (req - old);
+>     else a->stats.allocated -= (old - req);
+>     if (a->stats.allocated > a->stats.peak) a->stats.peak = a->stats.allocated;
+> }
+>
+> int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+>     size_t old_total = tag_read_size(oldb);
+>     size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+>
+>     if (old_total < need + MIN_BLK) {
+>         adjust_payload(a, idx, req);
+>         return idx;
+>     }
+>
+>     // Turn the whole block into free, coalesce (no-op for allocated neighbors), then split.
+>     z_set_flag(oldb, 0);
+>     list_coalesce(a, oldb);
+>     mark_c(a, oldb, req);
+>
+>     adjust_payload(a, idx, req);
+>     return idx;
+> }
+>
+> int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+>     size_t merged;
+>
+>     if (q8f_blk(a, oldb, need, &merged) != 0) {
+>         return -1;
+>     }
+>
+>     // q8f_blk has ensured we can grow by absorbing adjacent free space.
+>     // Ensure the header reflects the merged extent and mark allocated.
+>     xa0(oldb, merged);
+>     z_set_flag(oldb, 1);
+>
+>     // If there is enough remainder, split and return tail to free list.
+>     if (merged >= need + MIN_BLK) {
+>         mark_c(a, oldb, req);
+>     }
+>
+>     adjust_payload(a, idx, req);
+>     return idx;
+> }
+>
+> void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+>     (void)need;
+>     mark_c(a, fit, req);
+> }
+> EOF
+root@ae6ae9e1ef3c:/app# make -C /app clean && make -C /app
+make: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o spl
+it_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+make: Leaving directory '/app'
+make: Entering directory '/app'
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+drive_h/run.c: In function ‘run_case’:
+drive_h/run.c:11:5: warning: ‘strncpy’ output may be truncated copying 31 bytes from a string of length 31 [-Wstringop-truncation]
+   11 |     strncpy(res->name, plan->name, sizeof(res->name) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_o
+ps.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_
+j/mirror.o
+make: Leaving directory '/app'
+root@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json
+root@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json
+root@ae6ae9e1ef3c:/app# diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json || true
+root@ae6ae9e1ef3c:/app# python3 - <<'PY'
+> import json
+> p='/app/output/alloc-audit.json'
+> obj=json.load(open(p))
+> order=[c['name'] for c in obj['cases']]
+> print('order',order)
+> assert order==['cedar','jade','slate','coral','onyx','pearl']
+> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> for c in obj['cases']:
+>     assert req_case_keys.issubset(c.keys())
+>     steps=c['steps']
+>     for i,st in enumerate(steps):
+>         assert req_step_keys.issubset(st.keys())
+>         assert st['seq']==i
+>     last=steps[-1]
+>     for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+>         assert c[k]==last[k]
+> print('validated')
+> PY
+order ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+validated
+root@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-one.sh pearl && python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/pearl-audit.json'))
+> case=obj['cases'][0]
+> print('ok',case['ok'])
+> print('free result_index values', [s['result_index'] for s in case['steps'] if s['op']=='free'])
+> print('realloc result_index values', [s['result_index'] for s in case['steps'] if s['op']=='realloc'])
+> print('byte_totals', [s['byte_total'] for s in case['steps']])
+> PY
+ok True
+free result_index values [0, 0, 0]
+realloc result_index values [1]
+byte_totals [40, 240, 200, 272, 344, 272, 392, 72, 168]
+root@ae6ae9e1ef3c:/app#

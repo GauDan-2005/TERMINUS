@@ -1,0 +1,107 @@
+Current terminal state:
+New Terminal Output:
+
+root@594e8276182b:/app# node - <<'NODE'
+> const data = require('./fixtures/scenarios.json');
+> for (const s of data.scenarios) {
+>   const sumBases = s.cycles.reduce((a,c)=>a+Number(c.base||0),0);
+>   console.log(s.name, 'sumBases=', sumBases);
+> }
+> NODE
+alpha sumBases= 9
+beta sumBases= 6
+gamma sumBases= 8
+delta sumBases= 9
+epsilon sumBases= 9
+zeta sumBases= 10
+root@594e8276182b:/app# /app/target/debug/mhre_native old 3 7
+3
+root@594e8276182b:/app# sed -n '1,120p' a1/p.js
+const { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function hasCargo() {
+  const probe = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+  return probe.status === 0;
+}
+
+function callNative(root, rev, primary, carry) {
+  const args = [rev, String(primary), String(carry)];
+  const proc = hasCargo()
+    ? spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', ...args], {
+        cwd: root,
+        encoding: 'utf8'
+      })
+    : spawnSync(`${root}/target/debug/mhre_native`, args, {
+        cwd: root,
+        encoding: 'utf8'
+      });
+
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  let lastNative = 0;
+  const sumBases = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base || 0), 0);
+
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+
+    // Older revision markers must normalize like newer ones: incorporate carry.
+    const expectedNative = Number(cycle.base || 0) + Number(carry || 0);
+    if (cycle.native === 'old' && nativeValue !== expectedNative) {
+      accepted = false;
+    }
+
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+
+    // Each cycle's native row feeds the next cycle.
+    carry = nativeValue;
+    lastNative = nativeValue;
+  }
+
+  const healthy = accepted && lastNative === sumBases;
+
+  return {
+    name: a.name,
+    rows,
+    finalCounter: lastNative,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy
+  };
+}
+
+module.exports = { f_a };
+root@594e8276182b:/app# sed -n '1,120p' src/native/src/lib.rs
+pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    // Normalize older revision markers to the current behavior: the carried
+    // state participates in the produced native value.
+    match a {
+        "old" => b + c,
+        "new" => b + c,
+        _ => b + c,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+root@594e8276182b:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

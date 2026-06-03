@@ -1,0 +1,31 @@
+{
+  "analysis": "The pipeline runs successfully and writes /app/output/restore-audit.json, but all cases are failing audit (ok=false at least for alpha; task states all six cases disagree). Next step is to inspect the full audit JSON to see what dimensions are mismatching (digest, groups, accounting). Then trace through snapctl implementation and internal packages to fix restore/stage logic and audit computation so restored matches source across all cases, with correct ok flag semantics.",
+  "plan": "1) Pretty-print/summarize restore-audit.json: list each case’s ok plus whether digests match and counts of groups/accounting. 2) For one failing case (alpha), diff source vs restored trees and inspect hardlink structure and file contents to identify what is wrong. 3) Repeat quickly for a second case that likely exercises replay (gamma) to see if it’s a restart/replay bug. 4) Based on observed mismatches, open the Go code responsible (likely internal/* packages for scan/pack/restore/replay/audit) and patch accordingly, then re-run the matrix.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/restore-audit.json'\nwith open(p) as f: d=json.load(f)\nfor c in d['cases']:\n    dm = c['digest']['source']==c['digest']['restored']\n    print(f\"{c['name']}: ok={c['ok']} digest_match={dm} groups_src={len(c['groups']['source'])} groups_rest={len(c['groups']['restored'])} accounting={len(c['accounting'])}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, itertools\np='/app/output/restore-audit.json'\nwith open(p) as f: d=json.load(f)\n# show first failing case details keys and small snippets\nfor c in d['cases']:\n    if not c['ok']:\n        print('---', c['name'])\n        print('source', c['source'])\n        print('restored', c['restored'])\n        print('digest', c['digest'])\n        print('first_groups_source', c['groups']['source'][:3])\n        print('first_groups_restored', c['groups']['restored'][:3])\n        print('first_accounting', c['accounting'][:5])\n        break\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nalpha=next(c for c in d['cases'] if c['name']=='alpha')\nprint(alpha['source'])\nprint(alpha['restored'])\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='alpha')['source'])\nPY\n); rst=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='alpha')['restored'])\nPY\n); echo \"src=$src\"; echo \"rst=$rst\"; echo \"tree diff:\"; diff -qr \"$src\" \"$rst\" | head -n 200\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='alpha')['source'])\nPY\n); rst=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='alpha')['restored'])\nPY\n); echo \"hardlinks (nlink>1) in source:\"; find \"$src\" -type f -links +1 -printf '%n %s %p\\n' | sort -n | head -n 50; echo \"hardlinks (nlink>1) in restored:\"; find \"$rst\" -type f -links +1 -printf '%n %s %p\\n' | sort -n | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gamma_src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='gamma')['source'])\nPY\n); gamma_rst=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='gamma')['restored'])\nPY\n); echo \"gamma tree diff:\"; diff -qr \"$gamma_src\" \"$gamma_rst\" | head -n 200\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,162 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-8.4.1, pluggy-1.6.0
+cachedir: /tmp/pytest_cache
+rootdir: /tests
+plugins: json-ctrf-0.3.5
+collected 14 items
+
+../tests/test_outputs.py FFFFFFF.F.FF.F                                  [100%]
+
+=================================== FAILURES ===================================
+_______________________________ test_alpha_path ________________________________
+
+    def test_alpha_path():
+        """Uncompressed grouped rows keep their derived token values."""
+        report, _ = run_report()
+>       row = rows_by_name(report)["alpha"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'alpha'
+
+/tests/test_outputs.py:87: KeyError
+________________________________ test_beta_path ________________________________
+
+    def test_beta_path():
+        """Compressed single-request rows use per-column reconstruction."""
+        report, _ = run_report()
+>       row = rows_by_name(report)["beta"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'beta'
+
+/tests/test_outputs.py:94: KeyError
+_______________________________ test_gamma_path ________________________________
+
+    def test_gamma_path():
+        """Compressed grouped rows match independently derived values."""
+        report, _ = run_report()
+>       row = rows_by_name(report)["gamma"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'gamma'
+
+/tests/test_outputs.py:101: KeyError
+_______________________________ test_delta_path ________________________________
+
+    def test_delta_path():
+        """Changed candidate order preserves token identity."""
+        report, _ = run_report()
+>       row = rows_by_name(report)["delta"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'delta'
+
+/tests/test_outputs.py:108: KeyError
+______________________________ test_epsilon_path _______________________________
+
+    def test_epsilon_path():
+        """Reusable local storage stays isolated across adjacent requests."""
+        report, _ = run_report()
+>       row = rows_by_name(report)["epsilon"]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'epsilon'
+
+/tests/test_outputs.py:116: KeyError
+________________________________ test_zeta_path ________________________________
+
+    def test_zeta_path():
+        """Raw trace rows agree with final rows for plain shuffled grouped runs."""
+        report, raw = run_report()
+>       assert rows_by_name(report)["zeta"]["produced"] == expected_tokens("zeta")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'zeta'
+
+/tests/test_outputs.py:124: KeyError
+________________________________ test_eta_path _________________________________
+
+    def test_eta_path():
+        """Every final row carries the order used by that case."""
+        report, _ = run_report()
+        for name, spec in CASES.items():
+>           assert rows_by_name(report)[name]["order_used"] == spec["order"]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'alpha'
+
+/tests/test_outputs.py:133: KeyError
+________________________________ test_iota_path ________________________________
+
+    def test_iota_path():
+        """The collation layer keeps one final row per built-in case."""
+        report, _ = run_report()
+>       assert sorted(rows_by_name(report)) == sorted(CASES)
+E       AssertionError: assert ['alpha:basel...lain-shuffle'] == ['alpha', 'be...amma', 'zeta']
+E         
+E         At index 0 diff: 'alpha:baseline' != 'alpha'
+E         Use -v to get more diff
+
+/tests/test_outputs.py:145: AssertionError
+_______________________________ test_lambda_path _______________________________
+
+    def test_lambda_path():
+        """Each row carries the correct packed, grouped, and reuse flags."""
+        report, _ = run_report()
+        for name, spec in CASES.items():
+>           row = rows_by_name(report)[name]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'alpha'
+
+/tests/test_outputs.py:159: KeyError
+_________________________________ test_nu_path _________________________________
+
+    def test_nu_path():
+        """Every final row produced values match the corresponding raw entry."""
+        report, raw = run_report()
+        for name in CASES:
+>           assert rows_by_name(report)[name]["produced"] == raw_by_name(raw)[name]["produced"]
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'alpha'
+
+/tests/test_outputs.py:169: KeyError
+_________________________ test_rust_stage_produces_raw _________________________
+
+    def test_rust_stage_produces_raw():
+        """raw.json is produced by the Rust binary, not a stub script."""
+        result = subprocess.run(
+            [
+                "cargo",
+                "run",
+                "--quiet",
+                "--manifest-path",
+                "/app/Cargo.toml",
+                "--",
+                str(CHECK_RAW),
+            ],
+            cwd=APP,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        raw = json.loads(CHECK_RAW.read_text())
+        assert sorted(row["case"] for row in raw["raw"]) == sorted(CASES)
+        for name in CASES:
+            entry = next(row for row in raw["raw"] if row["case"] == name)
+>           assert entry["produced"] == expected_tokens(name)
+E           assert [36] == [42]
+E             
+E             At index 0 diff: 36 != 42
+E             Use -v to get more diff
+
+/tests/test_outputs.py:211: AssertionError
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED ../tests/test_outputs.py::test_theta_path
+PASSED ../tests/test_outputs.py::test_kappa_path
+PASSED ../tests/test_outputs.py::test_mu_path
+FAILED ../tests/test_outputs.py::test_alpha_path - KeyError: 'alpha'
+FAILED ../tests/test_outputs.py::test_beta_path - KeyError: 'beta'
+FAILED ../tests/test_outputs.py::test_gamma_path - KeyError: 'gamma'
+FAILED ../tests/test_outputs.py::test_delta_path - KeyError: 'delta'
+FAILED ../tests/test_outputs.py::test_epsilon_path - KeyError: 'epsilon'
+FAILED ../tests/test_outputs.py::test_zeta_path - KeyError: 'zeta'
+FAILED ../tests/test_outputs.py::test_eta_path - KeyError: 'alpha'
+FAILED ../tests/test_outputs.py::test_iota_path - AssertionError: assert ['al...
+FAILED ../tests/test_outputs.py::test_lambda_path - KeyError: 'alpha'
+FAILED ../tests/test_outputs.py::test_nu_path - KeyError: 'alpha'
+FAILED ../tests/test_outputs.py::test_rust_stage_produces_raw - assert [36] =...
+========================= 11 failed, 3 passed in 3.12s =========================

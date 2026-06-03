@@ -1,0 +1,16 @@
+New Terminal Output:
+
+root@334dfe1f3bf9:/app# jq '.cases | map({name, ok, steps: (.steps|length), heap_sig, fl_count, fl_sig, byte_total, ledger})' output/alloc-audit.json
+bash: jq: command not found
+root@334dfe1f3bf9:/app# jq -e '(.cases|type=="array") and (all(.cases[]; has("name") and has("ok") and has("steps") and has("heap_sig") and has("fl_count") and
+has("fl_sig") and has("byte_total") and has("ledger")))' output/alloc-audit.json && echo OK
+bash: jq: command not found
+root@334dfe1f3bf9:/app# cp -f output/alloc-audit.json /tmp/alloc-audit.1.json
+root@334dfe1f3bf9:/app# bash scripts/run-matrix.sh
+root@334dfe1f3bf9:/app# cp -f output/alloc-audit.json /tmp/alloc-audit.2.json
+root@334dfe1f3bf9:/app# diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json | sed -n '1,200p'
+root@334dfe1f3bf9:/app# jq -n --slurpfile a /tmp/alloc-audit.1.json --slurpfile b /tmp/alloc-audit.2.json 'def idx(x): x|INDEX(.name); ($a[0].cases|idx(.)) as $
+ia | ($b[0].cases|idx(.)) as $ib | ["cedar","jade","slate","coral","onyx","pearl"] as $names | $names|map({name:., same: ($a[0].cases[$ia[.]]==$b[0].cases[$ib[.
+]])})'
+bash: jq: command not found
+root@334dfe1f3bf9:/app#

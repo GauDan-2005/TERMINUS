@@ -1,0 +1,200 @@
+New Terminal Output:
+
+root@ad377fa89207:/app# cat /app/types_f/types.rs
+#[derive(Clone, Debug)]
+pub enum Entry {
+    Root { ident: String, lane: String, at: u64, seq: usize },
+    Child { from: String, ident: String, lane: String, at: u64, seq: usize },
+    Drop { ident: String },
+}
+
+#[derive(Clone, Debug)]
+pub struct Plan {
+    pub name: String,
+    pub cap: usize,
+    pub entries: Vec<Entry>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Item {
+    pub ident: String,
+    pub parent: String,
+    pub lane: String,
+    pub at: u64,
+    pub seq: usize,
+    pub depth: usize,
+    pub chain: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Record {
+    pub case_name: String,
+    pub task_name: String,
+    pub parent_name: String,
+    pub depth: usize,
+    pub lane_name: String,
+    pub turn: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub finished: bool,
+    pub pending: Vec<String>,
+    pub trace: Vec<Record>,
+    pub ledger: String,
+    pub journal: String,
+}
+root@ad377fa89207:/app# cat /app/types_f/serde.rs
+use crate::types_f::{CaseReport, Record};
+
+fn esc(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+pub fn row_json(row: &Record) -> String {
+    format!(
+        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":\"{}\",\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
+        esc(&row.case_name),
+        esc(&row.task_name),
+        esc(&row.parent_name),
+        row.depth,
+        esc(&row.lane_name),
+        row.turn
+    )
+}
+
+fn string_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", esc(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+pub fn case_json(case: &CaseReport) -> String {
+    let trace = case.trace.iter().map(row_json).collect::<Vec<_>>().join(",");
+    format!(
+        "{{\"name\":\"{}\",\"ok\":{},\"finished\":{},\"pending\":{},\"trace\":[{}],\"ledger\":\"{}\",\"journal\":\"{}\"}}",
+        esc(&case.name),
+        if case.ok { "true" } else { "false" },
+        if case.finished { "true" } else { "false" },
+        string_array(&case.pending),
+        trace,
+        esc(&case.ledger),
+        esc(&case.journal)
+    )
+}
+
+pub fn report_json(cases: &[CaseReport]) -> String {
+    let body = cases.iter().map(case_json).collect::<Vec<_>>().join(",");
+    format!("{{\"cases\":[{}]}}\n", body)
+}
+root@ad377fa89207:/app# cat /app/read_h/parse.rs
+use std::fs;
+use std::io;
+use std::path::Path;
+
+use crate::types_f::{Entry, Plan};
+
+pub fn read_plan(path: &Path) -> io::Result<Plan> {
+    let text = fs::read_to_string(path)?;
+    let mut cap = 1usize;
+    let mut entries = Vec::new();
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("case")
+        .to_string();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        match parts.as_slice() {
+            ["CAP", value] => cap = value.parse().unwrap_or(1),
+            ["ROOT", ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Root { ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
+            }
+            ["CHILD", from, ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Child { from: (*from).to_string(), ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq
+});
+            }
+            ["DROP", ident] => entries.push(Entry::Drop { ident: (*ident).to_string() }),
+            _ => {}
+        }
+    }
+    Ok(Plan { name, cap, entries })
+}
+root@ad377fa89207:/app# cat /app/core_a/core.rs
+use crate::types_f::{Item, Record};
+
+pub struct S0 {
+    pub rows: Vec<R0>,
+    pub names: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct R0 {
+    pub case_name: String,
+    pub task_name: String,
+    pub parent_name: String,
+    pub depth: usize,
+    pub lane_name: String,
+    pub base_turn: u64,
+    pub turn: u64,
+    pub seq: usize,
+    pub chain: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum E0 {
+    Halt,
+}
+
+impl S0 {
+    pub fn new() -> Self {
+        Self { rows: Vec::new(), names: Vec::new() }
+    }
+}
+
+impl R0 {
+    pub fn from_item(case_name: &str, item: &Item) -> Self {
+        Self {
+            case_name: case_name.to_string(),
+            task_name: item.ident.clone(),
+            parent_name: item.parent.clone(),
+            depth: item.depth,
+            lane_name: item.lane.clone(),
+            base_turn: item.at,
+            turn: item.at,
+            seq: item.seq,
+            chain: item.chain.clone(),
+        }
+    }
+
+    pub fn pack_a(&self) -> Record {
+        Record {
+            case_name: self.case_name.clone(),
+            task_name: self.task_name.clone(),
+            parent_name: self.parent_name.clone(),
+            depth: self.depth,
+            lane_name: self.lane_name.clone(),
+            turn: self.turn,
+        }
+    }
+}
+
+pub fn op_a(a: &mut S0, b: R0) -> Result<(), E0> {
+    a.names.push(b.task_name.clone());
+    a.rows.push(b);
+    Ok(())
+}
+root@ad377fa89207:/app#

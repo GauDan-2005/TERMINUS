@@ -1,0 +1,39 @@
+{
+  "analysis": "run-matrix.sh runs `cargo run` to write /app/output/index-report.json. The produced report is clearly canned/stale: it points at *-old workspaces and gen-v1 outputs, has ok=false, stale contains empty strings, epochs don’t advance, and some fresh flags look wrong. We need to inspect the Rust harness to see where it sources this data (likely reading fixtures or embedding a static JSON), then change it to actually execute the traces against the current TypeScript files and compute live definition locations deterministically.",
+  "plan": "1) Inspect Rust entrypoint and report-writing code (main.rs, runner.rs, report.rs, io.rs, model.rs). 2) Inspect traces to understand expected operations/labels/symbol queries. 3) Search for any embedded/canned report JSON or fixture paths like ws-old/app-old/gen-v1 and remove/replace with real indexing logic. 4) Re-run matrix, then run it again and diff outputs to ensure byte-identical determinism.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/lib.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/runner.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/report.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/model.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/io.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for t in /app/traces/*.trace; do echo \"=== $t ===\"; sed -n '1,200p' \"$t\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rg -n \"ws-old|app-old|gen-v1|index-report|canned|fixtures\" /app/src /app/r0 /app/r1 /app/r2 /app/r3 /app/r4 /app/r5 /app/r6 /app/r7 /app/r8\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

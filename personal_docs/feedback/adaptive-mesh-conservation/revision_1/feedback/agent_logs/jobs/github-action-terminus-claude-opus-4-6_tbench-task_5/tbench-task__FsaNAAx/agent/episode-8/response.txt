@@ -1,0 +1,18 @@
+{
+  "analysis": "Now I have a clear picture of the three conservation bugs:\n\n1. **`fold_q` in `agg_q/blend.cpp`**: Computes `sum(q[i])/n` instead of volume-weighted average `sum(vol[i]*q[i])/sum_vol`. This breaks conservation during merge.\n\n2. **`op_m` in `acc_m/edge_corr.cpp`**: Only stores one flux entry (the first child's) per EdgePulse, but should store one per subface. This makes the net reflux non-zero.\n\n3. **Snapshot round-trip (`emit_p`/`load_k`)**: `emit_p` only saves header+cells but doesn't save the FluxBank. After `load_k`, bank.n_pending=0, so reflux corrections are lost in restart scenarios, causing divergence from non-restart runs.\n\nLet me also check the remaining source files before implementing fixes.",
+  "plan": "Read the remaining source files (audit_emit, config, data files, scripts) to ensure complete understanding, then implement all three fixes.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/src/audit_emit.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/include/audit_emit.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/config/cases.toml\n",
+      "duration": 0.1
+    }
+  ]
+}

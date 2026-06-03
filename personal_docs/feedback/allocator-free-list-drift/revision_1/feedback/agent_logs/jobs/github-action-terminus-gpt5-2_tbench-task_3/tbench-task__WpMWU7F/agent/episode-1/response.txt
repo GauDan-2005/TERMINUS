@@ -1,0 +1,55 @@
+{
+  "analysis": "run-one.sh and run-matrix.sh both complete and produce JSON/ledger files. All cases shown have ok:true, but the task reports drift when fragmentation/merge/growth scripts run together and requires determinism across two matrix runs. We need to verify determinism by running the matrix twice and diffing, then if differences exist, locate non-deterministic fields/order in audit generation (likely free list traversal, pointer-address-based signatures, or unstable JSON key/step ordering) and patch the harness so signatures/tallies are computed in a stable, canonical way and output is consistent.",
+  "plan": "1) Run run-matrix twice, saving outputs to two files, and diff them (including ledgers) to see where drift happens. 2) If differences exist, identify which fields vary (heap_sig/fl_sig/byte_total/ledger rows). 3) Inspect source for signature computation and free list enumeration (likely in flow_g/report.c or src/*ops.c) and patch to sort/canonicalize block lists and avoid including raw addresses in signatures. 4) Rebuild, rerun matrix twice, and confirm alloc-audit.json and ledgers are identical (or at least equivalent per rules).",
+  "commands": [
+    {
+      "keystrokes": "set -euo pipefail\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -a /app/output/alloc-audit.json /app/output/alloc-audit.1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp -a /app/output/*.ledger.jsonl /app/output/ledgers.1/ 2>/dev/null || (mkdir -p /app/output/ledgers.1 && cp -a /app/output/*.ledger.jsonl /app/output/ledgers.1/)\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -a /app/output/alloc-audit.json /app/output/alloc-audit.2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "mkdir -p /app/output/ledgers.2 && cp -a /app/output/*.ledger.jsonl /app/output/ledgers.2/\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "diff -u /app/output/alloc-audit.1.json /app/output/alloc-audit.2.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "for f in cedar coral jade onyx pearl slate; do echo \"== $f ==\"; diff -u \"/app/output/ledgers.1/${f}.ledger.jsonl\" \"/app/output/ledgers.2/${f}.ledger.jsonl\" || true; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rg -n \"heap_sig|fl_sig|signature|sig\" /app/src /app/flow_g /app/drive_h /app/include || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

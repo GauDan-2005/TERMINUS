@@ -1,0 +1,26 @@
+Current terminal state:
+New Terminal Output:
+
+root@c1b30d754223:/app# ls -la /app/output/alloc-audit.json && python3 - <<'PY'
+> import json, pathlib
+> p=pathlib.Path('/app/output/alloc-audit.json')
+> obj=json.loads(p.read_text())
+> print('cases', [c['name'] for c in obj.get('cases',[])])
+> PY
+-rw-r--r-- 1 root root 7092 May 25 13:12 /app/output/alloc-audit.json
+cases ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+root@c1b30d754223:/app# bash /app/scripts/clean-room.sh && /app/bin/allocctl matrix && cp /app/output/alloc-audit.json /tmp/alloc-audit.a.json
+root@c1b30d754223:/app# bash /app/scripts/clean-room.sh && /app/bin/allocctl matrix && cp /app/output/alloc-audit.json /tmp/alloc-audit.b.json
+root@c1b30d754223:/app# python3 - <<'PY'
+> import json, hashlib, pathlib
+> for tag in ['a','b']:
+>     obj=json.loads(pathlib.Path(f'/tmp/alloc-audit.{tag}.json').read_text())
+>     canon=json.dumps(obj, sort_keys=True, separators=(',',':')).encode()
+>     print(tag, hashlib.sha256(canon).hexdigest())
+> PY
+a 1dce67fd5ee622b4b88e66374d26fd34f4b145b387c87853588ddd1ff685d526
+b 1dce67fd5ee622b4b88e66374d26fd34f4b145b387c87853588ddd1ff685d526
+root@c1b30d754223:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

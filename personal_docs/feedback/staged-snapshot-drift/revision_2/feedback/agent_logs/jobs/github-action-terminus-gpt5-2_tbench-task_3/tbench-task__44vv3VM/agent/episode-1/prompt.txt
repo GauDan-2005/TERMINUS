@@ -1,0 +1,126 @@
+New Terminal Output:
+root@3b3cdaca49ea:/app# ls -la /app
+total 12
+drwxr-xr-x  9 root root 146 May 25 12:03 .
+drwxr-xr-x 19 root root 265 May 25 12:04 ..
+-rw-r--r--  1 root root 318 May 25 12:02 Makefile
+-rw-r--r--  1 root root 495 May 25 12:02 README.md
+drwxr-xr-x  4 root root  29 May 25 12:02 cmd
+drwxr-xr-x  2 root root  47 May 25 12:02 config
+drwxr-xr-x  4 root root  37 May 25 12:02 data
+drwxr-xr-x  2 root root  49 May 25 12:02 docs
+-rw-r--r--  1 root root  38 May 25 12:02 go.mod
+drwxr-xr-x 10 root root  86 May 25 12:02 internal
+drwxr-xr-x  2 root root  69 May 25 12:02 probe
+drwxr-xr-x  2 root root  68 May 25 12:02 scripts
+root@3b3cdaca49ea:/app# find /app -maxdepth 3 -type f -name 'run-matrix.sh' -o -name '*.go' -o -name 'Makefile' -o -name '*.c' -o -name '*.h' | sed 's#^#/app#'
+2>/dev/null | head
+/app/app/Makefile
+/app/app/cmd/apex/main.go
+/app/app/cmd/ctl/main.go
+/app/app/internal/a0/core.go
+/app/app/internal/a0/pack.go
+/app/app/internal/a0/scan.go
+/app/app/internal/b1/checkpoint.go
+/app/app/internal/b1/log.go
+/app/app/internal/b1/replay.go
+/app/app/internal/c2/roll.go
+root@3b3cdaca49ea:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@3b3cdaca49ea:/app# ls -la /app/output || true
+total 8
+drwxr-xr-x  2 root root   32 May 25 12:04 .
+drwxr-xr-x 11 root root  171 May 25 12:04 ..
+-rw-r--r--  1 root root 6312 May 25 12:04 restore-audit.json
+root@3b3cdaca49ea:/app# test -f /app/output/restore-audit.json && (python3 -c 'import json;print(json.dumps(json.load(open("/app/output/restore-audit.json")),in
+dent=2)[:2000])' ; echo '...') || echo 'restore-audit.json not created'
+{
+  "cases": [
+    {
+      "name": "alpha",
+      "source": "/tmp/staged-snapshot-1425437382/alpha/source",
+      "restored": "/tmp/staged-snapshot-1425437382/alpha/restored",
+      "ok": false,
+      "digest": {
+        "source": "5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1",
+        "restored": "e66330bda2806efad3c28401a2f7a52d71d320decb95bf328a16be60f6ce924a"
+      },
+      "groups": {
+        "source": [],
+        "restored": []
+      },
+      "accounting": [
+        {
+          "path": "a/one.txt",
+          "bytes": 10,
+          "period": "p0"
+        },
+        {
+          "path": "b/two.txt",
+          "bytes": 10,
+          "period": "p0"
+        },
+        {
+          "path": "c/three.txt",
+          "bytes": 13,
+          "period": "p0"
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "source": "/tmp/staged-snapshot-1425437382/beta/source",
+      "restored": "/tmp/staged-snapshot-1425437382/beta/restored",
+      "ok": false,
+      "digest": {
+        "source": "064e426d2b69c8913996711f8d4df0d492b90e5a4144b877ae6d62f4ac964d01",
+        "restored": "7249797516a9b742ae3ed6d40117eae8423ab6ea8ea1d4274f8080cd5c767570"
+      },
+      "groups": {
+        "source": [
+          [
+            "a/shared-a.dat",
+            "b/shared-b.dat",
+            "c/shared-c.dat",
+            "deep/x/shared.dat"
+          ]
+        ],
+        "restored": []
+      },
+      "accounting": [
+        {
+          "path": "a/one.txt",
+          "bytes": 9,
+          "period": "p0"
+        },
+        {
+          "path": "a/shared-a.dat",
+          "bytes": 10,
+          "period": "p0"
+        },
+        {
+          "path": "b/shared-b.dat",
+          "bytes": 10,
+          "period": "p0"
+        },
+        {
+          "path": "b/two.txt",
+          "bytes": 9,
+          "period": "p0"
+        },
+        {
+          "path": "c/shared-c.dat",
+          "bytes": 11,
+          "period": "p0"
+        },
+        {
+          "path": "c/three.txt",
+          "by
+...
+root@3b3cdaca49ea:/app#

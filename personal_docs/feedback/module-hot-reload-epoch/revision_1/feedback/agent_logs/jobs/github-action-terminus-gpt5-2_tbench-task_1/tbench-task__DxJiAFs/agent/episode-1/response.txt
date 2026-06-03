@@ -1,0 +1,47 @@
+{
+  "analysis": "npm run matrix currently fails immediately with “native worker failed” thrown from /app/a1/p.js callNative(). No /app/outcome/report.json is produced. We need to inspect the Node wrapper that invokes the Rust helper, then run the Rust helper directly to see stderr, fix the Rust crate or invocation arguments/env, and only then proceed to the report drift/consistency requirements. Also note git is not available in this environment, so we’ll rely on file inspection/diffs via tools like sed/cat.",
+  "plan": "1) Inspect tools/run_matrix.js and a1/p.js to see how cargo run is invoked and what inputs are passed. 2) Run the native helper manually (cargo run) to capture the real error output (currently swallowed/empty). 3) Inspect Rust source (src/) and Cargo.toml to understand expected CLI/stdin JSON. 4) Fix the failure (likely bad args, wrong working dir, panic on input, or stderr handling). 5) Re-run npm run matrix to confirm report generation begins.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' tools/run_matrix.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' a1/p.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' b2/p.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' c3/p.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' d4/p.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat fixtures/scenarios.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat Cargo.toml\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find src -type f -maxdepth 3 -print -exec sed -n '1,200p' {} \\;\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "cargo run --quiet -- --help || true\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "RUST_BACKTRACE=1 cargo run -- --help || true\n",
+      "duration": 60
+    }
+  ],
+  "task_complete": false
+}

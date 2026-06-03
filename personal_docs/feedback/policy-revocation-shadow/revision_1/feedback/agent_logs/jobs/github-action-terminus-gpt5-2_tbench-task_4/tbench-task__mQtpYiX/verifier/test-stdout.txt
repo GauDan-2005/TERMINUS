@@ -1,0 +1,99 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-8.4.1, pluggy-1.6.0
+cachedir: /tmp/pytest_cache
+rootdir: /tests
+plugins: json-ctrf-0.3.5
+collected 12 items
+
+../tests/test_outputs.py FF...F.F....                                    [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_t01_flow _________________________________
+
+report_data = {'cases': [{'decisions': [{'action': 'read', 'batch_id': '', 'delegated_from': 'boss', 'epoch': 0, ...}, {'action': 'r...action': 'read', 'batch_id': 'mix', 'delegated_from': '', 'epoch': 0, ...}], 'name': 'zeta', 'ok': True, 'stale': []}]}
+
+    def test_t01_flow(report_data):
+        """Alpha denies inherited rows once a subject is blocked."""
+        alpha = case_by_name(report_data, "alpha")
+        before = row_by_label(alpha, "before")
+        batch = row_by_label(alpha, "batch")
+        after = row_by_label(alpha, "after")
+    
+        assert before["verdict"] == OUTCOME_OK
+        assert before["delegated_from"] == "boss"
+        assert batch["verdict"] == OUTCOME_NO
+        assert batch["batch_id"] == "b1"
+>       assert after["verdict"] == OUTCOME_NO
+E       AssertionError: assert 'allow' == 'deny'
+E         
+E         - deny
+E         + allow
+
+/tests/test_outputs.py:44: AssertionError
+________________________________ test_t02_flow _________________________________
+
+report_data = {'cases': [{'decisions': [{'action': 'read', 'batch_id': '', 'delegated_from': 'boss', 'epoch': 0, ...}, {'action': 'r...action': 'read', 'batch_id': 'mix', 'delegated_from': '', 'epoch': 0, ...}], 'name': 'zeta', 'ok': True, 'stale': []}]}
+
+    def test_t02_flow(report_data):
+        """Beta clears an earlier miss once a direct row is granted."""
+        beta = case_by_name(report_data, "beta")
+        miss = row_by_label(beta, "miss")
+        solo = row_by_label(beta, "solo")
+    
+        assert miss["verdict"] == OUTCOME_NO
+>       assert solo["verdict"] == OUTCOME_OK
+E       AssertionError: assert 'deny' == 'allow'
+E         
+E         - allow
+E         + deny
+
+/tests/test_outputs.py:54: AssertionError
+________________________________ test_t06_flow _________________________________
+
+report_data = {'cases': [{'decisions': [{'action': 'read', 'batch_id': '', 'delegated_from': 'boss', 'epoch': 0, ...}, {'action': 'r...action': 'read', 'batch_id': 'mix', 'delegated_from': '', 'epoch': 0, ...}], 'name': 'zeta', 'ok': True, 'stale': []}]}
+
+    def test_t06_flow(report_data):
+        """Zeta grouped replay isolates blocked and clean subjects."""
+        zeta = case_by_name(report_data, "zeta")
+        alpha_row = row_by_label(zeta, "a")
+        beta_row = row_by_label(zeta, "b")
+    
+        assert alpha_row["verdict"] == OUTCOME_NO
+>       assert beta_row["verdict"] == OUTCOME_OK
+E       AssertionError: assert 'deny' == 'allow'
+E         
+E         - allow
+E         + deny
+
+/tests/test_outputs.py:94: AssertionError
+________________________________ test_t08_flow _________________________________
+
+report_data = {'cases': [{'decisions': [{'action': 'read', 'batch_id': '', 'delegated_from': 'boss', 'epoch': 0, ...}, {'action': 'r...action': 'read', 'batch_id': 'mix', 'delegated_from': '', 'epoch': 0, ...}], 'name': 'zeta', 'ok': True, 'stale': []}]}
+
+    def test_t08_flow(report_data):
+        """Post-block rows in alpha stay rejected."""
+        alpha = case_by_name(report_data, "alpha")
+        for row in alpha["decisions"]:
+            if row["label"] in {"batch", "after"}:
+>               assert row["verdict"] == OUTCOME_NO
+E               AssertionError: assert 'allow' == 'deny'
+E                 
+E                 - deny
+E                 + allow
+
+/tests/test_outputs.py:111: AssertionError
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED ../tests/test_outputs.py::test_t03_flow
+PASSED ../tests/test_outputs.py::test_t04_flow
+PASSED ../tests/test_outputs.py::test_t05_flow
+PASSED ../tests/test_outputs.py::test_t07_flow
+PASSED ../tests/test_outputs.py::test_t09_flow
+PASSED ../tests/test_outputs.py::test_t10_flow
+PASSED ../tests/test_outputs.py::test_t11_flow
+PASSED ../tests/test_outputs.py::test_t12_flow
+FAILED ../tests/test_outputs.py::test_t01_flow - AssertionError: assert 'allo...
+FAILED ../tests/test_outputs.py::test_t02_flow - AssertionError: assert 'deny...
+FAILED ../tests/test_outputs.py::test_t06_flow - AssertionError: assert 'deny...
+FAILED ../tests/test_outputs.py::test_t08_flow - AssertionError: assert 'allo...
+========================= 4 failed, 8 passed in 0.79s ==========================

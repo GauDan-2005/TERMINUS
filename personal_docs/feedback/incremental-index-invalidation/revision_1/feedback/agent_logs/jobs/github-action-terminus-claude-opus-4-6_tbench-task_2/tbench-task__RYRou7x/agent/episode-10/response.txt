@@ -1,0 +1,6 @@
+{
+  "analysis": "The fix is complete and working correctly. The output is byte-identical across runs. The three bugs were:\n\n1. **r1/b.rs (fold_b)**: Old entries weren't removed when a slot was reloaded, causing queries to find stale definitions. Fixed by adding `a.entries.retain(|e| e.slot != b)` before appending new entries.\n\n2. **r2/c.rs (emit_c)**: Same issue for generated module slots. Same fix applied.\n\n3. **r3/d.rs (lift_d)**: Two issues - old entries weren't removed AND the `active` map stored the alias path instead of the resolved target path, causing freshness checks to fail for linked packages. Fixed by retaining entries and storing the actual resolved path in `active`.\n\nThe output now shows:\n- All cases have `ok: true` and empty `stale` arrays\n- Renamed/regenerated/relinked symbols point to their new locations\n- Generated entries correctly reference their schema sources\n- Linked package entries follow the active target\n- Reuse is correctly tracked across unrelated edits\n- Miss events correctly report absent symbols as fresh\n- Output is deterministic (byte-identical on repeated runs)",
+  "plan": "Task is complete. The fixes ensure the index harness properly removes stale entries when slots are reloaded and correctly tracks the active root for linked packages.",
+  "commands": [],
+  "task_complete": true
+}

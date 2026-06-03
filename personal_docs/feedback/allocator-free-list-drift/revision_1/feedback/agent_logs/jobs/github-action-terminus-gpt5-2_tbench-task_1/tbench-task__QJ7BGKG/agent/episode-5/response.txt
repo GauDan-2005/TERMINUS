@@ -1,0 +1,23 @@
+{
+  "analysis": "We found the root cause for the run-one validation failure: /app/output/<name>-audit.json is currently written in the *matrix* schema (top-level {\"cases\":[...]}), not the single-case schema required by the prompt for run-one. Also cedar-audit.json is missing after recent clean-room runs; run-one should create it. Next we must patch the C code so `allocctl one <case>` writes a single case object (not wrapped in cases array) to /app/output/<case>-audit.json, and ensure it is always produced for any case including cedar. Then rebuild and re-run run-one and validations.",
+  "plan": "1) Open src/main.c and the reporting code (likely flow_g/report.c) to locate JSON writer(s). 2) Identify the function used by both matrix and one; modify one-mode to emit a single JSON object with required keys. Keep matrix output unchanged (alloc-audit.json with top-level cases array). 3) Fix cedar one output generation if there is a conditional path. 4) Rebuild using make, then run run-one.sh for all six cases and validate with Python. Finally run run-matrix.sh and ensure alloc-audit.json still validates and is deterministic.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/src/main.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/flow_g/report.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RIn \"alloc-audit\\\\.json\\|ledger\\\\.jsonl\\|cases\\\"\\s*:\\s*\\[\\|\\\"cases\\\"\" /app | head -n 120\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"one \\<case\\>\\|\\bmatrix\\b\" /app/src /app/drive_h /app/flow_g | head -n 160\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

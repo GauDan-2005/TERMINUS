@@ -1,0 +1,45 @@
+New Terminal Output:
+
+root@7b0e7cd3dbc1:/app# ls -la /app/data
+total 0
+drwxr-xr-x  3 root root  19 May 23 19:51 .
+drwxr-xr-x 18 root root 265 May 23 19:54 ..
+drwxr-xr-x  2 root root 118 May 23 19:51 cases
+root@7b0e7cd3dbc1:/app# find /app/data -maxdepth 3 -type f -print
+/app/data/cases/amber.plan
+/app/data/cases/cobalt.plan
+/app/data/cases/drake.plan
+/app/data/cases/ember.plan
+/app/data/cases/flint.plan
+/app/data/cases/graphite.plan
+root@7b0e7cd3dbc1:/app# ls -la /app/docs
+total 8
+drwxr-xr-x  2 root root  50 May 23 19:51 .
+drwxr-xr-x 18 root root 265 May 23 19:54 ..
+-rw-r--r--  1 root root 623 May 23 19:51 ARCHITECTURE.md
+-rw-r--r--  1 root root 598 May 23 19:51 OPERATIONS.md
+root@7b0e7cd3dbc1:/app# find /app/docs -type f -maxdepth 2 -print -exec sed -n '1,200p' {} \;
+find: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests spe
+cified before it as well as those specified after it.  Please specify global options before other arguments.
+/app/docs/ARCHITECTURE.md
+# Local runtime architecture
+
+This repository contains a small deterministic workload runner used for local audit exercises. Plan files under `data/cases` describe rows that are loaded into
+a local state graph, grouped by lane, and written to generated report surfaces under `/app/output`.
+
+The source tree is split into short module roots. Each root owns one part of the local runtime: parsing, state transfer, ordering, row filtering, and line-orien
+ted output. The split mirrors the production service that inspired this exercise, where generated JSON and append-only side files were checked by separate monit
+oring jobs.
+/app/docs/OPERATIONS.md
+# Operations notes
+
+Use `/app/scripts/run-matrix.sh` for a full local audit run and `/app/scripts/run-one.sh NAME` for a single shipped plan. Both commands write generated files be
+low `/app/output` and are safe to repeat because the matrix command starts by clearing that directory.
+
+The Rust binary does not need network access. It reads local plan files, produces deterministic report rows, and exits with a nonzero status only when local fil
+e I/O fails.
+
+After a local release build, the executable path is `/app/target/release/executor-ctl`. The shipped plans use the lane-a and lane-b labels.
+root@7b0e7cd3dbc1:/app# command -v python3 || command -v python || true
+/usr/bin/python3
+root@7b0e7cd3dbc1:/app#

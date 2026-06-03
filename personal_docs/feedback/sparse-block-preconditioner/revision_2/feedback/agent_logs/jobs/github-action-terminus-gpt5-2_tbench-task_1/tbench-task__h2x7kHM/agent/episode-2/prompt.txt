@@ -1,0 +1,48 @@
+New Terminal Output:
+
+root@f3c44f310304:/app# sed -n '1,200p' /app/CMakeLists.txt
+cmake_minimum_required(VERSION 3.16)
+project(solverctl LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(solverctl
+    src/main.cpp
+    src/case_io.cpp
+    csr_m/assemble.cpp
+    bsr_n/layout.cpp
+    perm_p/order.cpp
+    prec_r/apply.cpp
+    scale_q/metric.cpp
+    solve_s/driver.cpp
+    flow_t/report.cpp
+    drive_u/run.cpp
+    spill_v/bucket.cpp
+    mirror_w/trace.cpp
+)
+
+target_include_directories(solverctl PRIVATE include)
+
+set_target_properties(solverctl PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+root@f3c44f310304:/app# ls -la /app/build/bin
+total 36
+drwxr-xr-x 2 root root    23 May 28 16:08 .
+drwxr-xr-x 4 root root   100 May 28 16:08 ..
+-rwxr-xr-x 1 root root 34488 May 28 16:08 solverctl
+root@f3c44f310304:/app# mkdir -p /app/bin
+root@f3c44f310304:/app# ln -sf /app/build/bin/solverctl /app/bin/solverctl
+root@f3c44f310304:/app# ls -la /app/bin/solverctl
+lrwxrwxrwx 1 root root 24 May 28 16:09 /app/bin/solverctl -> /app/build/bin/solverctl
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# test -f /app/output/solver-audit.json && jq '.cases | length' /app/output/solver-audit.json
+bash: jq: command not found
+root@f3c44f310304:/app# test -f /app/output/solver-audit.json && jq '.cases[] | {name, ok, iterations, final_residual, reported_residual, residual_agrees, hit_l
+imit}' /app/output/solver-audit.json
+bash: jq: command not found
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /app/output/solver-audit.rerun.json
+root@f3c44f310304:/app# diff -u /app/output/solver-audit.json /app/output/solver-audit.rerun.json || true
+root@f3c44f310304:/app#

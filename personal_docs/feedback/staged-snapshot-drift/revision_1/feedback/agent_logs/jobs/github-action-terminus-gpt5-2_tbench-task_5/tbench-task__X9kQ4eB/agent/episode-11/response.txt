@@ -1,0 +1,39 @@
+{
+  "analysis": "ok is false for cases where digest/group match because diskMatch is failing: accounting bytes values in JSON don't match actual file sizes. This comes from e4.NativeBytes via /app/bin/fsmeasure (C helper). For example alpha expects c/three.txt bytes 13 but actual is 12; epsilon expects d/roll.txt bytes 0 but actual is 19; beta shared files expected 10/11 but actual 20. So the native measurement helper is returning wrong sizes, likely due to reading only up to ':' in content? Wait: it outputs sizes, not content. Possibly it is counting until first '\\n' or truncating at ':' in path? More likely bug: measure.c is reporting strlen of file contents read as C string (stopping at '\\0') or using fgets incorrectly, or mixing up bytes with blocks. We need to inspect probe/measure.c and fswalk/list helpers. Additionally, gamma and zeta digest mismatches remain; gamma manifest is ops-based and FoldRows reversing on Restart+Ordered likely causes final content wrong. Zeta lacks manifest file in data/layouts; likely generated differently (CreateTree). We'll patch b1 to not reverse. Then fix fsmeasure to report true st_size for each file path (including hardlink names individually).",
+  "plan": "1) Inspect probe/measure.c (and fswalk.c/h, list.c) to see how sizes are computed/output. 2) Run /app/bin/fsmeasure on a known directory and compare to `stat -c %s` to reproduce. 3) Patch measure.c to use lstat/stat st_size for regular files and output exact bytes per file path relative to root. 4) Rebuild probe binary via make build. 5) Patch b1/FoldRows to not reverse row order for Restart+Ordered (gamma/zeta). 6) Rerun matrix and confirm all ok true and restore-audit.json produced.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/probe/measure.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/probe/fswalk.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/probe/fswalk.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/probe/list.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "work=/tmp/matrix-work; rm -rf \"$work\"; mkdir -p \"$work\"; /app/bin/snapctl --out /app/output/restore-audit.json --work \"$work\" --case alpha\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "echo '--- fsmeasure output'; /app/bin/fsmeasure /tmp/matrix-work/alpha/source | sort | sed -n '1,50p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "echo '--- stat sizes'; (cd /tmp/matrix-work/alpha/source && for f in $(find . -type f -printf '%P\\n' | sort); do printf '%s\\t' \"$f\"; stat -c %s \"$f\"; done) | sed -n '1,50p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/Makefile\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

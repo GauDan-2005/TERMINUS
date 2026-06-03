@@ -1,0 +1,71 @@
+New Terminal Output:
+
+root@978e12d4a5e2:/app# python3 - <<'PY'
+> import json,os
+> p='/app/output/alloc-audit.json'
+> data=json.load(open(p))
+> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> print('top keys',data.keys())
+> print('cases',len(data.get('cases',[])))
+> missing=[]
+> for c in data.get('cases',[]):
+>     ck=set(c.keys())
+>     if not req_case_keys.issubset(ck):
+>         missing.append((c.get('name'),sorted(req_case_keys-ck)))
+>     for s in c.get('steps',[]):
+>         sk=set(s.keys())
+>         if not req_step_keys.issubset(sk):
+>             print('step missing keys',c.get('name'),s.get('seq'),sorted(req_step_keys-sk))
+>             break
+> print('missing case keys',missing)
+> print('names',[c['name'] for c in data['cases']])
+> PY
+top keys dict_keys(['cases'])
+cases 6
+missing case keys []
+names ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+root@978e12d4a5e2:/app# python3 - <<'PY'
+> import json
+> p='/app/output/alloc-audit.json'
+> data=json.load(open(p))
+> for c in data['cases']:
+>     steps=c['steps']
+>     ok=(c['heap_sig'],c['fl_count'],c['fl_sig'],c['byte_total'])==(steps[-1]['heap_sig'],steps[-1]['fl_count'],steps[-1]['fl_sig'],steps[-1]['byte_total'])
+>     if not ok:
+>         print('SUMMARY MISMATCH',c['name'])
+>         print('case',c['heap_sig'],c['fl_count'],c['fl_sig'],c['byte_total'])
+>         print('last',steps[-1]['heap_sig'],steps[-1]['fl_count'],steps[-1]['fl_sig'],steps[-1]['byte_total'])
+> PY
+root@978e12d4a5e2:/app# python3 - <<'PY'
+> import json,os
+> from pathlib import Path
+> p='/app/output/alloc-audit.json'
+> data=json.load(open(p))
+> for c in data['cases']:
+>     ledger=Path(c['ledger'])
+>     steps=c['steps']
+>     if not ledger.exists():
+>         print('MISSING LEDGER',c['name'],ledger)
+>         continue
+>     rows=[json.loads(line) for line in ledger.read_text().splitlines() if line.strip()]
+>     if len(rows)!=len(steps):
+>         print('LEN MISMATCH',c['name'],'steps',len(steps),'rows',len(rows))
+>         continue
+>     for s,r in zip(steps,rows):
+>         if s['seq']!=r.get('seq'):
+>             print('SEQ MISMATCH',c['name'],s['seq'],r.get('seq'))
+>             break
+>         for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+>             if s[k]!=r.get(k):
+>                 print('TALLY MISMATCH',c['name'],'seq',s['seq'],k,s[k],r.get(k))
+>                 raise SystemExit
+> print('ledger alignment OK')
+> PY
+ledger alignment OK
+root@978e12d4a5e2:/app# cp -a /app/output /app/output.run1
+root@978e12d4a5e2:/app# bash /app/scripts/run-matrix.sh
+root@978e12d4a5e2:/app# diff -u /app/output.run1/alloc-audit.json /app/output/alloc-audit.json || true
+root@978e12d4a5e2:/app# for n in cedar coral jade onyx pearl slate; do diff -u "/app/output.run1/${n}.ledger.jsonl" "/app/output/${n}.ledger.jsonl" || true; don
+e
+root@978e12d4a5e2:/app#

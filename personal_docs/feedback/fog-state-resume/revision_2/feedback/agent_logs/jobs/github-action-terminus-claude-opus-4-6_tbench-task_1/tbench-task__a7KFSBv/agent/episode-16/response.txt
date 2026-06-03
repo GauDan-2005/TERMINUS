@@ -1,0 +1,22 @@
+{
+  "analysis": "All 7 cases now pass cleanly:\n- All ok=True\n- All fresh and resume signatures match\n- All illegal counts are 0  \n- All visibility fresh_seen matches resume_seen\n\nThe three bugs that were fixed:\n1. **store/pack.go**: `PackItem` was copying `st.Lit` to `out.Seen` instead of `st.Seen`, corrupting the saved visibility state during resume.\n2. **vis/sight.go**: `PlayerSees` had an incorrect special case for the bottom row (`y == w.Height-1`) that checked a different lit index, causing visibility disagreements.\n3. **mod/effect.go**: `SyncBoundary` had an off-by-one error (`currentTurn + rem - 1` instead of `currentTurn + rem`), causing effects to expire one turn early on resume.\n\nLet me verify the one-case script works too.",
+  "plan": "Verify the one-case script works for a sample case, and verify records/log sidecars match.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh rook 2>&1\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cat /app/output/single-rook.json\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat /app/workspace/rook/records.jsonl\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat /app/workspace/rook/trace.tsv\n",
+      "duration": 0.3
+    }
+  ]
+}

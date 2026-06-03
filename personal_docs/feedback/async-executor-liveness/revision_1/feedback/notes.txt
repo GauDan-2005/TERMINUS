@@ -1,0 +1,110 @@
+Feedback for Submission: 7243aade-daa1-4513-96d0-7366734d930d
+Assignment ID: 3a746d5a-6e17-45ab-91cf-87440414d3d1
+Project ID: bfe79c33-8ab0-4061-9849-08d3207c9927
+Project: Terminus-2nd-Edition
+
+================================================================================
+
+Revision Notes
+--------------------------------------------------------------------------------
+This is much closer than the earlier review. I built the image locally and the oracle plus mounted verifier pass offline with 12/12 tests, reward 1, and CTRF present. Cargo is on PATH in the normal container shell, the test names are now descriptive, the rubric panel is fully green, and the prompt now clearly says child rows are scheduled by their own arrival turn rather than waiting for the parent to be accepted. I would not hold the Dockerfile-baked pytest warning against this under the current no-internet verifier setup.
+
+I would still send it back for one small spec fix. The tests require root trace rows to use the literal string "-" for parent, but instruction.md only says every record has a parent field; it never says what root rows should emit. null is a reasonable interpretation, and the failed-agent analysis shows both agents made exactly that choice.
+
+Please add one explicit sentence, for example: Root records must emit parent as the string "-" in JSON, ledger JSONL, and journal output. Just get those fixes in and resubmit!
+
+Summary (difficulty check)
+--------------------------------------------------------------------------------
+Difficulty: ✅ MEDIUM
+
+Status: ✅ Solvable (all tests passed by at least one agent run)
+
+Agent Performance:
+  • terminus-claude-opus-4-6: 100.0% (5/5 runs)
+  • terminus-gpt5-2: 60.0% (3/5 runs)
+
+Reference Agents:
+  • nop: 0.0% (0/1 runs)
+  • oracle: 100.0% (3/3 runs)
+
+Failure Breakdown:
+  • nop: 1 other
+  • terminus-gpt5-2: 2 other
+
+Unit Tests Results:
+  • test_matrix_all_six_cases_clean: 8 passed / 10 runs
+  • test_single_case_helper_matches_matrix: 8 passed / 10 runs
+  • test_amber_nested_parent_depth_preserved: 8 passed / 10 runs
+  • test_cobalt_overflow_carried_to_later_turns: 8 passed / 10 runs
+  • test_drake_dropped_branch_and_descendants_excluded: 8 passed / 10 runs
+  • test_ember_branch_removal_with_nested_rows: 8 passed / 10 runs
+  • test_flint_duplicate_logical_rows_deduped: 8 passed / 10 runs
+  • test_graphite_mixed_pressure_and_removed_descendants: 8 passed / 10 runs
+  • test_ledger_jsonl_matches_trace: 10 passed / 10 runs
+  • test_text_journal_matches_trace: 8 passed / 10 runs
+  • test_matrix_output_deterministic_across_runs: 10 passed / 10 runs
+  • test_cobalt_capacity_delays_acceptance_turns: 10 passed / 10 runs
+
+Analysis on Agent Failures:
+  • Task Instruction Sufficiency: ❌ FAIL, ## Job Run Summary
+
+### 1. Overall Results
+- **2 trials, 0 passed (0%), 2 failed**
+- Both trials scored **0.0 reward** (3/12 tests passing each)
+- No model/agent differentiation is noted — both appear to be the same agent type on the same task variant
+
+### 2. Common Failure Patterns
+Both trials failed identically and for the same root cause:
+
+**Root `parent` field format mismatch** — The task schema says root records carry a `parent` field but never specifies its value. Both agents independently chose `null`/`None` (semantically reasonable), while the test harness hardcodes the string sentinel `"-"`. This caused **9/12 test failures in both trials**.
+
+The 3 tests that *did* pass in both trials are the same ones: ledger-JSONL consistency, matrix determinism, and Cobalt capacity turn delay — all tests that don't inspect the `parent` field value.
+
+### 3. Hack Check: No Cheating Detected
+Both trials received **`reward_hacking: pass`**. Neither agent:
+- Modified test files
+- Wrote to `/logs/verifier/reward.txt`
+- Accessed a `solution/` directory
+
+Both pursued legitimate (if flawed) implementation paths.
+
+### 4. Systematic Instruction Issues
+The `task_specification: fail` check fired on **both trials**, pointing to two systemic problems in `instruction.md`:
+
+1. **Missing sentinel specification**: The spec states *"every record carries… parent…"* but never says root records must use `"-"` (not `null`) as the parent value. Both agents independently reached the wrong conclusion, confirming this is an instruction gap, not an agent gap.
+
+2. **Environment mismatch** (noted in `tbench-task__3q7b3dc`): The task instructs agents to fix Rust code, and the test harness calls `cargo build`, but `cargo` is not on PATH in the execution environment. One agent had to pivot entirely to a Python reimplementation — a significant detour caused by an undocumented constraint.
+
+### 5. Progress on Failed Trials
+Both agents were **very close** — 3/12 tests passing with a single fixable bug remaining. The entire failure set collapses to one-line fixes:
+- In the Python reimplementation (`tbench-task__3q7b3dc`): change `None` → `"-"` for root `parent`
+- In the Rust fix (`tbench-task__ZiLrg8R`): revert `Option<String>` back to `String("-")` for `parent_name`
+
+Had either agent validated against the expected reference output (rather than only internal consistency), they would have caught and corrected this. The second trial additionally missed a dedup bug in `host_d/host.rs` due to incomplete file exploration.
+
+### 6. Key Differences Between Trials
+| | `tbench-task__3q7b3dc` | `tbench-task__ZiLrg8R` |
+|---|---|---|
+| **Approach** | Python reimplementation (cargo unavailable) | Rust bugfix (found cargo at `/usr/local/cargo/bin`) |
+| **Bugs addressed** | CAP-bounded acceptance, DROP cascade, dedup, determinism | CAP scheduling, journal write order, branch cancellation cascade |
+| **Missed bugs** | `None` vs `"-"` for root parent | `None` vs `"-"` for root parent + `host_d/host.rs` dedup |
+| **Validation method** | Internal consistency only | Internal consistency only |
+
+### Recommendations
+1. **Fix the spec**: Add an explicit note to `instruction.md` that root records must emit `parent: "-"` (the string), not `null`.
+2. **Fix the environment**: Either add `cargo` to PATH or document that Rust toolchain is unavailable and the expected fix path involves Python/other means.
+3. **Add a reference output check**: Encourage agents to diff against `expected_trace()` output early — both agents could have self-corrected if they'd done this validation step.
+
+Quality check summary
+--------------------------------------------------------------------------------
+## Quality Check Results
+✅ pass - behavior_in_task_description: The instruction explicitly covers all behaviors the tests verify: the output file path (/app/output/executor-audit.json), the six case names (amber, cobalt, drake, ember, flint, graphite), every JSON field per case (name, ok, finished, pending, trace, ledger, journal), every record field (case, task, parent, depth, lane, turn), the ledger JSONL format, the journal whitespace-delimited text format, the trace ordering rules (accepted turn ascending, lanes by name within a turn, plan-file order within a lane), CAP overflow semantics, DROP/descendant exclusion via chain, child parent/depth preservation, deduplication of logical child entries, run-one.sh single-case contract, and determinism across runs.
+✅ pass - behavior_in_tests: Every behavior described in the instruction is tested: test_matrix_all_six_cases_clean verifies the six cases and clean state; test_single_case_helper_matches_matrix verifies run-one.sh; test_amber_nested_parent_depth_preserved verifies parent/depth hierarchy; test_cobalt_overflow_carried_to_later_turns verifies CAP overflow; test_drake_dropped_branch_and_descendants_excluded and test_ember_branch_removal_with_nested_rows verify chain-based DROP semantics; test_flint_duplicate_logical_rows_deduped verifies deduplication; test_graphite_mixed_pressure_and_removed_descendants covers combined scenarios; test_ledger_jsonl_matches_trace and test_text_journal_matches_trace verify the side-file agreement requirement; test_matrix_output_deterministic_across_runs verifies determinism; test_cobalt_capacity_delays_acceptance_turns verifies delayed acceptance. The assert_clean helper also enforces ok, finished, and empty pending for every case.
+✅ pass - informative_test_structure: Each test function has a clear, specific name (e.g., test_cobalt_overflow_carried_to_later_turns) and a one-line docstring describing exactly what it checks. Helper functions like expected_trace, drain_expected, assert_clean, ledger_rows, and journal_rows are well-named and logically separated. The test file flows from data setup through reference-implementation helpers to individual scenario checks, making it readable and maintainable.
+✅ pass - anti_cheating_measures: The Dockerfile does not copy tests/ or solution/ into the image, so the agent cannot access the reference Python implementation or the precomputed answers at runtime. The test file independently computes expected traces via a Python reference implementation (expected_trace/drain_expected) that the agent has no visibility into. The plan files are verified to exactly match the PLAN_ROWS literals in the tests (line 73-75 of test_outputs.py), so the agent cannot tamper with data to produce trivially different results. Internet access is disabled. The solution rewrites Rust source files and requires a real cargo compile-and-run cycle, making it impossible to just echo precomputed JSON.
+✅ pass - structured_data_schema: The instruction explicitly documents the complete JSON schema: a top-level 'cases' array; each case containing name, ok, finished, pending, trace, ledger, and journal; each trace record containing case, task, parent, depth, lane, and turn. The ledger format (JSONL with the same records) and journal format (whitespace-delimited rows: case task parent depth lane turn) are also fully specified. These descriptions are normative, not merely illustrative examples.
+✅ pass - pinned_dependencies: The Rust base image is pinned to a specific version and SHA256 digest (rust:1.85.0-bookworm@sha256:0ff31c9f...). Python packages are pinned: pytest==8.4.1 and pytest-json-ctrf==0.3.5. Apt packages are pinned: asciinema=2.2.0-1, python3-pip=23.0.1+dfsg-1, tmux=3.3a-3. Cargo.lock is present and copied into the image for reproducible Rust builds.
+✅ pass - typos: No typos were found in filenames, paths, commands, field names, or variable names across instruction.md, test files, Dockerfile, scripts, or Rust source files. Field names are consistent between instruction.md, serde.rs (row_json output), and the test assertions (e.g., 'case', 'task', 'parent', 'depth', 'lane', 'turn'). Script paths referenced in tests match the actual scripts directory.
+✅ pass - tests_or_solution_in_image: The Dockerfile contains only COPY directives for the environment/ subdirectories (book_b, core_a, data, docs, drive_g, flow_e, gate_c, host_d, mirror_j, note_k, read_h, scripts, spill_i, src, types_f) plus Cargo.lock and Cargo.toml. Neither tests/ nor solution/ are copied into the image.
+✅ pass - hardcoded_solution: The solution (solve.sh) rewrites five Rust source files with correct algorithm implementations (core.rs, book.rs, gate.rs, host.rs, drive.rs) and patches a sixth (flow.rs) using perl. These implementations contain real logic: BTreeSet-based deduplication in core_a, a proper CAP-based draining loop in book_b, chain-based DROP filtering in gate_c, idempotent item binding in host_d, and correct insertion-order tracking in drive_g. The binary must be compiled by cargo and executed by the test suite, making it impossible to bypass with precomputed outputs.
+✅ pass - file_reference_mentioned: The instruction explicitly names the output file: '/app/output/executor-audit.json'. The ledger and journal files are described as paths pointed to by fields in the JSON output (not standalone required filenames the agent must choose), so no additional filename specification is needed for them.

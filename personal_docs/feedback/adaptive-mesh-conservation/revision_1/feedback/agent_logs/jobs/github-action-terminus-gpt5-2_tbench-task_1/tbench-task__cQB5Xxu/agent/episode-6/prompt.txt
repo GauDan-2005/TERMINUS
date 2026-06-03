@@ -1,0 +1,252 @@
+New Terminal Output:
+
+root@6362f560e0ae:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: agg_q/blend.cpp
+> @@
+>  void fold_q(const CellPatch *a, int b, CellPatch *c) {
+> @@
+> -    double sum_vol = 0.0;
+> -    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+> +    // Conservative restriction: preserve volume-integrated quantities.
+> +    // Each entry in a->q is a per-volume state; the conserved total is vol*q.
+> +    double sum_vol = 0.0;
+> +    double sum_m[NVAR] = {0.0, 0.0, 0.0};
+>      for (int i = 0; i < n; i++) {
+>          sum_vol += a->vol[i];
+>          for (int v = 0; v < NVAR; v++) {
+> -            sum_q[v] += a->q[i * NVAR + v];
+> +            sum_m[v] += a->vol[i] * a->q[i * NVAR + v];
+>          }
+>      }
+>      c->n = 1;
+>      c->vol[0] = sum_vol;
+> -    double inv_n = 1.0 / (double)n;
+>      for (int v = 0; v < NVAR; v++) {
+> -        c->q[v] = sum_q[v] * inv_n;
+> +        c->q[v] = (sum_vol > 0.0) ? (sum_m[v] / sum_vol) : 0.0;
+>      }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@6362f560e0ae:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: drv_u/run_refine.cpp
+> @@
+>  void phase_grow(SimState *st, const ScenarioSpec *spec) {
+> @@
+>          double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+> +
+> +        // Prolongation must be conservative: the sum over leaves of vol*q must
+> +        // match the coarse cell's vol*q, even if we introduce a shape factor.
+> +        double want_m[NVAR] = {0.0, 0.0, 0.0};
+> +        for (int v = 0; v < NVAR; v++) want_m[v] = coarse.cells[c].vol * coarse.cells[c].q[v];
+> +
+> +        // First pass: apply shape factor.
+> +        double got_m[NVAR] = {0.0, 0.0, 0.0};
+>          for (int j = 0; j < k; j++) {
+>              int gi = leaves.n++;
+>              leaves.cells[gi].idx = gi;
+>              leaves.cells[gi].vol = vj[j];
+>              double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+>              for (int v = 0; v < NVAR; v++) {
+>                  leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+>              }
+>              leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+>              leaves.cells[gi].parent = (k > 1) ? c : -1;
+> +
+> +            for (int v = 0; v < NVAR; v++) got_m[v] += vj[j] * leaves.cells[gi].q[v];
+>          }
+> +
+> +        // Second pass: renormalize per variable to enforce conservation.
+> +        int start = st->coarse_start[c];
+> +        for (int v = 0; v < NVAR; v++) {
+> +            double scale = 1.0;
+> +            if (fabs(got_m[v]) > 1e-30) {
+> +                scale = want_m[v] / got_m[v];
+> +            } else if (fabs(want_m[v]) > 1e-30) {
+> +                // If the shape factor collapsed totals to ~0, fall back to uniform.
+> +                scale = 0.0;
+> +            }
+> +            for (int j = 0; j < k; j++) {
+> +                int gi = start + j;
+> +                if (scale != 0.0) {
+> +                    leaves.cells[gi].q[v] *= scale;
+> +                } else {
+> +                    leaves.cells[gi].q[v] = coarse.cells[c].q[v];
+> +                }
+> +            }
+> +        }
+>      }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@6362f560e0ae:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: srl_p/serial.cpp
+> @@
+>  int emit_p(const SimState *a, const char *b) {
+>      if (!a || !b) return -1;
+>      FILE *fp = fopen(b, "wb");
+>      if (!fp) return -2;
+> @@
+> -    fwrite(&hdr, sizeof(hdr), 1, fp);
+> -    int n_cells = a->grid.n;
+> -    fwrite(&n_cells, sizeof(int), 1, fp);
+> -    fwrite(a->grid.cells, sizeof(CellView), n_cells, fp);
+> +    if (fwrite(&hdr, sizeof(hdr), 1, fp) != 1) { fclose(fp); return -3; }
+> +
+> +    // Persist enough state to make a restart equivalent to an uninterrupted run.
+> +    // Keep the layout explicit to avoid padding surprises.
+> +    int n_cells = a->grid.n;
+> +    if (fwrite(&n_cells, sizeof(int), 1, fp) != 1) { fclose(fp); return -4; }
+> +    if (fwrite(a->grid.cells, sizeof(CellView), n_cells, fp) != (size_t)n_cells) { fclose(fp); return -5; }
+> +
+> +    if (fwrite(&a->topo, sizeof(a->topo), 1, fp) != 1) { fclose(fp); return -6; }
+> +    if (fwrite(&a->bank, sizeof(a->bank), 1, fp) != 1) { fclose(fp); return -7; }
+> +
+> +    if (fwrite(&a->n_coarse, sizeof(int), 1, fp) != 1) { fclose(fp); return -8; }
+> +    if (fwrite(a->coarse_start, sizeof(int), MAX_CELLS, fp) != MAX_CELLS) { fclose(fp); return -9; }
+> +    if (fwrite(a->coarse_len, sizeof(int), MAX_CELLS, fp) != MAX_CELLS) { fclose(fp); return -10; }
+> +
+> +    if (fwrite(&a->step_idx, sizeof(int), 1, fp) != 1) { fclose(fp); return -11; }
+> +    if (fwrite(&a->dt_carry, sizeof(double), 1, fp) != 1) { fclose(fp); return -12; }
+> +    if (fwrite(&a->adjacency, sizeof(int), 1, fp) != 1) { fclose(fp); return -13; }
+> +    if (fwrite(a->halo_q, sizeof(double), NVAR, fp) != NVAR) { fclose(fp); return -14; }
+> +
+> +    if (fwrite(&a->fingerprint_payload, sizeof(uint64_t), 1, fp) != 1) { fclose(fp); return -15; }
+>      f
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+   if (fread(b->coarse_len, sizeof(int), MAX_CELLS, in) != MAX_CELLS) {
+> +        fclose(in);
+> +        c->reason = REASON_SHORT;
+> +        snprintf(c->msg, sizeof(c->msg), "coarse_len short");
+> +        return -14;
+> +    }
+> +    if (fread(&b->step_idx, sizeof(int), 1, in) != 1) {
+> +        fclose(in);
+> +        c->reason = REASON_SHORT;
+> +        snprintf(c->msg, sizeof(c->msg), "step_idx short");
+> +        return -15;
+> +    }
+> +    if (fread(&b->dt_carry, sizeof(double), 1, in) != 1) {
+> +        fclose(in);
+> +        c->reason = REASON_SHORT;
+> +        snprintf(c->msg, sizeof(c->msg), "dt_carry short");
+> +        return -16;
+> +    }
+> +    if (fread(&b->adjacency, sizeof(int), 1, in) != 1) {
+> +        fclose(in);
+> +        c->reason = REASON_SHORT;
+> +        snprintf(c->msg, sizeof(c->msg), "adjacency short");
+> +        return -17;
+> +    }
+> +    if (fread(b->halo_q, sizeof(double), NVAR, in) != NVAR) {
+> +        fclose(in);
+> +        c->reason = REASON_SHORT;
+> +        snprintf(c->msg, sizeof(c->msg), "halo_q short");
+> +        return -18;
+> +    }
+> +    uint64_t fp_payload = 0;
+> +    if (fread(&fp_payload, sizeof(uint64_t), 1, in) != 1) {
+> +        fclose(in);
+> +        c->reason = REASON_SHORT;
+> +        snprintf(c->msg, sizeof(c->msg), "payload fp short");
+> +        return -19;
+> +    }
+> +    // Stored payload fingerprint should match as well.
+> +    if (fp_payload != b->fingerprint_payload) {
+> +        fclose(in);
+> +        c->reason = REASON_FINGERPRINT;
+> +        snprintf(c->msg, sizeof(c->msg), "payload fingerprint mismatch");
+> +        return -20;
+> +    }
+>      fclose(in);
+>      c->reason = REASON_OK;
+>      snprintf(c->msg, sizeof(c->msg), "ok");
+>      return 0;
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@6362f560e0ae:/app# cmake --build /app/build -j$(nproc)
+[100%] Built target sim_run
+root@6362f560e0ae:/app# bash /app/scripts/run-matrix.sh
+root@6362f560e0ae:/app# cat /app/output/conservation_audit.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.3136083333333337, 1.6860166666666665, 1.7727833333333334],
+      "resumed_total": [5.8175833333333333, 3.9711666666666665, 4.5618833333333333],
+      "drift_ratio": 0.011862633181126228,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9903, 1.768275, 1.7481249999999999],
+      "resumed_total": [5.3113000000000001, 3.9472749999999999, 4.5431249999999999],
+      "drift_ratio": 0.010442857142857167,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+root@6362f560e0ae:/app# cat /app/output/persistence_audit.log
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+root@6362f560e0ae:/app#

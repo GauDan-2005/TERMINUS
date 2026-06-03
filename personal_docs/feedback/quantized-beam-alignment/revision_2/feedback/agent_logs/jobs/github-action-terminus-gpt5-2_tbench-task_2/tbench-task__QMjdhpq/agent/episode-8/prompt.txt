@@ -1,0 +1,280 @@
+New Terminal Output:
+
+root@0a0216085fbe:/app# sed -n '1,200p' /app/src/a0/mod.rs
+pub struct A0 {
+    pub s: Vec<i32>,
+    pub z: Vec<i32>,
+}
+
+impl A0 {
+    pub fn new() -> Self {
+        Self { s: vec![2, 3, 5], z: vec![1, -1, 2] }
+    }
+}
+
+pub fn ax(a: &A0, b: &[i32], c: usize) -> Vec<i32> {
+    let k = c % a.s.len();
+    b.iter().map(|v| v * a.s[k] + a.z[k]).collect()
+}
+
+pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+    b.iter().enumerate().map(|(i, v)| v * a.s[i] + a.z[i]).collect()
+}
+root@0a0216085fbe:/app# sed -n '1,220p' /app/src/b1/mod.rs
+pub struct B0 {
+    pub v: Vec<usize>,
+}
+
+impl B0 {
+    pub fn new(n: usize) -> Self {
+        Self { v: (0..n).collect() }
+    }
+}
+
+pub fn bx(a: &mut B0, b: &[usize]) -> Vec<usize> {
+    let out = b.to_vec();
+    if a.v.len() == b.len() {
+        a.v.sort();
+    }
+    out
+}
+root@0a0216085fbe:/app# sed -n '1,240p' /app/src/c2/mod.rs
+pub struct C0 {
+    pub v: Vec<i32>,
+}
+
+impl C0 {
+    pub fn new(n: usize) -> Self {
+        Self { v: vec![0; n] }
+    }
+}
+
+pub fn cx(a: &mut C0, b: usize, c: &[i32]) -> i32 {
+    let value: i32 = c.iter().sum();
+    let k = b % a.v.len();
+    a.v[k] += value;
+    a.v[k]
+}
+root@0a0216085fbe:/app# grep -RIn --line-number 'scale\|bias\|packed\|compress\|compressed' /app/src || true
+/app/src/main.rs:14:    packed: bool,
+/app/src/main.rs:23:        Case { name: "alpha", packed: false, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![21, 10, 4], vec![15, 8, 6]] },
+/app/src/main.rs:24:        Case { name: "beta", packed: true, group: false, reuse: false, seq: vec![0], rows: vec![vec![10, 4, 1]] },
+/app/src/main.rs:25:        Case { name: "gamma", packed: true, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![8, 3, 2], vec![6, 5, 1]] },
+/app/src/main.rs:26:        Case { name: "delta", packed: true, group: true, reuse: false, seq: vec![1, 0], rows: vec![vec![7, 4, 2], vec![5, 6, 3]] },
+/app/src/main.rs:27:        Case { name: "epsilon", packed: true, group: true, reuse: true, seq: vec![1, 0, 2], rows: vec![vec![4, 7, 2], vec![9, 2, 3], vec![3,
+ 8, 1]] },
+/app/src/main.rs:28:        Case { name: "zeta", packed: false, group: true, reuse: true, seq: vec![2, 0, 1], rows: vec![vec![12, 9, 5], vec![18, 4, 7], vec![10
+, 6, 8]] },
+/app/src/main.rs:32:fn token(sum: i32, slot: usize, packed: bool, group: bool, reuse: bool) -> i32 {
+/app/src/main.rs:34:    if packed { v += 3; }
+/app/src/main.rs:54:        if c.packed { a0::ax(&meta, row, i) } else { row.clone() }
+/app/src/main.rs:62:        vals.push(token(acc, handle, c.packed, c.group, c.reuse));
+/app/src/main.rs:69:    format!("{{\"case\":\"{}\",\"produced\":[{}],\"slot_trace\":[{}],\"order_used\":[{}],\"packed\":{},\"grouped\":{},\"reuse\":{},\"selecte
+d\":[{}]}}",
+/app/src/main.rs:70:        c.name, render_nums(&vals), render_usize(&trace), render_usize(&c.seq), c.packed, c.group, c.reuse, render_nums(&chosen))
+root@0a0216085fbe:/app# cat /app/config/sets.txt
+alpha
+beta
+gamma
+delta
+epsilon
+zeta
+root@0a0216085fbe:/app# cat > /app/cmd/align/main.go <<'GO'
+> package main
+>
+> import (
+>     "encoding/json"
+>     "fmt"
+ndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.Write>     "os"
+>     "strings"
+> )
+>
+> type entry struct {
+>     Case      string `json:"case"`
+>     Produced  []int  `json:"produced"`
+>     Trace     []int  `json:"slot_trace"`
+>     OrderUsed []int  `json:"order_used"`
+>     Packed    bool   `json:"packed"`
+>     Grouped   bool   `json:"grouped"`
+>     Reuse     bool   `json:"reuse"`
+> }
+>
+> type rawDoc struct {
+>     Raw []entry `json:"raw"`
+> }
+>
+> type finalDoc struct {
+>     Rows    []entry        `json:"rows"`
+>     Summary map[string]any `json:"summary"`
+> }
+>
+> func loadJSON(path string, dst any) error {
+>     buf, err := os.ReadFile(path)
+>     if err != nil {
+>         return err
+>     }
+>     return json.Unmarshal(buf, dst)
+> }
+>
+> func loadSets(path string) ([]string, error) {
+>     buf, err := os.ReadFile(path)
+>     if err != nil {
+>         return nil, err
+>     }
+>     lines := strings.Split(string(buf), "\n")
+>     out := make([]string, 0, len(lines))
+>     for _, ln := range lines {
+>         ln = strings.TrimSpace(ln)
+>         if ln == "" {
+>             continue
+>         }
+>         out = append(out, ln)
+>     }
+>     return out, nil
+> }
+>
+> func keyByCase(rows []entry) map[string]entry {
+>     m := make(map[string]entry, len(rows))
+>     for _, r := range rows {
+>         m[r.Case] = r
+>     }
+>     return m
+> }
+>
+> func eqEntry(a, b entry) bool {
+>     if a.Case != b.Case || a.Packed != b.Packed || a.Grouped != b.Grouped || a.Reuse != b.Reuse {
+>         return false
+>     }
+>     if len(a.Produced) != len(b.Produced) || len(a.Trace) != len(b.Trace) || len(a.OrderUsed) != len(b.OrderUsed) {
+>         return false
+>     }
+>     for i := range a.Produced {
+>         if a.Produced[i] != b.Produced[i] {
+>             return false
+>         }
+>     }
+>     for i := range a.Trace {
+>         if a.Trace[i] != b.Trace[i] {
+>             return false
+>         }
+>     }
+>     for i := range a.OrderUsed {
+>         if a.OrderUsed[i] != b.OrderUsed[i] {
+>             return false
+>         }
+>     }
+>     return true
+> }
+>
+> func main() {
+>     if len(os.Args) != 3 {
+>         panic("usage: align raw final")
+>     }
+>
+>     rawPath := os.Args[1]
+>     outPath := os.Args[2]
+>
+>     var raw rawDoc
+>     if err := loadJSON(rawPath, &raw); err != nil {
+>         panic(err)
+>     }
+>
+>     // Produce final rows deterministically: one row per built-in case in sets.txt.
+>     // The report row shape matches raw entry and produced MUST equal raw produced.
+>     sets, err := loadSets("/app/config/sets.txt")
+>     if err != nil {
+>         panic(err)
+>     }
+>     rawBy := keyByCase(raw.Raw)
+>
+>     rows := make([]entry, 0, len(sets))
+>     for _, name := range sets {
+>         r, ok := rawBy[name]
+>         if !ok {
+>             // Do not silently drop: missing cases should break agreement.
+>             continue
+>         }
+>         rows = append(rows, r)
+>     }
+>
+>     // Agreement checks:
+>     // 1) new report rows vs incoming raw rows (per case, on the six fields).
+>     // 2) if prior report exists at outPath, compare its rows vs incoming raw rows too;
+>     //    any mismatch forces agree=false even if new rows match.
+>     agree := true
+>
+>     // Ensure we cover all cases exactly once.
+>     if len(rows) != len(sets) || len(raw.Raw) != len(sets) {
+>         agree = false
+>     }
+>
+>     // Compare new rows to incoming raw by case.
+>     newBy := keyByCase(rows)
+>     for _, name := range sets {
+>         ra, okA := rawBy[name]
+>         rb, okB := newBy[name]
+>         if !okA || !okB {
+>             agree = false
+>             continue
+>         }
+>         if !eqEntry(ra, rb) {
+>             agree = false
+>         }
+>     }
+>
+>     // Compare prior report (if any) to incoming raw by case.
+>     var prior finalDoc
+>     if err := loadJSON(outPath, &prior); err == nil {
+>         priorBy := keyByCase(prior.Rows)
+>         for _, name := range sets {
+>             ra, okA := rawBy[name]
+>             rp, okP := priorBy[name]
+>             if !okA || !okP {
+>                 agree = false
+>                 continue
+>             }
+>             if !eqEntry(ra, rp) {
+>                 agree = false
+>             }
+>         }
+>     }
+>
+>     doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(sets), "agree": agree}}
+>     out, err := json.MarshalIndent(doc, "", "  ")
+>     if err != nil {
+>         panic(err)
+>     }
+>     if err := os.WriteFile(outPath, append(out, '\n'), 0o644); err != nil {
+>         panic(err)
+>     }
+>
+>     _ = fmt.Sprintf("")
+> }
+> GO
+root@0a0216085fbe:/app# go build -o /app/bin/align /app/cmd/align/main.go
+root@0a0216085fbe:/app# /app/bin/align /app/output/raw.json /app/output/report.json
+root@0a0216085fbe:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))['raw']
+> rep=json.load(open('/app/output/report.json'))
+> print('rows',len(rep['rows']),'summary',rep['summary'])
+> fields=['produced','slot_trace','order_used','packed','grouped','reuse']
+> byraw={r['case']:r for r in raw}
+> byrep={r['case']:r for r in rep['rows']}
+> miss=[]; diffs=[]
+> for k,v in byraw.items():
+>     if k not in byrep: miss.append(k); continue
+>     for f in fields:
+>         if byrep[k].get(f)!=v.get(f):
+>             diffs.append((k,f,byrep[k].get(f),v.get(f)))
+> print('missing',miss)
+> print('diffs',diffs[:5])
+> PY
+rows 6 summary {'agree': True, 'total': 6}
+missing []
+diffs []
+root@0a0216085fbe:/app#

@@ -1,0 +1,239 @@
+New Terminal Output:
+
+root@3447b0c626d4:/app# python3 - <<'PY'
+> import json
+> from collections import OrderedDict
+> raw=json.load(open('/app/output/raw.json'))['raw']
+> rep=json.load(open('/app/output/report.json'))
+> rows=rep['rows']
+> need=['produced','slot_trace','order_used','packed','grouped','reuse']
+> raw_by={r['case']:{k:r.get(k) for k in need} for r in raw}
+> rep_by={r['case']:{k:r.get(k) for k in need} for r in rows}
+> all_cases=sorted(set(raw_by)|set(rep_by))
+> mis=[]
+> for c in all_cases:
+>     if c not in raw_by or c not in rep_by:
+>         mis.append((c,'missing'))
+>         continue
+>     for k in need:
+>         if raw_by[c].get(k)!=rep_by[c].get(k):
+>             mis.append((c,k,raw_by[c].get(k),rep_by[c].get(k)))
+>             break
+> print('cases',all_cases)
+> print('mismatches',len(mis))
+> for m in mis[:50]:
+>     print(m)
+> print('report.summary',rep.get('summary'))
+> PY
+cases ['alpha', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']
+mismatches 0
+report.summary {'agree': True, 'total': 6}
+root@3447b0c626d4:/app# echo '--- raw.json'; cat /app/output/raw.json; echo; echo '--- report.json'; cat /app/output/report.json; echo
+--- raw.json
+{"raw":[{"case":"alpha","produced":[40,41],"slot_trace":[0,1],"order_used":[0,1],"packed":false,"grouped":true,"reuse":false,"selected":[0,1]},{"case":"beta","p
+roduced":[36],"slot_trace":[0],"order_used":[0],"packed":true,"grouped":false,"reuse":false,"selected":[0]},{"case":"gamma","produced":[37,48],"slot_trace":[0,1
+],"order_used":[0,1],"packed":true,"grouped":true,"reuse":false,"selected":[0,1]},{"case":"delta","produced":[54,37],"slot_trace":[1,0],"order_used":[1,0],"pack
+ed":true,"grouped":true,"reuse":false,"selected":[1,0]},{"case":"epsilon","produced":[65,48,99],"slot_trace":[1,0,2],"order_used":[1,0,2],"packed":true,"grouped
+":true,"reuse":true,"selected":[1,0,2]},{"case":"zeta","produced":[54,42,52],"slot_trace":[2,0,1],"order_used":[2,0,1],"packed":false,"grouped":true,"reuse":tru
+e,"selected":[2,0,1]}]}
+
+--- report.json
+{
+  "rows": [
+    {
+      "case": "alpha",
+      "produced": [
+        40,
+        41
+      ],
+      "slot_trace": [
+        0,
+        1
+      ],
+      "order_used": [
+        0,
+        1
+      ],
+      "packed": false,
+      "grouped": true,
+      "reuse": false
+    },
+    {
+      "case": "beta",
+      "produced": [
+        36
+      ],
+      "slot_trace": [
+        0
+      ],
+      "order_used": [
+        0
+      ],
+      "packed": true,
+      "grouped": false,
+      "reuse": false
+    },
+    {
+      "case": "delta",
+      "produced": [
+        54,
+        37
+      ],
+      "slot_trace": [
+        1,
+        0
+      ],
+      "order_used": [
+        1,
+        0
+      ],
+      "packed": true,
+      "grouped": true,
+      "reuse": false
+    },
+    {
+      "case": "epsilon",
+      "produced": [
+        65,
+        48,
+        99
+      ],
+      "slot_trace": [
+        1,
+        0,
+        2
+      ],
+      "order_used": [
+        1,
+        0,
+        2
+      ],
+      "packed": true,
+      "grouped": true,
+      "reuse": true
+    },
+    {
+      "case": "gamma",
+      "produced": [
+        37,
+        48
+      ],
+      "slot_trace": [
+        0,
+        1
+      ],
+      "order_used": [
+        0,
+        1
+      ],
+      "packed": true,
+      "grouped": true,
+      "reuse": false
+    },
+    {
+      "case": "zeta",
+      "produced": [
+        54,
+        42,
+        52
+      ],
+      "slot_trace": [
+        2,
+        0,
+        1
+      ],
+      "order_used": [
+        2,
+        0,
+        1
+      ],
+      "packed": false,
+      "grouped": true,
+      "reuse": true
+    }
+  ],
+  "summary": {
+    "agree": true,
+    "total": 6
+  }
+}
+
+root@3447b0c626d4:/app# sed -n '1,200p' /app/cmd/align/main.go
+package main
+
+import (
+    "encoding/json"
+    "os"
+    "sort"
+)
+
+type entry struct {
+    Case      string `json:"case"`
+    Produced  []int  `json:"produced"`
+    Trace     []int  `json:"slot_trace"`
+    OrderUsed []int  `json:"order_used"`
+    Packed    bool   `json:"packed"`
+    Grouped   bool   `json:"grouped"`
+    Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+    Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+    Rows    []entry        `json:"rows"`
+    Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+    seen := map[byte]entry{}
+    for _, row := range a {
+        key := row.Case[0]
+        seen[key] = row
+    }
+    out := make([]entry, 0, len(seen))
+    for _, row := range seen {
+        out = append(out, row)
+    }
+    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+    return out
+}
+
+func main() {
+    if len(os.Args) != 3 {
+        panic("usage: align raw final")
+    }
+    buf, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+    var raw rawDoc
+    if err := json.Unmarshal(buf, &raw); err != nil {
+        panic(err)
+    }
+    rows := fold(raw.Raw)
+    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+    out, err := json.MarshalIndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+        panic(err)
+    }
+}
+root@3447b0c626d4:/app# find /app/internal -maxdepth 3 -type f -name '*.go' -print -exec sed -n '1,200p' {} \;
+/app/internal/collate/table.go
+package collate
+
+import "strings"
+
+func Mix(a string) string {
+    return strings.TrimSpace(a)
+}
+
+func Keep(a []string) []string {
+    out := append([]string{}, a...)
+    return out
+}
+root@3447b0c626d4:/app#

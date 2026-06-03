@@ -1,0 +1,1530 @@
+[?2004hroot@81dea2c5d812:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@81dea2c5d812:/app# clear
+[?2004l[H[J[3J[?2004hroot@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@81dea2c5d812:/app# ls -la /app/output
+[?2004ltotal 4
+drwxr-xr-x  2 root root   31 May 25 15:58 .
+drwxr-xr-x 12 root root  188 May 25 15:58 ..
+-rw-r--r--  1 root root 4047 May 25 15:58 resume-audit.json
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> print('cases:', len(data.get('cases',[])))
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     name=c.get('name')
+[?2004l[?2004h>     ok=c.get('ok')
+[?2004l[?2004h>     fresh=c.get('fresh',{})
+[?2004l[?2004h>     resume=c.get('resume',{})
+[?2004l[?2004h>     fi=fresh.get('illegal')
+[?2004l[?2004h>     ri=resume.get('illegal')
+[?2004l[?2004h>     fs=fresh.get('sig')
+[?2004l[?2004h>     rs=resume.get('sig')
+[?2004l[?2004h>     print(f"{name:9} ok={ok} fresh_illegal={fi} resume_illegal={ri} fresh_sig={fs} resume_sig={rs}")
+[?2004l[?2004h> PY
+[?2004lcases: 6
+bishop    ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5
+knight    ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5
+lancer    ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5
+rook      ok=False fresh_illegal=0 resume_illegal=0 fresh_sig=7d3f56fa resume_sig=24ebc3c9
+sentinel  ok=False fresh_illegal=0 resume_illegal=0 fresh_sig=9a98d68 resume_sig=691e8e87
+warden    ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> print('Failing cases detail:')
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     fresh=c.get('fresh',{})
+[?2004l[?2004h>     resume=c.get('resume',{})
+[?2004l[?2004h>     bad = (not c.get('ok')) or (fresh.get('illegal',0)!=0) or (resume.get('illegal',0)!=0)
+[?2004l[?2004h>     if bad:
+[?2004l[?2004h>         print('\n==', c.get('name'), '==')
+[?2004l[?2004h>         for k in ['ok','moves','visibility','effects','records','log']:
+[?2004l[?2004h>             print(k+':', c.get(k))
+[?2004l[?2004h>         print('fresh:', fresh)
+[?2004l[?2004h>         print('resume:', resume)
+[?2004l[?2004h> PY
+[?2004lFailing cases detail:
+
+== rook ==
+ok: False
+moves: [{'turn': 3, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}, {'turn': 2, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}]
+visibility: {'fresh_seen': 9, 'resume_seen': 8}
+effects: []
+records: /app/workspace/rook/records.jsonl
+log: /app/workspace/rook/trace.tsv
+fresh: {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+resume: {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}
+
+== sentinel ==
+ok: False
+moves: [{'turn': 5, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}, {'turn': 4, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}]
+visibility: {'fresh_seen': 9, 'resume_seen': 8}
+effects: [{'id': 'ward', 'active': True, 'epoch': 7}]
+records: /app/workspace/sentinel/records.jsonl
+log: /app/workspace/sentinel/trace.tsv
+fresh: {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+resume: {'sig': '691e8e87', 'illegal': 0, 'steps': 1}
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> by={c['name']:c for c in data['cases']}
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     print('\n===== ',name,' =====')
+[?2004l[?2004h>     print(json.dumps(by[name], indent=2, sort_keys=True))
+[?2004l[?2004h> PY
+[?2004l
+=====  rook  =====
+{
+  "effects": [],
+  "fresh": {
+    "illegal": 0,
+    "sig": "7d3f56fa",
+    "steps": 1
+  },
+  "log": "/app/workspace/rook/trace.tsv",
+  "moves": [
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 3
+    },
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 2
+    }
+  ],
+  "name": "rook",
+  "ok": false,
+  "records": "/app/workspace/rook/records.jsonl",
+  "resume": {
+    "illegal": 0,
+    "sig": "24ebc3c9",
+    "steps": 1
+  },
+  "visibility": {
+    "fresh_seen": 9,
+    "resume_seen": 8
+  }
+}
+
+=====  sentinel  =====
+{
+  "effects": [
+    {
+      "active": true,
+      "epoch": 7,
+      "id": "ward"
+    }
+  ],
+  "fresh": {
+    "illegal": 0,
+    "sig": "9a98d68",
+    "steps": 1
+  },
+  "log": "/app/workspace/sentinel/trace.tsv",
+  "moves": [
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 5
+    },
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 4
+    }
+  ],
+  "name": "sentinel",
+  "ok": false,
+  "records": "/app/workspace/sentinel/records.jsonl",
+  "resume": {
+    "illegal": 0,
+    "sig": "691e8e87",
+    "steps": 1
+  },
+  "visibility": {
+    "fresh_seen": 9,
+    "resume_seen": 8
+  }
+}
+[?2004hroot@81dea2c5d812:/app# echo '--- rook records.jsonl ---'; sed -n '1,120p' /app/workspace/rook/records.jsonl; echo '--- rook trace.tsv ---'; sed -n '1,120p' /app/workspace/rook/trace.tsv
+[?2004l--- rook records.jsonl ---
+{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":2,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+--- rook trace.tsv ---
+rook	3	1	3	3	3	2	true
+rook	2	1	3	3	3	2	true
+[?2004hroot@81dea2c5d812:/app# echo '--- sentinel records.jsonl ---'; sed -n '1,120p' /app/workspace/sentinel/records.jsonl; echo '--- sentinel trace.tsv ---'; sed -n '1,120p' /app/workspace/sentinel/trace.tsv
+[?2004l--- sentinel records.jsonl ---
+{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":4,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+--- sentinel trace.tsv ---
+sentinel	5	1	3	3	3	2	true
+sentinel	4	1	3	3	3	2	true
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, csv
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_audit_case(name):
+[?2004l[?2004h>     with open('/app/output/resume-audit.json') as f:
+[?2004l[?2004h>         data=json.load(f)
+[?2004l[?2004h>     for c in data['cases']:
+[?2004l[?2004h>         if c['name']==name:
+[?2004l[?2004h>             return c
+[?2004l[?2004h>     raise SystemExit('missing case')
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_jsonl(path):
+[?2004l[?2004h>     rows=[]
+[?2004l[?2004h>     with open(path) as f:
+[?2004l[?2004h>         for line in f:
+[?2004l[?2004h>             line=line.strip()
+[?2004l[?2004h>             if not line: continue
+[?2004l[?2004h>             rows.append(json.loads(line))
+[?2004l[?2004h>     return rows
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_tsv(path):
+[?2004l[?2004h>     rows=[]
+[?2004l[?2004h>     with open(path, newline='') as f:
+[?2004l[?2004h>         for line in f:
+[?2004l[?2004h>             line=line.strip()
+[?2004l[?2004h>             if not line: continue
+[?2004l[?2004h>             rows.append(line.split())
+[?2004l[?2004h>     return rows
+[?2004l[?2004h> 
+[?2004l[?2004h> def norm_move(m):
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         'turn': int(m['turn']),
+[?2004l[?2004h>         'actor': str(m['actor']),
+[?2004l[?2004h>         'from_x': int(m['from_x']),
+[?2004l[?2004h>         'from_y': int(m['from_y']),
+[?2004l[?2004h>         'to_x': int(m['to_x']),
+[?2004l[?2004h>         'to_y': int(m['to_y']),
+[?2004l[?2004h>         'kind': m['kind'],
+[?2004l[?2004h>         'legal': bool(m['legal']),
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> def norm_rec(r):
+[?2004l[?2004h>     # accept either move-like dicts or wrapper dicts with 'move'
+[?2004l[?2004h>     if 'move' in r and isinstance(r['move'], dict):
+[?2004l[?2004h>         r=r['move']
+[?2004l[?2004h>     keys=['turn','actor','from_x','from_y','to_x','to_y','kind','legal']
+[?2004l[?2004h>     return {k: (int(r[k]) if k in ['turn','from_x','from_y','to_x','to_y'] else (bool(r[k]) if k=='legal' else str(r[k]) if k=='actor' else r[k])) for k in keys}
+[?2004l[?2004h> 
+[?2004l[?2004h> def norm_tsv(cols):
+[?2004l[?2004h>     # expected order: turn actor from_x from_y to_x to_y kind legal
+[?2004l[?2004h>     turn,actor,fx,fy,tx,ty,kind,legal = cols[:8]
+[?2004l[?2004h>     return {'turn':int(turn),'actor':str(actor),'from_x':int(fx),'from_y':int(fy),'to_x':int(tx),'to_y':int(ty),'kind':kind,'legal': legal.lower() in ('1','true','t','yes')}
+[?2004l[?2004h> 
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=load_audit_case(name)
+[?2004l[?2004h>     audit=[norm_move(m) for m in c['moves']]
+[?2004l[?2004h>     recs=[norm_rec(r) for r in load_jsonl(c['records'])]
+[?2004l[?2004h>     tsv=[norm_tsv(r) for r in load_tsv(c['log'])]
+[?2004l[?2004h>     print('\n==',name,'==')
+[?2004l[?2004h>     print('audit moves:', audit)
+[?2004l[?2004h>     print('records rows:', recs)
+[?2004l[?2004h>     print('tsv rows:', tsv)
+[?2004l[?2004h>     print('audit==records?', audit==recs)
+[?2004l[?2004h>     print('audit==tsv?', audit==tsv)
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m57[0m, in [35m<module>[0m
+  File [35m"<stdin>"[0m, line [35m51[0m, in [35mnorm_tsv[0m
+[1;35mValueError[0m: [35minvalid literal for int() with base 10: 'rook'[0m
+[?2004hroot@81dea2c5d812:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_one(path):
+[?2004l[?2004h>     with open(path) as f: d=json.load(f)
+[?2004l[?2004h>     return d['cases'][0]
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_matrix(name):
+[?2004l[?2004h>     with open('/app/output/resume-audit.json') as f: d=json.load(f)
+[?2004l[?2004h>     for c in d['cases']:
+[?2004l[?2004h>         if c['name']==name: return c
+[?2004l[?2004h> 
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     one=load_one(f'/app/output/single-{name}.json')
+[?2004l[?2004h>     mat=load_matrix(name)
+[?2004l[?2004h>     print('\n==== compare',name,'====')
+[?2004l[?2004h>     for k in ['ok','fresh','resume','visibility','effects','moves','records','log']:
+[?2004l[?2004h>         same = one.get(k)==mat.get(k)
+[?2004l[?2004h>         print(f'{k}:', 'SAME' if same else 'DIFF')
+[?2004l[?2004h>         if not same:
+[?2004l[?2004h>             print('  matrix:', mat.get(k))
+[?2004l[?2004h>             print('  single:', one.get(k))
+[?2004l[?2004h> PY
+[?2004l
+==== compare rook ====
+ok: SAME
+fresh: SAME
+resume: SAME
+visibility: SAME
+effects: SAME
+moves: SAME
+records: SAME
+log: SAME
+
+==== compare sentinel ====
+ok: SAME
+fresh: SAME
+resume: SAME
+visibility: SAME
+effects: SAME
+moves: SAME
+records: SAME
+log: SAME
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_audit_case(name):
+[?2004l[?2004h>     with open('/app/output/resume-audit.json') as f:
+[?2004l[?2004h>         data=json.load(f)
+[?2004l[?2004h>     for c in data['cases']:
+[?2004l[?2004h>         if c['name']==name:
+[?2004l[?2004h>             return c
+[?2004l[?2004h>     raise SystemExit('missing case')
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_jsonl(path):
+[?2004l[?2004h>     rows=[]
+[?2004l[?2004h>     with open(path) as f:
+[?2004l[?2004h>         for line in f:
+[?2004l[?2004h>             line=line.strip()
+[?2004l[?2004h>             if not line: continue
+[?2004l[?2004h>             rows.append(json.loads(line))
+[?2004l[?2004h>     return rows
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_tsv(path):
+[?2004l[?2004h>     rows=[]
+[?2004l[?2004h>     with open(path) as f:
+[?2004l[?2004h>         for line in f:
+[?2004l[?2004h>             line=line.strip()
+[?2004l[?2004h>             if not line: continue
+[?2004l[?2004h>             rows.append(line.split())
+[?2004l[?2004h>     return rows
+[?2004l[?2004h> 
+[?2004l[?2004h> def norm_move(m):
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         'turn': int(m['turn']),
+[?2004l[?2004h>         'actor': str(m['actor']),
+[?2004l[?2004h>         'from_x': int(m['from_x']),
+[?2004l[?2004h>         'from_y': int(m['from_y']),
+[?2004l[?2004h>         'to_x': int(m['to_x']),
+[?2004l[?2004h>         'to_y': int(m['to_y']),
+[?2004l[?2004h>         'kind': m['kind'],
+[?2004l[?2004h>         'legal': bool(m['legal']),
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> def norm_tsv(cols):
+[?2004l[?2004h>     # trace.tsv format: case turn actor from_x from_y to_x to_y legal
+[?2004l[?2004h>     case,turn,actor,fx,fy,tx,ty,legal = cols[:8]
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         'turn':int(turn),'actor':str(actor),'from_x':int(fx),'from_y':int(fy),
+[?2004l[?2004h>         'to_x':int(tx),'to_y':int(ty),'kind':'step',
+[?2004l[?2004h>         'legal': legal.lower() in ('1','true','t','yes')
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=load_audit_case(name)
+[?2004l[?2004h>     audit=[norm_move(m) for m in c['moves']]
+[?2004l[?2004h>     recs=[norm_move(r) for r in load_jsonl(c['records'])]
+[?2004l[?2004h>     tsv=[norm_tsv(r) for r in load_tsv(c['log'])]
+[?2004l[?2004h>     print('\n==',name,'==')
+[?2004l[?2004h>     print('audit==records?', audit==recs)
+[?2004l[?2004h>     print('audit==tsv?', audit==tsv)
+[?2004l[?2004h>     if audit!=tsv:
+[?2004l[?2004h>         print('audit:', audit)
+[?2004l[?2004h>         print('tsv  :', tsv)
+[?2004l[?2004h> PY
+[?2004l
+== rook ==
+audit==records? True
+audit==tsv? True
+
+== sentinel ==
+audit==records? True
+audit==tsv? True
+[?2004hroot@81dea2c5d812:/app# ls -la /app/workspace/rook /app/workspace/sentinel
+[?2004l/app/workspace/rook:
+total 8
+drwxr-xr-x 2 root root  44 May 25 15:58 .
+drwxr-xr-x 8 root root  90 May 25 15:58 ..
+-rw-r--r-- 1 root root 180 May 25 15:59 records.jsonl
+-rw-r--r-- 1 root root  44 May 25 15:59 trace.tsv
+
+/app/workspace/sentinel:
+total 8
+drwxr-xr-x 2 root root  44 May 25 15:58 .
+drwxr-xr-x 8 root root  90 May 25 15:58 ..
+-rw-r--r-- 1 root root 180 May 25 15:59 records.jsonl
+-rw-r--r-- 1 root root  52 May 25 15:59 trace.tsv
+[?2004hroot@81dea2c5d812:/app# rg -n "sig" /app | head -n 200
+[?2004lbash: rg: command not found
+[?2004hroot@81dea2c5d812:/app# rg -n "resume_seen|fresh_seen|seen" /app | head -n 200
+[?2004lbash: rg: command not found
+[?2004hroot@81dea2c5d812:/app# rg -n "resume" /app/scripts /app/src /app | head -n 200
+[?2004lbash: rg: command not found
+[?2004hroot@81dea2c5d812:/app# grep -RIn --line-number -E "resume-audit|resume_audit|fresh_seen|resume_seen|\"sig\"|signature|records\.jsonl|trace\.tsv" /app 2>/dev/null | head -n 200
+[?2004l/app/cmd/rogctl/main.go:14:	outPath := flag.String("out", "/app/output/resume-audit.json", "output path")
+/app/internal/f5/run.go:268:	recPath := filepath.Join(caseDir, "records.jsonl")
+/app/internal/f5/run.go:269:	logPath := filepath.Join(caseDir, "trace.tsv")
+/app/internal/sim/types.go:25:	Sig     string `json:"sig"`
+/app/internal/sim/types.go:31:	FreshSeen  int `json:"fresh_seen"`
+/app/internal/sim/types.go:32:	ResumeSeen int `json:"resume_seen"`
+/app/scripts/run-matrix.sh:3:out="/app/output/resume-audit.json"
+/app/output/resume-audit.json:7:        "sig": "811c9dc5",
+/app/output/resume-audit.json:12:        "sig": "811c9dc5",
+/app/output/resume-audit.json:18:        "fresh_seen": 0,
+/app/output/resume-audit.json:19:        "resume_seen": 0
+/app/output/resume-audit.json:28:      "records": "/app/workspace/bishop/records.jsonl",
+/app/output/resume-audit.json:29:      "log": "/app/workspace/bishop/trace.tsv"
+/app/output/resume-audit.json:35:        "sig": "811c9dc5",
+/app/output/resume-audit.json:40:        "sig": "811c9dc5",
+/app/output/resume-audit.json:46:        "fresh_seen": 7,
+/app/output/resume-audit.json:47:        "resume_seen": 4
+/app/output/resume-audit.json:50:      "records": "/app/workspace/knight/records.jsonl",
+/app/output/resume-audit.json:51:      "log": "/app/workspace/knight/trace.tsv"
+/app/output/resume-audit.json:57:        "sig": "811c9dc5",
+/app/output/resume-audit.json:62:        "sig": "811c9dc5",
+/app/output/resume-audit.json:68:        "fresh_seen": 18,
+/app/output/resume-audit.json:69:        "resume_seen": 15
+/app/output/resume-audit.json:72:      "records": "/app/workspace/lancer/records.jsonl",
+/app/output/resume-audit.json:73:      "log": "/app/workspace/lancer/trace.tsv"
+/app/output/resume-audit.json:79:        "sig": "7d3f56fa",
+/app/output/resume-audit.json:84:        "sig": "24ebc3c9",
+/app/output/resume-audit.json:111:        "fresh_seen": 9,
+/app/output/resume-audit.json:112:        "resume_seen": 8
+/app/output/resume-audit.json:115:      "records": "/app/workspace/rook/records.jsonl",
+/app/output/resume-audit.json:116:      "log": "/app/workspace/rook/trace.tsv"
+/app/output/resume-audit.json:122:        "sig": "9a98d68",
+/app/output/resume-audit.json:127:        "sig": "691e8e87",
+/app/output/resume-audit.json:154:        "fresh_seen": 9,
+/app/output/resume-audit.json:155:        "resume_seen": 8
+/app/output/resume-audit.json:164:      "records": "/app/workspace/sentinel/records.jsonl",
+/app/output/resume-audit.json:165:      "log": "/app/workspace/sentinel/trace.tsv"
+/app/output/resume-audit.json:171:        "sig": "811c9dc5",
+/app/output/resume-audit.json:176:        "sig": "811c9dc5",
+/app/output/resume-audit.json:182:        "fresh_seen": 0,
+/app/output/resume-audit.json:183:        "resume_seen": 0
+/app/output/resume-audit.json:197:      "records": "/app/workspace/warden/records.jsonl",
+/app/output/resume-audit.json:198:      "log": "/app/workspace/warden/trace.tsv"
+/app/output/single-rook.json:7:        "sig": "7d3f56fa",
+/app/output/single-rook.json:12:        "sig": "24ebc3c9",
+/app/output/single-rook.json:39:        "fresh_seen": 9,
+/app/output/single-rook.json:40:        "resume_seen": 8
+/app/output/single-rook.json:43:      "records": "/app/workspace/rook/records.jsonl",
+/app/output/single-rook.json:44:      "log": "/app/workspace/rook/trace.tsv"
+/app/output/single-sentinel.json:7:        "sig": "9a98d68",
+/app/output/single-sentinel.json:12:        "sig": "691e8e87",
+/app/output/single-sentinel.json:39:        "fresh_seen": 9,
+/app/output/single-sentinel.json:40:        "resume_seen": 8
+/app/output/single-sentinel.json:49:      "records": "/app/workspace/sentinel/records.jsonl",
+/app/output/single-sentinel.json:50:      "log": "/app/workspace/sentinel/trace.tsv"
+[?2004hroot@81dea2c5d812:/app# find /app -maxdepth 4 -type f \( -name "*.rs" -o -name "*.py" -o -name "*.sh" -o -name "*.go" -o -name "*.js" -o -name "*.ts" \) -print
+[?2004l/app/cmd/rogctl/main.go
+/app/internal/a0/pack.go
+/app/internal/b1/cache.go
+/app/internal/c2/effect.go
+/app/internal/d3/plan.go
+/app/internal/e4/native.go
+/app/internal/e4/sight.go
+/app/internal/f5/run.go
+/app/internal/f5/types.go
+/app/internal/g6/render.go
+/app/internal/h7/stats.go
+/app/internal/sim/layout.go
+/app/internal/sim/profile.go
+/app/internal/sim/types.go
+/app/internal/sim/world.go
+/app/scripts/clean-room.sh
+/app/scripts/one-case.sh
+/app/scripts/run-matrix.sh
+[?2004hroot@81dea2c5d812:/app# ls -la /app/bin
+[?2004ltotal 2856
+drwxr-xr-x  2 root root      20 May 25 15:57 .
+drwxr-xr-x 12 root root     188 May 25 15:58 ..
+-rwxr-xr-x  1 root root 2921536 May 25 15:59 rogctl
+[?2004hroot@81dea2c5d812:/app# /app/bin/rogctl --help || true
+[?2004lUsage of /app/bin/rogctl:
+  -case string
+    	single case
+  -out string
+    	output path (default "/app/output/resume-audit.json")
+  -root string
+    	workspace root (default "/app")
+[?2004hroot@81dea2c5d812:/app# grep -RIn --line-number -E "sig|signature" /app/src /app/scripts /app 2>/dev/null | head -n 200
+[?2004l/app/internal/f5/run.go:18:func sigFor(moves []MoveRow) string {
+/app/internal/f5/run.go:272:	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+/app/internal/f5/run.go:273:	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+/app/internal/sim/layout.go:86:	path := filepath.Join(root, "config", "sight.tsv")
+/app/internal/sim/types.go:25:	Sig     string `json:"sig"`
+/app/output/resume-audit.json:7:        "sig": "811c9dc5",
+/app/output/resume-audit.json:12:        "sig": "811c9dc5",
+/app/output/resume-audit.json:35:        "sig": "811c9dc5",
+/app/output/resume-audit.json:40:        "sig": "811c9dc5",
+/app/output/resume-audit.json:57:        "sig": "811c9dc5",
+/app/output/resume-audit.json:62:        "sig": "811c9dc5",
+/app/output/resume-audit.json:79:        "sig": "7d3f56fa",
+/app/output/resume-audit.json:84:        "sig": "24ebc3c9",
+/app/output/resume-audit.json:122:        "sig": "9a98d68",
+/app/output/resume-audit.json:127:        "sig": "691e8e87",
+/app/output/resume-audit.json:171:        "sig": "811c9dc5",
+/app/output/resume-audit.json:176:        "sig": "811c9dc5",
+/app/output/single-rook.json:7:        "sig": "7d3f56fa",
+/app/output/single-rook.json:12:        "sig": "24ebc3c9",
+/app/output/single-sentinel.json:7:        "sig": "9a98d68",
+/app/output/single-sentinel.json:12:        "sig": "691e8e87",
+[?2004hroot@81dea2c5d812:/app# sed -n '1,220p' /app/internal/f5/run.go
+[?2004lpackage f5
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"fog.local/resume/internal/a0"
+	"fog.local/resume/internal/b1"
+	"fog.local/resume/internal/c2"
+	"fog.local/resume/internal/d3"
+	"fog.local/resume/internal/e4"
+)
+
+func sigFor(moves []MoveRow) string {
+	acc := int64(2166136261)
+	for _, m := range moves {
+		acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+		for _, ch := range m.Actor + m.Kind {
+			acc ^= int64(ch)
+			acc = (acc * 16777619) & 0x7fffffff
+		}
+	}
+	return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+	size := w.Width * w.Height
+	seen := append([]bool(nil), w.Seen...)
+	lit := append([]bool(nil), w.Lit...)
+	if len(seen) != size {
+		seen = make([]bool, size)
+	}
+	if len(lit) != size {
+		lit = make([]bool, size)
+	}
+	return &World{
+		Width: w.Width, Height: w.Height,
+		Walls:   append([]bool(nil), w.Walls...),
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+		Hostile: append([]Hostile(nil), w.Hostile...),
+		Turn:    w.Turn,
+		Seen:    seen,
+		Lit:     lit,
+		Effects: append([]EffectState(nil), w.Effects...),
+	}
+}
+
+func applyPlayer(w *World, arg string) {
+	parts := strings.Split(arg, ",")
+	if len(parts) != 2 {
+		return
+	}
+	dx, _ := strconv.Atoi(parts[0])
+	dy, _ := strconv.Atoi(parts[1])
+	nx, ny := w.PlayerX+dx, w.PlayerY+dy
+	if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+		w.PlayerX, w.PlayerY = nx, ny
+	}
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range w.Hostile {
+		key := fmt.Sprintf("%d,%d", h.X, h.Y)
+		if extra != nil && extra[key] {
+			out[key] = true
+			continue
+		}
+		if e4.PlayerSees(w, h.X, h.Y) {
+			out[key] = true
+		}
+	}
+	return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+	rows := []MoveRow{}
+	for i := range w.Hostile {
+		row, ok := d3.PlanSlot(w, cache, i)
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+func blindActive(w *World) bool {
+	for _, e := range w.Effects {
+		if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+			return true
+		}
+	}
+	return false
+}
+
+func snapToC2(effects []EffectState) []c2.EffectSnap {
+	out := make([]c2.EffectSnap, len(effects))
+	for i, e := range effects {
+		out[i] = c2.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	return out
+}
+
+func snapFromC2(snaps []c2.EffectSnap) []EffectState {
+	out := make([]EffectState, len(snaps))
+	for i, s := range snaps {
+		out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+	}
+	return out
+}
+
+func profileToC2(p Profile) c2.ProfileSnap {
+	return c2.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func rowsFromC2(rows []c2.RowSnap) []EffectRow {
+	out := make([]EffectRow, len(rows))
+	for i, r := range rows {
+		out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+	}
+	return out
+}
+
+func packWorld(w *World, obs map[string]bool) a0.ItemY {
+	effects := make([]a0.EffectSnap, len(w.Effects))
+	for i, e := range w.Effects {
+		effects[i] = a0.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]a0.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = a0.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := a0.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return a0.PackItem(item)
+}
+
+func applyWorld(w *World, item a0.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	w.Effects = make([]EffectState, len(item.Effects))
+	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob a0.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &b1.CacheX{Obs: map[string]bool{}}
+	b1.Merge(cache, blob)
+	merged := b1.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+[?2004hroot@81dea2c5d812:/app# sed -n '220,420p' /app/internal/f5/run.go
+[?2004l			continue
+		}
+		w.Turn = step.Turn
+		e4.ApplyLit(w, radius, blindActive(w))
+		moves = append(moves, advanceAll(w, merged)...)
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = snapFromC2(c2.Seed(profileToC2(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = snapFromC2(c2.Seed(profileToC2(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+		Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}
+[?2004hroot@81dea2c5d812:/app# sed -n '1,220p' /app/internal/f5/types.go
+[?2004lpackage f5
+
+import "fog.local/resume/internal/sim"
+
+type World = sim.World
+type Hostile = sim.Hostile
+type EffectState = sim.EffectState
+type Profile = sim.Profile
+type MoveRow = sim.MoveRow
+type PathSummary = sim.PathSummary
+type VisPair = sim.VisPair
+type EffectRow = sim.EffectRow
+type CaseResult = sim.CaseResult
+type Report = sim.Report
+type ScriptStep = sim.ScriptStep
+
+func ProfileFor(name string) Profile { return sim.ProfileFor(name) }
+func AllCases() []string             { return sim.AllCases() }
+func LoadLayout(root, name string) (*World, error) {
+	return sim.LoadLayout(root, name)
+}
+func LoadScript(root, name string) ([]ScriptStep, error) {
+	return sim.LoadScript(root, name)
+}
+func LoadRadius(root, name string) (int, error) { return sim.LoadRadius(root, name) }
+[?2004hroot@81dea2c5d812:/app# sed -n '1,120p' /app/internal/sim/types.go
+[?2004lpackage sim
+
+type Profile struct {
+	Name      string
+	Radius    int
+	Blind     bool
+	Dense     bool
+	Epoch     bool
+	Mixed     bool
+	CheckTurn int
+}
+
+type MoveRow struct {
+	Turn  int    `json:"turn"`
+	Actor string `json:"actor"`
+	FromX int    `json:"from_x"`
+	FromY int    `json:"from_y"`
+	ToX   int    `json:"to_x"`
+	ToY   int    `json:"to_y"`
+	Kind  string `json:"kind"`
+	Legal bool   `json:"legal"`
+}
+
+type PathSummary struct {
+	Sig     string `json:"sig"`
+	Illegal int    `json:"illegal"`
+	Steps   int    `json:"steps"`
+}
+
+type VisPair struct {
+	FreshSeen  int `json:"fresh_seen"`
+	ResumeSeen int `json:"resume_seen"`
+}
+
+type EffectRow struct {
+	ID     string `json:"id"`
+	Active bool   `json:"active"`
+	Epoch  int    `json:"epoch"`
+}
+
+type CaseResult struct {
+	Name       string      `json:"name"`
+	OK         bool        `json:"ok"`
+	Fresh      PathSummary `json:"fresh"`
+	Resume     PathSummary `json:"resume"`
+	Moves      []MoveRow   `json:"moves"`
+	Visibility VisPair     `json:"visibility"`
+	Effects    []EffectRow `json:"effects"`
+	Records    string      `json:"records"`
+	Log        string      `json:"log"`
+}
+
+type Report struct {
+	Cases []CaseResult `json:"cases"`
+}
+[?2004hroot@81dea2c5d812:/app# grep -nR --line-number -E "func (runDirect|runLoaded|playUntilSave)" /app/internal/f5/run.go
+[?2004l163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+185:func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+[?2004hroot@81dea2c5d812:/app# grep -nR --line-number -E "runDirect\(|runLoaded\(|playUntilSave\(" /app/internal/f5/run.go | head -n 50
+[?2004l163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+185:func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+246:	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+247:	freshMoves := runDirect(wFresh, steps, profile, radius)
+251:	playUntilSave(wResume, steps, profile, radius)
+252:	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+[?2004hroot@81dea2c5d812:/app# sed -n '420,820p' /app/internal/f5/run.go
+[?2004l[?2004hroot@81dea2c5d812:/app# apply_patch <<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: internal/f5/run.go
+[?2004l[?2004h> @@
+[?2004l[?2004h> -        allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+[?2004l[?2004h> +        // The audit's Moves/records/log must describe a single resolved move list
+[?2004l[?2004h> +        // (the same list in the same order) for the scenario.
+[?2004l[?2004h> +        // Fresh and resume are two execution paths that must reconcile to that list.
+[?2004l[?2004h> +        //
+[?2004l[?2004h> +        // Previously we concatenated fresh+resume which masked mismatches and made
+[?2004l[?2004h> +        // the reported move list diverge from what the per-path signatures covered.
+[?2004l[?2004h> +        resolvedMoves := append([]MoveRow{}, freshMoves...)
+[?2004l[?2004h> @@
+[?2004l[?2004h> -        flushRows(recPath, logPath, name, allMoves)
+[?2004l[?2004h> +        flushRows(recPath, logPath, name, resolvedMoves)
+[?2004l[?2004h> @@
+[?2004l[?2004h> -        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+[?2004l[?2004h> -        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+[?2004l[?2004h> -        ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+[?2004l[?2004h> +        // Signature is over the resolved move list for the path.
+[?2004l[?2004h> +        // If the two paths resolve the same move list, their signatures must match.
+[?2004l[?2004h> +        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+[?2004l[?2004h> +        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+[?2004l[?2004h> +        ok := freshIllegal == 0 && resumeIllegal == 0 && len(freshMoves) == len(resumeMoves)
+[?2004l[?2004h> +        if ok {
+[?2004l[?2004h> +                for i := range freshMoves {
+[?2004l[?2004h> +                        if freshMoves[i] != resumeMoves[i] {
+[?2004l[?2004h> +                                ok = false
+[?2004l[?2004h> +                                break
+[?2004l[?2004h> +                        }
+[?2004l[?2004h> +                }
+[?2004l[?2004h> +        }
+[?2004l[?2004h> @@
+[?2004l[?2004h>                  Name:       name,
+[?2004l[?2004h>                  OK:         ok,
+[?2004l[?2004h>                  Fresh:      fresh,
+[?2004l[?2004h>                  Resume:     resume,
+[?2004l[?2004h> -                Moves:      allMoves,
+[?2004l[?2004h> +                Moves:      resolvedMoves,
+[?2004l[?2004h>                  Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+[?2004l[?2004h>                  Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+[?2004l[?2004h>                  Records:    recPath,
+[?2004l[?2004h>                  Log:        logPath,
+[?2004l[?2004h>          }, nil
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     print(c['name'], 'ok='+str(c['ok']), 'fresh_sig='+c['fresh']['sig'], 'resume_sig='+c['resume']['sig'], 'moves='+str(len(c['moves'])))
+[?2004l[?2004h> PY
+[?2004lbishop ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+knight ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+lancer ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+rook ok=False fresh_sig=7d3f56fa resume_sig=24ebc3c9 moves=2
+sentinel ok=False fresh_sig=9a98d68 resume_sig=691e8e87 moves=2
+warden ok=True fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+[?2004hroot@81dea2c5d812:/app# nl -ba /app/internal/f5/run.go | sed -n '140,340p'
+[?2004l   140			PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+   141		}
+   142		return a0.PackItem(item)
+   143	}
+   144	
+   145	func applyWorld(w *World, item a0.ItemY) {
+   146		w.Width = item.Width
+   147		w.Height = item.Height
+   148		w.PlayerX = item.PlayerX
+   149		w.PlayerY = item.PlayerY
+   150		w.Turn = item.Turn
+   151		w.Lit = append([]bool(nil), item.Lit...)
+   152		w.Seen = append([]bool(nil), item.Seen...)
+   153		w.Hostile = make([]Hostile, len(item.Hostiles))
+   154		for i, h := range item.Hostiles {
+   155			w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+   156		}
+   157		w.Effects = make([]EffectState, len(item.Effects))
+   158		for i, e := range item.Effects {
+   159			w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+   160		}
+   161	}
+   162	
+   163	func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+   164		visStale := map[string]bool{}
+   165		var blob a0.ItemY
+   166		for _, step := range steps {
+   167			w.Turn = step.Turn
+   168			if step.Action == "save" {
+   169				vis := buildObs(w, nil)
+   170				for k, v := range visStale {
+   171					vis[k] = v
+   172				}
+   173				blob = packWorld(w, vis)
+   174				break
+   175			}
+   176			if step.Actor == "P" {
+   177				applyPlayer(w, step.Arg)
+   178				e4.ApplyLit(w, radius, blindActive(w))
+   179				visStale = buildObs(w, nil)
+   180			}
+   181		}
+   182		return blob, visStale
+   183	}
+   184	
+   185	func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+   186		moves := []MoveRow{}
+   187		pastSave := false
+   188		for _, step := range steps {
+   189			if step.Action == "save" {
+   190				pastSave = true
+   191				continue
+   192			}
+   193			if !pastSave {
+   194				continue
+   195			}
+   196			w.Turn = step.Turn
+   197			if step.Actor == "P" {
+   198				applyPlayer(w, step.Arg)
+   199				e4.ApplyLit(w, radius, blindActive(w))
+   200			}
+   201			if step.Actor == "H" {
+   202				moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+   203			}
+   204		}
+   205		return moves
+   206	}
+   207	
+   208	func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+   209		applyWorld(w, blob)
+   210		cache := &b1.CacheX{Obs: map[string]bool{}}
+   211		b1.Merge(cache, blob)
+   212		merged := b1.Snapshot(cache)
+   213		for k, v := range stale {
+   214			merged[k] = v
+   215		}
+   216		w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+   217		moves := []MoveRow{}
+   218		for _, step := range steps {
+   219			if step.Action != "save" {
+   220				continue
+   221			}
+   222			w.Turn = step.Turn
+   223			e4.ApplyLit(w, radius, blindActive(w))
+   224			moves = append(moves, advanceAll(w, merged)...)
+   225		}
+   226		return moves
+   227	}
+   228	
+   229	func RunRow(root, name string) (CaseResult, error) {
+   230		profile := ProfileFor(name)
+   231		radius, _ := LoadRadius(root, name)
+   232		if radius == 0 {
+   233			radius = profile.Radius
+   234		}
+   235		base, err := LoadLayout(root, name)
+   236		if err != nil {
+   237			return CaseResult{}, err
+   238		}
+   239		steps, err := LoadScript(root, name)
+   240		if err != nil {
+   241			return CaseResult{}, err
+   242		}
+   243	
+   244		wFresh := cloneWorld(base)
+   245		wFresh.Effects = snapFromC2(c2.Seed(profileToC2(profile), wFresh.Turn))
+   246		blob, stale := playUntilSave(wFresh, steps, profile, radius)
+   247		freshMoves := runDirect(wFresh, steps, profile, radius)
+   248	
+   249		wResume := cloneWorld(base)
+   250		wResume.Effects = snapFromC2(c2.Seed(profileToC2(profile), wResume.Turn))
+   251		playUntilSave(wResume, steps, profile, radius)
+   252		resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+   253	
+   254		freshIllegal, resumeIllegal := 0, 0
+   255		for _, m := range freshMoves {
+   256			if !m.Legal {
+   257				freshIllegal++
+   258			}
+   259		}
+   260		for _, m := range resumeMoves {
+   261			if !m.Legal {
+   262				resumeIllegal++
+   263			}
+   264		}
+   265		allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+   266		caseDir := filepath.Join(root, "workspace", name)
+   267		_ = os.MkdirAll(caseDir, 0o755)
+   268		recPath := filepath.Join(caseDir, "records.jsonl")
+   269		logPath := filepath.Join(caseDir, "trace.tsv")
+   270		flushRows(recPath, logPath, name, allMoves)
+   271	
+   272		fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+   273		resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+   274		ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+   275	
+   276		return CaseResult{
+   277			Name:       name,
+   278			OK:         ok,
+   279			Fresh:      fresh,
+   280			Resume:     resume,
+   281			Moves:      allMoves,
+   282			Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+   283			Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+   284			Records:    recPath,
+   285			Log:        logPath,
+   286		}, nil
+   287	}
+   288	
+   289	func flushRows(recPath, logPath, name string, moves []MoveRow) {
+   290		rec, _ := os.Create(recPath)
+   291		defer rec.Close()
+   292		for _, m := range moves {
+   293			b, _ := json.Marshal(m)
+   294			_, _ = rec.Write(append(b, '\n'))
+   295		}
+   296		log, _ := os.Create(logPath)
+   297		defer log.Close()
+   298		for _, m := range moves {
+   299			fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+   300				name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+   301		}
+   302	}
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> old="""\n        allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n        caseDir := filepath.Join(root, \"workspace\", name)\n"""
+[?2004l[?2004h> if old not in s:
+[?2004l[?2004h>     raise SystemExit('pattern1 not found')
+[?2004l[?2004h> s=s.replace(old,"""\n        // The audit's Moves/records/log must describe a single resolved move list\n        // (the same list in the same order) for the scenario.\n        // Fresh and resume are two execution paths that must reconcile to that list.\n        //\n        // Do not concatenate fresh+resume: that hides mismatches and makes the output\n        // move list differ from the per-path signature inputs.\n        resolvedMoves := append([]MoveRow{}, freshMoves...)\n        caseDir := filepath.Join(root, \"workspace\", name)\n""")
+[?2004l[?2004h> old2="""\n        flushRows(recPath, logPath, name, allMoves)\n\n        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n        ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n\n        return CaseResult{\n"""
+[?2004l[?2004h> if old2 not in s:
+[?2004l[?2004h>     raise SystemExit('pattern2 not found')
+[?2004l[?2004h> s=s.replace(old2,"""\n        flushRows(recPath, logPath, name, resolvedMoves)\n\n        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n        ok := freshIllegal == 0 && resumeIllegal == 0 && len(freshMoves) == len(resumeMoves)\n        if ok {\n                for i := range freshMoves {\n                        if freshMoves[i] != resumeMoves[i] {\n                                ok = false\n                                break\n                        }\n                }\n        }\n\n        return CaseResult{\n""")
+[?2004l[?2004h> old3="\n                Moves:      allMoves,\n"
+[?2004l[?2004h> if old3 not in s:
+[?2004l[?2004h>     raise SystemExit('pattern3 not found')
+[?2004l[?2004h> s=s.replace(old3,"\n                Moves:      resolvedMoves,\n")
+[?2004l[?2004h> 
+[?2004l[?2004h> p.write_text(s)
+[?2004l[?2004h> print('patched', p)
+[?2004l[?2004h> PY
+[?2004lpattern1 not found
+[?2004hroot@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     print(c['name'], 'ok='+str(c['ok']), 'fresh_illegal='+str(c['fresh']['illegal']), 'resume_illegal='+str(c['resume']['illegal']), 'fresh_sig='+c['fresh']['sig'], 'resume_sig='+c['resume']['sig'], 'moves='+str(len(c['moves'])))
+[?2004l[?2004h> PY
+[?2004lbishop ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+knight ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+lancer ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+rook ok=False fresh_illegal=0 resume_illegal=0 fresh_sig=7d3f56fa resume_sig=24ebc3c9 moves=2
+sentinel ok=False fresh_illegal=0 resume_illegal=0 fresh_sig=9a98d68 resume_sig=691e8e87 moves=2
+warden ok=True fresh_illegal=0 resume_illegal=0 fresh_sig=811c9dc5 resume_sig=811c9dc5 moves=0
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=[x for x in data['cases'] if x['name']==name][0]
+[?2004l[?2004h>     print('\n',name,'moves:',c['moves'])
+[?2004l[?2004h>     # show records/log first lines
+[?2004l[?2004h>     import itertools
+[?2004l[?2004h>     print('records:')
+[?2004l[?2004h>     with open(c['records']) as f:
+[?2004l[?2004h>         for line in itertools.islice(f,0,5):
+[?2004l[?2004h>             if line.strip():
+[?2004l[?2004h>                 print(line.strip())
+[?2004l[?2004h>     print('log:')
+[?2004l[?2004h>     with open(c['log']) as f:
+[?2004l[?2004h>         for line in itertools.islice(f,0,5):
+[?2004l[?2004h>             if line.strip():
+[?2004l[?2004h>                 print(line.strip())
+[?2004l[?2004h> PY
+[?2004l
+ rook moves: [{'turn': 3, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}, {'turn': 2, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}]
+records:
+{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":2,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+log:
+rook	3	1	3	3	3	2	true
+rook	2	1	3	3	3	2	true
+
+ sentinel moves: [{'turn': 5, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}, {'turn': 4, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}]
+records:
+{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":4,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+log:
+sentinel	5	1	3	3	3	2	true
+sentinel	4	1	3	3	3	2	true
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> import re
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> pat=re.compile(r"func runLoaded\(w \*World, steps \[\]ScriptStep, blob a0\.ItemY, stale map\[string\]bool, profile Profile, radius int\) \[\]MoveRow \{.*?\n\}\n", re.S)
+[?2004l[?2004h> m=pat.search(s)
+[?2004l[?2004h> if not m:
+[?2004l[?2004h>     raise SystemExit('runLoaded not found')
+[?2004l[?2004h> new_func="""func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+[?2004l[?2004h>         // Resume path should reproduce the same post-save simulation as the fresh path,
+[?2004l[?2004h>         // but starting from the loaded snapshot and merged observation cache.
+[?2004l[?2004h>         applyWorld(w, blob)
+[?2004l[?2004h>         cache := &b1.CacheX{Obs: map[string]bool{}}
+[?2004l[?2004h>         b1.Merge(cache, blob)
+[?2004l[?2004h>         merged := b1.Snapshot(cache)
+[?2004l[?2004h>         for k, v := range stale {
+[?2004l[?2004h>                 merged[k] = v
+[?2004l[?2004h>         }
+[?2004l[?2004h>         w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+[?2004l[?2004h> 
+[?2004l[?2004h>         moves := []MoveRow{}
+[?2004l[?2004h>         pastSave := false
+[?2004l[?2004h>         for _, step := range steps {
+[?2004l[?2004h>                 if step.Action == "save" {
+[?2004l[?2004h>                         pastSave = true
+[?2004l[?2004h>                         continue
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 if !pastSave {
+[?2004l[?2004h>                         continue
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 w.Turn = step.Turn
+[?2004l[?2004h>                 if step.Actor == "P" {
+[?2004l[?2004h>                         applyPlayer(w, step.Arg)
+[?2004l[?2004h>                         e4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 if step.Actor == "H" {
+[?2004l[?2004h>                         // Use merged boundary observations as extra visibility hints.
+[?2004l[?2004h>                         moves = append(moves, advanceAll(w, buildObs(w, merged))...)
+[?2004l[?2004h>                 }
+[?2004l[?2004h>         }
+[?2004l[?2004h>         return moves
+[?2004l[?2004h> }
+[?2004l[?2004h> """
+[?2004l[?2004h> s2=s[:m.start()]+new_func+s[m.end():]
+[?2004l[?2004h> p.write_text(s2)
+[?2004l[?2004h> print('patched runLoaded in', p)
+[?2004l[?2004h> PY
+[?2004lpatched runLoaded in /app/internal/f5/run.go
+[?2004hroot@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     name=c['name']
+[?2004l[?2004h>     ok=c['ok']
+[?2004l[?2004h>     fi=c['fresh']['illegal']; ri=c['resume']['illegal']
+[?2004l[?2004h>     fs=c['fresh']['sig']; rs=c['resume']['sig']
+[?2004l[?2004h>     vis=c['visibility']
+[?2004l[?2004h>     print(f"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}")
+[?2004l[?2004h> PY
+[?2004lbishop    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+knight    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(7,0) moves=0
+lancer    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(18,0) moves=0
+rook      ok=False illegal=(0,1) sig=(7d3f56fa,7d3f56fa) seen=(9,0) moves=2
+sentinel  ok=False illegal=(0,1) sig=(9a98d68,9a98d68) seen=(9,0) moves=2
+warden    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+[?2004hroot@81dea2c5d812:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@81dea2c5d812:/app# sed -n '1,240p' /app/internal/e4/sight.go
+[?2004lpackage e4
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+	size := w.Width * w.Height
+	if len(w.Lit) != size {
+		w.Lit = make([]bool, size)
+	}
+	for i := range w.Lit {
+		w.Lit[i] = false
+	}
+	if blind {
+		return
+	}
+	type point struct{ x, y int }
+	queue := []point{{w.PlayerX, w.PlayerY}}
+	dist := make([]int, size)
+	for i := range dist {
+		dist[i] = -1
+	}
+	start := w.Idx(w.PlayerX, w.PlayerY)
+	dist[start] = 0
+	w.Lit[start] = true
+	for len(queue) > 0 {
+		p := queue[0]
+		queue = queue[1:]
+		d := dist[w.Idx(p.x, p.y)]
+		if d >= radius {
+			continue
+		}
+		for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			nx, ny := p.x+delta[0], p.y+delta[1]
+			if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+				continue
+			}
+			idx := w.Idx(nx, ny)
+			if dist[idx] >= 0 {
+				continue
+			}
+			dist[idx] = d + 1
+			w.Lit[idx] = true
+			queue = append(queue, point{nx, ny})
+		}
+	}
+	if len(w.Seen) != size {
+		w.Seen = make([]bool, size)
+	}
+	for i := 0; i < size; i++ {
+		if w.Lit[i] {
+			w.Seen[i] = true
+		}
+	}
+}
+
+func CountSeen(w *sim.World) int {
+	n := 0
+	for _, v := range w.Seen {
+		if v {
+			n++
+		}
+	}
+	return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+	if !w.InBounds(x, y) {
+		return false
+	}
+	idx := w.Idx(x, y)
+	if idx >= len(w.Seen) || idx >= len(w.Lit) {
+		return false
+	}
+	return w.Seen[idx] && w.Lit[idx]
+}
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> import re
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> # In runLoaded, replace buildObs(w, merged) with buildObs(w, nil)
+[?2004l[?2004h> s2=s.replace('moves = append(moves, advanceAll(w, buildObs(w, merged))...)','moves = append(moves, advanceAll(w, buildObs(w, nil))...)')
+[?2004l[?2004h> if s2==s:
+[?2004l[?2004h>     raise SystemExit('no replacement made (pattern not found)')
+[?2004l[?2004h> p.write_text(s2)
+[?2004l[?2004h> print('patched runLoaded to use current obs only')
+[?2004l[?2004h> PY
+[?2004lpatched runLoaded to use current obs only
+[?2004hroot@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     name=c['name']
+[?2004l[?2004h>     ok=c['ok']
+[?2004l[?2004h>     fi=c['fresh']['illegal']; ri=c['resume']['illegal']
+[?2004l[?2004h>     fs=c['fresh']['sig']; rs=c['resume']['sig']
+[?2004l[?2004h>     vis=c['visibility']
+[?2004l[?2004h>     print(f"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}")
+[?2004l[?2004h> PY
+[?2004lbishop    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+knight    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(7,0) moves=0
+lancer    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(18,0) moves=0
+rook      ok=False illegal=(0,0) sig=(7d3f56fa,811c9dc5) seen=(9,0) moves=1
+sentinel  ok=False illegal=(0,0) sig=(9a98d68,811c9dc5) seen=(9,0) moves=1
+warden    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> import re
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text().splitlines(True)
+[?2004l[?2004h> out=[]
+[?2004l[?2004h> for i,line in enumerate(s):
+[?2004l[?2004h>     out.append(line)
+[?2004l[?2004h>     if line.strip()=='applyWorld(w, blob)':
+[?2004l[?2004h>         out.append('        // Recompute lighting/visibility at the load boundary so planning matches the fresh path.\n')
+[?2004l[?2004h>         out.append('        w.Turn = blob.Turn\n')
+[?2004l[?2004h>         out.append('        e4.ApplyLit(w, radius, blindActive(w))\n')
+[?2004l[?2004h>         
+[?2004l[?2004h> Path('/app/internal/f5/run.go').write_text(''.join(out))
+[?2004l[?2004h> print('inserted ApplyLit after applyWorld')
+[?2004l[?2004h> PY
+[?2004linserted ApplyLit after applyWorld
+[?2004hroot@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     name=c['name']
+[?2004l[?2004h>     ok=c['ok']
+[?2004l[?2004h>     fi=c['fresh']['illegal']; ri=c['resume']['illegal']
+[?2004l[?2004h>     fs=c['fresh']['sig']; rs=c['resume']['sig']
+[?2004l[?2004h>     vis=c['visibility']
+[?2004l[?2004h>     print(f"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}")
+[?2004l[?2004h> PY
+[?2004lbishop    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+knight    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(7,4) moves=0
+lancer    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(18,15) moves=0
+rook      ok=True illegal=(0,0) sig=(7d3f56fa,7d3f56fa) seen=(9,8) moves=2
+sentinel  ok=True illegal=(0,0) sig=(9a98d68,9a98d68) seen=(9,8) moves=2
+warden    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,6) moves=0
+[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, itertools
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=[x for x in data['cases'] if x['name']==name][0]
+[?2004l[?2004h>     print('\n==',name,'== ok',c['ok'])
+[?2004l[?2004h>     print('moves:', c['moves'])
+[?2004l[?2004h>     print('records:')
+[?2004l[?2004h>     with open(c['records']) as f:
+[?2004l[?2004h>         for line in itertools.islice(f,0,5):
+[?2004l[?2004h>             if line.strip(): print(line.strip())
+[?2004l[?2004h>     print('log:')
+[?2004l[?2004h>     with open(c['log']) as f:
+[?2004l[?2004h>         for line in itertools.islice(f,0,5):
+[?2004l[?2004h>             if line.strip(): print(line.strip())
+[?2004l[?2004h> PY
+[?2004l
+== rook == ok True
+moves: [{'turn': 3, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}, {'turn': 3, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}]
+records:
+{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+log:
+rook	3	1	3	3	3	2	true
+rook	3	1	3	3	3	2	true
+
+== sentinel == ok True
+moves: [{'turn': 5, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}, {'turn': 5, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}]
+records:
+{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+log:
+sentinel	5	1	3	3	3	2	true
+sentinel	5	1	3	3	3	2	true
+[?2004hroot@81dea2c5d812:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@81dea2c5d812:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, itertools
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_jsonl(path):
+[?2004l[?2004h>     out=[]
+[?2004l[?2004h>     with open(path) as f:
+[?2004l[?2004h>         for line in f:
+[?2004l[?2004h>             line=line.strip()
+[?2004l[?2004h>             if not line: continue
+[?2004l[?2004h>             out.append(json.loads(line))
+[?2004l[?2004h>     return out
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_tsv(path):
+[?2004l[?2004h>     out=[]
+[?2004l[?2004h>     with open(path) as f:
+[?2004l[?2004h>         for line in f:
+[?2004l[?2004h>             line=line.strip()
+[?2004l[?2004h>             if not line: continue
+[?2004l[?2004h>             cols=line.split()  # case turn actor fx fy tx ty legal
+[?2004l[?2004h>             case,turn,actor,fx,fy,tx,ty,legal=cols[:8]
+[?2004l[?2004h>             out.append({
+[?2004l[?2004h>                 'turn':int(turn),'actor':str(actor),'from_x':int(fx),'from_y':int(fy),
+[?2004l[?2004h>                 'to_x':int(tx),'to_y':int(ty),'kind':'step','legal': legal.lower() in ('1','true','t','yes')
+[?2004l[?2004h>             })
+[?2004l[?2004h>     return out
+[?2004l[?2004h> 
+[?2004l[?2004h> def norm(m):
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         'turn':int(m['turn']), 'actor':str(m['actor']),
+[?2004l[?2004h>         'from_x':int(m['from_x']), 'from_y':int(m['from_y']),
+[?2004l[?2004h>         'to_x':int(m['to_x']), 'to_y':int(m['to_y']),
+[?2004l[?2004h>         'kind':m['kind'], 'legal':bool(m['legal'])
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+[?2004l[?2004h> all_ok=True
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     moves=[norm(m) for m in c['moves']]
+[?2004l[?2004h>     recs=[norm(r) for r in load_jsonl(c['records'])]
+[?2004l[?2004h>     tsv=load_tsv(c['log'])
+[?2004l[?2004h>     ok = (moves==recs==tsv)
+[?2004l[?2004h>     print(f"{c['name']:9} files_match={ok} rows={len(moves)}")
+[?2004l[?2004h>     if not ok:
+[?2004l[?2004h>         all_ok=False
+[?2004l[?2004h>         print('  moves:', moves)
+[?2004l[?2004h>         print('  recs :', recs)
+[?2004l[?2004h>         print('  tsv  :', tsv)
+[?2004l[?2004h> print('ALL_MATCH:', all_ok)
+[?2004l[?2004h> PY
+[?2004lbishop    files_match=True rows=0
+knight    files_match=True rows=0
+lancer    files_match=True rows=0
+rook      files_match=True rows=2
+sentinel  files_match=True rows=2
+warden    files_match=True rows=0
+ALL_MATCH: True
+[?2004hroot@81dea2c5d812:/app# for c in bishop knight lancer rook sentinel warden; do bash /app/scripts/one-case.sh "$c"; done
+[?2004l[?2004hroot@81dea2c5d812:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> with open('/app/output/resume-audit.json') as f: mat=json.load(f)
+[?2004l[?2004h> mat_by={c['name']:c for c in mat['cases']}
+[?2004l[?2004h> all_same=True
+[?2004l[?2004h> for name in ['bishop','knight','lancer','rook','sentinel','warden']:
+[?2004l[?2004h>     with open(f'/app/output/single-{name}.json') as f: one=json.load(f)['cases'][0]
+[?2004l[?2004h>     same = (one==mat_by[name])
+[?2004l[?2004h>     print(f"{name:9} single_matches_matrix={same}")
+[?2004l[?2004h>     if not same:
+[?2004l[?2004h>         all_same=False
+[?2004l[?2004h> print('ALL_SINGLE_MATCH:', all_same)
+[?2004l[?2004h> PY
+[?2004lbishop    single_matches_matrix=True
+knight    single_matches_matrix=True
+lancer    single_matches_matrix=True
+rook      single_matches_matrix=True
+sentinel  single_matches_matrix=True
+warden    single_matches_matrix=True
+ALL_SINGLE_MATCH: True
+[?2004hroot@81dea2c5d812:/app# 

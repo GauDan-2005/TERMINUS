@@ -1,0 +1,30 @@
+{
+  "analysis": "I need to see the rest of RunRow function and the data files. I can already see several bugs:\n1. **store/pack.go - PackItem**: Replaces `out.Seen` with `st.Lit` (copies of Lit), so after restore the Seen state is wrong.\n2. **mod/effect.go - SyncBoundary**: Off-by-one (`currentTurn + rem - 1` should be `currentTurn + rem`) causing effects to expire one turn early on resume.\n3. **vis/sight.go - PlayerSees**: The special-case for the bottom row uses wrong lit index.\n4. **exec/run.go - runLoaded**: Calls `SyncBoundary(... blob.Turn, w.Turn)` but `w.Turn` was just set by `applyWorld` to be `blob.Turn`, making them equal and the sync a no-op when it shouldn't be.",
+  "plan": "View the rest of RunRow and look at some data files to understand the full flow.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '250,312p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/scripts/rook.tsv\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/scripts/sentinel.tsv\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/layouts/rook.map\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/layouts/sentinel.map\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/scripts/bishop.tsv\n",
+      "duration": 0.1
+    }
+  ]
+}

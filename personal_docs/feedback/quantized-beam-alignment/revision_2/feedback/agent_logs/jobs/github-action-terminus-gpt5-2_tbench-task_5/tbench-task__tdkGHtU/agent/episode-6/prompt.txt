@@ -1,0 +1,280 @@
+New Terminal Output:
+
+root@97c3eded53e7:/app# cat > /app/tools/run_local.sh <<'SH'
+> #!/bin/bash
+> set -euo pipefail
+>
+> # Ensure rust toolchain binaries are available even if not on PATH.
+> RUSTBIN="/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin"
+> export PATH="$RUSTBIN:$PATH"
+>
+> mkdir -p /app/output /app/bin
+>
+> cargo --version
+> cargo build --release --quiet --manifest-path /app/Cargo.toml
+>
+> /app/target/release/local-infer-sandbox /app/output/raw.json
+>
+> go build -o /app/bin/align /app/cmd/align/main.go
+> /app/bin/align /app/output/raw.json /app/output/report.json
+> SH
+root@97c3eded53e7:/app# chmod +x /app/tools/run_local.sh
+root@97c3eded53e7:/app# cat > /app/src/a0/mod.rs <<'RS'
+> pub struct A0 {
+>     pub s: Vec<i32>,
+>     pub z: Vec<i32>,
+> }
+>
+> impl A0 {
+>     pub fn new() -> Self {
+>         Self { s: vec![2, 3, 5], z: vec![1, -1, 2] }
+>     }
+> }
+>
+> // Packed path: each column position must get its own scale and bias,
+> // not one shared scale/bias across the whole row.
+> pub fn ax(a: &A0, b: &[i32], _c: usize) -> Vec<i32> {
+>     b.iter()
+>         .enumerate()
+>         .map(|(i, v)| v * a.s[i % a.s.len()] + a.z[i % a.z.len()])
+>         .collect()
+> }
+>
+> pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+>     b.iter()
+>         .enumerate()
+>         .map(|(i, v)| v * a.s[i] + a.z[i])
+>         .collect()
+> }
+> RS
+root@97c3eded53e7:/app# cat > /app/cmd/align/main.go <<'GO'
+> package main
+>
+> import (
+> "encoding/json"
+> "errors"
+> "os"
+> "sort"
+> )
+>
+> type entry struct {
+> Case      string `json:"case"`
+> Produced  []int  `json:"produced"`
+> Trace     []int  `json:"slot_trace"`
+> OrderUsed []int  `json:"order_used"`
+> Packed    bool   `json:"packed"`
+> Grouped   bool   `json:"grouped"`
+> Reuse     bool   `json:"reuse"`
+> }
+>
+> type rawDoc struct {
+> Raw []entry `json:"raw"`
+> }
+>
+> type finalDoc struct {
+> Rows    []entry        `json:"rows"`
+> Summary map[string]any `json:"summary"`
+> }
+>
+> func indexByCase(a []entry) map[string]entry {
+> m := make(map[string]entry, len(a))
+> for _, r := range a {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> m[r.Case] = r
+> }
+> return m
+> }
+>
+> func equalRow(a, b entry) bool {
+> if a.Case != b.Case || a.Packed != b.Packed || a.Grouped != b.Grouped || a.Reuse != b.Reuse {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> return false
+> }
+> if len(a.Produced) != len(b.Produced) || len(a.Trace) != len(b.Trace) || len(a.OrderUsed) != len(b.OrderUsed) {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> return false
+> }
+> for i := range a.Produced {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> if a.Produced[i] != b.Produced[i] {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> return false
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> }
+> }
+> for i := range a.Trace {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> if a.Trace[i] != b.Trace[i] {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> return false
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> }
+> }
+> for i := range a.OrderUsed {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> if a.OrderUsed[i] != b.OrderUsed[i] {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> return false
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> }
+> }
+> return true
+> }
+>
+> func loadFinal(path string) (finalDoc, error) {
+> var doc finalDoc
+> buf, err := os.ReadFile(path)
+> if err != nil {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> panic(err)
+> }
+>
+> // Also require newly written report rows match incoming raw rows.
+> if len(rows) != len(raw.Raw) {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> agree = false
+> } else {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> for _, rr := range rows {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> r, ok := rawByCase[rr.Case]
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> if !ok || !equalRow(r, rr) {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> agree = false
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> break
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> }
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> }
+> }
+>
+> doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(raw.Raw), "agree": agree}}
+> out, err := json.MarshalIndent(doc, "", "  ")
+> if err != nil {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> panic(err)
+> }
+> if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   src/        tools/
+> panic(err)
+> }
+> }
+> GO
+root@97c3eded53e7:/app# gofmt -w /app/cmd/align/main.go
+root@97c3eded53e7:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:21:8
+   |
+21 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@97c3eded53e7:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))
+> rep=json.load(open('/app/output/report.json'))
+> print('raw_len', len(raw['raw']))
+> print('report_len', len(rep['rows']))
+> print('summary', rep['summary'])
+> raw_by={e['case']:e for e in raw['raw']}
+> ok=True
+> for e in rep['rows']:
+>     r=raw_by.get(e['case'])
+>     if not r or any(e[k]!=r[k] for k in ['produced','slot_trace','order_used','packed','grouped','reuse']):
+>         ok=False
+> print('rows_match_raw', ok)
+> PY
+raw_len 6
+report_len 6
+summary {'agree': True, 'total': 6}
+rows_match_raw True
+root@97c3eded53e7:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:21:8
+   |
+21 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@97c3eded53e7:/app# python3 - <<'PY'
+> import json
+> rep=json.load(open('/app/output/report.json'))
+> print('summary_after_second_run', rep['summary'])
+> PY
+summary_after_second_run {'agree': True, 'total': 6}
+root@97c3eded53e7:/app#

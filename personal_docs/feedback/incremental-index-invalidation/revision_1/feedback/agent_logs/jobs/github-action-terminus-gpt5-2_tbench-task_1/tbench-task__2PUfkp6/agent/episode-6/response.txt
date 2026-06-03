@@ -1,0 +1,15 @@
+{
+  "analysis": "All six cases now report ok=true with empty stale arrays, and observation epochs are nondecreasing within each case. The epsilon case is fixed by not rewriting epsilon gen-v1 to gen-v2. Query-time epochs were fixed by setting Observation.epoch = State.epoch for found entries. Running the matrix script twice yields byte-identical index-report.json (cmp IDENTICAL). Remaining step: none; task requirements satisfied.",
+  "plan": "Do a final quick sanity check that the report paths/sources are absolute /app paths and that missing observations have empty path/source and line=0 (epsilon miss). Then declare completion.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/index-report.json'))\nfor case in obj['cases']:\n    for o in case['observations']:\n        assert o['symbol'], (case['name'], o)\n        if o['found']:\n            assert o['line']>0\n            assert o['path'].startswith('/app/')\n            assert o['source'].startswith('/app/')\n        else:\n            assert o['line']==0\n            assert o['path']=='' and o['source']==''\nprint('SANITY OK')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "wc -c /app/output/index-report.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": true
+}

@@ -1,0 +1,264 @@
+New Terminal Output:
+
+root@962ef33851fd:/app# perl -0777 -i -pe 's/pub fn ax\(a: &A0, b: &\[i32\], c: usize\) -> Vec<i32> \{\n    let k = c % a\.s\.len\(\);\n    b\.iter\(\)\.map\(\|
+v\| v \* a\.s\[k\] \+ a\.z\[k\]\)\.collect\(\)\n\}/pub fn ax(a: \&A0, b: \&\[i32\], _c: usize) -> Vec<i32> {\n    // Packed path: each column position gets its
+own scale and bias.\n    // If the row is wider than the metadata, wrap safely (deterministic).\n    let n = a.s.len().min(a.z.len());\n    b.iter()\n        .e
+numerate()\n        .map(|(i, v)| {\n            let k = if n == 0 { 0 } else { i % n };\n            v * a.s[k] + a.z[k]\n        })\n        .collect()\n}/s'
+/app/src/a0/mod.rs
+Backslash found where operator expected at -e line 1, near ")\"
+        (Missing operator before \?)
+Backslash found where operator expected at -e line 1, near ")\"
+        (Missing operator before \?)
+syntax error at -e line 1, near "Packed path:"
+Unknown regexp modifier "/z" at -e line 1, at end of line
+syntax error at -e line 1, near ")\"
+Substitution replacement not terminated at -e line 1.
+root@962ef33851fd:/app# sed -n '1,120p' /app/src/a0/mod.rs
+pub struct A0 {
+    pub s: Vec<i32>,
+    pub z: Vec<i32>,
+}
+
+impl A0 {
+    pub fn new() -> Self {
+        Self { s: vec![2, 3, 5], z: vec![1, -1, 2] }
+    }
+}
+
+pub fn ax(a: &A0, b: &[i32], c: usize) -> Vec<i32> {
+    let k = c % a.s.len();
+    b.iter().map(|v| v * a.s[k] + a.z[k]).collect()
+}
+
+pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+    b.iter().enumerate().map(|(i, v)| v * a.s[i] + a.z[i]).collect()
+}
+root@962ef33851fd:/app# export PATH="/usr/local/cargo/bin:${PATH}"; cargo build --release --quiet --manifest-path /app/Cargo.toml
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@962ef33851fd:/app# /app/target/release/local-infer-sandbox /app/output/raw.json
+root@962ef33851fd:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))['raw']
+> print('cases', [r['case'] for r in raw])
+> print('produced', {r['case']:r['produced'] for r in raw})
+> PY
+cases ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']
+produced {'alpha': [40, 41], 'beta': [36], 'gamma': [37, 48], 'delta': [54, 37], 'epsilon': [65, 48, 99], 'zeta': [54, 42, 52]}
+root@962ef33851fd:/app# cat > /app/cmd/align/main.go <<'GO'
+> package main
+>
+> import (
+> "encoding/json"
+> "os"
+> )
+>
+> type entry struct {
+> Case      string `json:"case"`
+> Produced  []int  `json:"produced"`
+> Trace     []int  `json:"slot_trace"`
+> OrderUsed []int  `json:"order_used"`
+> Packed    bool   `json:"packed"`
+> Grouped   bool   `json:"grouped"`
+> Reuse     bool   `json:"reuse"`
+> }
+>
+> type rawDoc struct {
+> Raw []entry `json:"raw"`
+> }
+>
+> type finalDoc struct {
+> Rows    []entry        `json:"rows"`
+> Summary map[string]any `json:"summary"`
+> }
+>
+> func equalInts(a, b []int) bool {
+> if len(a) != len(b) {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> return false
+> }
+> for i := range a {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> if a[i] != b[i] {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> return false
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+> }
+> return true
+> }
+>
+> // Compare only the six required fields (plus case name identity via map key).
+> func equalSix(a, b entry) bool {
+> return equalInts(a.Produced, b.Produced) &&
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> equalInts(a.Trace, b.Trace) &&
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> equalInts(a.OrderUsed, b.OrderUsed) &&
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> a.Packed == b.Packed &&
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/      
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+put/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> if !ok || !equalSix(rr, op) {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> agree = false
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> } else {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> // Unparseable prior report means we cannot claim agreement.
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> agree = false
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+> }
+>
+> doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(raw.Raw), "agree": agree}}
+> out, err := json.MarshalIndent(doc, "", "  ")
+> if err != nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> panic(err)
+> }
+> if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> panic(err)
+> }
+> }
+> GO
+root@962ef33851fd:/app# go build -o /app/bin/align /app/cmd/align/main.go
+root@962ef33851fd:/app# /app/bin/align /app/output/raw.json /app/output/report.json
+root@962ef33851fd:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))['raw']
+> rep=json.load(open('/app/output/report.json'))
+> rawm={r['case']:r for r in raw}
+> repm={r['case']:r for r in rep['rows']}
+> fields=['produced','slot_trace','order_used','packed','grouped','reuse']
+> miss=[]
+> for k in rawm:
+>     if k not in repm:
+>         miss.append(k)
+>         continue
+>     for f in fields:
+>         if rawm[k][f]!=repm[k][f]:
+>             print('mismatch',k,f,rawm[k][f],repm[k][f])
+>             break
+> print('raw',len(raw),'report',len(rep['rows']),'missing',miss,'summary',rep.get('summary'))
+> PY
+raw 6 report 6 missing [] summary {'agree': True, 'total': 6}
+root@962ef33851fd:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@962ef33851fd:/app# python3 - <<'PY'
+> import json
+> rep=json.load(open('/app/output/report.json'))
+> print(rep['summary'])
+> PY
+{'agree': True, 'total': 6}
+root@962ef33851fd:/app#

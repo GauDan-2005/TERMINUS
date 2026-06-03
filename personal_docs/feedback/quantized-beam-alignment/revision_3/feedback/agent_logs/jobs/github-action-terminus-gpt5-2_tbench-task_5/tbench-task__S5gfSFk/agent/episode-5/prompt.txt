@@ -1,0 +1,79 @@
+New Terminal Output:
+
+root@98695ffcd7ff:/app# ls -la /usr/local/cargo/bin
+total 18628
+drwxrwxrwx 2 root root      236 Mar 17  2025 .
+drwxrwxrwx 3 root root       71 May 29 06:46 ..
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-clippy -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-fmt -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-miri -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 clippy-driver -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rls -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-analyzer -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-gdb -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-gdbgui -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-lldb -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rustc -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rustdoc -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rustfmt -> rustup
+-rwxrwxrwx 1 root root 19072384 Mar 17  2025 rustup
+root@98695ffcd7ff:/app# /usr/local/cargo/bin/rustup --version
+rustup 1.28.1 (f9edccde0 2025-03-05)
+info: This is the version for the rustup toolchain manager, not the rustc compiler.
+info: The currently active `rustc` version is `rustc 1.85.0 (4d91de4e4 2025-02-17)`
+root@98695ffcd7ff:/app# /usr/local/cargo/bin/rustup toolchain list || true
+1.85.0-x86_64-unknown-linux-gnu (active, default)
+root@98695ffcd7ff:/app# /usr/local/cargo/bin/rustup show || true
+Default host: x86_64-unknown-linux-gnu
+rustup home:  /usr/local/rustup
+
+installed toolchains
+--------------------
+1.85.0-x86_64-unknown-linux-gnu (active, default)
+
+active toolchain
+----------------
+name: 1.85.0-x86_64-unknown-linux-gnu
+active because: it's the default toolchain
+installed targets:
+  x86_64-unknown-linux-gnu
+root@98695ffcd7ff:/app# export PATH=/usr/local/cargo/bin:$PATH
+root@98695ffcd7ff:/app# command -v rustup && command -v cargo && command -v rustc || true
+/usr/local/cargo/bin/rustup
+/usr/local/cargo/bin/cargo
+/usr/local/cargo/bin/rustc
+root@98695ffcd7ff:/app# export PATH=/usr/local/cargo/bin:$PATH
+root@98695ffcd7ff:/app# rustup toolchain list
+1.85.0-x86_64-unknown-linux-gnu (active, default)
+root@98695ffcd7ff:/app# export PATH=/usr/local/cargo/bin:$PATH
+root@98695ffcd7ff:/app# rustup which cargo && rustup which rustc
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc
+root@98695ffcd7ff:/app# grep -n 'cargo' -n /app/tools/run_local.sh && sed -n '1,40p' /app/tools/run_local.sh
+3:cargo --version
+5:cargo build --release --quiet --manifest-path /app/Cargo.toml
+#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@98695ffcd7ff:/app# cp /app/tools/run_local.sh /app/tools/run_local.sh.bak
+root@98695ffcd7ff:/app# perl -0777 -i -pe 's@#!/bin/bash\n@#!/bin/bash\nexport PATH=/usr/local/cargo/bin:$PATH\n@' /app/tools/run_local.sh
+root@98695ffcd7ff:/app# head -n 10 /app/tools/run_local.sh
+#!/bin/bash
+export PATH=/usr/local/cargo/bin:
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@98695ffcd7ff:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+/app/tools/run_local.sh: line 5: mkdir: command not found
+root@98695ffcd7ff:/app#

@@ -1,0 +1,147 @@
+New Terminal Output:
+
+root@122b6c87f7b9:/app# cat > /app/scale_q/metric.cpp <<'EOF'
+> #include "../include/matrix_view.h"
+>
+> #include <math.h>
+>
+> double norm_q(const double *a, int b) {
+>     double s = 0.0;
+>     for (int i = 0; i < b; i++) {
+>         s += a[i] * a[i];
+>     }
+>     // Metric helper must report the true L2 norm so it matches the
+>     // independently computed residual used for auditing.
+>     return sqrt(s);
+> }
+> EOF
+root@122b6c87f7b9:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [ ! -x "${SOLVERCTL}" ]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" matrix
+> EOF
+root@122b6c87f7b9:/app# chmod +x /app/scripts/run-matrix.sh
+root@122b6c87f7b9:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [ ! -x "${SOLVERCTL}" ]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}"
+> EOF
+root@122b6c87f7b9:/app# chmod +x /app/scripts/run-one.sh
+root@122b6c87f7b9:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 15%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+root@122b6c87f7b9:/app# cat /app/output/solver-audit.json
+{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    }
+  ]
+}
+root@122b6c87f7b9:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> d=json.load(open(p))
+> print('cases:', len(d.get('cases',[])))
+> print('all_ok:', all(c.get('ok') for c in d['cases']))
+> print('all_residual_agrees:', all(c.get('residual_agrees') for c in d['cases']))
+> print('any_hit_limit:', any(c.get('hit_limit') for c in d['cases']))
+> PY
+cases: 6
+all_ok: True
+all_residual_agrees: True
+any_hit_limit: False
+root@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt
+root@122b6c87f7b9:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.json'))
+> o=json.load(open('/app/output/basalt-audit.json'))
+> name='basalt'
+> mc=[c for c in m['cases'] if c['name']==name][0]
+> oc=o['cases'][0]
+> print(mc==oc)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.json'
+root@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+cp: cannot stat '/app/output/solver-audit.json': No such file or directory
+root@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+root@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+root@122b6c87f7b9:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+diff: /app/output/solver-audit.run1.json: No such file or directory
+root@122b6c87f7b9:/app#

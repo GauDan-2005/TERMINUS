@@ -1,0 +1,31 @@
+{
+  "analysis": "Matrix audit generated successfully. Two cases fail: rook and sentinel. Both have illegal=0 and steps=1 in fresh and resume, but fresh.sig != resume.sig, so the resolved move list differs between fresh and resume for those cases. Need to inspect each case’s moves plus the referenced records.jsonl and trace.tsv, compare fresh vs resume move rows, then reproduce with one-case to isolate and trace where resume path diverges.",
+  "plan": "1) Dump rook and sentinel entries (moves/visibility/effects/records/log) from resume-audit.json to see exactly what differs. 2) Parse and print the records.jsonl and trace.tsv for rook/sentinel and compare them to the audit moves order/content. 3) Run one-case.sh rook and sentinel and diff their single-case output against the matrix row to ensure reproduction. 4) Once we see the exact move differences (from/to/side/turn/kind/legal), we’ll trace to engine code that computes visibility / blockage / legal moves during resume and fix the discrepancy.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, pprint\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\nfor name in ['rook','sentinel']:\n    c=next(x for x in data['cases'] if x['name']==name)\n    print('\\n===',name,'===')\n    for k in ['ok','fresh','resume','records','log']:\n        print(k, c.get(k))\n    print('moves:')\n    pprint.pp(c.get('moves'))\n    print('visibility:')\n    pprint.pp(c.get('visibility'))\n    print('effects:')\n    pprint.pp(c.get('effects'))\n    print('records_meta:')\n    pprint.pp(c.get('records_meta'))\n    print('log_meta:')\n    pprint.pp(c.get('log_meta'))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "for c in rook sentinel; do echo \"\\n## $c records\"; nl -ba /app/workspace/$c/records.jsonl | sed -n '1,200p'; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "for c in rook sentinel; do echo \"\\n## $c trace\"; nl -ba /app/workspace/$c/trace.tsv | sed -n '1,200p'; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh rook\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh sentinel\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\n\ndef load_case(path):\n    with open(path) as f: d=json.load(f)\n    return d['cases'][0]\n\nm='/app/output/resume-audit.json'\nwith open(m) as f: md=json.load(f)\nfor name in ['rook','sentinel']:\n    mc=next(x for x in md['cases'] if x['name']==name)\n    sc=load_case(f'/app/output/single-{name}.json')\n    print('\\n== compare',name,'matrix vs single ==')\n    for k in ['ok','fresh','resume','moves','visibility','effects']:\n        same = (mc.get(k)==sc.get(k))\n        print(k,'same' if same else 'DIFF')\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,132 @@
+New Terminal Output:
+
+root@4cc4b56ff70c:/app# sed -n '1,120p' /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" matrix
+root@4cc4b56ff70c:/app# sed -n '1,120p' /app/scripts/run-one.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" one "${NAME}"
+root@4cc4b56ff70c:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+>
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> # Prefer the CMake build tree binary. Allow an override via SOLVERCTL.
+> SOLVERCTL="${SOLVERCTL:-}"
+> if [[ -z "${SOLVERCTL}" ]]; then
+>   if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+>     SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+>   else
+>     SOLVERCTL="${APP_ROOT}/bin/solverctl"
+>   fi
+> fi
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+> "${SOLVERCTL}" matrix
+> EOF
+root@4cc4b56ff70c:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+>
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> # Prefer the CMake build tree binary. Allow an override via SOLVERCTL.
+> SOLVERCTL="${SOLVERCTL:-}"
+> if [[ -z "${SOLVERCTL}" ]]; then
+>   if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+>     SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+>   else
+>     SOLVERCTL="${APP_ROOT}/bin/solverctl"
+>   fi
+> fi
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+> "${SOLVERCTL}" one "${NAME}"
+> EOF
+root@4cc4b56ff70c:/app# chmod +x /app/scripts/run-matrix.sh /app/scripts/run-one.sh
+root@4cc4b56ff70c:/app# rm -f /app/output/solver-audit.json /app/output/*-audit.json || true
+root@4cc4b56ff70c:/app# bash /app/scripts/run-matrix.sh
+root@4cc4b56ff70c:/app# bash /app/scripts/run-one.sh basalt
+root@4cc4b56ff70c:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root  31 May 25 16:07 .
+drwxr-xr-x 20 root root 278 May 25 16:07 ..
+-rw-r--r--  1 root root 218 May 25 16:07 basalt-audit.json
+root@4cc4b56ff70c:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> m=Path('/app/output/solver-audit.json')
+> one=Path('/app/output/basalt-audit.json')
+> print('matrix exists:', m.exists())
+> print('one exists   :', one.exists())
+> M=json.loads(m.read_text())
+> O=json.loads(one.read_text())
+> mc={c['name']:c for c in M['cases']}
+> oc={c['name']:c for c in O['cases']}
+> print('matrix cases:', len(mc))
+> print('slice equals per-case:', mc.get('basalt')==oc.get('basalt'))
+> if mc.get('basalt')!=oc.get('basalt'):
+>   print('matrix basalt:', mc.get('basalt'))
+>   print('one basalt  :', oc.get('basalt'))
+> PY
+matrix exists: False
+one exists   : True
+Traceback (most recent call last):
+  File "<stdin>", line 7, in <module>
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.json'
+root@4cc4b56ff70c:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+cp: cannot stat '/app/output/solver-audit.json': No such file or directory
+root@4cc4b56ff70c:/app# bash /app/scripts/run-matrix.sh
+root@4cc4b56ff70c:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> p1=Path('/app/output/solver-audit.run1.json')
+> p2=Path('/app/output/solver-audit.json')
+> a=json.loads(p1.read_text())
+> b=json.loads(p2.read_text())
+> print('exact json equal:', a==b)
+> # also compare normalized rendering (sorted keys, compact)
+> import json as _j
+> na=_j.dumps(a, sort_keys=True, separators=(',',':'))
+> nb=_j.dumps(b, sort_keys=True, separators=(',',':'))
+> print('normalized equal:', na==nb)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.run1.json'
+root@4cc4b56ff70c:/app#

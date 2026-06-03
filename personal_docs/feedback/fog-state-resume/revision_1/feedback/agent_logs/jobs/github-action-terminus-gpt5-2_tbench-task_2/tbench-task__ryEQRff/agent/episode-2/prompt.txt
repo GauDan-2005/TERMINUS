@@ -1,0 +1,167 @@
+New Terminal Output:
+
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> for want in ['rook','sentinel']:
+>     c=next(x for x in data['cases'] if x.get('name')==want)
+>     print('===', want, '===')
+>     print('ok:', c.get('ok'))
+>     print('fresh:', c.get('fresh'))
+>     print('resume:', c.get('resume'))
+>     print('records:', c.get('records'))
+>     print('log:', c.get('log'))
+>     print('moves:', len(c.get('moves',[])))
+> PY
+=== rook ===
+ok: False
+fresh: {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+resume: {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}
+records: /app/workspace/rook/records.jsonl
+log: /app/workspace/rook/trace.tsv
+moves: 2
+=== sentinel ===
+ok: False
+fresh: {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+resume: {'sig': '691e8e87', 'illegal': 0, 'steps': 1}
+records: /app/workspace/sentinel/records.jsonl
+log: /app/workspace/sentinel/trace.tsv
+moves: 2
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+>
+> def key(m):
+>     return (m.get('turn'), m.get('side'), tuple(m.get('from',[])), tuple(m.get('to',[])), m.get('kind'), m.get('legal'))
+>
+> for want in ['rook','sentinel']:
+>     c=next(x for x in data['cases'] if x.get('name')==want)
+>     fresh=c.get('fresh',{}).get('steps',[]) or c.get('fresh',{}).get('moves',[])  # defensive
+>     resume=c.get('resume',{}).get('steps',[]) or c.get('resume',{}).get('moves',[])
+>     # In this audit format, resolved list is in top-level moves; fresh/resume are summaries only.
+>     # So instead compare sig inputs by comparing top-level moves against records/log.
+>     print('===', want, '===')
+>     print('top-level moves len:', len(c.get('moves',[])))
+>     print('fresh.sig:', c['fresh'].get('sig'), 'resume.sig:', c['resume'].get('sig'))
+>     # If engine provides separate resolved lists, they might be embedded in effects/records; print hint.
+>     if 'fresh_moves' in c or 'resume_moves' in c:
+>         print('has embedded fresh/resume moves')
+> PY
+=== rook ===
+top-level moves len: 2
+fresh.sig: 7d3f56fa resume.sig: 24ebc3c9
+=== sentinel ===
+top-level moves len: 2
+fresh.sig: 9a98d68 resume.sig: 691e8e87
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json, pathlib
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+>
+> def load_jsonl(path):
+>     rows=[]
+>     for line in pathlib.Path(path).read_text().splitlines():
+>         if not line.strip():
+>             continue
+>         rows.append(json.loads(line))
+>     return rows
+>
+> def norm_move(m):
+>     return {
+>         'turn': m.get('turn'),
+>         'side': m.get('side'),
+>         'from': m.get('from'),
+>         'to': m.get('to'),
+>         'kind': m.get('kind'),
+>         'legal': m.get('legal'),
+>     }
+>
+> for want in ['rook','sentinel']:
+>     c=next(x for x in data['cases'] if x.get('name')==want)
+>     moves=[norm_move(m) for m in c.get('moves',[])]
+>     rec_path=c.get('records')
+>     rec=load_jsonl(rec_path)
+>     rec=[norm_move(m) for m in rec]
+>     print('===', want, 'records check ===')
+>     print('moves:', len(moves), 'records:', len(rec), 'equal:', moves==rec)
+>     if moves!=rec:
+>         for i,(a,b) in enumerate(zip(moves,rec)):
+>             if a!=b:
+>                 print('first_diff_index', i)
+>                 print('json :', a)
+>                 print('jsonl:', b)
+>                 break
+> PY
+=== rook records check ===
+moves: 2 records: 2 equal: True
+=== sentinel records check ===
+moves: 2 records: 2 equal: True
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> for want in ['rook','sentinel']:
+>     c=next(x for x in data['cases'] if x.get('name')==want)
+>     print('===', want, 'log head ===')
+>     lp=c.get('log')
+>     with open(lp) as f:
+>         lines=[ln for ln in (x.strip() for x in f) if ln]
+>     print('log_rows:', len(lines))
+>     for ln in lines[:5]:
+>         print(ln)
+> PY
+=== rook log head ===
+log_rows: 2
+rook    3       1       3       3       3       2       true
+rook    2       1       3       3       3       2       true
+=== sentinel log head ===
+log_rows: 2
+sentinel        5       1       3       3       3       2       true
+sentinel        4       1       3       3       3       2       true
+root@85b121dde67e:/app# bash /app/scripts/one-case.sh rook
+root@85b121dde67e:/app# bash /app/scripts/one-case.sh sentinel
+root@85b121dde67e:/app# ls -la /app/output/single-*.json
+-rw-r--r-- 1 root root  897 May 25 15:59 /app/output/single-rook.json
+-rw-r--r-- 1 root root 1006 May 25 15:59 /app/output/single-sentinel.json
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+>
+> def load_case(path):
+>     with open(path) as f: d=json.load(f)
+>     return d['cases'][0]
+>
+> matrix=json.load(open('/app/output/resume-audit.json'))
+> for want in ['rook','sentinel']:
+>     m=next(x for x in matrix['cases'] if x.get('name')==want)
+>     s=load_case(f'/app/output/single-{want}.json')
+>     # Compare a focused subset
+>     def pick(c):
+>         return {
+>             'name': c.get('name'),
+>             'ok': c.get('ok'),
+>             'fresh': c.get('fresh'),
+>             'resume': c.get('resume'),
+>             'moves': c.get('moves'),
+>             'visibility': c.get('visibility'),
+>             'effects': c.get('effects'),
+>         }
+>     same = pick(m)==pick(s)
+>     print(want, 'single_matches_matrix:', same)
+>     if not same:
+>         # find first move diff
+>         mm=m.get('moves',[]); ss=s.get('moves',[])
+>         if mm!=ss:
+>             for i,(a,b) in enumerate(zip(mm,ss)):
+>                 if a!=b:
+>                     print(' first_move_diff', i)
+>                     print(' matrix:', a)
+>                     print(' single:', b)
+>                     break
+>         else:
+>             print(' moves identical; difference in metadata')
+> PY
+rook single_matches_matrix: True
+sentinel single_matches_matrix: True
+root@85b121dde67e:/app#

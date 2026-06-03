@@ -1,0 +1,69 @@
+New Terminal Output:
+
+root@fa0a66effa9b:/app# perl -0777 -i -pe 's/\n\s*if _, ok := a\.ByPath\[b\.Path\]; ok \{\n\s*return nil\n\s*\}\n\s*a\.ByPath\[b\.Path\] = len\(a\.Rows\)\n/\n/s
+g' /app/internal/a0/core.go
+root@fa0a66effa9b:/app# grep -n "ByPath" /app/internal/a0/core.go | head
+17:     ByPath map[string]int
+23:     if a.ByPath == nil {
+24:             a.ByPath = map[string]int{}
+116:    state := &stateX{ByPath: map[string]int{}}
+root@fa0a66effa9b:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:47:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:47:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@fa0a66effa9b:/app# work=/tmp/matrix-work; rm -rf "$work"; mkdir -p "$work"; /app/bin/snapctl --out /app/output/restore-audit.json --work "$work" --case gam
+ma
+root@fa0a66effa9b:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> c=obj['cases'][0]
+> print(c['name'], 'ok', c['ok'], 'digestMatch', c['digest']['source']==c['digest']['restored'])
+> print('source', c['source'])
+> print('restored', c['restored'])
+> PY
+gamma ok True digestMatch True
+source /tmp/matrix-work/gamma/source
+restored /tmp/matrix-work/gamma/restored
+root@fa0a66effa9b:/app# echo '--- gamma flow contents'; echo 'source:'; cat /tmp/matrix-work/gamma/source/a/flow.txt; echo 'restored:'; cat /tmp/matrix-work/gam
+ma/restored/a/flow.txt
+--- gamma flow contents
+source:
+second
+restored:
+second
+root@fa0a66effa9b:/app# work=/tmp/matrix-work; rm -rf "$work"; mkdir -p "$work"; /app/bin/snapctl --out /app/output/restore-audit.json --work "$work" --case zet
+a
+root@fa0a66effa9b:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> c=obj['cases'][0]
+> print(c['name'], 'ok', c['ok'], 'digestMatch', c['digest']['source']==c['digest']['restored'])
+> PY
+zeta ok True digestMatch True
+root@fa0a66effa9b:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:47:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:47:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@fa0a66effa9b:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> for c in obj['cases']:
+>     print(c['name'], c['ok'])
+> print('ALL_OK', all(c['ok'] for c in obj['cases']))
+> PY
+alpha True
+beta True
+delta True
+epsilon True
+gamma True
+zeta True
+ALL_OK True
+root@fa0a66effa9b:/app#

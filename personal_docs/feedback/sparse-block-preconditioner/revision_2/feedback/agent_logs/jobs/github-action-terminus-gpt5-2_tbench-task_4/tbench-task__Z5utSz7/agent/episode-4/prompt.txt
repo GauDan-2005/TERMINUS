@@ -1,0 +1,57 @@
+New Terminal Output:
+
+root@60c46bae9fb1:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+root@60c46bae9fb1:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root  31 May 28 16:10 .
+drwxr-xr-x 21 root root 289 May 28 16:10 ..
+-rw-r--r--  1 root root 218 May 28 16:10 basalt-audit.json
+root@60c46bae9fb1:/app# cat > /app/scripts/clean-room.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> # Clean transient solver byproducts but preserve audit JSON artifacts.
+> # The audit scripts and solverctl are responsible for (over)writing audit JSON.
+> shopt -s nullglob
+> for f in "${OUT}"/*; do
+>   base="$(basename "$f")"
+>   case "$base" in
+>     solver-audit.json|*-audit.json)
+>       ;;
+>     *)
+>       rm -rf -- "$f"
+>       ;;
+>   esac
+> done
+> EOF
+root@60c46bae9fb1:/app# chmod +x /app/scripts/clean-room.sh
+root@60c46bae9fb1:/app# rm -f /app/output/solver-audit.json /app/output/*-audit.json 2>/dev/null || true
+root@60c46bae9fb1:/app# bash /app/scripts/run-matrix.sh
+root@60c46bae9fb1:/app# bash /app/scripts/run-one.sh basalt
+root@60c46bae9fb1:/app# ls -la /app/output
+total 8
+drwxr-xr-x  2 root root   56 May 28 16:11 .
+drwxr-xr-x 21 root root  289 May 28 16:10 ..
+-rw-r--r--  1 root root  218 May 28 16:11 basalt-audit.json
+-rw-r--r--  1 root root 1202 May 28 16:11 solver-audit.json
+root@60c46bae9fb1:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.json'))['cases']
+> o=json.load(open('/app/output/basalt-audit.json'))['cases']
+> mm=[c for c in m if c['name']=='basalt'][0]
+> print('one_len', len(o))
+> print('equal', mm==o[0])
+> if mm!=o[0]:
+>     import pprint; pprint.pp({'matrix':mm,'one':o[0]})
+> PY
+one_len 1
+equal True
+root@60c46bae9fb1:/app#

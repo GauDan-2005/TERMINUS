@@ -1,0 +1,42 @@
+Current terminal state:
+New Terminal Output:
+
+root@1dff0ae3ab5d:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/policy-audit.json') as f: data=json.load(f)
+> assert 'cases' in data
+> for c in data['cases']:
+>     if not (c['ok'] and c.get('stale',[])==[]):
+>         print('BAD', c['name'], c['ok'], c.get('stale'))
+> print('all cases clean:', all(c['ok'] and c.get('stale',[])==[] for c in data['cases']))
+> PY
+all cases clean: True
+root@1dff0ae3ab5d:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/policy-audit.json') as f: data=json.load(f)
+> for name in ['gamma','epsilon','delta','beta']:
+>     c=next(x for x in data['cases'] if x['name']==name)
+>     print('---', name)
+>     for d in c['decisions']:
+>         print(d)
+> PY
+--- gamma
+{'label': 'batch', 'principal': 'intern', 'resource': 'vault', 'action': 'write', 'verdict': 'deny', 'epoch': 5, 'reused': False, 'batch_id': 'b1', 'delegated_f
+rom': ''}
+--- epsilon
+{'label': 'check', 'principal': 'leaf', 'resource': 'api', 'action': 'invoke', 'verdict': 'deny', 'epoch': 5, 'reused': False, 'batch_id': '', 'delegated_from':
+ ''}
+--- delta
+{'label': 'first', 'principal': 'alice', 'resource': 'logs', 'action': 'read', 'verdict': 'allow', 'epoch': 2, 'reused': False, 'batch_id': '', 'delegated_from'
+: ''}
+{'label': 'second', 'principal': 'alice', 'resource': 'logs', 'action': 'read', 'verdict': 'allow', 'epoch': 4, 'reused': False, 'batch_id': '', 'delegated_from
+': ''}
+--- beta
+{'label': 'miss', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 1, 'reused': False, 'batch_id': '', 'delegated_from'
+: ''}
+{'label': 'solo', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'allow', 'epoch': 3, 'reused': False, 'batch_id': '', 'delegated_from
+': ''}
+root@1dff0ae3ab5d:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

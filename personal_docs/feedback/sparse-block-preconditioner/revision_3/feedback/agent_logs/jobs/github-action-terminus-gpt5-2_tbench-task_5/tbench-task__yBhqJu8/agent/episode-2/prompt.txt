@@ -1,0 +1,56 @@
+New Terminal Output:
+
+root@122b6c87f7b9:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+root@122b6c87f7b9:/app# cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/build
+root@122b6c87f7b9:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/src/main.cpp.o
+[ 15%] Building CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o
+[ 23%] Building CXX object CMakeFiles/solverctl.dir/src/case_io.cpp.o
+[ 30%] Building CXX object CMakeFiles/solverctl.dir/csr_m/assemble.cpp.o
+[ 38%] Building CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o
+[ 46%] Building CXX object CMakeFiles/solverctl.dir/prec_r/apply.cpp.o
+[ 53%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 61%] Building CXX object CMakeFiles/solverctl.dir/solve_s/driver.cpp.o
+[ 69%] Building CXX object CMakeFiles/solverctl.dir/flow_t/report.cpp.o
+[ 76%] Building CXX object CMakeFiles/solverctl.dir/drive_u/run.cpp.o
+[ 84%] Building CXX object CMakeFiles/solverctl.dir/spill_v/bucket.cpp.o
+[ 92%] Building CXX object CMakeFiles/solverctl.dir/mirror_w/trace.cpp.o
+[100%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@122b6c87f7b9:/app# find /app/build -maxdepth 3 -type f -executable -print
+/app/build/CMakeFiles/3.31.6/CMakeDetermineCompilerABI_CXX.bin
+/app/build/bin/solverctl
+root@122b6c87f7b9:/app# ls -la /app/bin || true
+ls: cannot access '/app/bin': No such file or directory
+root@122b6c87f7b9:/app# find /app -maxdepth 3 -type f -name 'solverctl' -o -name '*solver*' -print
+/app/include/solver_report.h
+/app/build/CMakeFiles/solverctl.dir
+root@122b6c87f7b9:/app# /app/bin/solverctl --help 2>/dev/null || /app/build/bin/solverctl --help 2>/dev/null || true
+root@122b6c87f7b9:/app# rm -rf /app/output && mkdir -p /app/output
+root@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh || true
+/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+root@122b6c87f7b9:/app# ls -la /app/output
+total 0
+drwxr-xr-x  2 root root   6 May 29 00:21 .
+drwxr-xr-x 20 root root 278 May 29 00:21 ..
+root@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt || true
+/app/scripts/run-one.sh: line 8: /app/bin/solverctl: No such file or directory
+root@122b6c87f7b9:/app# ls -la /app/output
+total 0
+drwxr-xr-x  2 root root   6 May 29 00:21 .
+drwxr-xr-x 20 root root 278 May 29 00:21 ..
+root@122b6c87f7b9:/app#

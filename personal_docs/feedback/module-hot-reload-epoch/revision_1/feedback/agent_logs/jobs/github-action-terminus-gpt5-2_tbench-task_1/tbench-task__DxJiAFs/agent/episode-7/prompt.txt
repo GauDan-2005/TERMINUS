@@ -1,0 +1,166 @@
+New Terminal Output:
+
+root@48d0f83bfd0b:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: b2/q.js
+> @@
+>  function q_b(a, b, c) {
+> -  const label = `slot-${b}`;
+> -  c[label] = (c[label] || []).concat(a);
+> -  const next = `slot-${b + 1}`;
+> -  const visible = c[next] || [];
+> -  c[next] = [];
+> -  return visible.slice().sort((left, right) => left - right);
+> +  // Deferred values belong to the cycle that declares them.
+> +  // We keep the state object for callers that want to persist per-scenario
+> +  // scratch data, but we do not shift values into the next cycle.
+> +  const label = `slot-${b}`;
+> +  c[label] = (c[label] || []).concat(a || []);
+> +  return (a || []).slice().sort((left, right) => left - right);
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@48d0f83bfd0b:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: c3/r.js
+> @@
+> -let saved = null;
+> -
+>  function k_c(a, b, c) {
+> -  if (saved === null) {
+> -    saved = Number(a);
+> -  }
+> -  return saved + b;
+> +  // Factors are recomputed per row from that row's descriptor and position.
+> +  // Do not cache across rows or scenarios.
+> +  return Number(a) + b;
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@48d0f83bfd0b:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: src/native/src/lib.rs
+> @@
+>  pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+>      match a {
+> -        "old" => b,
+> -        "new" => b + c,
+> +        // Older revision markers normalize like newer ones: carried state
+> +        // is incorporated into the native row.
+> +        "old" => b + c,
+> +        "new" => b + c,
+>          _ => b,
+>      }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@48d0f83bfd0b:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: a1/p.js
+> @@
+>  function f_a(a, b, c) {
+>    let carry = 0;
+>    const rows = [];
+>    let accepted = true;
+> +  const baseSum = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base || 0), 0);
+>    for (let index = 0; index < a.cycles.length; index += 1) {
+>      const cycle = a.cycles[index];
+>      const owned = q_b(cycle.deferred || [], index, c);
+>      const factor = k_c(cycle.dep, index, c);
+>      const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+>      const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+> -    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+> -      accepted = false;
+> -    }
+> +    // After normalization, older revisions must incorporate carried state,
+> +    // so they should not regress behind the carried counter.
+> +    if (cycle.native === 'old' && nativeValue < carry) accepted = false;
+>      rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+> -    carry = cycle.base;
+> +    // Each cycle's native row feeds the next cycle.
+> +    carry = nativeValue;
+>    }
+> +  const finalCounter = carry;
+> +  const healthy = accepted && finalCounter === baseSum;
+>    return {
+>      name: a.name,
+>      rows,
+> -    finalCounter: carry,
+> +    finalCounter,
+>      dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+>      acceptedOlder: accepted,
+> -    healthy: false
+> +    healthy
+>    };
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@48d0f83bfd0b:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: d4/s.js
+> @@
+>  function m_e(a, b) {
+>    const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+>    const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+>    const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+> -  const healthyCount = a.filter((row) => row.acceptedOlder).length;
+> +  const healthyCount = a.filter((row) => row.healthy).length;
+> +  const status = healthyCount === a.length ? 'healthy' : 'stale';
+>    return {
+>      source: b.source,
+>      recordCount: a.length,
+>      totalCounter,
+>      dependencyTotal,
+>      rowTotal,
+>      healthyCount,
+> -    status: 'stale'
+> +    status
+>    };
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@48d0f83bfd0b:/app# cargo run --quiet --bin mhre_native -- old 4 0
+4
+root@48d0f83bfd0b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+root@48d0f83bfd0b:/app# python3 - <<'PY'
+> import json
+> p='/app/outcome/report.json'
+> with open(p) as f: data=json.load(f)
+> agg=data['aggregate']
+> print('aggregate:', {k:agg.get(k) for k in ['source','recordCount','totalCounter','dependencyTotal','rowTotal','healthyCount','status']})
+> for r in data['records']:
+>     name=r.get('scenario') or r.get('name')
+>     base_sum=sum(c['base'] for c in __import__('json').load(open('/app/fixtures/scenarios.json'))['scenarios'] if c['name']==name for c in c['cycles'])
+>     print(name,'finalCounter',r['finalCounter'],'acceptedOlder',r['acceptedOlder'],'healthy',r['healthy'],'dependencyTotal',r['dependencyTotal'],'rows',len(r[
+'rows']))
+>     for row in r['rows']:
+>         d=row.get('deferred')
+>         if d!=sorted(d):
+>             print('  deferred not sorted at row',row['index'],d)
+> PY
+aggregate: {'source': 'local', 'recordCount': 6, 'totalCounter': 20, 'dependencyTotal': 38, 'rowTotal': 109, 'healthyCount': 3, 'status': 'stale'}
+alpha finalCounter 5 acceptedOlder True healthy False dependencyTotal 5 rows 2
+beta finalCounter 1 acceptedOlder False healthy False dependencyTotal 9 rows 3
+gamma finalCounter 2 acceptedOlder False healthy False dependencyTotal 5 rows 2
+delta finalCounter 8 acceptedOlder True healthy False dependencyTotal 5 rows 2
+epsilon finalCounter 3 acceptedOlder False healthy False dependencyTotal 9 rows 3
+zeta finalCounter 1 acceptedOlder True healthy False dependencyTotal 5 rows 2
+root@48d0f83bfd0b:/app# sha256sum outcome/report.json
+58f25be7e7c88aa8a97782e9fc92af3cd9291ebc109f320cd6f4894f2d485a51  outcome/report.json
+root@48d0f83bfd0b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+root@48d0f83bfd0b:/app# sha256sum outcome/report.json
+58f25be7e7c88aa8a97782e9fc92af3cd9291ebc109f320cd6f4894f2d485a51  outcome/report.json
+root@48d0f83bfd0b:/app#

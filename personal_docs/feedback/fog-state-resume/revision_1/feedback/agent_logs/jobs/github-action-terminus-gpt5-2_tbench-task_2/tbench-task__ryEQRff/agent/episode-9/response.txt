@@ -1,0 +1,27 @@
+{
+  "analysis": "After fixing c2.SyncBoundary to a passthrough, rook and sentinel still have signature mismatches, while all other cases remain clean. Visibility is already matched, so the remaining divergence is in move planning/execution for hostiles in resume vs fresh. We need to directly compare freshMoves vs resumeMoves for rook/sentinel. The audit currently only stores concatenated allMoves; we must add targeted debug output or temporarily change audit output to include per-path move lists, or print them during RunRow for those cases. Easiest: instrument RunRow to print freshMoves and resumeMoves for rook/sentinel to stderr (or include in CaseResult as extra fields if types allow). We'll add a small conditional debug print in RunRow when name is rook or sentinel to dump the MoveRow slices and their computed sigs, then rebuild and run one-case for rook/sentinel to see exact differences and locate where runLoaded differs (likely which script step is executed: runLoaded only processes steps where step.Action==\"save\"; runDirect processes post-save H steps. If scripts for rook/sentinel have H actions after save, runLoaded is wrong: it replays only 'save' step, missing subsequent hostiles steps, producing different move list. Alternatively, if script has multiple saves, logic differs.) Next: inspect scripts rook.tsv and sentinel.tsv.",
+  "plan": "1) Display /app/data/scripts/rook.tsv and sentinel.tsv (and others for comparison) to confirm step structure around save and hostile actions. 2) If runLoaded logic is wrong, fix it to mirror runDirect: after loading blob, skip until save, then for subsequent steps apply player moves and execute hostile planning on H steps (not only on the save row). The current runLoaded only advances hostiles on the save step itself, which is likely incorrect and could explain mismatched sig in cases where hostiles act after save. 3) Implement corrected runLoaded loop similar to runDirect but starting from loaded state and using merged obs cache. 4) Rebuild and rerun matrix; confirm rook/sentinel ok=true with matching sigs.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,120p' /app/data/scripts/rook.tsv\nsed -n '1,140p' /app/data/scripts/sentinel.tsv\nsed -n '1,120p' /app/data/scripts/bishop.tsv\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/scenarios.tsv\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/func runLoaded\\(w \\*World, steps \\[\\]ScriptStep, blob a0\\.ItemY, stale map\\[string\\]bool, profile Profile, radius int\\) \\[\\]MoveRow \\{[\\s\\S]*?\\n\\}/func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {\\n        applyWorld(w, blob)\\n\\n        cache := &b1.CacheX{Obs: map[string]bool{}}\\n        b1.Merge(cache, blob)\\n        merged := b1.Snapshot(cache)\\n        for k, v := range stale {\\n                merged[k] = v\\n        }\\n\\n        // Effects were restored from the saved blob; keep them stable across resume.\\n        w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\\n\\n        moves := []MoveRow{}\\n        pastSave := false\\n        for _, step := range steps {\\n                if step.Action == \"save\" {\\n                        pastSave = true\\n                        continue\\n                }\\n                if !pastSave {\\n                        continue\\n                }\\n                w.Turn = step.Turn\\n                if step.Actor == \"P\" {\\n                        applyPlayer(w, step.Arg)\\n                        e4.ApplyLit(w, radius, blindActive(w))\\n                }\\n                if step.Actor == \"H\" {\\n                        moves = append(moves, advanceAll(w, merged)... )\\n                }\\n        }\\n        return moves\\n}\\n/smg' /app/internal/f5/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "make -s -C /app build\nbash /app/scripts/run-matrix.sh\n",
+      "duration": 15.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\nprint([(c['name'], c['ok'], c['fresh']['sig'], c['resume']['sig']) for c in data['cases']])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

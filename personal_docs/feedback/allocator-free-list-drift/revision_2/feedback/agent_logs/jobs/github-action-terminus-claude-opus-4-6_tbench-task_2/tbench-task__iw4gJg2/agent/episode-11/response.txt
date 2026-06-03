@@ -1,0 +1,26 @@
+{
+  "analysis": "The program runs and produces output, but looking at the code I can identify several bugs:\n1. `byte_total` should track live allocated PAYLOAD bytes, but it uses `arena.stats.allocated` which is corrupted by `xd3` adding `b+8` on positive (asymmetric with subtract)\n2. `xc2` in `move_d/move.c` only copies `c/2` bytes instead of all `c` bytes (corrupts data on realloc relocation)\n3. `xa0` in `pool_a/tag.c` writes footer at `off + total/2` instead of `off + total - FTR_SIZE`\n4. `xd3` in `acct_e/acct.c` has asymmetric accounting (adds `b+8` but subtracts `b`)\n\nThe heap_sig, fl_count, and fl_sig calculations appear correct - only byte_total is wrong. Let me fix all the bugs and rebuild.",
+  "plan": "Fix the four bugs:\n1. Fix byte_total computation in drive_h/run.c to sum slot_payload for live slots\n2. Fix xc2 to copy all bytes\n3. Fix xa0 footer position\n4. Fix xd3 asymmetric accounting\nThen rebuild and test.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/drive_h/run.c << 'EOF'\n#include \"../include/plan.h\"\n#include \"../include/report.h\"\n\n#include <stdio.h>\n#include <string.h>\n\nstatic size_t compute_byte_total(const Arena *a) {\n    size_t total = 0;\n    for (int i = 0; i < a->slot_count; i++) {\n        if (a->slot_live[i]) {\n            total += a->slot_payload[i];\n        }\n    }\n    return total;\n}\n\nint run_case(const Plan *plan, const char *out_dir, CaseResult *res) {\n    Arena arena;\n    int seq = 0;\n    memset(res, 0, sizeof(*res));\n    strncpy(res->name, plan->name, sizeof(res->name) - 1);\n    snprintf(res->ledger_path, sizeof(res->ledger_path), \"%s/%s.ledger.jsonl\", out_dir, plan->name);\n    arena_init(&arena);\n    for (int i = 0; i < plan->op_count; i++) {\n        const PlanOp *op = &plan->ops[i];\n        StepRec *st = &res->steps[res->step_count++];\n        st->seq = seq++;\n        st->index = op->index;\n        st->size = op->size;\n        st->result_index = -1;\n        if (op->kind == OP_ALLOC) {\n            strncpy(st->op, \"alloc\", sizeof(st->op) - 1);\n            st->result_index = arena_slot_alloc(&arena, op->size);\n        } else if (op->kind == OP_FREE) {\n            strncpy(st->op, \"free\", sizeof(st->op) - 1);\n            st->result_index = arena_slot_free(&arena, op->index);\n        } else if (op->kind == OP_REALLOC) {\n            strncpy(st->op, \"realloc\", sizeof(st->op) - 1);\n            st->result_index = arena_slot_realloc(&arena, op->index, op->size);\n        }\n        st->heap_sig = arena_heap_sig(&arena);\n        st->fl_count = arena_fl_count(&arena);\n        st->fl_sig = arena_fl_sig(&arena);\n        st->byte_total = compute_byte_total(&arena);\n    }\n    res->heap_sig = arena_heap_sig(&arena);\n    res->fl_count = arena_fl_count(&arena);\n    res->fl_sig = arena_fl_sig(&arena);\n    res->byte_total = compute_byte_total(&arena);\n    res->ok = 1;\n    return 0;\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/move_d/move.c << 'EOF'\n#include <stddef.h>\n#include <string.h>\n\nint xc2(void *a, void *b, size_t c) {\n    if (c > 0) {\n        memcpy(a, b, c);\n    }\n    return (int)c;\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/pool_a/tag.c << 'EOF'\n#include \"../include/block.h\"\n\n#include <stddef.h>\n\nvoid xa0(Block *a, size_t b) {\n    size_t *hdr = (size_t *)(void *)(a->base + a->off);\n    size_t *ftr;\n    hdr[0] = b;\n    hdr[1] = 0;\n    ftr = (size_t *)(void *)(a->base + a->off + b - FTR_SIZE);\n    ftr[0] = b;\n}\n\nsize_t tag_read_size(const Block *a) {\n    size_t *hdr = (size_t *)(void *)(a->base + a->off);\n    return hdr[0];\n}\n\nint z_is_flag(const Block *a) {\n    size_t *hdr = (size_t *)(void *)(a->base + a->off);\n    return (int)(hdr[1] & 1);\n}\n\nvoid z_set_flag(Block *a, int flag) {\n    size_t *hdr = (size_t *)(void *)(a->base + a->off);\n    if (flag) {\n        hdr[1] |= 1;\n    } else {\n        hdr[1] &= ~(size_t)1;\n    }\n}\n\nsize_t tag_read_footer(const Block *a, size_t total) {\n    size_t *ftr = (size_t *)(void *)(a->base + a->off + total - FTR_SIZE);\n    return ftr[0];\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/acct_e/acct.c << 'EOF'\n#include \"../include/stats.h\"\n\n#include <stddef.h>\n#include <sys/types.h>\n\nvoid xd3(Stats *a, ssize_t b) {\n    if (b > 0) {\n        a->allocated += (size_t)b;\n    } else {\n        a->allocated -= (size_t)(-b);\n    }\n    if (a->allocated > a->peak) {\n        a->peak = a->allocated;\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cd /app && make clean && make 2>&1\n",
+      "duration": 5.0
+    }
+  ]
+}

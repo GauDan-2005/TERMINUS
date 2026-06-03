@@ -1,0 +1,23 @@
+{
+  "analysis": "All six cases are now ok with empty stale arrays. The epsilon miss observation is correctly reported with found=false, empty path/source, line 0, and fresh=true. Output is deterministic across runs (sha256 identical). Only remaining issue is a compile warning about unused import Entry in r4/e.rs; not required for task correctness but we can clean it to keep build output clean (run-matrix uses --quiet but warnings still show).",
+  "plan": "Remove the unused Entry import from /app/r4/e.rs to eliminate warnings, then rerun run-matrix.sh and confirm the report remains byte-identical and cases still ok.",
+  "commands": [
+    {
+      "keystrokes": "perl -i -pe 's/use crate::model::\\{Entry, Observation, State\\};/use crate::model::{Observation, State};/' /app/r4/e.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/index-report.json'))\nprint([(c['name'],c['ok'],c['stale']) for c in obj['cases']])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sha256sum /app/output/index-report.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": true
+}

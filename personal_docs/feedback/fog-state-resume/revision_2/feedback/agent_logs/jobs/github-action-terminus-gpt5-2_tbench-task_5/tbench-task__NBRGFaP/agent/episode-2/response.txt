@@ -1,0 +1,19 @@
+{
+  "analysis": "The audit JSON parsed, but every case printed case=None and signatures are None, which indicates our field expectations don't match the actual JSON schema produced (different key names, nesting, or signatures stored elsewhere). Despite that, ok=true for all 7 cases and illegal counts are 0, but we still must ensure the matrix row is truly clean per task: signatures match and JSON/records/log sidecars list same resolved moves in order. Next step is to inspect the raw JSON structure to find the correct field names (case identifier, fresh/resume path summaries, signatures, moves/effects arrays, and sidecar references).",
+  "plan": "1) Print the top-level keys and a pretty sample of the first case using python3 pretty-print to understand schema. 2) Extract the real case id field name and the fresh/resume summary field names and signatures. 3) Then compute a robust validation: compare fresh vs resume move/effect lists and any sidecar move lists if included. If everything matches, task is complete; otherwise identify discrepancies and proceed to engine fix.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, pprint\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nprint('top-level keys:', sorted(data.keys()))\ncases=data.get('cases') or []\nprint('cases:', len(cases))\nif cases:\n    print('\\nfirst case keys:', sorted(cases[0].keys()))\n    print('\\nfirst case preview:')\n    pprint.pp(cases[0], width=120)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nc=data['cases'][0]\n# Print nested keys for likely fresh/resume sections\nfor k in c.keys():\n    v=c[k]\n    if isinstance(v, dict):\n        print(k, '->', sorted(v.keys()))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/output/resume-audit.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,173 @@
+New Terminal Output:
+
+root@9bc1d408efaf:/app# cat /app/pool_a/tag.c
+#include "../include/block.h"
+
+#include <stddef.h>
+
+void xa0(Block *a, size_t b) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    size_t *ftr;
+    hdr[0] = b;
+    hdr[1] = 0;
+    ftr = (size_t *)(void *)(a->base + a->off + (b / 2));
+    ftr[0] = b;
+}
+
+size_t tag_read_size(const Block *a) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    return hdr[0];
+}
+
+int z_is_flag(const Block *a) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    return (int)(hdr[1] & 1);
+}
+
+void z_set_flag(Block *a, int flag) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    if (flag) {
+        hdr[1] |= 1;
+    } else {
+        hdr[1] &= ~(size_t)1;
+    }
+}
+
+size_t tag_read_footer(const Block *a, size_t total) {
+    size_t *ftr = (size_t *)(void *)(a->base + a->off + (total / 2));
+    return ftr[0];
+}
+root@9bc1d408efaf:/app# cat /app/pool_a/tag.h
+#ifndef TAG_H
+#define TAG_H
+
+#include "../include/block.h"
+
+void xa0(Block *a, size_t b);
+size_t tag_read_size(const Block *a);
+int z_is_flag(const Block *a);
+void z_set_flag(Block *a, int flag);
+size_t tag_read_footer(const Block *a, size_t total);
+
+#endif
+root@9bc1d408efaf:/app# cat /app/src/alloc_ops.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need);
+void slot_take_whole(Arena *a, Block *fit, size_t total);
+
+static Block make_blk(Arena *a, size_t off) {
+    Block b;
+    b.base = a->mem;
+    b.off = off;
+    return b;
+}
+
+static Block *find_fit(Arena *a, size_t need) {
+    size_t cur = a->fl_head.off;
+    static Block pick;
+    while (cur != FL_END) {
+        Block b = make_blk(a, cur);
+        size_t total = tag_read_size(&b);
+        if (total >= need) {
+            pick = b;
+            return &pick;
+        }
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return NULL;
+}
+
+int arena_slot_alloc(Arena *a, size_t req) {
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    Block *fit = find_fit(a, need);
+    size_t total;
+    int idx;
+    if (!fit) {
+        return -1;
+    }
+    total = tag_read_size(fit);
+    if (total >= need + MIN_BLK) {
+        slot_take_split(a, fit, req, need);
+    } else {
+        slot_take_whole(a, fit, total);
+    }
+    idx = a->slot_count++;
+    if (idx >= MAX_SLOTS) {
+        return -1;
+    }
+    a->slots[idx] = fit->base + fit->off + HDR_SIZE;
+    a->slot_payload[idx] = req;
+    a->slot_live[idx] = 1;
+    a->stats.live_blocks++;
+    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+    return idx;
+}
+root@9bc1d408efaf:/app# cat /app/src/free_ops.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+int arena_slot_free(Arena *a, int idx) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block b;
+    b.base = a->mem;
+    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    size_t total = tag_read_size(&b);
+    z_set_flag(&b, 0);
+    xd3(&a->stats, -(ssize_t)total);
+    a->stats.live_blocks--;
+    a->slot_live[idx] = 0;
+    list_coalesce(a, &b);
+    return 0;
+}
+root@9bc1d408efaf:/app# cat /app/src/reloc_ops.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../move_d/move.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int arena_slot_alloc(Arena *a, size_t req);
+int arena_slot_free(Arena *a, int idx);
+
+int arena_slot_realloc(Arena *a, int idx, size_t req) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block oldb;
+    size_t old_pay;
+    size_t need;
+    oldb.base = a->mem;
+    oldb.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    old_pay = a->slot_payload[idx];
+    need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (need <= tag_read_size(&oldb)) {
+        return split_realloc_inplace(a, &oldb, idx, req);
+    }
+    if (split_grow_inplace(a, &oldb, idx, req, need) >= 0) {
+        return idx;
+    }
+    {
+        int nidx = arena_slot_alloc(a, req);
+        if (nidx < 0) {
+            return -1;
+        }
+        xc2(a->slots[nidx], a->slots[idx], old_pay);
+        arena_slot_free(a, idx);
+        return nidx;
+    }
+}
+root@9bc1d408efaf:/app#

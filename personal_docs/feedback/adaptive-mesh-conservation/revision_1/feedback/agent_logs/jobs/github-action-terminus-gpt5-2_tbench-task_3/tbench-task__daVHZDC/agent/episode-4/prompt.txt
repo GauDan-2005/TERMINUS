@@ -1,0 +1,271 @@
+New Terminal Output:
+
+root@5d46ad38ee8d:/app# command -v git >/dev/null && git diff --no-color || true
+root@5d46ad38ee8d:/app# sed -n '1,220p' /app/drv_u/run_refine.cpp
+#include "phases.h"
+#include "../include/flow_record.h"
+#include "../include/topo_link.h"
+
+#include <string.h>
+
+void phase_grow(SimState *st, const ScenarioSpec *spec) {
+    CellGrid coarse = st->grid;
+    CellGrid leaves;
+    leaves.n = 0;
+    st->n_coarse = spec->n_coarse;
+    for (int c = 0; c < spec->n_coarse; c++) {
+        int k = spec->leaf_count[c];
+        if (k < 1) k = 1;
+        int sumw = 0;
+        for (int j = 0; j < k; j++) sumw += spec->leaf_weight[c][j];
+        if (sumw <= 0) sumw = 1;
+        st->coarse_start[c] = leaves.n;
+        st->coarse_len[c] = k;
+        double vj[MAX_LEAVES];
+        double vtot = 0.0;
+        double jw = 0.0;
+        for (int j = 0; j < k; j++) {
+            vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;
+            vtot += vj[j];
+            jw += vj[j] * (double)j;
+        }
+        double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+        for (int j = 0; j < k; j++) {
+            int gi = leaves.n++;
+            leaves.cells[gi].idx = gi;
+            leaves.cells[gi].vol = vj[j];
+            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+            for (int v = 0; v < NVAR; v++) {
+                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+            }
+            leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+            leaves.cells[gi].parent = (k > 1) ? c : -1;
+        }
+    }
+    st->grid = leaves;
+
+    int changed[MAX_CELLS];
+    int nch = 0;
+    for (int i = 0; i < leaves.n; i++) changed[nch++] = i;
+    step_n(&st->grid, changed, nch, &st->topo);
+
+    st->bank.n_pending = 0;
+    if (!spec->do_flux) return;
+    for (int c = 0; c < spec->n_coarse; c++) {
+        int k = st->coarse_len[c];
+        if (k < 2) continue;
+        int start = st->coarse_start[c];
+        double vsum = 0.0;
+        double wq[NVAR] = {0.0, 0.0, 0.0};
+        for (int j = 0; j < k; j++) {
+            const CellView *cell = &st->grid.cells[start + j];
+            vsum += cell->vol;
+            for (int v = 0; v < NVAR; v++) wq[v] += cell->vol * cell->q[v];
+        }
+        double qbar[NVAR];
+        for (int v = 0; v < NVAR; v++) qbar[v] = (vsum > 0.0) ? wq[v] / vsum : 0.0;
+        EdgePulse ep;
+        ep.base_idx = start;
+        ep.subfaces = k;
+        for (int j = 0; j < k; j++) {
+            const CellView *cell = &st->grid.cells[start + j];
+            for (int v = 0; v < NVAR; v++) {
+                ep.flux_vals[j * NVAR + v] =
+                    REFLUX_RATE * cell->vol * (qbar[v] - cell->q[v]);
+            }
+        }
+        op_m(&ep, &st->bank);
+    }
+}
+root@5d46ad38ee8d:/app# sed -n '1,140p' /app/agg_q/blend.cpp
+#include "../include/cell_view.h"
+
+void fold_q(const CellPatch *a, int b, CellPatch *c) {
+    if (!a || !c) return;
+    int n = (a->n < b) ? a->n : b;
+    if (n <= 0) {
+        c->n = 0;
+        return;
+    }
+    double sum_vol = 0.0;
+    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < n; i++) {
+        sum_vol += a->vol[i];
+        for (int v = 0; v < NVAR; v++) {
+            sum_q[v] += a->q[i * NVAR + v];
+        }
+    }
+    c->n = 1;
+    c->vol[0] = sum_vol;
+    double inv_n = 1.0 / (double)n;
+    for (int v = 0; v < NVAR; v++) {
+        c->q[v] = sum_q[v] * inv_n;
+    }
+}
+root@5d46ad38ee8d:/app# python3 - <<'PY'
+> from pathlib import Path
+> p = Path('/app/agg_q/blend.cpp')
+> s = p.read_text()
+> old = s
+> # Replace fold_q implementation with volume-weighted version.
+> import re
+> pat = re.compile(r"void fold_q\(const CellPatch \*a, int b, CellPatch \*c\) \{.*?\n\}", re.S)
+> rep = r'''void fold_q(const CellPatch *a, int b, CellPatch *c) {
+>     if (!a || !c) return;
+>     int n = (a->n < b) ? a->n : b;
+>     if (n <= 0) {
+>         c->n = 0;
+>         return;
+>     }
+>     double sum_vol = 0.0;
+>     double sum_vq[NVAR] = {0.0, 0.0, 0.0};
+>     for (int i = 0; i < n; i++) {
+>         sum_vol += a->vol[i];
+>         for (int v = 0; v < NVAR; v++) {
+>             sum_vq[v] += a->vol[i] * a->q[i * NVAR + v];
+>         }
+>     }
+>     c->n = 1;
+>     c->vol[0] = sum_vol;
+>     for (int v = 0; v < NVAR; v++) {
+>         c->q[v] = (sum_vol > 0.0) ? (sum_vq[v] / sum_vol) : 0.0;
+>     }
+> }'''
+> ns, n = pat.subn(rep, s)
+> if n != 1:
+>     raise SystemExit(f'Expected to replace 1 fold_q, replaced {n}')
+> p.write_text(ns)
+> print('patched', p)
+> PY
+patched /app/agg_q/blend.cpp
+root@5d46ad38ee8d:/app# python3 - <<'PY'
+> from pathlib import Path
+> import re
+> p = Path('/app/drv_u/run_refine.cpp')
+> s = p.read_text()
+> # We patch inside phase_grow: introduce fj[], denom/scale, and use renormalized q.
+> # Do a targeted replacement of the block that computes vj/vtot/jw..jbar and then writes leaves.
+> old_block_pat = re.compile(r"double vj\[MAX_LEAVES\];\n\s*double vtot = 0\.0;\n\s*double jw = 0\.0;\n\s*for \(int j = 0; j < k; j\+\+\) \{\n\s
+[... output limited to 10000 bytes; 69 interior bytes omitted ...]
+uble f = \(k > 1\) \? \(1\.0 \+ LEAF_SPREAD \* \(\(double\)j - jbar\)\) : 1\.0;\n\s*for \(int v = 0; v < NVAR; v\+\+\) \{\n\s*leaves\.c
+ells\[gi\]\.q\[v\] = coarse\.cells\[c\]\.q\[v\] \* f;\n\s*\}\n\s*leaves\.cells\[gi\]\.tier = \(k > 1\) \? 1 : 0;\n\s*leaves\.cells\[gi\]\.parent = \(k > 1\) \?
+c : -1;\n\s*\}\n")
+> new_block = """double vj[MAX_LEAVES];
+>         double fj[MAX_LEAVES];
+>         double vtot = 0.0;
+>         double jw = 0.0;
+>         for (int j = 0; j < k; j++) {
+>             vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;
+>             vtot += vj[j];
+>             jw += vj[j] * (double)j;
+>         }
+>         double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+>
+>         // Renormalize the shaped split so totals are conserved:
+>         //   sum_j vj * qj == coarse.vol * coarse.q   (per variable).
+>         double denom[NVAR] = {0.0, 0.0, 0.0};
+>         for (int j = 0; j < k; j++) {
+>             fj[j] = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+>             for (int v = 0; v < NVAR; v++) denom[v] += vj[j] * fj[j];
+>         }
+>         double scale[NVAR];
+>         for (int v = 0; v < NVAR; v++) {
+>             scale[v] = (denom[v] != 0.0) ? (coarse.cells[c].vol / denom[v]) : 1.0;
+>         }
+>
+>         for (int j = 0; j < k; j++) {
+>             int gi = leaves.n++;
+>             leaves.cells[gi].idx = gi;
+>             leaves.cells[gi].vol = vj[j];
+>             for (int v = 0; v < NVAR; v++) {
+>                 leaves.cells[gi].q[v] = coarse.cells[c].q[v] * fj[j] * scale[v];
+>             }
+>             leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+>             leaves.cells[gi].parent = (k > 1) ? c : -1;
+>         }
+> """
+> ns, n = old_block_pat.subn(new_block, s)
+> if n != 1:
+>     raise SystemExit(f'Expected to replace 1 split block, replaced {n}')
+> p.write_text(ns)
+> print('patched', p)
+> PY
+patched /app/drv_u/run_refine.cpp
+root@5d46ad38ee8d:/app# cmake --build /app/build -j"$(nproc)"
+[  5%] Building CXX object CMakeFiles/sim_run.dir/agg_q/blend.cpp.o
+[ 10%] Building CXX object CMakeFiles/sim_run.dir/drv_u/run_refine.cpp.o
+[ 15%] Linking CXX executable bin/sim_run
+[100%] Built target sim_run
+root@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+root@5d46ad38ee8d:/app# cat /app/output/conservation_audit.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.669, 1.7520000000000002],
+      "resumed_total": [5.7809999999999997, 3.9450000000000003, 4.5250000000000004],
+      "drift_ratio": 1.3304050624627401e-16,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333343, 0.50346666666666673, 0.29973333333333341]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [5.3010000000000002, 3.9290000000000003, 4.5380000000000003],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+root@5d46ad38ee8d:/app#

@@ -1,0 +1,141 @@
+New Terminal Output:
+
+root@ed67e0da6cd3:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+>
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> # Prefer the CMake build-tree binary, but allow alternate locations.
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="solverctl"
+> fi
+>
+> "${SOLVERCTL}" matrix
+> EOF
+root@ed67e0da6cd3:/app# chmod +x /app/scripts/run-matrix.sh
+root@ed67e0da6cd3:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+>
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> # Prefer the CMake build-tree binary, but allow alternate locations.
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="solverctl"
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}"
+> EOF
+root@ed67e0da6cd3:/app# chmod +x /app/scripts/run-one.sh
+root@ed67e0da6cd3:/app# sed -n '1,120p' /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+bash "${APP_ROOT}/scripts/clean-room.sh"
+
+# Prefer the CMake build-tree binary, but allow alternate locations.
+SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+if [[ ! -x "${SOLVERCTL}" ]]; then
+  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+fi
+if [[ ! -x "${SOLVERCTL}" ]]; then
+  SOLVERCTL="solverctl"
+fi
+
+"${SOLVERCTL}" matrix
+root@ed67e0da6cd3:/app# sed -n '1,160p' /app/scripts/run-one.sh
+#!/bin/bash
+set -euo pipefail
+
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+bash "${APP_ROOT}/scripts/clean-room.sh"
+
+# Prefer the CMake build-tree binary, but allow alternate locations.
+SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+if [[ ! -x "${SOLVERCTL}" ]]; then
+  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+fi
+if [[ ! -x "${SOLVERCTL}" ]]; then
+  SOLVERCTL="solverctl"
+fi
+
+"${SOLVERCTL}" one "${NAME}"
+root@ed67e0da6cd3:/app# bash /app/scripts/run-matrix.sh
+root@ed67e0da6cd3:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+root@ed67e0da6cd3:/app# bash /app/scripts/run-matrix.sh
+root@ed67e0da6cd3:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+root@ed67e0da6cd3:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+>
+> def canon(p: Path):
+>     d = json.loads(p.read_text())
+>     return json.dumps(d, sort_keys=True, separators=(',',':'))
+>
+> p1=Path('/app/output/solver-audit.run1.json')
+> p2=Path('/app/output/solver-audit.run2.json')
+> print('equivalent', canon(p1)==canon(p2))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 10, in <module>
+  File "<stdin>", line 5, in canon
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.run1.json'
+root@ed67e0da6cd3:/app# bash /app/scripts/run-one.sh basalt
+root@ed67e0da6cd3:/app# python3 - <<'PY'
+> import json
+>
+> m=json.load(open('/app/output/solver-audit.json'))
+> one=json.load(open('/app/output/basalt-audit.json'))
+>
+> mcase=[c for c in m.get('cases',[]) if c.get('name')=='basalt']
+> print('matrix_has_basalt', bool(mcase))
+> if not mcase:
+>     raise SystemExit(1)
+>
+> mcase=mcase[0]
+> ocase=one.get('cases',[None])[0]
+> print('one_case_matches_matrix', mcase==ocase)
+> if mcase!=ocase:
+>     for k in sorted(set(mcase)|set(ocase)):
+>         if mcase.get(k)!=ocase.get(k):
+>             print('diff',k,mcase.get(k),ocase.get(k))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.json'
+root@ed67e0da6cd3:/app#

@@ -1,0 +1,75 @@
+New Terminal Output:
+
+root@24f176b92b01:/app# grep -RIn --line-number "FoldRows" /app/internal /app/cmd
+/app/internal/a0/core.go:170:   replayRows, err := b1.FoldRows(rows, profile)
+/app/internal/b1/replay.go:25:func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
+root@24f176b92b01:/app# grep -RIn --line-number "Materialize" /app/internal/a0
+/app/internal/a0/core.go:169:func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
+root@24f176b92b01:/app# sed -n '1,260p' /app/internal/a0/pack.go
+package a0
+
+func packA(rows []itemY) map[string]string {
+        out := map[string]string{}
+        for _, row := range rows {
+                out[row.Path] = row.Op
+        }
+        return out
+}
+root@24f176b92b01:/app# sed -n '1,320p' /app/internal/a0/scan.go
+package a0
+
+func scanA(paths []string) []itemY {
+        out := make([]itemY, 0, len(paths))
+        for i, p := range paths {
+                out = append(out, itemY{Seq: i, Op: "write", Path: p})
+        }
+        return out
+}
+root@24f176b92b01:/app# grep -RIn --line-number "Restart\b\|Ordered\b\|Seq\b\|os\.Link\b\|link\(" /app/internal/a0 /app/internal/b1 /app/internal/c2 /app/intern
+al/d3 /app/internal/e4 /app/internal/f5 /app/cmd
+grep: Unmatched ( or \(
+root@24f176b92b01:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: internal/b1/replay.go
+> @@
+>  func fold_b(a []rowX, b uint64) ([]rowX, error) {
+>          out := make([]rowX, len(a))
+>          copy(out, a)
+>          sort.SliceStable(out, func(i, j int) bool {
+>                  return out[i].Seq < out[j].Seq
+>          })
+> -        if b&1 == 1 {
+> -                for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
+> -                        out[left], out[right] = out[right], out[left]
+> -                }
+> -        }
+> +        // Rows represent an append-only history. Even when simulating a restart,
+> +        // we must preserve sequence order so that the last write wins and the
+> +        // restored tree matches the final on-disk source state.
+> +        //
+> +        // Reversing row order causes older content to overwrite newer content
+> +        // (and can also break hardlink materialization by rewriting only one
+> +        // member of a link group).
+> +        _ = b
+>          return out, nil
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@24f176b92b01:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app#

@@ -1,0 +1,71 @@
+New Terminal Output:
+root@88e50440921f:/app# pwd
+/app
+root@88e50440921f:/app# ls -la
+total 8
+drwxr-xr-x 17 root root 251 May 23 19:53 .
+drwxr-xr-x 19 root root 265 May 23 19:54 ..
+-rw-r--r--  1 root root 165 May 23 19:50 Cargo.lock
+-rw-r--r--  1 root root 186 May 23 19:50 Cargo.toml
+drwxr-xr-x  2 root root  21 May 23 19:50 book_b
+drwxr-xr-x  2 root root  21 May 23 19:50 core_a
+drwxr-xr-x  3 root root  19 May 23 19:50 data
+drwxr-xr-x  2 root root  50 May 23 19:50 docs
+drwxr-xr-x  2 root root  22 May 23 19:50 drive_g
+drwxr-xr-x  2 root root  21 May 23 19:50 flow_e
+drwxr-xr-x  2 root root  21 May 23 19:50 gate_c
+drwxr-xr-x  2 root root  21 May 23 19:50 host_d
+drwxr-xr-x  2 root root  23 May 23 19:50 mirror_j
+drwxr-xr-x  2 root root  21 May 23 19:50 note_k
+drwxr-xr-x  2 root root  22 May 23 19:50 read_h
+drwxr-xr-x  2 root root  66 May 23 19:50 scripts
+drwxr-xr-x  2 root root  22 May 23 19:50 spill_i
+drwxr-xr-x  2 root root  35 May 23 19:50 src
+drwxr-xr-x  2 root root  38 May 23 19:50 types_f
+root@88e50440921f:/app# find /app -maxdepth 3 -type f -name "run-matrix.sh" -o -name "run-one.sh" -o -name "Cargo.toml" -o -name "*.rs" | sed -e 's|^|FILE |'
+FILE /app/Cargo.toml
+FILE /app/book_b/book.rs
+FILE /app/core_a/core.rs
+FILE /app/drive_g/drive.rs
+FILE /app/flow_e/flow.rs
+FILE /app/gate_c/gate.rs
+FILE /app/host_d/host.rs
+FILE /app/mirror_j/mirror.rs
+FILE /app/note_k/note.rs
+FILE /app/read_h/parse.rs
+FILE /app/scripts/run-matrix.sh
+FILE /app/scripts/run-one.sh
+FILE /app/spill_i/spill.rs
+FILE /app/src/lib.rs
+FILE /app/src/main.rs
+FILE /app/types_f/serde.rs
+FILE /app/types_f/types.rs
+root@88e50440921f:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+
+bash /app/scripts/clean-room.sh
+cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
+root@88e50440921f:/app# sed -n '1,200p' /app/scripts/run-one.sh
+#!/bin/bash
+set -euo pipefail
+
+case_name="${1:?case name required}"
+out="${2:-/app/output/executor-audit.json}"
+work="${3:-/app/output/runtime}"
+mkdir -p /app/output
+cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"
+root@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
+root@88e50440921f:/app# bash -x /app/scripts/run-matrix.sh
++ set -euo pipefail
++ bash /app/scripts/clean-room.sh
++ cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
+/app/scripts/run-matrix.sh: line 5: cargo: command not found
+root@88e50440921f:/app# ls -la /app/output || true
+total 0
+drwxr-xr-x  2 root root   6 May 23 19:54 .
+drwxr-xr-x 18 root root 265 May 23 19:54 ..
+root@88e50440921f:/app# test -f /app/output/executor-audit.json && (echo "--- audit head"; sed -n '1,120p' /app/output/executor-audit.json) || echo "missing /ap
+p/output/executor-audit.json"
+missing /app/output/executor-audit.json
+root@88e50440921f:/app#

@@ -1,0 +1,14 @@
+{
+  "analysis": "Found the second bug! In `PackItem` (a0/pack.go), it zeroes out the Seen data:\n```go\nfunc PackItem(b ItemY) ItemY {\n    st := &stateX{}\n    _ = phase_a(st, b)\n    out := b\n    out.Seen = make([]bool, len(b.Seen))  // THIS ZEROES SEEN!\n    return out\n}\n```\n\nThe `phase_a` function correctly copies Lit and Seen into `st`, but then `PackItem` creates a fresh zero-filled slice for `out.Seen` instead of preserving the actual data. When the resume path calls `applyWorld` with this blob, it gets all-false Seen data, so `PlayerSees` always returns false, making moves illegal.",
+  "plan": "Fix PackItem to preserve the Seen data by copying it properly instead of zeroing it.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/out.Seen = make(\\[\\]bool, len(b.Seen))/out.Seen = append([]bool(nil), b.Seen...)/' /app/internal/a0/pack.go\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat /app/internal/a0/pack.go\n",
+      "duration": 0.3
+    }
+  ]
+}

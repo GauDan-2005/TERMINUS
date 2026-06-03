@@ -1,0 +1,27 @@
+{
+  "analysis": "After patching runLoaded, signatures now match for rook and sentinel (good), but resume_illegal became 1 for both (ok still false). Also resume_seen dropped to 0 for many cases (knight/lancer/rook/sentinel), indicating the resume world’s Seen grid is never updated after loading because runLoaded doesn’t update Seen/Lit the same way and/or applyWorld loads Seen but then CountSeen(wResume) is taken after runLoaded while wResume.Seen might be empty/zeroed from pack/unpack behavior. The illegal=1 suggests resume path is now producing an illegal move (likely stepping into a wall/blocked tile) due to incorrect observation cache passed into d3.PlanSlot: we used buildObs(w, merged) for every hostile action, but merged contains hostile positions from save-time and becomes stale after movement; buildObs also iterates hostiles and marks as seen if player currently sees them, but if player doesn't see them it will still mark extra if merged has the key. That can cause hostiles to act as if observed when they aren't, leading to illegal steps or acting from unseen positions. We need to update merged dynamically: use merged only as initial cache but then update it each hostile step, similar to playUntilSave visStale behavior (it recomputes visStale on player turns). Likely correct: for hostile turns after load, use buildObs(w, nil) (current visibility) but also allow stale only for hostiles that were observed at save boundary and have not been invalidated by player movement? The simplest: stop forcing merged as extra in buildObs during simulation; instead use merged only to seed cache for planner if it expects historical obs, but planner probably uses cache to know which hostiles are currently observed; using stale causes the unseen act bug. So change runLoaded to call advanceAll(w, buildObs(w, nil)) just like runDirect. Additionally, to fix resume_seen=0 we must call e4.ApplyLit at least once after applyWorld (and possibly after each player step); also ensure applyWorld sets Seen/Lit from blob (it does). But CountSeen is 0 because blob.Seen maybe empty due to packWorld using w.Seen which might be zero at save. In playUntilSave, on player steps we call ApplyLit and buildObs but never mark Seen; maybe ApplyLit marks Lit not Seen; seen marking may occur elsewhere when rendering? We'll inspect e4/sight.go for how Seen is maintained; likely ApplyLit should also mark Seen when lit. In direct path, ApplyLit is called on player turns after save, so Seen increases; in resume path, we also call ApplyLit on player turns, so why still 0? Because runLoaded never processes player turns if steps after save have no P actions for those cases; so Seen stays as at blob (maybe empty). In runDirect, wFresh continues from base state (not loaded) and had ApplyLit during playUntilSave before save, so Seen had been updated; but in resume we applyWorld from blob; blob.Seen is from packWorld which stored w.Seen at save, but w.Seen likely wasn't updated in playUntilSave either, unless ApplyLit updates Seen. Need to inspect e4.ApplyLit implementation.",
+  "plan": "1) Inspect /app/internal/e4/sight.go to see what ApplyLit does with Seen/Lit. 2) Adjust runLoaded: use buildObs(w,nil) for hostile planning to match fresh path and avoid stale over-visibility causing illegal moves. Possibly remove merged/stale entirely from buildObs during hostile turns. 3) Ensure resume path calls ApplyLit at the save boundary immediately after loading (so vision/seen matches fresh). If ApplyLit does not update Seen, we may need to call an explicit function to mark seen based on lit, or fix ApplyLit to mark Seen too. 4) Rebuild and rerun matrix; expect rook/sentinel ok true, illegal resume 0, and resume_seen to match fresh_seen.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,240p' /app/internal/e4/sight.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nimport re\np=Path('/app/internal/f5/run.go')\ns=p.read_text()\n# In runLoaded, replace buildObs(w, merged) with buildObs(w, nil)\ns2=s.replace('moves = append(moves, advanceAll(w, buildObs(w, merged))...)','moves = append(moves, advanceAll(w, buildObs(w, nil))...)')\nif s2==s:\n    raise SystemExit('no replacement made (pattern not found)')\np.write_text(s2)\nprint('patched runLoaded to use current obs only')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go build -o /app/bin/rogctl /app/cmd/rogctl/main.go\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/resume-audit.json') as f: data=json.load(f)\nfor c in data['cases']:\n    name=c['name']\n    ok=c['ok']\n    fi=c['fresh']['illegal']; ri=c['resume']['illegal']\n    fs=c['fresh']['sig']; rs=c['resume']['sig']\n    vis=c['visibility']\n    print(f\"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}\")\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

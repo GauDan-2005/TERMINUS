@@ -1,0 +1,142 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ⚠️ WARNING
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires an agent to debug a custom C heap allocator harness that
+produces incorrect audit output under fragmentation, coalesce, and growth
+scenarios. The environment ships four intentional bugs across tag management,
+accounting, memory copy, and free-list coalescing modules. The oracle solution
+patches all four files and rebuilds, then runs the matrix to produce correct
+JSON. The test suite uses a Python reference model (ModelArena) to validate
+heap signatures, free-list counts, byte totals, ledger consistency, and
+idempotency across six named plan scenarios.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Installed in Dockerfile
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 20-22)
+Problem: pytest and pytest-json-ctrf are installed in the Docker image. These
+         are test-only dependencies and should be installed in test.sh instead,
+         so the agent environment doesn't include testing tools it shouldn't
+         need.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN python -m pip install --no-cache-dir \                                 │
+│      pytest==8.4.1 \                                                        │
+│      pytest-json-ctrf==0.3.5                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Suggested fix: Remove from Dockerfile and install in tests/test.sh:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  # In tests/test.sh, before running pytest:                                 │
+│  pip install --no-cache-dir pytest==8.4.1 pytest-json-ctrf==0.3.5           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Test dependencies should be installed by the test runner, not
+baked into the agent image. This keeps the agent environment clean and avoids
+giving the agent access to testing tools it wouldn't normally have.
+
+--------------------------------------------------------------------------------
+2. test.sh Does Not Follow Standard Format
+--------------------------------------------------------------------------------
+
+File:    tbench-task/tests/test.sh (lines 1-19)
+Problem: test.sh relies on pytest being pre-installed in the Docker image
+         rather than installing its own dependencies via uv. This couples the
+         test runner to the Dockerfile and deviates from the standard format.
+
+Current approach: Directly invokes `python -m pytest` assuming the image
+already has pytest installed.
+
+Suggested fix:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  #!/bin/bash                                                                │
+│  apt-get update && apt-get install -y curl                                  │
+│  curl -LsSf https://astral.sh/uv/0.7.13/install.sh | sh                    │
+│  source $HOME/.local/bin/env                                                │
+│                                                                             │
+│  if [ "$PWD" = "/" ]; then                                                  │
+│    echo "Error: No working directory set."                                  │
+│    exit 1                                                                   │
+│  fi                                                                         │
+│                                                                             │
+│  mkdir -p /logs/verifier                                                    │
+│  uv venv .tbench-testing                                                    │
+│  source .tbench-testing/bin/activate                                        │
+│  uv pip install pytest==8.4.1 pytest-json-ctrf==0.3.5                       │
+│                                                                             │
+│  uv run pytest /tests/test_outputs.py -rA                                   │
+│    --ctrf /logs/verifier/ctrf.json                                          │
+│                                                                             │
+│  if [ $? -eq 0 ]; then                                                      │
+│    echo 1 > /logs/verifier/reward.txt                                       │
+│  else                                                                       │
+│    echo 0 > /logs/verifier/reward.txt                                       │
+│  fi                                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Using uv to install test dependencies makes the test runner
+self-contained and portable across different base images.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Instruction Could Clarify Bug Symptom vs. Expected Behavior
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 1-5)
+
+Current approach: The instruction says the harness "drifts under fragmentation,
+neighbor merge, and growth scripts" but does not describe what observable
+symptom the agent will encounter (e.g., crash, wrong numbers, missing output).
+
+Suggested improvement: Add a brief sentence such as "Currently the binary
+compiles but produces incorrect audit signatures and/or crashes on certain
+plan sequences" to help the agent triage where to start debugging.
+
+Rationale: For a hard task this is acceptable as-is, but a one-line symptom
+description would reduce unproductive exploration without giving away the fix.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+A well-constructed hard debugging task that exercises deep C systems
+programming skills. The four planted bugs are realistic allocator defects
+(footer offset, accounting drift, partial copy, unidirectional coalesce) and
+the reference-model test suite provides thorough behavioral validation.
+
+Key Strengths:
+  ✓ Realistic bugs requiring genuine allocator understanding to diagnose
+  ✓ Comprehensive test suite with 11 tests using a Python reference model
+  ✓ All dependencies properly version-pinned; no web fetching or leakage
+
+Key Weaknesses:
+  ✗ Test dependencies baked into Dockerfile rather than test.sh
+  ✗ test.sh deviates from standard uv-based format
+
+Evaluates: C debugging, heap/memory allocator internals, build system
+           navigation, structured output validation
+
+================================================================================
+  RECOMMENDATION: ⚠️ NEEDS REVISION
+
+  The task is conceptually strong and nearly ready. Move pytest installation
+  from Dockerfile to test.sh to follow standard conventions and decouple
+  the test runner from the agent image.
+================================================================================

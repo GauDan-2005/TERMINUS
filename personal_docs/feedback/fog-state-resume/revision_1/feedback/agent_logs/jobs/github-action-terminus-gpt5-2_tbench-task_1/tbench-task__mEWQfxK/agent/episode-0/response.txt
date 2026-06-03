@@ -1,0 +1,19 @@
+{
+  "analysis": "We are at /app with no prior command output. The task is to diagnose and fix resume-audit mismatches (illegal moves/visibility) so that running the matrix script produces /app/output/resume-audit.json where all cases are ok, illegal counts are 0, signatures reconcile as specified, and the JSON matches the records JSONL and log rows. First step is to run the matrix to reproduce the issue, inspect the audit output, then narrow to failing cases using one-case runs, and finally inspect relevant maps/scripts/config and engine code to fix resume path divergence.",
+  "plan": "1) Run the full matrix to generate resume-audit.json. 2) Summarize which cases fail and why by inspecting ok/illegal/sig and any log hints. 3) For failing cases, run one-case to reproduce in isolation and compare fresh vs resume move lists. 4) Validate that records JSONL and log match the JSON for a failing case to understand whether the problem is in generation or serialization. After we identify the first concrete failing discrepancy, we can inspect the engine code path for resume vs fresh (likely state/visibility/blocked-tile handling) and patch; but first we need the failing details.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\ncases=data.get('cases',[])\nprint('cases:', [c.get('name') for c in cases])\nfor c in cases:\n    name=c.get('name')\n    ok=c.get('ok')\n    fresh=c.get('fresh',{})\n    resume=c.get('resume',{})\n    fi=fresh.get('illegal'); ri=resume.get('illegal')\n    fs=fresh.get('sig'); rs=resume.get('sig')\n    fsteps=fresh.get('steps'); rsteps=resume.get('steps')\n    if not ok or fi or ri or (fs!=rs and fs and rs):\n        print('\\nFAIL:', name)\n        print(' ok:', ok)\n        print(' fresh illegal/steps/sig:', fi, fsteps, fs)\n        print(' resume illegal/steps/sig:', ri, rsteps, rs)\n        print(' records:', c.get('records'))\n        print(' log:', c.get('log'))\n        print(' visibility:', c.get('visibility'))\n        print(' effects:', c.get('effects'))\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

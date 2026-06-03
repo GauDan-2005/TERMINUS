@@ -1,0 +1,203 @@
+New Terminal Output:
+
+root@8c64c9759efb:/app# cat > /app/pool_a/tag.c << 'EOF'
+> #include "../include/block.h"
+>
+> #include <stddef.h>
+>
+> void xa0(Block *a, size_t b) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     size_t *ftr;
+>     hdr[0] = b;
+>     hdr[1] = 0;
+>     ftr = (size_t *)(void *)(a->base + a->off + b - FTR_SIZE);
+>     ftr[0] = b;
+> }
+>
+> size_t tag_read_size(const Block *a) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     return hdr[0];
+> }
+>
+> int z_is_flag(const Block *a) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     return (int)(hdr[1] & 1);
+> }
+>
+> void z_set_flag(Block *a, int flag) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     if (flag) {
+>         hdr[1] |= 1;
+>     } else {
+>         hdr[1] &= ~(size_t)1;
+>     }
+> }
+>
+> size_t tag_read_footer(const Block *a, size_t total) {
+>     size_t *ftr = (size_t *)(void *)(a->base + a->off + total - FTR_SIZE);
+>     return ftr[0];
+> }
+> EOF
+root@8c64c9759efb:/app# cat > /app/list_b/list.c << 'EOF'
+> #include "../include/arena.h"
+> #include "../pool_a/tag.h"
+>
+> #include <stddef.h>
+> #include <string.h>
+>
+> static size_t fl_ix(size_t off) {
+>     return off >> 3;
+> }
+>
+> static void fl_clear(Arena *a, size_t off) {
+>     size_t ix = fl_ix(off);
+>     a->fl_link_next[ix] = FL_END;
+>     a->fl_link_prev[ix] = FL_END;
+> }
+>
+> void xb1(Arena *a, Block *b) {
+>     size_t off = b->off;
+>     size_t ix = fl_ix(off);
+>     size_t old = a->fl_head.off;
+>     a->fl_link_next[ix] = old;
+>     a->fl_link_prev[ix] = FL_END;
+>     if (old != FL_END) {
+>         a->fl_link_prev[fl_ix(old)] = off;
+>     }
+>     a->fl_head.base = b->base;
+>     a->fl_head.off = off;
+> }
+>
+> void list_remove(Arena *a, Block *b) {
+>     size_t off = b->off;
+>     size_t ix = fl_ix(off);
+>     size_t nxt = a->fl_link_next[ix];
+>     size_t prv = a->fl_link_prev[ix];
+>     if (nxt != FL_END) {
+>         a->fl_link_prev[fl_ix(nxt)] = prv;
+>     }
+>     if (prv != FL_END) {
+>         a->fl_link_next[fl_ix(prv)] = nxt;
+>     } else {
+>         a->fl_head.off = nxt;
+>     }
+>     fl_clear(a, off);
+> }
+>
+> void list_coalesce(Arena *a, Block *b) {
+>     size_t total = tag_read_size(b);
+>
+>     /* Forward coalesce: merge with next block if free */
+>     size_t off = b->off + total;
+>     if (off < a->used) {
+>         Block nb = {b->base, off};
+>         if (!z_is_flag(&nb)) {
+>             list_remove(a, &nb);
+>             total += tag_read_size(&nb);
+>             xa0(b, total);
+>         }
+>     }
+>
+>     /* Backward coalesce: merge with previous block if free */
+>     if (b->off > 0) {
+>         size_t *prev_ftr = (size_t *)(void *)(b->base + b->off - FTR_SIZE);
+>         size_t prev_total = prev_ftr[0];
+>         if (prev_total > 0 && prev_total <= b->off) {
+>             Block pb = {b->base, b->off - prev_total};
+>             if (!z_is_flag(&pb)) {
+>                 list_remove(a, &pb);
+>                 total += prev_total;
+>                 pb.off = b->off - prev_total;
+>                 xa0(&pb, total);
+>                 *b = pb;
+>             }
+>         }
+>     }
+>
+>     xb1(a, b);
+> }
+>
+> int q8f_blk(Arena *a, Block *oldb, size_t need, size_t *merged_out) {
+>     size_t old_total = tag_read_size(oldb);
+>     size_t next_off = oldb->off + old_total;
+>     size_t ntotal;
+>     Block nb;
+>     if (next_off >= a->used) {
+>         return -1;
+>     }
+>     nb.base = oldb->base;
+>     nb.off = next_off;
+>     if (z_is_flag(&nb)) {
+>         return -1;
+>     }
+>     ntotal = tag_read_size(&nb);
+>     if (old_total + ntotal < need) {
+>         return -1;
+>     }
+>     list_remove(a, &nb);
+>     *merged_out = old_total + ntotal;
+>     xa0(oldb, *merged_out);
+>     z_set_flag(oldb, 1);
+>     return 0;
+> }
+> EOF
+root@8c64c9759efb:/app# cat > /app/acct_e/acct.c << 'EOF'
+> #include "../include/stats.h"
+>
+> #include <stddef.h>
+> #include <sys/types.h>
+>
+> void xd3(Stats *a, ssize_t b) {
+>     if (b > 0) {
+>         a->allocated += (size_t)b;
+>     } else {
+>         a->allocated -= (size_t)(-b);
+>     }
+>     if (a->allocated > a->peak) {
+>         a->peak = a->allocated;
+>     }
+> }
+> EOF
+root@8c64c9759efb:/app# cat > /app/move_d/move.c << 'EOF'
+> #include <stddef.h>
+> #include <string.h>
+>
+> int xc2(void *a, void *b, size_t c) {
+>     unsigned char *dst = (unsigned char *)a;
+>     unsigned char *src = (unsigned char *)b;
+>     if (c > 0) {
+>         memcpy(dst, src, c);
+>     }
+>     return (int)c;
+> }
+> EOF
+root@8c64c9759efb:/app# cd /app && make clean && make 2>&1
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o spl
+it_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+drive_h/run.c: In function ‘run_case’:
+drive_h/run.c:11:5: warning: ‘strncpy’ output may be truncated copying 31 bytes from a string of length 31 [-Wstringop-truncation]
+   11 |     strncpy(res->name, plan->name, sizeof(res->name) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_o
+ps.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_
+j/mirror.o
+root@8c64c9759efb:/app#

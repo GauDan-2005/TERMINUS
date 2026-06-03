@@ -1,0 +1,84 @@
+New Terminal Output:
+een': 0}
+root@e3b61ed64090:/app# python3 -c "
+> import json
+> d=json.load(open('/app/output/resume-audit.json'))
+> for c in d['cases']:
+>     moves_json = c['moves']
+>     rec_file = c['records']
+>     log_file = c['log']
+>     with open(rec_file) as f:
+>         rec_moves = [json.loads(l) for l in f if l.strip()]
+>     with open(log_file) as f:
+>         log_lines = [l.strip() for l in f if l.strip()]
+>     match_rec = len(moves_json) == len(rec_moves)
+>     match_log = len(moves_json) == len(log_lines)
+>     if not match_rec or not match_log:
+>         print(f'{c[\"name\"]}: MISMATCH json={len(moves_json)} rec={len(rec_moves)} log={len(log_lines)}')
+>     else:
+>         for i,(mj,mr) in enumerate(zip(moves_json, rec_moves)):
+>             if mj != mr:
+>                 print(f'{c[\"name\"]}: move {i} differs')
+>                 break
+>         else:
+>             print(f'{c[\"name\"]}: sidecars OK ({len(moves_json)} moves)')
+> "
+bishop: sidecars OK (0 moves)
+knight: sidecars OK (0 moves)
+lancer: sidecars OK (0 moves)
+ranger: sidecars OK (4 moves)
+rook: sidecars OK (2 moves)
+sentinel: sidecars OK (2 moves)
+warden: sidecars OK (0 moves)
+root@e3b61ed64090:/app# ls -la /app/bin/rogctl
+-rwxr-xr-x 1 root root 2922616 May 28 17:16 /app/bin/rogctl
+root@e3b61ed64090:/app# bash /app/scripts/one-case.sh rook 2>&1
+root@e3b61ed64090:/app# cat /app/output/single-rook.json
+{
+  "cases": [
+    {
+      "name": "rook",
+      "ok": true,
+      "fresh": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 9
+      },
+      "effects": [],
+      "records": "/app/workspace/rook/records.jsonl",
+      "log": "/app/workspace/rook/trace.tsv"
+    }
+  ]
+}
+root@e3b61ed64090:/app#

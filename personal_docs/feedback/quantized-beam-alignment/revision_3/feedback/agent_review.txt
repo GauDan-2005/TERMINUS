@@ -1,0 +1,73 @@
+================================================================================
+                          REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ✅ PASS
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This hard debugging task requires the agent to repair a local inference sandbox
+composed of a Rust stage (producing raw.json) and a Go collation stage
+(producing report.json). The codebase has bugs planted across multiple Rust
+modules (a0, b1, c2) and the Go align command (incorrect deduplication logic
+and a trivial agree calculation). The test suite contains 14 test functions
+that thoroughly validate per-case token values, flag correctness, ordering,
+idempotency, raw/report agreement, and the agree semantics including
+corruption-detection scenarios.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Missing Data Files for Two Cases
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/data/ (directory)
+
+Current approach: The data/ directory contains reference files for alpha, beta,
+gamma, and delta, but not for epsilon or zeta — even though config/sets.txt
+lists all six case names and the instruction directs the agent to that file.
+
+Suggested improvement: Add epsilon.txt and zeta.txt to the data/ directory
+with their corresponding row values (matching what is hardcoded in main.rs),
+or remove unused data files entirely to avoid confusion.
+
+Rationale: An agent exploring the workspace might notice the mismatch between
+sets.txt (6 cases) and data/ (4 files) and waste time investigating whether
+the missing files are part of the bug. Since all case data is hardcoded in
+main.rs the files are purely supplementary, but consistency would reduce
+unnecessary cognitive load.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-crafted, genuinely challenging debugging task that requires
+understanding two interacting codebases (Rust + Go) and reasoning about subtle
+numeric and algorithmic bugs. The test suite is comprehensive, deterministic,
+and well-documented with clear docstrings.
+
+Key Strengths:
+  ✓ Multi-language debugging across Rust and Go with realistic bug patterns
+  ✓ Comprehensive test suite covering correctness, idempotency, flags, and
+    adversarial corruption detection (agree semantics)
+  ✓ Fully offline-compatible Dockerfile with pre-staged pytest wheels and
+    pinned base image (SHA256 digest)
+
+Key Weaknesses:
+  ✗ Minor inconsistency: data/ directory missing 2 of 6 case files
+
+Evaluates: Multi-language debugging, Rust/Go code comprehension, numeric
+           algorithm tracing, system integration reasoning
+
+================================================================================
+  RECOMMENDATION: ✅ READY TO USE
+
+  The task is structurally sound, offline-safe, and well-tested. The single
+  inconsistency (missing data files) is cosmetic and does not affect
+  solvability or correctness.
+================================================================================

@@ -1,0 +1,92 @@
+New Terminal Output:
+
+root@6d34054701b6:/app# sed -n '1,200p' /app/data/scripts/rook.json
+sed: can't read /app/data/scripts/rook.json: No such file or directory
+root@6d34054701b6:/app# sed -n '1,200p' /app/data/scripts/sentinel.json
+sed: can't read /app/data/scripts/sentinel.json: No such file or directory
+root@6d34054701b6:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: internal/f5/run.go
+> @@
+>  func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+>          applyWorld(w, blob)
+>          cache := &b1.CacheX{Obs: map[string]bool{}}
+>          b1.Merge(cache, blob)
+>          merged := b1.Snapshot(cache)
+>          for k, v := range stale {
+>                  merged[k] = v
+>          }
+>          w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+> -        moves := []MoveRow{}
+> -        for _, step := range steps {
+> -                if step.Action != "save" {
+> -                        continue
+> -                }
+> -                w.Turn = step.Turn
+> -                e4.ApplyLit(w, radius, blindActive(w))
+> -                moves = append(moves, advanceAll(w, merged)...)
+> -        }
+> -        return moves
+> +
+> +        // Resume path should replay the same post-save script steps as the fresh
+> +        // (direct) path. The loaded snapshot already contains the state at the
+> +        // save boundary, including any cached visibility observations.
+> +        moves := []MoveRow{}
+> +        pastSave := false
+> +        obs := merged
+> +        for _, step := range steps {
+> +                if step.Action == "save" {
+> +                        pastSave = true
+> +                        continue
+> +                }
+> +                if !pastSave {
+> +                        continue
+> +                }
+> +                w.Turn = step.Turn
+> +                if step.Actor == "P" {
+> +                        applyPlayer(w, step.Arg)
+> +                        e4.ApplyLit(w, radius, blindActive(w))
+> +                        // After player movement, refresh observations from the
+> +                        // current world state.
+> +                        obs = buildObs(w, nil)
+> +                }
+> +                if step.Actor == "H" {
+> +                        moves = append(moves, advanceAll(w, obs)...)
+> +                }
+> +        }
+> +        return moves
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@6d34054701b6:/app# make -s -C /app build
+root@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+root@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+root@6d34054701b6:/app# python3 - <<'PY'
+> import json
+> for name in ['rook','sentinel']:
+>     p=f'/app/output/single-{name}.json'
+>     with open(p) as f: data=json.load(f)
+>     c=data['cases'][0]
+>     print(name,'ok',c['ok'],'fresh',c['fresh'],'resume',c['resume'],'vis',c['visibility'])
+> PY
+rook ok False fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} resume {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 8}
+sentinel ok False fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1} resume {'sig': '691e8e87', 'illegal': 0, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 8
+}
+root@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+root@6d34054701b6:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> fail=[]
+> for c in data.get('cases',[]):
+>     if not c.get('ok'):
+>         fail.append((c['name'], c['fresh'], c['resume'], c.get('visibility')))
+> print('failures:', len(fail))
+> for x in fail:
+>     print(x)
+> PY
+failures: 2
+('rook', {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}, {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}, {'fresh_seen': 9, 'resume_seen': 8})
+('sentinel', {'sig': '9a98d68', 'illegal': 0, 'steps': 1}, {'sig': '691e8e87', 'illegal': 0, 'steps': 1}, {'fresh_seen': 9, 'resume_seen': 8})
+root@6d34054701b6:/app#

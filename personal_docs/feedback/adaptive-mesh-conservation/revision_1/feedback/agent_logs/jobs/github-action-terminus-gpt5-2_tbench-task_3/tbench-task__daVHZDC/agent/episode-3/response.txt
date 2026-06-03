@@ -1,0 +1,39 @@
+{
+  "analysis": "Edits did not apply because `apply_patch` is not available in this environment, so the code remains unchanged and drift persists. We need to modify files using available tools (e.g., heredoc with cat > file, or use perl/sed to edit in place). Next step: open the target files, rewrite them with corrected implementations, rebuild, rerun audits.",
+  "plan": "1) Use `perl -0777 -pe` or `python3` to perform in-place edits reliably, or rewrite whole files with cat heredocs if small. We’ll patch drv_u/run_refine.cpp within the refine loop and agg_q/blend.cpp fold_q function. 2) Verify the diff with `git diff` if git exists, otherwise use `grep/sed` to confirm. 3) Rebuild and rerun run-matrix.sh and targeted run-replay.sh to confirm conservation.",
+  "commands": [
+    {
+      "keystrokes": "command -v git >/dev/null && git diff --no-color || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/drv_u/run_refine.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,140p' /app/agg_q/blend.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np = Path('/app/agg_q/blend.cpp')\ns = p.read_text()\nold = s\n# Replace fold_q implementation with volume-weighted version.\nimport re\npat = re.compile(r\"void fold_q\\(const CellPatch \\*a, int b, CellPatch \\*c\\) \\{.*?\\n\\}\", re.S)\nrep = r'''void fold_q(const CellPatch *a, int b, CellPatch *c) {\n    if (!a || !c) return;\n    int n = (a->n < b) ? a->n : b;\n    if (n <= 0) {\n        c->n = 0;\n        return;\n    }\n    double sum_vol = 0.0;\n    double sum_vq[NVAR] = {0.0, 0.0, 0.0};\n    for (int i = 0; i < n; i++) {\n        sum_vol += a->vol[i];\n        for (int v = 0; v < NVAR; v++) {\n            sum_vq[v] += a->vol[i] * a->q[i * NVAR + v];\n        }\n    }\n    c->n = 1;\n    c->vol[0] = sum_vol;\n    for (int v = 0; v < NVAR; v++) {\n        c->q[v] = (sum_vol > 0.0) ? (sum_vq[v] / sum_vol) : 0.0;\n    }\n}'''\nns, n = pat.subn(rep, s)\nif n != 1:\n    raise SystemExit(f'Expected to replace 1 fold_q, replaced {n}')\np.write_text(ns)\nprint('patched', p)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nimport re\np = Path('/app/drv_u/run_refine.cpp')\ns = p.read_text()\n# We patch inside phase_grow: introduce fj[], denom/scale, and use renormalized q.\n# Do a targeted replacement of the block that computes vj/vtot/jw..jbar and then writes leaves.\nold_block_pat = re.compile(r\"double vj\\[MAX_LEAVES\\];\\n\\s*double vtot = 0\\.0;\\n\\s*double jw = 0\\.0;\\n\\s*for \\(int j = 0; j < k; j\\+\\+\\) \\{\\n\\s*vj\\[j\\] = coarse\\.cells\\[c\\]\\.vol \\* \\(double\\)spec->leaf_weight\\[c\\]\\[j\\] / \\(double\\)sumw;\\n\\s*vtot \\+= vj\\[j\\];\\n\\s*jw \\+= vj\\[j\\] \\* \\(double\\)j;\\n\\s*\\}\\n\\s*double jbar = \\(vtot > 0\\.0\\) \\? jw / vtot : 0\\.0;\\n\\s*for \\(int j = 0; j < k; j\\+\\+\\) \\{\\n\\s*int gi = leaves\\.n\\+\\+;\\n\\s*leaves\\.cells\\[gi\\]\\.idx = gi;\\n\\s*leaves\\.cells\\[gi\\]\\.vol = vj\\[j\\];\\n\\s*double f = \\(k > 1\\) \\? \\(1\\.0 \\+ LEAF_SPREAD \\* \\(\\(double\\)j - jbar\\)\\) : 1\\.0;\\n\\s*for \\(int v = 0; v < NVAR; v\\+\\+\\) \\{\\n\\s*leaves\\.cells\\[gi\\]\\.q\\[v\\] = coarse\\.cells\\[c\\]\\.q\\[v\\] \\* f;\\n\\s*\\}\\n\\s*leaves\\.cells\\[gi\\]\\.tier = \\(k > 1\\) \\? 1 : 0;\\n\\s*leaves\\.cells\\[gi\\]\\.parent = \\(k > 1\\) \\? c : -1;\\n\\s*\\}\\n\")\nnew_block = \"\"\"double vj[MAX_LEAVES];\n        double fj[MAX_LEAVES];\n        double vtot = 0.0;\n        double jw = 0.0;\n        for (int j = 0; j < k; j++) {\n            vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;\n            vtot += vj[j];\n            jw += vj[j] * (double)j;\n        }\n        double jbar = (vtot > 0.0) ? jw / vtot : 0.0;\n\n        // Renormalize the shaped split so totals are conserved:\n        //   sum_j vj * qj == coarse.vol * coarse.q   (per variable).\n        double denom[NVAR] = {0.0, 0.0, 0.0};\n        for (int j = 0; j < k; j++) {\n            fj[j] = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;\n            for (int v = 0; v < NVAR; v++) denom[v] += vj[j] * fj[j];\n        }\n        double scale[NVAR];\n        for (int v = 0; v < NVAR; v++) {\n            scale[v] = (denom[v] != 0.0) ? (coarse.cells[c].vol / denom[v]) : 1.0;\n        }\n\n        for (int j = 0; j < k; j++) {\n            int gi = leaves.n++;\n            leaves.cells[gi].idx = gi;\n            leaves.cells[gi].vol = vj[j];\n            for (int v = 0; v < NVAR; v++) {\n                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * fj[j] * scale[v];\n            }\n            leaves.cells[gi].tier = (k > 1) ? 1 : 0;\n            leaves.cells[gi].parent = (k > 1) ? c : -1;\n        }\n\"\"\"\nns, n = old_block_pat.subn(new_block, s)\nif n != 1:\n    raise SystemExit(f'Expected to replace 1 split block, replaced {n}')\np.write_text(ns)\nprint('patched', p)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

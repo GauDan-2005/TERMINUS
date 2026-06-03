@@ -1,0 +1,141 @@
+New Terminal Output:
+
+root@d5abe651af27:/app# perl -0777 -i -pe 's/return\s+sqrt\(s\)\s*\+\s*1\.0e-4\s*;/\/\/ Metric helper must agree with independently measured L2 residual.\n    r
+eturn sqrt(s);/g' /app/scale_q/metric.cpp
+root@d5abe651af27:/app# grep -n 'return sqrt' -n /app/scale_q/metric.cpp
+11:    return sqrt(s);
+root@d5abe651af27:/app# perl -0777 -i -pe 's/int col_blk = reorder \? \(\(bj \+ 1\) % nb\) : bj;/\/\/ When reordering, use the same permutation mapping for colu
+mns\n            \/\/ that we use for rows. Shifting columns breaks the matrix.\n            int col_blk = reorder ? a->perm[bj] : bj;/g' /app/bsr_n/layout.cpp
+root@d5abe651af27:/app# grep -n 'col_blk' -n /app/bsr_n/layout.cpp | head
+25:            int col_blk = reorder ? a->perm[bj] : bj;
+30:                    int gc = col_blk * bs + cc;
+38:                c->col_idx[ptr] = col_blk;
+42:                        int gc = col_blk * bs + cc;
+root@d5abe651af27:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> if [ ! -x "${SOLVERCTL}" ]; then
+>   SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" matrix
+> EOF
+root@d5abe651af27:/app# chmod +x /app/scripts/run-matrix.sh
+root@d5abe651af27:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> # Accept either "basalt" or "basalt.case".
+> NAME="${NAME%.case}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> if [ ! -x "${SOLVERCTL}" ]; then
+>   SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}"
+> EOF
+root@d5abe651af27:/app# chmod +x /app/scripts/run-one.sh
+root@d5abe651af27:/app# cmake --build /app/build -j"$(nproc)"
+[ 15%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 15%] Building CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o
+[ 23%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@d5abe651af27:/app# bash /app/scripts/run-matrix.sh
+root@d5abe651af27:/app# cat /app/output/solver-audit.json
+{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    }
+  ]
+}
+root@d5abe651af27:/app# cp /app/output/solver-audit.json /tmp/a1.json; bash /app/scripts/run-matrix.sh; cp /app/output/solver-audit.json /tmp/a2.json; diff -u /
+tmp/a1.json /tmp/a2.json || true
+root@d5abe651af27:/app# python3 - <<'PY'
+> import json, subprocess
+> cases = ['basalt','flint','shale','garnet','mica','opal']
+> subprocess.run(['bash','/app/scripts/run-matrix.sh'], check=True)
+> with open('/app/output/solver-audit.json') as f:
+>     mat = json.load(f)['cases']
+> mat_by = {c['name']: c for c in mat}
+> for name in cases:
+>     subprocess.run(['bash','/app/scripts/run-one.sh', name], check=True)
+>     with open(f'/app/output/{name}-audit.json') as f:
+>         one = json.load(f)['cases'][0]
+>     same = (one == mat_by[name])
+>     print(name, 'MATCH' if same else 'DIFF')
+>     if not same:
+>         print('matrix:', mat_by[name])
+>         print('one   :', one)
+> PY
+basalt MATCH
+flint MATCH
+shale MATCH
+garnet MATCH
+mica MATCH
+opal MATCH
+root@d5abe651af27:/app#

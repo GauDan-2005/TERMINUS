@@ -1,0 +1,66 @@
+---
+description: Critical-path policy for TB3 task work. Pull before task edits, gates, submission prep, or approve_task.py. Overrides deeper rules.
+alwaysApply: false
+---
+
+# TB3 Authoring Critical Path
+
+This rule overrides deeper rules; fix the deeper rule on conflict.
+
+## 0. Verify repo facts
+
+Before naming a path, command, `task.toml` field, output path, or test file, open the source file or `commands.md`.
+
+- `/app/...` paths: `instruction.md` or `output_contract.toml`.
+- `task.toml` fields: existing task or static-check output.
+- Test paths: `tests/test.sh` or verifier files.
+- Runtime is offline: `[environment].allow_internet = false`; no dependency installs/fetches in `tests/test.sh`.
+
+## 1. Step 2a before Step 2b
+
+Reject/redesign ideas solvable from `instruction.md` alone. Validate discoverability, synthesis depth, diagnosis, coupling navigation, and reasoning beyond training; see `idea-validation.mdc`.
+
+## 2. Spec-driven construction
+
+Before task edits, read `specs/<task-name>.md` Authoring Brief plus `task-creation.mdc` and `difficulty-calibration.mdc`. Do not draft from the Reviewer Appendix. If the spec lacks a Triviality Ledger or Per-gate Pitfall Inventory, return to Step 2a.
+
+## 3. Step 2b gate order
+
+Run cheap preflight first:
+
+```bash
+./scripts/check-task.sh tasks/<task-name>
+```
+
+Preflight is not Step 2b PASS. Then run 1x oracle and NOP:
+
+```bash
+harbor run -p "tasks/<task-name>" -a oracle
+harbor run -p "tasks/<task-name>" -a nop
+```
+
+Oracle 10x belongs to Step 4 only.
+
+## 4. Dirty flag
+
+`check-task.sh` writes `.step2b-checksum`; `approve_task.py` refuses checksum mismatch. After any task-file edit, rerun gates. Do not delete or forge the checksum.
+
+## 5. Final approval
+
+Before READY / APPROVED / SUBMIT: oracle 10x passes, NOP scores 0.0, zip validates via `validate_submission_zip.py`, and `approve_task.py` exits 0.
+
+## 6. Forbidden shortcuts
+
+- Editing tests to fit a broken solution; hiding golden answers; answer-shaped instruction values.
+- Hidden solver hints in `environment/`; AI-scaffolding names anywhere (`CLAUDE.md`, `skills.md`, `AGENTS.md`, `.cursor/`, `.aider/`, …).
+- Replacing anonymous author placeholders with real IDs.
+- Decorative/empty files or cosmetic `solve.sh` padding to game GX3/A16.
+- New multi-container or UI-building tasks.
+- Deprecated root milestone layout; use `steps/milestone_N/` per `task-creation.mdc`.
+- Harbor-only fields not adopted here: `schema_version`, `[task]`, `min_reward`, `[steps.healthcheck]`, `[steps.verifier.env]`, `artifacts`, `multi_step_reward_strategy`, `workdir/setup.sh`.
+- Missing `allow_internet = false` or runtime installs/fetches (`apt`, `pip`, `curl`, `uv`/`uvx`, `npm install`, Playwright installs, etc.).
+- Claiming a command passed without output; bypassing the dirty flag.
+
+## 7. Escalation/demotion
+
+If a failure pattern recurs three times, file a CNI entry before proposing a new critical bullet. Demote bullets idle for 10 task authorings; this file is not append-only.

@@ -1,0 +1,33 @@
+New Terminal Output:
+
+root@8d4b11936542:/app# mkdir -p /app/bin
+root@8d4b11936542:/app# ln -sf /app/build/bin/solverctl /app/bin/solverctl
+root@8d4b11936542:/app# ls -la /app/bin/solverctl
+lrwxrwxrwx 1 root root 24 May 28 16:10 /app/bin/solverctl -> /app/build/bin/solverctl
+root@8d4b11936542:/app# rm -f /app/output/*audit.json
+root@8d4b11936542:/app# bash /app/scripts/run-matrix.sh
+root@8d4b11936542:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root   31 May 28 16:10 .
+drwxr-xr-x 21 root root  289 May 28 16:10 ..
+-rw-r--r--  1 root root 1202 May 28 16:10 solver-audit.json
+root@8d4b11936542:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> with open(p) as f: j=json.load(f)
+> print('cases:',len(j.get('cases',[])))
+> fail=[c for c in j.get('cases',[]) if (not c.get('ok',False)) or (not c.get('residual_agrees',False)) or c.get('hit_limit',False)]
+> print('problem_cases:',len(fail))
+> for c in fail[:40]:
+>     print(c['name'], 'ok=',c['ok'], 'residual_agrees=',c['residual_agrees'], 'hit_limit=',c['hit_limit'], 'it=',c['iterations'], 'final=',c['final_residual'],
+ 'reported=',c['reported_residual'])
+> PY
+cases: 6
+problem_cases: 6
+basalt ok= False residual_agrees= False hit_limit= False it= 1 final= 0 reported= 0.0001
+flint ok= False residual_agrees= False hit_limit= False it= 1 final= 0 reported= 0.0001
+shale ok= False residual_agrees= False hit_limit= False it= 1 final= 0 reported= 0.0001
+garnet ok= False residual_agrees= False hit_limit= False it= 1 final= 0 reported= 0.0001
+mica ok= False residual_agrees= False hit_limit= False it= 1 final= 0 reported= 0.0001
+opal ok= False residual_agrees= False hit_limit= False it= 1 final= 0 reported= 0.0001
+root@8d4b11936542:/app#

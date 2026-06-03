@@ -1,0 +1,35 @@
+{
+  "analysis": "jq is not installed, so JSON inspection commands failed and follow-on variables were empty. We need an alternative to parse /app/output/restore-audit.json (use python3), then extract source/restored paths for specific cases and perform filesystem comparisons (diff, inode/nlink checks). Also one awk command had a quoting issue, but we can avoid it by using simpler output formats.",
+  "plan": "1) Use python3 to summarize the six cases (ok flags, digests, group counts, accounting length) and print failing case names. 2) Use python3 to extract beta (and gamma) source/restored directory paths into shell variables. 3) Compare directory trees and content with diff -qr. 4) Check hardlink preservation by listing files with inode and link count (find -printf '%i %n %s %p'). These observations will point to whether restore is copying instead of hardlinking, missing files, or writing wrong content.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/restore-audit.json'\nwith open(p) as f:\n  d=json.load(f)\nfor c in d['cases']:\n  print(c['name'], 'ok='+str(c['ok']), 'src_groups='+str(len(c['groups']['source'])), 'res_groups='+str(len(c['groups']['restored'])), 'acct='+str(len(c['accounting'])))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nprint('failing:', [c['name'] for c in d['cases'] if not c['ok']])\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "beta_src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  if c['name']=='beta':\n    print(c['source']); break\nPY\n); beta_res=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  if c['name']=='beta':\n    print(c['restored']); break\nPY\n); echo \"beta_src=$beta_src\"; echo \"beta_res=$beta_res\"; ls -la \"$beta_src\" \"$beta_res\"\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "echo '--- beta tree diff (paths/contents) ---'; diff -qr \"$beta_src\" \"$beta_res\" | sed -n '1,200p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "echo '--- beta hardlinks in source (nlink>1) ---'; (cd \"$beta_src\" && find . -type f -printf '%i %n %s %P\\n' | awk '$2>1' | sort -k1,1n)\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "echo '--- beta hardlinks in restored (nlink>1) ---'; (cd \"$beta_res\" && find . -type f -printf '%i %n %s %P\\n' | awk '$2>1' | sort -k1,1n)\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gamma_src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  if c['name']=='gamma':\n    print(c['source']); break\nPY\n); gamma_res=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  if c['name']=='gamma':\n    print(c['restored']); break\nPY\n); echo \"gamma_src=$gamma_src\"; echo \"gamma_res=$gamma_res\"; diff -qr \"$gamma_src\" \"$gamma_res\" | sed -n '1,200p'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

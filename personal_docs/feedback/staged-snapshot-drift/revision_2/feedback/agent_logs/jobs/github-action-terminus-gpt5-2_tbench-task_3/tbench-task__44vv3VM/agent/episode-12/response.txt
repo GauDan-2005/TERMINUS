@@ -1,0 +1,31 @@
+{
+  "analysis": "Accounting for d/roll.txt is bytes 0 for roll cases (epsilon, zeta). Period is also p0 everywhere; spec says period should be p1 for generated files under d/ when case has moved into later quota period. So c2.ItemsC likely computes size incorrectly for d/roll.txt (maybe stat failure treated as 0) and period logic maybe inverted or reset by rollup. We need to inspect internal/c2/roll.go and internal/c2/table.go (not yet shown due to screen truncation) plus cmd/ctl/main.go accountingMatchesDisk which probably catches the 0-byte mismatch causing ok=false in all cases (maybe because diskMatch is ANDed across source+restored and it fails for roll cases; but why alpha/beta/delta also ok=false suggests ok might be set incorrectly, or diskMatch is failing even without roll). Next: open these files fully and check their logic; fix bytes to actual file size via os.Stat and ensure period assignment per spec; also fix ok calculation if it's currently hardcoded false or missing digest/groups checks.",
+  "plan": "1) Display internal/c2/roll.go and internal/c2/table.go content, plus cmd/ctl/main.go top portion (accountingEqual, accountingMatchesDisk, runCase OK computation). 2) Fix c2.ItemsC: ensure it walks all regular files, stats them correctly, and includes d/roll.txt size; handle errors instead of silently 0. Ensure it includes hardlink aliases as separate entries with full size each (just stat each path). Set period to p1 only for paths under d/ when profile.Roll && profile.Restart (later quota period), else p0. Remove any logic that flips p1->p0 based on flags. 3) Rerun matrix and confirm ok true and accounting bytes/period correct.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/c2/roll.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '120,240p' /app/internal/c2/roll.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/c2/table.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/cmd/ctl/main.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '120,220p' /app/cmd/ctl/main.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "src=/tmp/staged-snapshot-1425437382/epsilon/source; rst=/tmp/staged-snapshot-1425437382/epsilon/restored; echo 'epsilon roll sizes:'; wc -c \"$src/d/roll.txt\" \"$rst/d/roll.txt\"; ls -la \"$src/d/roll.txt\" \"$rst/d/roll.txt\"\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,83 @@
+New Terminal Output:
+
+root@7051008c066a:/app# export PATH=/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin:/usr/local/cargo/bin:$PATH
+root@7051008c066a:/app# cargo --version
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+root@7051008c066a:/app# rustc --version
+rustc 1.85.0 (4d91de4e4 2025-02-17)
+root@7051008c066a:/app# cat > /app/tools/run_local.sh <<'SH'
+> #!/bin/bash
+> set -euo pipefail
+>
+> # Ensure Rust toolchain is available in this sandbox.
+> export PATH=/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin:/usr/local/cargo/bin:$PATH
+>
+> cargo --version
+> mkdir -p /app/output /app/bin
+>
+> cargo build --release --quiet --manifest-path /app/Cargo.toml
+> /app/target/release/local-infer-sandbox /app/output/raw.json
+>
+> go build -o /app/bin/align /app/cmd/align/main.go
+> /app/bin/align /app/output/raw.json /app/output/report.json
+> SH
+root@7051008c066a:/app# chmod +x /app/tools/run_local.sh
+root@7051008c066a:/app# rm -rf /app/output && mkdir -p /app/output
+root@7051008c066a:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@7051008c066a:/app# ls -la /app/output
+total 8
+drwxr-xr-x  2 root root   41 May 29 06:48 .
+drwxr-xr-x 12 root root  198 May 29 06:48 ..
+-rw-r--r--  1 root root  824 May 29 06:48 raw.json
+-rw-r--r--  1 root root 1656 May 29 06:48 report.json
+root@7051008c066a:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> rawp=Path('/app/output/raw.json')
+> repp=Path('/app/output/report.json')
+> print('raw exists', rawp.exists(), 'size', rawp.stat().st_size if rawp.exists() else None)
+> print('report exists', repp.exists(), 'size', repp.stat().st_size if repp.exists() else None)
+> if rawp.exists():
+>   raw=json.loads(rawp.read_text())
+>   print('raw keys', raw.keys())
+>   print('raw rows', len(raw.get('raw',[])))
+>   print('raw first', raw.get('raw',[None])[0])
+> if repp.exists():
+>   rep=json.loads(repp.read_text())
+>   print('report keys', rep.keys())
+>   print('report rows', len(rep.get('rows',[])))
+>   print('summary', rep.get('summary'))
+>   print('report first', rep.get('rows',[None])[0])
+> PY
+raw exists True size 824
+report exists True size 1656
+raw keys dict_keys(['raw'])
+raw rows 6
+raw first {'case': 'alpha', 'produced': [40, 41], 'slot_trace': [0, 1], 'order_used': [0, 1], 'packed': False, 'grouped': True, 'reuse': False, 'selected': [0,
+1]}
+report keys dict_keys(['rows', 'summary'])
+report rows 6
+summary {'agree': True, 'total': 6}
+report first {'case': 'alpha', 'produced': [40, 41], 'slot_trace': [0, 1], 'order_used': [0, 1], 'packed': False, 'grouped': True, 'reuse': False}
+root@7051008c066a:/app#

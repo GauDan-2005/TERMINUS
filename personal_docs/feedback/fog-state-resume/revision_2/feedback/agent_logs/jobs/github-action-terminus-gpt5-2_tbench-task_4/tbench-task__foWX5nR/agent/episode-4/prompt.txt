@@ -1,0 +1,112 @@
+New Terminal Output:
+
+root@c6c596d788f9:/app# sed -n '1,200p' /app/internal/sim/types.go
+package sim
+
+type Profile struct {
+        Name      string
+        Radius    int
+        Blind     bool
+        Dense     bool
+        Epoch     bool
+        Mixed     bool
+        CheckTurn int
+}
+
+type MoveRow struct {
+        Turn  int    `json:"turn"`
+        Actor string `json:"actor"`
+        FromX int    `json:"from_x"`
+        FromY int    `json:"from_y"`
+        ToX   int    `json:"to_x"`
+        ToY   int    `json:"to_y"`
+        Kind  string `json:"kind"`
+        Legal bool   `json:"legal"`
+}
+
+type PathSummary struct {
+        Sig     string `json:"sig"`
+        Illegal int    `json:"illegal"`
+        Steps   int    `json:"steps"`
+}
+
+type VisPair struct {
+        FreshSeen  int `json:"fresh_seen"`
+        ResumeSeen int `json:"resume_seen"`
+}
+
+type EffectRow struct {
+        ID     string `json:"id"`
+        Active bool   `json:"active"`
+        Epoch  int    `json:"epoch"`
+}
+
+type CaseResult struct {
+        Name       string      `json:"name"`
+        OK         bool        `json:"ok"`
+        Fresh      PathSummary `json:"fresh"`
+        Resume     PathSummary `json:"resume"`
+        Moves      []MoveRow   `json:"moves"`
+        Visibility VisPair     `json:"visibility"`
+        Effects    []EffectRow `json:"effects"`
+        Records    string      `json:"records"`
+        Log        string      `json:"log"`
+}
+
+type Report struct {
+        Cases []CaseResult `json:"cases"`
+}
+root@c6c596d788f9:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/resume-audit.json') as f:
+>     d=json.load(f)
+> print('top_keys:', sorted(d.keys()))
+> cs=d.get('cases',[])
+> print('cases:', len(cs))
+> if cs:
+>     c=cs[0]
+>     print('case0_keys:', sorted(c.keys()))
+>     for k in ['case','ok','visibility','fresh','resume']:
+>         if k in c:
+>             print(k, 'type', type(c[k]).__name__)
+>     # print a compact preview of fresh/resume keys
+>     for side in ['fresh','resume']:
+>         if side in c and isinstance(c[side], dict):
+>             print(side+'_keys:', sorted(c[side].keys()))
+> PY
+top_keys: ['cases']
+cases: 7
+case0_keys: ['effects', 'fresh', 'log', 'moves', 'name', 'ok', 'records', 'resume', 'visibility']
+ok type bool
+visibility type dict
+fresh type dict
+resume type dict
+fresh_keys: ['illegal', 'sig', 'steps']
+resume_keys: ['illegal', 'sig', 'steps']
+root@c6c596d788f9:/app# python3 - <<'PY'
+> import json
+> from pprint import pprint
+> with open('/app/output/resume-audit.json') as f:
+>     d=json.load(f)
+> cs=d.get('cases',[])
+> if not cs:
+>     raise SystemExit('no cases')
+> # pretty-print first case (trim large arrays)
+> c=dict(cs[0])
+> for side in ['fresh','resume']:
+>     if side in c and isinstance(c[side], dict):
+>         for k,v in list(c[side].items()):
+>             if isinstance(v,list) and len(v)>10:
+>                 c[side][k]=v[:3]+['...(%d total)'%len(v)]+v[-3:]
+> pprint(c)
+> PY
+{'effects': [{'active': False, 'epoch': 3, 'id': 'blind'}],
+ 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0},
+ 'log': '/app/workspace/bishop/trace.tsv',
+ 'moves': [],
+ 'name': 'bishop',
+ 'ok': True,
+ 'records': '/app/workspace/bishop/records.jsonl',
+ 'resume': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0},
+ 'visibility': {'fresh_seen': 0, 'resume_seen': 0}}
+root@c6c596d788f9:/app#

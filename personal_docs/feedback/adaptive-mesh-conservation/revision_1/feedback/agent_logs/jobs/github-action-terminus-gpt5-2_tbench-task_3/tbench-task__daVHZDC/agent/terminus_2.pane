@@ -1,0 +1,1321 @@
+[?2004hroot@5d46ad38ee8d:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@5d46ad38ee8d:/app# clear
+[?2004l[H[J[3J[?2004hroot@5d46ad38ee8d:/app# cd /app
+[?2004l[?2004hroot@5d46ad38ee8d:/app# ls -la
+[?2004ltotal 4
+drwxr-xr-x 20 root root 264 May 28 23:39 .
+drwxr-xr-x 19 root root 265 May 28 23:39 ..
+-rw-r--r--  1 root root 936 May 28 23:38 CMakeLists.txt
+drwxr-xr-x  2 root root  27 May 28 23:38 acc_m
+drwxr-xr-x  2 root root  23 May 28 23:38 agg_q
+drwxr-xr-x  2 root root  22 May 28 23:38 cch_z
+drwxr-xr-x  2 root root  43 May 28 23:38 config
+drwxr-xr-x  3 root root  18 May 28 23:38 data
+drwxr-xr-x  2 root root  44 May 28 23:38 docs
+drwxr-xr-x  2 root root 100 May 28 23:38 drv_u
+drwxr-xr-x  2 root root  24 May 28 23:38 emt_e
+drwxr-xr-x  2 root root 145 May 28 23:38 include
+drwxr-xr-x  2 root root  24 May 28 23:38 lnk_n
+drwxr-xr-x  2 root root  22 May 28 23:38 prb_v
+drwxr-xr-x  2 root root  24 May 28 23:38 rsm_k
+drwxr-xr-x  2 root root  87 May 28 23:38 scripts
+drwxr-xr-x  2 root root  83 May 28 23:38 src
+drwxr-xr-x  2 root root  24 May 28 23:38 srl_p
+drwxr-xr-x  2 root root  23 May 28 23:38 swp_t
+drwxr-xr-x  2 root root  22 May 28 23:38 sync_b
+drwxr-xr-x  2 root root  23 May 28 23:38 tap_w
+[?2004hroot@5d46ad38ee8d:/app# find . -maxdepth 3 -type f -name 'CMakeLists.txt' -o -name '*.cpp' -o -name '*.hpp' -o -name '*.cc' -o -name '*.c' | head
+[?2004l./CMakeLists.txt
+./acc_m/edge_corr.cpp
+./agg_q/blend.cpp
+./cch_z/ring.cpp
+./drv_u/run.cpp
+./drv_u/run_blend.cpp
+./drv_u/run_refine.cpp
+./drv_u/run_sync.cpp
+./emt_e/report.cpp
+./lnk_n/relate.cpp
+[?2004hroot@5d46ad38ee8d:/app# ls -la /app/output || true
+[?2004lls: cannot access '/app/output': No such file or directory
+[?2004hroot@5d46ad38ee8d:/app# cat /app/output/conservation_audit.json 2>/dev/null | head -n 80
+[?2004l[?2004hroot@5d46ad38ee8d:/app# ls -la /app/docs
+[?2004ltotal 8
+drwxr-xr-x  2 root root   44 May 28 23:38 .
+drwxr-xr-x 20 root root  264 May 28 23:39 ..
+-rw-r--r--  1 root root 1344 May 28 23:38 layout.md
+-rw-r--r--  1 root root  681 May 28 23:38 operations.md
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,200p' /app/docs/layout.md
+[?2004l# Audit output layout
+
+`/app/output/conservation_audit.json` holds a single object with a `cases`
+array. The per-case helpers emit the same object shape with one entry.
+
+Each entry has these fields:
+
+- `name` — scenario identifier.
+- `base_total` — three running sums of the starting state, one per tracked
+  quantity.
+- `after_total` — the same three sums measured once the structural phases of
+  the run have completed.
+- `resumed_total` — a position-weighted moment of the final state (each cell's
+  contribution scaled by its ordinal position). Two runs of the same scenario
+  that reach the same end arrangement report the same moment.
+- `drift_ratio` — the largest relative gap between `after_total` and
+  `base_total` across the three quantities.
+- `balanced` — true when the seam accounting over every coarse-fine interface
+  closed out.
+- `base_match` — true when `after_total` matches `base_total` within the
+  numerical floor.
+- `adjacency` — count of parent/child links resolved at the structural peak of
+  the run.
+- `halo_q` — three sampled ghost-band values taken at the first refined seam.
+
+`/app/output/persistence_audit.log` records one line per snapshot load attempt
+during the runs that round-trip through `/app/work/vault.bin`. A line begins
+with `ACCEPTED` or `REJECTED`; rejected lines name the reason.
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,200p' /app/docs/operations.md
+[?2004l# Operations
+
+Build the driver with CMake:
+
+```
+cmake -S /app -B /app/build
+cmake --build /app/build -j2
+```
+
+The driver lands at `/app/build/bin/sim_run`. The wrappers under
+`/app/scripts` invoke it:
+
+- `bash /app/scripts/run-matrix.sh` runs every bundled scenario and writes
+  `/app/output/conservation_audit.json`.
+- `bash /app/scripts/run-one.sh <name>` writes `/app/output/<name>-audit.json`.
+- `bash /app/scripts/run-replay.sh <name>` writes
+  `/app/output/<name>-replay.json`.
+
+Scenario schedules live in `/app/config/cases.toml`. Starting states live in
+`/app/data/init`. Snapshots are written under `/app/work` during scenarios
+that round-trip through a saved checkpoint.
+[?2004hroot@5d46ad38ee8d:/app# ls -la /app/scripts
+[?2004ltotal 16
+drwxr-xr-x  2 root root  87 May 28 23:38 .
+drwxr-xr-x 20 root root 264 May 28 23:39 ..
+-rwxr-xr-x  1 root root 130 May 28 23:38 clean-room.sh
+-rwxr-xr-x  1 root root 172 May 28 23:38 run-matrix.sh
+-rwxr-xr-x  1 root root 213 May 28 23:38 run-one.sh
+-rwxr-xr-x  1 root root 217 May 28 23:38 run-replay.sh
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+bash "${APP}/scripts/clean-room.sh"
+"${APP}/build/bin/sim_run" --matrix --out "${APP}/output/conservation_audit.json"
+[?2004hroot@5d46ad38ee8d:/app# rm -rf /app/build && mkdir -p /app/build
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=RelWithDebInfo
+[?2004l-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/build
+[?2004hroot@5d46ad38ee8d:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[ 10%] [32mBuilding CXX object CMakeFiles/sim_run.dir/src/main.cpp.o[0m
+[ 10%] [32mBuilding CXX object CMakeFiles/sim_run.dir/src/case_io.cpp.o[0m
+[ 20%] [32mBuilding CXX object CMakeFiles/sim_run.dir/src/vault_io.cpp.o[0m
+[ 20%] [32mBuilding CXX object CMakeFiles/sim_run.dir/src/audit_emit.cpp.o[0m
+[ 25%] [32mBuilding CXX object CMakeFiles/sim_run.dir/acc_m/edge_corr.cpp.o[0m
+[ 30%] [32mBuilding CXX object CMakeFiles/sim_run.dir/lnk_n/relate.cpp.o[0m
+[ 35%] [32mBuilding CXX object CMakeFiles/sim_run.dir/agg_q/blend.cpp.o[0m
+[ 40%] [32mBuilding CXX object CMakeFiles/sim_run.dir/srl_p/serial.cpp.o[0m
+[ 45%] [32mBuilding CXX object CMakeFiles/sim_run.dir/rsm_k/resume.cpp.o[0m
+[ 50%] [32mBuilding CXX object CMakeFiles/sim_run.dir/sync_b/halo.cpp.o[0m
+[ 60%] [32mBuilding CXX object CMakeFiles/sim_run.dir/drv_u/run_refine.cpp.o[0m
+[ 60%] [32mBuilding CXX object CMakeFiles/sim_run.dir/drv_u/run.cpp.o[0m
+[ 65%] [32mBuilding CXX object CMakeFiles/sim_run.dir/drv_u/run_blend.cpp.o[0m
+[ 70%] [32mBuilding CXX object CMakeFiles/sim_run.dir/drv_u/run_sync.cpp.o[0m
+[ 75%] [32mBuilding CXX object CMakeFiles/sim_run.dir/swp_t/sweep.cpp.o[0m
+[ 80%] [32mBuilding CXX object CMakeFiles/sim_run.dir/prb_v/hist.cpp.o[0m
+[ 85%] [32mBuilding CXX object CMakeFiles/sim_run.dir/emt_e/report.cpp.o[0m
+[ 95%] [32mBuilding CXX object CMakeFiles/sim_run.dir/cch_z/ring.cpp.o[0m
+[ 90%] [32mBuilding CXX object CMakeFiles/sim_run.dir/tap_w/trace.cpp.o[0m
+[100%] [32m[1mLinking CXX executable bin/sim_run[0m
+[100%] Built target sim_run
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/conservation_audit.json | head -n 120
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.3136083333333337, 1.6860166666666665, 1.7727833333333334],
+      "resumed_total": [5.8175833333333333, 3.9711666666666665, 4.5618833333333333],
+      "drift_ratio": 0.011862633181126228,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9903, 1.768275, 1.7481249999999999],
+      "resumed_total": [5.3113000000000001, 3.9472749999999999, 4.5431249999999999],
+      "drift_ratio": 0.010442857142857167,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,200p' /app/config/cases.toml
+[?2004l# Per-scenario schedules for the bundled sweep.
+# profile selects the initial-condition table under /app/data/init.
+# leaves is a '|'-separated list (one entry per base cell); each entry is a
+# comma-separated list of integer sub-cell weights for that base cell.
+# do_flux / do_collapse / do_restart toggle the structural phases.
+
+[storm]
+profile = 0
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 0
+leaves = 2,1,1|1|1|1
+
+[canyon]
+profile = 1
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 0
+leaves = 2,1,1|2,2|1|1
+
+[plume]
+profile = 2
+n_coarse = 4
+do_flux = 0
+do_collapse = 1
+do_restart = 0
+leaves = 2,1|3,1|1|1
+
+[spire]
+profile = 0
+n_coarse = 4
+do_flux = 0
+do_collapse = 1
+do_restart = 0
+leaves = 3,1|1|1|1
+
+[basin]
+profile = 1
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 1
+leaves = 2,1,1|1|1|1
+
+[dune]
+profile = 2
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 1
+leaves = 2,1,1|2,2|1|1
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-one.sh storm
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/storm-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-replay.sh storm
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/storm-replay.json
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# ls -la /app/output
+[?2004ltotal 16
+drwxr-xr-x  2 root root  115 May 28 23:41 .
+drwxr-xr-x 23 root root  303 May 28 23:40 ..
+-rw-r--r--  1 root root 2710 May 28 23:40 conservation_audit.json
+-rw-r--r--  1 root root  186 May 28 23:40 persistence_audit.log
+-rw-r--r--  1 root root  469 May 28 23:40 storm-audit.json
+-rw-r--r--  1 root root  469 May 28 23:41 storm-replay.json
+[?2004hroot@5d46ad38ee8d:/app# cat /app/output/persistence_audit.log 2>/dev/null || true
+[?2004lACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+[?2004hroot@5d46ad38ee8d:/app# rg -n "adjacency" -S /app/src /app/*_* 2>/dev/null || true
+[?2004l[?2004hroot@5d46ad38ee8d:/app# sed -n '1,200p' /app/lnk_n/relate.cpp
+[?2004l#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+int step_n(CellGrid *a, const int *b, int c, TopoLink *d) {
+    if (!a || !d) return -1;
+    int n = a->n;
+    for (int i = 0; i < n; i++) {
+        d->parent[i] = a->cells[i].parent;
+    }
+    if (b && c > 0) {
+        for (int i = 0; i < c && i < n; i++) {
+            int idx = b[i];
+            if (idx >= 0 && idx < n) {
+                d->parent[idx] = a->cells[idx].parent;
+            }
+        }
+    }
+    return 0;
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,240p' /app/drv_u/run_refine.cpp
+[?2004l#include "phases.h"
+#include "../include/flow_record.h"
+#include "../include/topo_link.h"
+
+#include <string.h>
+
+void phase_grow(SimState *st, const ScenarioSpec *spec) {
+    CellGrid coarse = st->grid;
+    CellGrid leaves;
+    leaves.n = 0;
+    st->n_coarse = spec->n_coarse;
+    for (int c = 0; c < spec->n_coarse; c++) {
+        int k = spec->leaf_count[c];
+        if (k < 1) k = 1;
+        int sumw = 0;
+        for (int j = 0; j < k; j++) sumw += spec->leaf_weight[c][j];
+        if (sumw <= 0) sumw = 1;
+        st->coarse_start[c] = leaves.n;
+        st->coarse_len[c] = k;
+        double vj[MAX_LEAVES];
+        double vtot = 0.0;
+        double jw = 0.0;
+        for (int j = 0; j < k; j++) {
+            vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;
+            vtot += vj[j];
+            jw += vj[j] * (double)j;
+        }
+        double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+        for (int j = 0; j < k; j++) {
+            int gi = leaves.n++;
+            leaves.cells[gi].idx = gi;
+            leaves.cells[gi].vol = vj[j];
+            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+            for (int v = 0; v < NVAR; v++) {
+                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+            }
+            leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+            leaves.cells[gi].parent = (k > 1) ? c : -1;
+        }
+    }
+    st->grid = leaves;
+
+    int changed[MAX_CELLS];
+    int nch = 0;
+    for (int i = 0; i < leaves.n; i++) changed[nch++] = i;
+    step_n(&st->grid, changed, nch, &st->topo);
+
+    st->bank.n_pending = 0;
+    if (!spec->do_flux) return;
+    for (int c = 0; c < spec->n_coarse; c++) {
+        int k = st->coarse_len[c];
+        if (k < 2) continue;
+        int start = st->coarse_start[c];
+        double vsum = 0.0;
+        double wq[NVAR] = {0.0, 0.0, 0.0};
+        for (int j = 0; j < k; j++) {
+            const CellView *cell = &st->grid.cells[start + j];
+            vsum += cell->vol;
+            for (int v = 0; v < NVAR; v++) wq[v] += cell->vol * cell->q[v];
+        }
+        double qbar[NVAR];
+        for (int v = 0; v < NVAR; v++) qbar[v] = (vsum > 0.0) ? wq[v] / vsum : 0.0;
+        EdgePulse ep;
+        ep.base_idx = start;
+        ep.subfaces = k;
+        for (int j = 0; j < k; j++) {
+            const CellView *cell = &st->grid.cells[start + j];
+            for (int v = 0; v < NVAR; v++) {
+                ep.flux_vals[j * NVAR + v] =
+                    REFLUX_RATE * cell->vol * (qbar[v] - cell->q[v]);
+            }
+        }
+        op_m(&ep, &st->bank);
+    }
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,260p' /app/agg_q/blend.cpp
+[?2004l#include "../include/cell_view.h"
+
+void fold_q(const CellPatch *a, int b, CellPatch *c) {
+    if (!a || !c) return;
+    int n = (a->n < b) ? a->n : b;
+    if (n <= 0) {
+        c->n = 0;
+        return;
+    }
+    double sum_vol = 0.0;
+    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < n; i++) {
+        sum_vol += a->vol[i];
+        for (int v = 0; v < NVAR; v++) {
+            sum_q[v] += a->q[i * NVAR + v];
+        }
+    }
+    c->n = 1;
+    c->vol[0] = sum_vol;
+    double inv_n = 1.0 / (double)n;
+    for (int v = 0; v < NVAR; v++) {
+        c->q[v] = sum_q[v] * inv_n;
+    }
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,260p' /app/swp_t/sweep.cpp
+[?2004l#include "../include/cell_view.h"
+
+typedef void (*cell_fn)(CellView *, void *);
+
+void traverse_t(CellGrid *a, cell_fn fn, void *ctx) {
+    if (!a || !fn) return;
+    for (int i = 0; i < a->n; i++) {
+        fn(&a->cells[i], ctx);
+    }
+}
+
+double span_t(const CellGrid *a) {
+    if (!a || a->n == 0) return 0.0;
+    double lo = a->cells[0].vol;
+    double hi = a->cells[0].vol;
+    for (int i = 1; i < a->n; i++) {
+        double v = a->cells[i].vol;
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+    }
+    return hi - lo;
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,240p' /app/src/vault_io.cpp
+[?2004l#include "../include/vault_layout.h"
+
+#include <stdint.h>
+
+uint64_t vault_fnv1a(const void *data, int n_bytes, uint64_t seed) {
+    const uint8_t *p = (const uint8_t *)data;
+    uint64_t h = 0xcbf29ce484222325ull ^ seed;
+    for (int i = 0; i < n_bytes; i++) {
+        h ^= (uint64_t)p[i];
+        h *= 0x100000001b3ull;
+    }
+    return h;
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,260p' /app/rsm_k/resume.cpp
+[?2004l#include "../include/vault_layout.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int load_k(const char *a, SimState *b, VaultAudit *c) {
+    if (!a || !b || !c) return -1;
+    memset(c, 0, sizeof(*c));
+    FILE *in = fopen(a, "rb");
+    if (!in) {
+        c->reason = REASON_MISSING;
+        snprintf(c->msg, sizeof(c->msg), "open failed");
+        return -2;
+    }
+    VaultHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, in) != 1) {
+        fclose(in);
+        c->reason = REASON_SHORT;
+        snprintf(c->msg, sizeof(c->msg), "header short");
+        return -3;
+    }
+    if (hdr.magic != VAULT_MAGIC) {
+        fclose(in);
+        c->reason = REASON_MAGIC;
+        snprintf(c->msg, sizeof(c->msg), "bad magic 0x%x", hdr.magic);
+        return -4;
+    }
+    int n_cells = 0;
+    fread(&n_cells, sizeof(int), 1, in);
+    b->grid.n = n_cells;
+    fread(b->grid.cells, sizeof(CellView), n_cells, in);
+    memset(&b->topo, 0, sizeof(b->topo));
+    b->bank.n_pending = 0;
+    fclose(in);
+    c->reason = REASON_OK;
+    snprintf(c->msg, sizeof(c->msg), "ok");
+    return 0;
+}
+[?2004hroot@5d46ad38ee8d:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: drv_u/run_refine.cpp
+[?2004l[?2004h> @@
+[?2004l[?2004h>  void phase_grow(SimState *st, const ScenarioSpec *spec) {
+[?2004l[?2004h>      CellGrid coarse = st->grid;
+[?2004l[?2004h>      CellGrid leaves;
+[?2004l[?2004h>      leaves.n = 0;
+[?2004l[?2004h> @@
+[?2004l[?2004h> -        double vj[MAX_LEAVES];
+[?2004l[?2004h> -        double vtot = 0.0;
+[?2004l[?2004h> -        double jw = 0.0;
+[?2004l[?2004h> +        double vj[MAX_LEAVES];
+[?2004l[?2004h> +        double fj[MAX_LEAVES];
+[?2004l[?2004h> +        double vtot = 0.0;
+[?2004l[?2004h> +        double jw = 0.0;
+[?2004l[?2004h>          for (int j = 0; j < k; j++) {
+[?2004l[?2004h>              vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;
+[?2004l[?2004h>              vtot += vj[j];
+[?2004l[?2004h>              jw += vj[j] * (double)j;
+[?2004l[?2004h>          }
+[?2004l[?2004h>          double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+[?2004l[?2004h> +
+[?2004l[?2004h> +        // Compute shape factors and renormalize so that splitting preserves
+[?2004l[?2004h> +        // volume-weighted totals: sum_j vj * qj == coarse.vol * coarse.q.
+[?2004l[?2004h> +        double denom[NVAR] = {0.0, 0.0, 0.0};
+[?2004l[?2004h> +        for (int j = 0; j < k; j++) {
+[?2004l[?2004h> +            fj[j] = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+[?2004l[?2004h> +            for (int v = 0; v < NVAR; v++) denom[v] += vj[j] * fj[j];
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +        double scale[NVAR];
+[?2004l[?2004h> +        for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h> +            scale[v] = (denom[v] != 0.0) ? (coarse.cells[c].vol / denom[v]) : 1.0;
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +
+[?2004l[?2004h>          for (int j = 0; j < k; j++) {
+[?2004l[?2004h>              int gi = leaves.n++;
+[?2004l[?2004h>              leaves.cells[gi].idx = gi;
+[?2004l[?2004h>              leaves.cells[gi].vol = vj[j];
+[?2004l[?2004h> -            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+[?2004l[?2004h>              for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h> -                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+[?2004l[?2004h> +                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * fj[j] * scale[v];
+[?2004l[?2004h>              }
+[?2004l[?2004h>              leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+[?2004l[?2004h>              leaves.cells[gi].parent = (k > 1) ? c : -1;
+[?2004l[?2004h>          }
+[?2004l[?2004h>      }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@5d46ad38ee8d:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: agg_q/blend.cpp
+[?2004l[?2004h> @@
+[?2004l[?2004h>  void fold_q(const CellPatch *a, int b, CellPatch *c) {
+[?2004l[?2004h>      if (!a || !c) return;
+[?2004l[?2004h>      int n = (a->n < b) ? a->n : b;
+[?2004l[?2004h> @@
+[?2004l[?2004h> -    double sum_vol = 0.0;
+[?2004l[?2004h> -    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+[?2004l[?2004h> +    double sum_vol = 0.0;
+[?2004l[?2004h> +    double sum_vq[NVAR] = {0.0, 0.0, 0.0};
+[?2004l[?2004h>      for (int i = 0; i < n; i++) {
+[?2004l[?2004h>          sum_vol += a->vol[i];
+[?2004l[?2004h>          for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h> -            sum_q[v] += a->q[i * NVAR + v];
+[?2004l[?2004h> +            sum_vq[v] += a->vol[i] * a->q[i * NVAR + v];
+[?2004l[?2004h>          }
+[?2004l[?2004h>      }
+[?2004l[?2004h>      c->n = 1;
+[?2004l[?2004h>      c->vol[0] = sum_vol;
+[?2004l[?2004h> -    double inv_n = 1.0 / (double)n;
+[?2004l[?2004h>      for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h> -        c->q[v] = sum_q[v] * inv_n;
+[?2004l[?2004h> +        c->q[v] = (sum_vol > 0.0) ? (sum_vq[v] / sum_vol) : 0.0;
+[?2004l[?2004h>      }
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@5d46ad38ee8d:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[100%] Built target sim_run
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/conservation_audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.3136083333333337, 1.6860166666666665, 1.7727833333333334],
+      "resumed_total": [5.8175833333333333, 3.9711666666666665, 4.5618833333333333],
+      "drift_ratio": 0.011862633181126228,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9903, 1.768275, 1.7481249999999999],
+      "resumed_total": [5.3113000000000001, 3.9472749999999999, 4.5431249999999999],
+      "drift_ratio": 0.010442857142857167,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-replay.sh storm
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/storm-replay.json
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-replay.sh plume
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/plume-replay.json
+[?2004l{
+  "cases": [
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.3136083333333337, 1.6860166666666665, 1.7727833333333334],
+      "resumed_total": [5.8175833333333333, 3.9711666666666665, 4.5618833333333333],
+      "drift_ratio": 0.011862633181126228,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# command -v git >/dev/null && git diff --no-color || true
+[?2004l[?2004hroot@5d46ad38ee8d:/app# sed -n '1,220p' /app/drv_u/run_refine.cpp
+[?2004l#include "phases.h"
+#include "../include/flow_record.h"
+#include "../include/topo_link.h"
+
+#include <string.h>
+
+void phase_grow(SimState *st, const ScenarioSpec *spec) {
+    CellGrid coarse = st->grid;
+    CellGrid leaves;
+    leaves.n = 0;
+    st->n_coarse = spec->n_coarse;
+    for (int c = 0; c < spec->n_coarse; c++) {
+        int k = spec->leaf_count[c];
+        if (k < 1) k = 1;
+        int sumw = 0;
+        for (int j = 0; j < k; j++) sumw += spec->leaf_weight[c][j];
+        if (sumw <= 0) sumw = 1;
+        st->coarse_start[c] = leaves.n;
+        st->coarse_len[c] = k;
+        double vj[MAX_LEAVES];
+        double vtot = 0.0;
+        double jw = 0.0;
+        for (int j = 0; j < k; j++) {
+            vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;
+            vtot += vj[j];
+            jw += vj[j] * (double)j;
+        }
+        double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+        for (int j = 0; j < k; j++) {
+            int gi = leaves.n++;
+            leaves.cells[gi].idx = gi;
+            leaves.cells[gi].vol = vj[j];
+            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+            for (int v = 0; v < NVAR; v++) {
+                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+            }
+            leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+            leaves.cells[gi].parent = (k > 1) ? c : -1;
+        }
+    }
+    st->grid = leaves;
+
+    int changed[MAX_CELLS];
+    int nch = 0;
+    for (int i = 0; i < leaves.n; i++) changed[nch++] = i;
+    step_n(&st->grid, changed, nch, &st->topo);
+
+    st->bank.n_pending = 0;
+    if (!spec->do_flux) return;
+    for (int c = 0; c < spec->n_coarse; c++) {
+        int k = st->coarse_len[c];
+        if (k < 2) continue;
+        int start = st->coarse_start[c];
+        double vsum = 0.0;
+        double wq[NVAR] = {0.0, 0.0, 0.0};
+        for (int j = 0; j < k; j++) {
+            const CellView *cell = &st->grid.cells[start + j];
+            vsum += cell->vol;
+            for (int v = 0; v < NVAR; v++) wq[v] += cell->vol * cell->q[v];
+        }
+        double qbar[NVAR];
+        for (int v = 0; v < NVAR; v++) qbar[v] = (vsum > 0.0) ? wq[v] / vsum : 0.0;
+        EdgePulse ep;
+        ep.base_idx = start;
+        ep.subfaces = k;
+        for (int j = 0; j < k; j++) {
+            const CellView *cell = &st->grid.cells[start + j];
+            for (int v = 0; v < NVAR; v++) {
+                ep.flux_vals[j * NVAR + v] =
+                    REFLUX_RATE * cell->vol * (qbar[v] - cell->q[v]);
+            }
+        }
+        op_m(&ep, &st->bank);
+    }
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,140p' /app/agg_q/blend.cpp
+[?2004l#include "../include/cell_view.h"
+
+void fold_q(const CellPatch *a, int b, CellPatch *c) {
+    if (!a || !c) return;
+    int n = (a->n < b) ? a->n : b;
+    if (n <= 0) {
+        c->n = 0;
+        return;
+    }
+    double sum_vol = 0.0;
+    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < n; i++) {
+        sum_vol += a->vol[i];
+        for (int v = 0; v < NVAR; v++) {
+            sum_q[v] += a->q[i * NVAR + v];
+        }
+    }
+    c->n = 1;
+    c->vol[0] = sum_vol;
+    double inv_n = 1.0 / (double)n;
+    for (int v = 0; v < NVAR; v++) {
+        c->q[v] = sum_q[v] * inv_n;
+    }
+}
+[?2004hroot@5d46ad38ee8d:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p = Path('/app/agg_q/blend.cpp')
+[?2004l[?2004h> s = p.read_text()
+[?2004l[?2004h> old = s
+[?2004l[?2004h> # Replace fold_q implementation with volume-weighted version.
+[?2004l[?2004h> import re
+[?2004l[?2004h> pat = re.compile(r"void fold_q\(const CellPatch \*a, int b, CellPatch \*c\) \{.*?\n\}", re.S)
+[?2004l[?2004h> rep = r'''void fold_q(const CellPatch *a, int b, CellPatch *c) {
+[?2004l[?2004h>     if (!a || !c) return;
+[?2004l[?2004h>     int n = (a->n < b) ? a->n : b;
+[?2004l[?2004h>     if (n <= 0) {
+[?2004l[?2004h>         c->n = 0;
+[?2004l[?2004h>         return;
+[?2004l[?2004h>     }
+[?2004l[?2004h>     double sum_vol = 0.0;
+[?2004l[?2004h>     double sum_vq[NVAR] = {0.0, 0.0, 0.0};
+[?2004l[?2004h>     for (int i = 0; i < n; i++) {
+[?2004l[?2004h>         sum_vol += a->vol[i];
+[?2004l[?2004h>         for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h>             sum_vq[v] += a->vol[i] * a->q[i * NVAR + v];
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h>     c->n = 1;
+[?2004l[?2004h>     c->vol[0] = sum_vol;
+[?2004l[?2004h>     for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h>         c->q[v] = (sum_vol > 0.0) ? (sum_vq[v] / sum_vol) : 0.0;
+[?2004l[?2004h>     }
+[?2004l[?2004h> }'''
+[?2004l[?2004h> ns, n = pat.subn(rep, s)
+[?2004l[?2004h> if n != 1:
+[?2004l[?2004h>     raise SystemExit(f'Expected to replace 1 fold_q, replaced {n}')
+[?2004l[?2004h> p.write_text(ns)
+[?2004l[?2004h> print('patched', p)
+[?2004l[?2004h> PY
+[?2004lpatched /app/agg_q/blend.cpp
+[?2004hroot@5d46ad38ee8d:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> import re
+[?2004l[?2004h> p = Path('/app/drv_u/run_refine.cpp')
+[?2004l[?2004h> s = p.read_text()
+[?2004l[?2004h> # We patch inside phase_grow: introduce fj[], denom/scale, and use renormalized q.
+[?2004l[?2004h> # Do a targeted replacement of the block that computes vj/vtot/jw..jbar and then writes leaves.
+[?2004l[?2004h> old_block_pat = re.compile(r"double vj\[MAX_LEAVES\];\n\s*double vtot = 0\.0;\n\s*double jw = 0\.0;\n\s*for \(int j = 0; j < k; j\+\+\) \{\n\s*vj\[j\] = coarse\.cells\[c\]\.vol \* \(double\)spec->leaf_weight\[c\]\[j\] / \(double\)sumw;\n\s*vtot \+= vj\[j\];\n\s*jw \+= vj\[j\] \* \(double\)j;\n\s*\}\n\s*double jbar = \(vtot > 0\.0\) \? jw / vtot : 0\.0;\n\s*for \(int j = 0; j < k; j\+\+\) \{\n\s*int gi = leaves\.n\+\+;\n\s*leaves\.cells\[gi\]\.idx = gi;\n\s*leaves\.cells\[gi\]\.vol = vj\[j\];\n\s*double f = \(k > 1\) \? \(1\.0 \+ LEAF_SPREAD \* \(\(double\)j - jbar\)\) : 1\.0;\n\s*for \(int v = 0; v < NVAR; v\+\+\) \{\n\s*leaves\.cells\[gi\]\.q\[v\] = coarse\.cells\[c\]\.q\[v\] \* f;\n\s*\}\n\s*leaves\.cells\[gi\]\.tier = \(k > 1\) \? 1 : 0;\n\s*leaves\.cells\[gi\]\.parent = \(k > 1\) \? c : -1;\n\s*\}\n")
+[?2004l[?2004h> new_block = """double vj[MAX_LEAVES];
+[?2004l[?2004h>         double fj[MAX_LEAVES];
+[?2004l[?2004h>         double vtot = 0.0;
+[?2004l[?2004h>         double jw = 0.0;
+[?2004l[?2004h>         for (int j = 0; j < k; j++) {
+[?2004l[?2004h>             vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;
+[?2004l[?2004h>             vtot += vj[j];
+[?2004l[?2004h>             jw += vj[j] * (double)j;
+[?2004l[?2004h>         }
+[?2004l[?2004h>         double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Renormalize the shaped split so totals are conserved:
+[?2004l[?2004h>         //   sum_j vj * qj == coarse.vol * coarse.q   (per variable).
+[?2004l[?2004h>         double denom[NVAR] = {0.0, 0.0, 0.0};
+[?2004l[?2004h>         for (int j = 0; j < k; j++) {
+[?2004l[?2004h>             fj[j] = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+[?2004l[?2004h>             for (int v = 0; v < NVAR; v++) denom[v] += vj[j] * fj[j];
+[?2004l[?2004h>         }
+[?2004l[?2004h>         double scale[NVAR];
+[?2004l[?2004h>         for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h>             scale[v] = (denom[v] != 0.0) ? (coarse.cells[c].vol / denom[v]) : 1.0;
+[?2004l[?2004h>         }
+[?2004l[?2004h> 
+[?2004l[?2004h>         for (int j = 0; j < k; j++) {
+[?2004l[?2004h>             int gi = leaves.n++;
+[?2004l[?2004h>             leaves.cells[gi].idx = gi;
+[?2004l[?2004h>             leaves.cells[gi].vol = vj[j];
+[?2004l[?2004h>             for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h>                 leaves.cells[gi].q[v] = coarse.cells[c].q[v] * fj[j] * scale[v];
+[?2004l[?2004h>             }
+[?2004l[?2004h>             leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+[?2004l[?2004h>             leaves.cells[gi].parent = (k > 1) ? c : -1;
+[?2004l[?2004h>         }
+[?2004l[?2004h> """
+[?2004l[?2004h> ns, n = old_block_pat.subn(new_block, s)
+[?2004l[?2004h> if n != 1:
+[?2004l[?2004h>     raise SystemExit(f'Expected to replace 1 split block, replaced {n}')
+[?2004l[?2004h> p.write_text(ns)
+[?2004l[?2004h> print('patched', p)
+[?2004l[?2004h> PY
+[?2004lpatched /app/drv_u/run_refine.cpp
+[?2004hroot@5d46ad38ee8d:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[  5%] [32mBuilding CXX object CMakeFiles/sim_run.dir/agg_q/blend.cpp.o[0m
+[ 10%] [32mBuilding CXX object CMakeFiles/sim_run.dir/drv_u/run_refine.cpp.o[0m
+[ 15%] [32m[1mLinking CXX executable bin/sim_run[0m
+[100%] Built target sim_run
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/conservation_audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.669, 1.7520000000000002],
+      "resumed_total": [5.7809999999999997, 3.9450000000000003, 4.5250000000000004],
+      "drift_ratio": 1.3304050624627401e-16,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333343, 0.50346666666666673, 0.29973333333333341]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [5.3010000000000002, 3.9290000000000003, 4.5380000000000003],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,220p' /app/acc_m/edge_corr.cpp
+[?2004l#include "../include/flow_record.h"
+
+void op_m(const EdgePulse *a, FluxBank *b) {
+    if (!a || !b) return;
+    if (b->n_pending >= MAX_FACES) return;
+    int slot = b->n_pending++;
+    b->leaf[slot] = a->base_idx;
+    for (int v = 0; v < NVAR; v++) {
+        b->flux[slot * NVAR + v] = a->flux_vals[v];
+    }
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,220p' /app/include/flow_record.h
+[?2004l#ifndef FLOW_RECORD_H
+#define FLOW_RECORD_H
+
+#include "cell_view.h"
+
+struct EdgePulse {
+    int base_idx;
+    int subfaces;
+    double flux_vals[MAX_LEAVES * NVAR];
+};
+
+struct FluxBank {
+    int n_pending;
+    int leaf[MAX_FACES];
+    double flux[MAX_FACES * NVAR];
+};
+
+void op_m(const EdgePulse *a, FluxBank *b);
+
+#endif
+[?2004hroot@5d46ad38ee8d:/app# rg -n "op_m\(|n_pending|bank\." /app -S
+[?2004lbash: rg: command not found
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,260p' /app/drv_u/run.cpp
+[?2004l#include "phases.h"
+#include "../include/ic_loader.h"
+
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
+
+static int compute_adjacency(const SimState *st) {
+    int count = 0;
+    for (int i = 0; i < st->grid.n; i++) {
+        int p = st->topo.parent[i];
+        if (p < 0) continue;
+        int c0 = st->topo.child0[p];
+        int cn = st->topo.child_count[p];
+        if (cn > 0 && i >= c0 && i < c0 + cn) count++;
+    }
+    return count;
+}
+
+static void apply_reflux(SimState *st) {
+    for (int i = 0; i < st->bank.n_pending; i++) {
+        int leaf = st->bank.leaf[i];
+        if (leaf < 0 || leaf >= st->grid.n) continue;
+        double vol = st->grid.cells[leaf].vol;
+        if (vol <= 0.0) continue;
+        for (int v = 0; v < NVAR; v++) {
+            st->grid.cells[leaf].q[v] += st->bank.flux[i * NVAR + v] / vol;
+        }
+    }
+}
+
+int run_u(const ScenarioSpec *spec, const char *mode, ScenarioOutcome *out) {
+    (void)mode;
+    memset(out, 0, sizeof(*out));
+    snprintf(out->name, sizeof(out->name), "%s", spec->name);
+
+    SimState st;
+    memset(&st, 0, sizeof(st));
+
+    CellGrid coarse;
+    if (load_init(spec->profile, spec->n_coarse, &coarse) != 0) return -1;
+
+    double base[NVAR] = {0.0, 0.0, 0.0};
+    for (int c = 0; c < spec->n_coarse; c++) {
+        for (int v = 0; v < NVAR; v++) base[v] += coarse.cells[c].vol * coarse.cells[c].q[v];
+    }
+
+    st.grid = coarse;
+    uint64_t fp = vault_fnv1a(spec->name, (int)strlen(spec->name), 0ull);
+    fp = vault_fnv1a(&spec->profile, (int)sizeof(int), fp);
+    fp = vault_fnv1a(&spec->n_coarse, (int)sizeof(int), fp);
+    st.fingerprint_payload = fp;
+
+    phase_grow(&st, spec);
+
+    if (spec->do_restart) {
+        VaultAudit aud;
+        memset(&aud, 0, sizeof(aud));
+        char vault[256];
+        char probe[256];
+        char logp[256];
+        snprintf(vault, sizeof(vault), "%s/work/vault.bin", app_root());
+        snprintf(probe, sizeof(probe), "%s/work/vault_probe.bin", app_root());
+        snprintf(logp, sizeof(logp), "%s/output/persistence_audit.log", app_root());
+        phase_persist(&st, vault, probe, logp, &aud);
+    }
+
+    out->adjacency = compute_adjacency(&st);
+
+    apply_reflux(&st);
+
+    phase_fold(&st, spec);
+
+    double after[NVAR] = {0.0, 0.0, 0.0};
+    double moment[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < st.grid.n; i++) {
+        double vol = st.grid.cells[i].vol;
+        for (int v = 0; v < NVAR; v++) {
+            double m = vol * st.grid.cells[i].q[v];
+            after[v] += m;
+            moment[v] += (double)(i + 1) * m;
+        }
+    }
+
+    int expected = 0;
+    if (spec->do_flux) {
+        for (int c = 0; c < spec->n_coarse; c++) {
+            if (spec->leaf_count[c] > 1) expected += spec->leaf_count[c];
+        }
+    }
+
+    double drift = 0.0;
+    for (int v = 0; v < NVAR; v++) {
+        double denom = fabs(base[v]);
+        if (denom < 1e-12) denom = 1e-12;
+        double d = fabs(after[v] - base[v]) / denom;
+        if (d > drift) drift = d;
+    }
+
+    for (int v = 0; v < NVAR; v++) {
+        out->base_total[v] = base[v];
+        out->after_total[v] = after[v];
+        out->resumed_total[v] = moment[v];
+        out->halo_q[v] = st.halo_q[v];
+    }
+    out->drift_ratio = drift;
+    out->balanced = (st.bank.n_pending == expected) ? 1 : 0;
+    out->base_match = (drift < 1e-9) ? 1 : 0;
+    return 0;
+}
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,260p' /app/drv_u/run_sync.cpp
+[?2004l#include "phases.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static int copy_with_flip(const char *src_path, const char *dst_path) {
+    FILE *in = fopen(src_path, "rb");
+    if (!in) return -1;
+    FILE *out = fopen(dst_path, "wb");
+    if (!out) { fclose(in); return -2; }
+    unsigned char buf[8192];
+    size_t total = 0;
+    size_t r;
+    while ((r = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (total == 0 && r > 8) {
+            buf[8] ^= 0xFFu;
+        }
+        fwrite(buf, 1, r, out);
+        total += r;
+    }
+    fclose(in);
+    fclose(out);
+    return 0;
+}
+
+int phase_persist(SimState *st, const char *vault_path, const char *tamper_path,
+                  const char *log_path, VaultAudit *resume_aud) {
+    if (emit_p(st, vault_path) != 0) return -1;
+
+    FILE *log = fopen(log_path, "a");
+    if (copy_with_flip(vault_path, tamper_path) == 0) {
+        SimState probe = *st;
+        VaultAudit taud;
+        memset(&taud, 0, sizeof(taud));
+        load_k(tamper_path, &probe, &taud);
+        if (log) {
+            if (taud.reason == REASON_FINGERPRINT) {
+                fprintf(log, "REJECTED reason=SIGNATURE_MISMATCH path=%s\n", tamper_path);
+            } else {
+                fprintf(log, "ACCEPTED reason=%d path=%s\n", taud.reason, tamper_path);
+            }
+        }
+    }
+
+    int rc = load_k(vault_path, st, resume_aud);
+    if (log) {
+        if (resume_aud->reason == REASON_OK) {
+            fprintf(log, "ACCEPTED reason=OK path=%s\n", vault_path);
+        } else {
+            fprintf(log, "REJECTED reason=%d path=%s\n", resume_aud->reason, vault_path);
+        }
+        fclose(log);
+    }
+    return rc;
+}
+[?2004hroot@5d46ad38ee8d:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> import re
+[?2004l[?2004h> p = Path('/app/acc_m/edge_corr.cpp')
+[?2004l[?2004h> s = p.read_text()
+[?2004l[?2004h> pat = re.compile(r"void op_m\(const EdgePulse \*a, FluxBank \*b\) \{.*?\n\}", re.S)
+[?2004l[?2004h> rep = r'''void op_m(const EdgePulse *a, FluxBank *b) {
+[?2004l[?2004h>     if (!a || !b) return;
+[?2004l[?2004h>     if (a->subfaces <= 0) return;
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Record one entry per refined leaf so that applying the bank is
+[?2004l[?2004h>     // conservative across the whole coarse cell.
+[?2004l[?2004h>     for (int j = 0; j < a->subfaces; j++) {
+[?2004l[?2004h>         if (b->n_pending >= MAX_FACES) return;
+[?2004l[?2004h>         int slot = b->n_pending++;
+[?2004l[?2004h>         b->leaf[slot] = a->base_idx + j;
+[?2004l[?2004h>         for (int v = 0; v < NVAR; v++) {
+[?2004l[?2004h>             b->flux[slot * NVAR + v] = a->flux_vals[j * NVAR + v];
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> }'''
+[?2004l[?2004h> ns, n = pat.subn(rep, s)
+[?2004l[?2004h> if n != 1:
+[?2004l[?2004h>     raise SystemExit(f'Expected to replace 1 op_m, replaced {n}')
+[?2004l[?2004h> p.write_text(ns)
+[?2004l[?2004h> print('patched', p)
+[?2004l[?2004h> PY
+[?2004lpatched /app/acc_m/edge_corr.cpp
+[?2004hroot@5d46ad38ee8d:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[  5%] [32mBuilding CXX object CMakeFiles/sim_run.dir/acc_m/edge_corr.cpp.o[0m
+[ 10%] [32m[1mLinking CXX executable bin/sim_run[0m
+[100%] Built target sim_run
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/conservation_audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [8.7672437499999987, 6.5529421875000002, 7.7783203125],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.41972499999999996, 0.7447062499999999, 0.20884374999999999]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7309999999999999],
+      "resumed_total": [9.6048312500000002, 8.8982828124999997, 7.3046359375000005],
+      "drift_ratio": 1.2827533502312611e-16,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56235000000000002, 0.24551874999999998, 0.69988125000000001]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.669, 1.7520000000000002],
+      "resumed_total": [5.7809999999999997, 3.9450000000000003, 4.5250000000000004],
+      "drift_ratio": 1.3304050624627401e-16,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333343, 0.50346666666666673, 0.29973333333333341]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [5.3010000000000002, 3.9290000000000003, 4.5380000000000003],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-replay.sh basin
+[?2004l[?2004hroot@5d46ad38ee8d:/app# cat /app/output/basin-replay.json
+[?2004l{
+  "cases": [
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    }
+  ]
+}
+[?2004hroot@5d46ad38ee8d:/app# cp /app/output/conservation_audit.json /app/output/conservation_audit.first.json
+[?2004l[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@5d46ad38ee8d:/app# diff -u /app/output/conservation_audit.first.json /app/output/conservation_audit.json || true
+[?2004ldiff: /app/output/conservation_audit.first.json: No such file or directory
+[?2004hroot@5d46ad38ee8d:/app# ls -la /app/scripts/clean-room.sh
+[?2004l-rwxr-xr-x 1 root root 130 May 28 23:38 /app/scripts/clean-room.sh
+[?2004hroot@5d46ad38ee8d:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+rm -rf "${APP}/output" "${APP}/work"
+mkdir -p "${APP}/output" "${APP}/work"
+[?2004hroot@5d46ad38ee8d:/app# cp /app/output/conservation_audit.json /tmp/conservation_audit.first.json
+[?2004l[?2004hroot@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@5d46ad38ee8d:/app# diff -u /tmp/conservation_audit.first.json /app/output/conservation_audit.json || true
+[?2004l[?2004hroot@5d46ad38ee8d:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> 
+[?2004l[?2004h> a = json.loads(Path('/tmp/conservation_audit.first.json').read_text())
+[?2004l[?2004h> b = json.loads(Path('/app/output/conservation_audit.json').read_text())
+[?2004l[?2004h> print('equal:', a==b)
+[?2004l[?2004h> if a!=b:
+[?2004l[?2004h>     # canonical dump to help see whether it's only float repr/order
+[?2004l[?2004h>     print('cases:', len(a.get('cases',[])), len(b.get('cases',[])))
+[?2004l[?2004h> PY
+[?2004lequal: True
+[?2004hroot@5d46ad38ee8d:/app# 

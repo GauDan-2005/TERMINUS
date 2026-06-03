@@ -1,0 +1,100 @@
+New Terminal Output:
+
+root@bada234ea369:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> cd /app
+> mkdir -p /app/output
+>
+> BIN="/app/target/debug/pollab"
+> if [[ -x "$BIN" ]]; then
+>   "$BIN" \
+>     /app/output/policy-audit.json \
+>     /app/traces/alpha.trace \
+>     /app/traces/beta.trace \
+>     /app/traces/gamma.trace \
+>     /app/traces/delta.trace \
+>     /app/traces/epsilon.trace \
+>     /app/traces/zeta.trace
+> else
+>   cargo run --offline --quiet -- \
+>     /app/output/policy-audit.json \
+>     /app/traces/alpha.trace \
+>     /app/traces/beta.trace \
+>     /app/traces/gamma.trace \
+>     /app/traces/delta.trace \
+>     /app/traces/epsilon.trace \
+>     /app/traces/zeta.trace
+> fi
+> EOF
+root@bada234ea369:/app# chmod +x /app/scripts/run-matrix.sh
+root@bada234ea369:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> cd /app
+> mkdir -p /app/output
+> case_name="${1:-alpha}"
+>
+> BIN="/app/target/debug/pollab"
+> if [[ -x "$BIN" ]]; then
+>   "$BIN" "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> else
+>   cargo run --offline --quiet -- "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> fi
+> EOF
+root@bada234ea369:/app# chmod +x /app/scripts/run-one.sh
+root@bada234ea369:/app# rm -f /app/output/policy-audit.json /tmp/policy-audit.run1.json
+root@bada234ea369:/app# bash /app/scripts/run-matrix.sh
+root@bada234ea369:/app# ls -la /app/output && wc -c /app/output/policy-audit.json && sha256sum /app/output/policy-audit.json
+total 4
+drwxr-xr-x  2 root root   31 May 25 11:38 .
+drwxr-xr-x 18 root root  245 May 25 11:30 ..
+-rw-r--r--  1 root root 3670 May 25 11:38 policy-audit.json
+3670 /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@bada234ea369:/app# cp /app/output/policy-audit.json /tmp/policy-audit.run1.json
+root@bada234ea369:/app# bash /app/scripts/run-matrix.sh
+root@bada234ea369:/app# sha256sum /app/output/policy-audit.json && diff -u /tmp/policy-audit.run1.json /app/output/policy-audit.json | sed -n '1,120p'
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@bada234ea369:/app# head -n 40 /app/output/policy-audit.json
+{
+  "cases": [
+    {
+      "name": "alpha",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "before",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": "boss"
+        },
+        {
+          "label": "batch",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 1,
+          "reused": false,
+          "batch_id": "b1",
+          "delegated_from": ""
+        },
+        {
+          "label": "after",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 1,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": ""
+        }
+      ],
+root@bada234ea369:/app#

@@ -1,0 +1,124 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ⚠️ WARNING
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires debugging a Go/C snapshot-restore utility that stages
+directory trees into rows, materializes them into restored copies, and emits a
+JSON audit report. The agent must identify and fix multiple subtle bugs spread
+across four Go source files (core.go, replay.go, roll.go, pair.go) so that all
+six matrix cases (alpha through zeta) pass a full-contract audit of content,
+hardlink groups, and accounting records. The test suite runs the full matrix
+pipeline and validates each case against independent filesystem observations.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Installed in Dockerfile
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 20-22)
+Problem: pytest and pytest-json-ctrf are installed in the Docker image rather
+         than in tests/test.sh. Test-only dependencies should be installed by
+         the test runner script so the agent environment stays clean.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN python -m pip install --no-cache-dir \                                 │
+│      pytest==8.4.1 \                                                        │
+│      pytest-json-ctrf==0.3.5                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Suggested fix: Remove from Dockerfile and install in tests/test.sh instead:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  #!/bin/bash                                                                │
+│  mkdir -p /logs/verifier                                                    │
+│                                                                             │
+│  apt-get update && apt-get install -y curl                                  │
+│  curl -LsSf https://astral.sh/uv/0.7.13/install.sh | sh                    │
+│  source $HOME/.local/bin/env                                                │
+│                                                                             │
+│  if [ "$PWD" = "/" ]; then                                                  │
+│    echo "Error: No working directory set."                                  │
+│    exit 1                                                                   │
+│  fi                                                                         │
+│                                                                             │
+│  uv venv .tbench-testing                                                    │
+│  source .tbench-testing/bin/activate                                        │
+│  uv pip install pytest==8.4.1 pytest-json-ctrf==0.3.5                       │
+│                                                                             │
+│  uv run pytest -o cache_dir=/tmp/pytest_cache \                             │
+│    --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA               │
+│                                                                             │
+│  if [ $? -eq 0 ]; then                                                      │
+│      echo 1 > /logs/verifier/reward.txt                                     │
+│  else                                                                       │
+│      echo 0 > /logs/verifier/reward.txt                                     │
+│  fi                                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Having pytest in the image means agents could potentially import
+or inspect pytest internals. More importantly, it deviates from the standard
+test.sh pattern where the runner installs its own dependencies.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Instruction Could Clarify the Debugging Nature of the Task
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 1-8)
+
+Current approach: The instruction states "Restored directories are out of
+agreement with their sources" but does not explicitly state that there are bugs
+in the Go source code that need fixing, or which subsystems are affected.
+
+Suggested improvement: For a hard-difficulty debugging task this level of
+ambiguity may be intentional, but adding one sentence such as "The source code
+under /app/internal contains logic errors that cause incorrect staging,
+replay, grouping, and accounting behavior" would help scope the search without
+giving away the answer.
+
+Rationale: The current phrasing relies on the agent inferring that "out of
+agreement" means "buggy code" rather than missing data or misconfiguration.
+A minimal hint still preserves difficulty while reducing wasted time on wrong
+hypotheses.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-crafted hard debugging task that requires deep comprehension of
+a multi-package Go codebase with interleaved logic across staging, replay,
+grouping, and accounting subsystems. The bugs are realistic and non-trivial,
+demanding careful tracing through multiple abstraction layers.
+
+Key Strengths:
+  ✓ Multiple interacting bugs across 4 files create genuine debugging depth
+  ✓ Comprehensive test suite validates all six cases with independent
+    filesystem verification (content, hardlinks, accounting)
+  ✓ Clean separation — solution/tests not leaked into environment; broken
+    code is meaningfully different from the fix
+
+Key Weaknesses:
+  ✗ Test dependencies (pytest) baked into Dockerfile instead of test.sh
+
+Evaluates: Multi-language debugging (Go/C), filesystem semantics (hardlinks,
+           directory trees), data pipeline tracing, code comprehension
+
+================================================================================
+  RECOMMENDATION: ⚠️ NEEDS REVISION
+
+  Move pytest installation from the Dockerfile into tests/test.sh to follow
+  the standard Terminal-Bench pattern. The task is otherwise ready for use.
+================================================================================

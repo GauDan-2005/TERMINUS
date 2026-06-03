@@ -1,0 +1,202 @@
+New Terminal Output:
+
+root@575dab423b67:/app# cat > /tmp/sight_fix.py << 'EOF'
+> import re
+>
+> with open('/app/internal/vis/sight.go', 'r') as f:
+>     content = f.read()
+>
+> # Remove the wrong litIdx adjustment for bottom row
+> old = """\tlitIdx := idx
+> \tif y == w.Height-1 && y > 0 {
+> \t\tlitIdx = w.Idx(x, y-1)
+> \t}
+> \treturn w.Seen[idx] && w.Lit[litIdx]"""
+>
+> new = """\treturn w.Seen[idx] && w.Lit[idx]"""
+>
+> content = content.replace(old, new)
+>
+> with open('/app/internal/vis/sight.go', 'w') as f:
+>     f.write(content)
+>
+> print("Fixed sight.go")
+> EOF
+root@575dab423b67:/app# python3 /tmp/sight_fix.py
+Fixed sight.go
+root@575dab423b67:/app# cat > /tmp/effect_fix.py << 'EOF'
+> with open('/app/internal/mod/effect.go', 'r') as f:
+>     content = f.read()
+>
+> # Fix the off-by-one in SyncBoundary
+> content = content.replace(
+>     'ID: eff.ID, ExpiryTurn: currentTurn + rem - 1, Active: eff.Active,',
+>     'ID: eff.ID, ExpiryTurn: currentTurn + rem, Active: eff.Active,'
+> )
+>
+> with open('/app/internal/mod/effect.go', 'w') as f:
+>     f.write(content)
+>
+> print("Fixed effect.go")
+> EOF
+root@575dab423b67:/app# python3 /tmp/effect_fix.py
+Fixed effect.go
+root@575dab423b67:/app# cat /app/internal/vis/sight.go
+package vis
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+        size := w.Width * w.Height
+        if len(w.Lit) != size {
+                w.Lit = make([]bool, size)
+        }
+        for i := range w.Lit {
+                w.Lit[i] = false
+        }
+        if blind {
+                return
+        }
+        type point struct{ x, y int }
+        queue := []point{{w.PlayerX, w.PlayerY}}
+        dist := make([]int, size)
+        for i := range dist {
+                dist[i] = -1
+        }
+        start := w.Idx(w.PlayerX, w.PlayerY)
+        dist[start] = 0
+        w.Lit[start] = true
+        for len(queue) > 0 {
+                p := queue[0]
+                queue = queue[1:]
+                d := dist[w.Idx(p.x, p.y)]
+                if d >= radius {
+                        continue
+                }
+                for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+                        nx, ny := p.x+delta[0], p.y+delta[1]
+                        if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+                                continue
+                        }
+                        idx := w.Idx(nx, ny)
+                        if dist[idx] >= 0 {
+                                continue
+                        }
+                        dist[idx] = d + 1
+                        w.Lit[idx] = true
+                        queue = append(queue, point{nx, ny})
+                }
+        }
+        if len(w.Seen) != size {
+                w.Seen = make([]bool, size)
+        }
+        for i := 0; i < size; i++ {
+                if w.Lit[i] {
+                        w.Seen[i] = true
+                }
+        }
+}
+
+func CountSeen(w *sim.World) int {
+        n := 0
+        for _, v := range w.Seen {
+                if v {
+                        n++
+                }
+        }
+        return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+        if !w.InBounds(x, y) {
+                return false
+        }
+        idx := w.Idx(x, y)
+        if idx >= len(w.Seen) || idx >= len(w.Lit) {
+                return false
+        }
+        return w.Seen[idx] && w.Lit[idx]
+}
+root@575dab423b67:/app# cat /app/internal/mod/effect.go
+package mod
+
+type EffectSnap struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+type ProfileSnap struct {
+        Blind     bool
+        Epoch     bool
+        CheckTurn int
+}
+
+type RowSnap struct {
+        ID     string
+        Active bool
+        Epoch  int
+}
+
+type mapX struct {
+        Items map[string]entryX
+}
+
+type entryX struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+func mark_c(a *mapX, _ uint64, c []entryX) error {
+        if a.Items == nil {
+                a.Items = map[string]entryX{}
+        }
+        for _, item := range c {
+                a.Items[item.ID] = item
+        }
+        return nil
+}
+
+func SyncBoundary(effects []EffectSnap, savedTurn int, currentTurn int) []EffectSnap {
+        store := &mapX{}
+        entries := []entryX{}
+        for _, eff := range effects {
+                rem := eff.ExpiryTurn - savedTurn
+                if rem < 0 {
+                        rem = 0
+                }
+                entries = append(entries, entryX{
+                        ID: eff.ID, ExpiryTurn: currentTurn + rem, Active: eff.Active,
+                })
+        }
+        _ = mark_c(store, 0, entries)
+        out := make([]EffectSnap, 0, len(store.Items))
+        for _, item := range store.Items {
+                active := currentTurn < item.ExpiryTurn
+                out = append(out, EffectSnap{ID: item.ID, ExpiryTurn: item.ExpiryTurn, Active: active})
+        }
+        return out
+}
+
+func Seed(profile ProfileSnap, turn int) []EffectSnap {
+        out := []EffectSnap{}
+        if profile.Blind {
+                out = append(out, EffectSnap{ID: "blind", ExpiryTurn: turn + 4, Active: true})
+        }
+        if profile.Epoch {
+                out = append(out, EffectSnap{ID: "ward", ExpiryTurn: profile.CheckTurn + 2, Active: true})
+        }
+        return out
+}
+
+func ItemsFor(effects []EffectSnap, turn int) []RowSnap {
+        rows := []RowSnap{}
+        for _, eff := range effects {
+                rows = append(rows, RowSnap{
+                        ID: eff.ID, Active: turn < eff.ExpiryTurn, Epoch: eff.ExpiryTurn,
+                })
+        }
+        return rows
+}
+root@575dab423b67:/app#

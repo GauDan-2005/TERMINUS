@@ -1,0 +1,35 @@
+{
+  "analysis": "run-matrix.sh currently completes and produces /app/output/alloc-audit.json plus per-case ledger JSONL files. The head of alloc-audit.json shows cases with ok:true and step snapshots. However, the reported issue is audit drift when running combined scripts (fragmentation, neighbor merge, growth together) and a requirement that two matrix runs from unchanged inputs produce equivalent JSON. We need to verify determinism and validate internal consistency: (1) each step’s snapshot matches the corresponding ledger row, (2) case-level summary fields match the final step snapshot, and (3) repeated runs are byte-identical or at least semantically equivalent. Next, we should inspect the rest of the audit JSON, validate ledger alignment, and run the matrix twice to compare outputs.",
+  "plan": "1) Quickly validate alloc-audit.json structure and that it includes all required cases (cedar, jade, slate, coral, onyx, pearl) with required keys. 2) Check that each case’s ledger path exists and the number of ledger rows equals steps length and that step seq aligns. 3) Run the matrix twice (with clean-room) and diff the resulting alloc-audit.json and ledgers to detect nondeterminism/drift. 4) If diffs exist or mismatches with ledger/steps are found, locate the code producing audit/signatures and fix ordering/state reset issues.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,os\np='/app/output/alloc-audit.json'\ndata=json.load(open(p))\nreq_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}\nreq_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}\nprint('top keys',data.keys())\nprint('cases',len(data.get('cases',[])))\nmissing=[]\nfor c in data.get('cases',[]):\n    ck=set(c.keys())\n    if not req_case_keys.issubset(ck):\n        missing.append((c.get('name'),sorted(req_case_keys-ck)))\n    for s in c.get('steps',[]):\n        sk=set(s.keys())\n        if not req_step_keys.issubset(sk):\n            print('step missing keys',c.get('name'),s.get('seq'),sorted(req_step_keys-sk))\n            break\nprint('missing case keys',missing)\nprint('names',[c['name'] for c in data['cases']])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/alloc-audit.json'\ndata=json.load(open(p))\nfor c in data['cases']:\n    steps=c['steps']\n    ok=(c['heap_sig'],c['fl_count'],c['fl_sig'],c['byte_total'])==(steps[-1]['heap_sig'],steps[-1]['fl_count'],steps[-1]['fl_sig'],steps[-1]['byte_total'])\n    if not ok:\n        print('SUMMARY MISMATCH',c['name'])\n        print('case',c['heap_sig'],c['fl_count'],c['fl_sig'],c['byte_total'])\n        print('last',steps[-1]['heap_sig'],steps[-1]['fl_count'],steps[-1]['fl_sig'],steps[-1]['byte_total'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,os\nfrom pathlib import Path\np='/app/output/alloc-audit.json'\ndata=json.load(open(p))\nfor c in data['cases']:\n    ledger=Path(c['ledger'])\n    steps=c['steps']\n    if not ledger.exists():\n        print('MISSING LEDGER',c['name'],ledger)\n        continue\n    rows=[json.loads(line) for line in ledger.read_text().splitlines() if line.strip()]\n    if len(rows)!=len(steps):\n        print('LEN MISMATCH',c['name'],'steps',len(steps),'rows',len(rows))\n        continue\n    for s,r in zip(steps,rows):\n        if s['seq']!=r.get('seq'):\n            print('SEQ MISMATCH',c['name'],s['seq'],r.get('seq'))\n            break\n        for k in ['heap_sig','fl_count','fl_sig','byte_total']:\n            if s[k]!=r.get(k):\n                print('TALLY MISMATCH',c['name'],'seq',s['seq'],k,s[k],r.get(k))\n                raise SystemExit\nprint('ledger alignment OK')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp -a /app/output /app/output.run1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "diff -u /app/output.run1/alloc-audit.json /app/output/alloc-audit.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "for n in cedar coral jade onyx pearl slate; do diff -u \"/app/output.run1/${n}.ledger.jsonl\" \"/app/output/${n}.ledger.jsonl\" || true; done\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

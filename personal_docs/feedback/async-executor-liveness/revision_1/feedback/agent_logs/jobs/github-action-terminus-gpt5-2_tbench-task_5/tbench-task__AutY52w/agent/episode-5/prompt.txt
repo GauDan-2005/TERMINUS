@@ -1,0 +1,260 @@
+New Terminal Output:
+
+root@c3345729cf84:/app# find /app -maxdepth 2 -type f -name '*.rs' | sort
+/app/book_b/book.rs
+/app/core_a/core.rs
+/app/drive_g/drive.rs
+/app/flow_e/flow.rs
+/app/gate_c/gate.rs
+/app/host_d/host.rs
+/app/mirror_j/mirror.rs
+/app/note_k/note.rs
+/app/read_h/parse.rs
+/app/spill_i/spill.rs
+/app/src/lib.rs
+/app/src/main.rs
+/app/types_f/serde.rs
+/app/types_f/types.rs
+root@c3345729cf84:/app# sed -n '1,240p' /app/types_f/types.rs
+#[derive(Clone, Debug)]
+pub enum Entry {
+    Root { ident: String, lane: String, at: u64, seq: usize },
+    Child { from: String, ident: String, lane: String, at: u64, seq: usize },
+    Drop { ident: String },
+}
+
+#[derive(Clone, Debug)]
+pub struct Plan {
+    pub name: String,
+    pub cap: usize,
+    pub entries: Vec<Entry>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Item {
+    pub ident: String,
+    pub parent: String,
+    pub lane: String,
+    pub at: u64,
+    pub seq: usize,
+    pub depth: usize,
+    pub chain: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Record {
+    pub case_name: String,
+    pub task_name: String,
+    pub parent_name: String,
+    pub depth: usize,
+    pub lane_name: String,
+    pub turn: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub finished: bool,
+    pub pending: Vec<String>,
+    pub trace: Vec<Record>,
+    pub ledger: String,
+    pub journal: String,
+}
+root@c3345729cf84:/app# sed -n '1,260p' /app/types_f/serde.rs
+use crate::types_f::{CaseReport, Record};
+
+fn esc(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+pub fn row_json(row: &Record) -> String {
+    format!(
+        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":\"{}\",\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
+        esc(&row.case_name),
+        esc(&row.task_name),
+        esc(&row.parent_name),
+        row.depth,
+        esc(&row.lane_name),
+        row.turn
+    )
+}
+
+fn string_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", esc(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+pub fn case_json(case: &CaseReport) -> String {
+    let trace = case.trace.iter().map(row_json).collect::<Vec<_>>().join(",");
+    format!(
+        "{{\"name\":\"{}\",\"ok\":{},\"finished\":{},\"pending\":{},\"trace\":[{}],\"ledger\":\"{}\",\"journal\":\"{}\"}}",
+        esc(&case.name),
+        if case.ok { "true" } else { "false" },
+        if case.finished { "true" } else { "false" },
+        string_array(&case.pending),
+        trace,
+        esc(&case.ledger),
+        esc(&case.journal)
+    )
+}
+
+pub fn report_json(cases: &[CaseReport]) -> String {
+    let body = cases.iter().map(case_json).collect::<Vec<_>>().join(",");
+    format!("{{\"cases\":[{}]}}\n", body)
+}
+root@c3345729cf84:/app# sed -n '1,260p' /app/read_h/parse.rs
+use std::fs;
+use std::io;
+use std::path::Path;
+
+use crate::types_f::{Entry, Plan};
+
+pub fn read_plan(path: &Path) -> io::Result<Plan> {
+    let text = fs::read_to_string(path)?;
+    let mut cap = 1usize;
+    let mut entries = Vec::new();
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("case")
+        .to_string();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        match parts.as_slice() {
+            ["CAP", value] => cap = value.parse().unwrap_or(1),
+            ["ROOT", ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Root { ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
+            }
+            ["CHILD", from, ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Child { from: (*from).to_string(), ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq
+});
+            }
+            ["DROP", ident] => entries.push(Entry::Drop { ident: (*ident).to_string() }),
+            _ => {}
+        }
+    }
+    Ok(Plan { name, cap, entries })
+}
+root@c3345729cf84:/app# sed -n '1,320p' /app/drive_g/drive.rs
+use std::collections::{BTreeMap, BTreeSet};
+use std::io;
+use std::path::{Path, PathBuf};
+
+use crate::book_b::fold_b;
+use crate::core_a::{op_a, R0, S0};
+use crate::flow_e::{emit_e, note_e};
+use crate::gate_c::{mark_c, S1};
+use crate::host_d::{bind_d, R1, S2};
+use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
+
+fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
+    (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
+}
+
+pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
+    let mut host = S2::new();
+    let mut removed: BTreeSet<String> = BTreeSet::new();
+    let mut raw: BTreeMap<String, Item> = BTreeMap::new();
+    for entry in &a.entries {
+        match entry {
+            Entry::Root { ident, lane, at, seq } => {
+                let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()] };
+                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+                raw.insert(ident.clone(), moved.item);
+            }
+            Entry::Child { from, ident, lane, at, seq } => {
+                let parent = raw.get(from).cloned();
+                let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
+                let mut chain = parent.map(|p| p.chain).unwrap_or_default();
+                chain.push(ident.clone());
+                let item = Item { ident: ident.clone(), parent: from.clone(), lane: lane.clone(), at: *at, seq: *seq, depth, chain };
+                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+                raw.insert(ident.clone(), moved.item);
+            }
+            Entry::Drop { ident } => {
+                removed.insert(ident.clone());
+            }
+        }
+    }
+    let gate = S1::new(removed);
+    let mut state = S0::new();
+    for item in raw.values() {
+        let row = R0::from_item(&a.name, item);
+        if mark_c(&gate, &row) {
+            op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
+        }
+    }
+    let ordered = fold_b(&state.rows, a.cap);
+    let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
+    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
+    let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
+    pending.sort();
+    let (ledger, journal) = out_paths(b, &a.name);
+    emit_e(&ledger, &trace)?;
+    note_e(&journal, &trace)?;
+    let finished = pending.is_empty();
+    Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string() }
+)
+}
+root@c3345729cf84:/app# for f in /app/data/cases/*.plan; do echo "==== $f"; sed -n '1,200p' "$f"; done
+==== /app/data/cases/amber.plan
+CAP 2
+ROOT amber-root lane-a 0
+CHILD amber-root amber-left lane-a 0
+CHILD amber-left amber-leaf lane-b 1
+ROOT amber-side lane-b 1
+==== /app/data/cases/cobalt.plan
+CAP 1
+ROOT cobalt-root lane-a 0
+CHILD cobalt-root cobalt-a lane-a 0
+CHILD cobalt-root cobalt-b lane-a 0
+CHILD cobalt-root cobalt-c lane-a 0
+CHILD cobalt-c cobalt-tail lane-b 1
+==== /app/data/cases/drake.plan
+CAP 2
+ROOT drake-root lane-a 0
+CHILD drake-root drake-keep lane-b 0
+CHILD drake-root drake-cut lane-a 0
+CHILD drake-cut drake-shadow lane-b 1
+DROP drake-cut
+ROOT drake-late lane-a 2
+==== /app/data/cases/ember.plan
+CAP 1
+ROOT ember-root lane-a 0
+CHILD ember-root ember-left lane-a 0
+CHILD ember-left ember-deep lane-a 0
+CHILD ember-left ember-side lane-b 1
+DROP ember-left
+ROOT ember-after lane-b 1
+==== /app/data/cases/flint.plan
+CAP 2
+ROOT flint-root lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-b lane-b 0
+CHILD flint-b flint-c lane-b 0
+DROP flint-c
+==== /app/data/cases/graphite.plan
+CAP 1
+ROOT graphite-root lane-a 0
+CHILD graphite-root graphite-a lane-a 0
+CHILD graphite-root graphite-b lane-b 0
+CHILD graphite-a graphite-c lane-a 1
+CHILD graphite-b graphite-d lane-b 1
+CHILD graphite-d graphite-e lane-b 1
+DROP graphite-d
+ROOT graphite-tail lane-a 2
+root@c3345729cf84:/app#

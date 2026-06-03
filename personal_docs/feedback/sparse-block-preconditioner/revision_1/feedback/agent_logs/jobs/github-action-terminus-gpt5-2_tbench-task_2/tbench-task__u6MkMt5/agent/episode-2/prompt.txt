@@ -1,0 +1,82 @@
+New Terminal Output:
+
+root@f0090f19629f:/app# sed -n '1,200p' /app/CMakeLists.txt
+cmake_minimum_required(VERSION 3.16)
+project(solverctl LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_executable(solverctl
+    src/main.cpp
+    src/case_io.cpp
+    csr_m/assemble.cpp
+    bsr_n/layout.cpp
+    perm_p/order.cpp
+    prec_r/apply.cpp
+    scale_q/metric.cpp
+    solve_s/driver.cpp
+    flow_t/report.cpp
+    drive_u/run.cpp
+    spill_v/bucket.cpp
+    mirror_w/trace.cpp
+)
+
+target_include_directories(solverctl PRIVATE include)
+
+set_target_properties(solverctl PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+root@f0090f19629f:/app# find /app/src -type f -maxdepth 2 -print
+find: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests spe
+cified before it as well as those specified after it.  Please specify global options before other arguments.
+/app/src/case_io.cpp
+/app/src/main.cpp
+root@f0090f19629f:/app# grep -RIn --line-number 'solverctl' /app/src /app/include | head -n 50
+/app/src/main.cpp:48:    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
+root@f0090f19629f:/app# ls -la /app/bin || true
+ls: cannot access '/app/bin': No such file or directory
+root@f0090f19629f:/app# mkdir -p /app/build
+root@f0090f19629f:/app# cmake -S /app -B /app/build
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/build
+root@f0090f19629f:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/src/case_io.cpp.o
+[ 15%] Building CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o
+[ 23%] Building CXX object CMakeFiles/solverctl.dir/src/main.cpp.o
+[ 30%] Building CXX object CMakeFiles/solverctl.dir/csr_m/assemble.cpp.o
+[ 38%] Building CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o
+[ 46%] Building CXX object CMakeFiles/solverctl.dir/prec_r/apply.cpp.o
+[ 53%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 61%] Building CXX object CMakeFiles/solverctl.dir/solve_s/driver.cpp.o
+[ 69%] Building CXX object CMakeFiles/solverctl.dir/flow_t/report.cpp.o
+[ 76%] Building CXX object CMakeFiles/solverctl.dir/drive_u/run.cpp.o
+[ 84%] Building CXX object CMakeFiles/solverctl.dir/spill_v/bucket.cpp.o
+[ 92%] Building CXX object CMakeFiles/solverctl.dir/mirror_w/trace.cpp.o
+[100%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@f0090f19629f:/app# ls -la /app/bin /app/build || true
+ls: cannot access '/app/bin': No such file or directory
+/app/build:
+total 36
+drwxr-xr-x  4 root root   100 May 25 16:05 .
+drwxr-xr-x 19 root root   264 May 25 16:05 ..
+-rw-r--r--  1 root root 12493 May 25 16:05 CMakeCache.txt
+drwxr-xr-x  6 root root   265 May 25 16:05 CMakeFiles
+-rw-r--r--  1 root root 14565 May 25 16:05 Makefile
+drwxr-xr-x  2 root root    23 May 25 16:05 bin
+-rw-r--r--  1 root root  2026 May 25 16:05 cmake_install.cmake
+root@f0090f19629f:/app# /app/bin/solverctl --help || true
+bash: /app/bin/solverctl: No such file or directory
+root@f0090f19629f:/app# /app/bin/solverctl matrix | sed -n '1,200p'
+bash: /app/bin/solverctl: No such file or directory
+root@f0090f19629f:/app# /app/bin/solverctl one basalt | sed -n '1,200p'
+bash: /app/bin/solverctl: No such file or directory
+root@f0090f19629f:/app#

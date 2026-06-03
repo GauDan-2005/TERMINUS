@@ -1,0 +1,135 @@
+New Terminal Output:
+
+root@091939ae3883:/app# cat /app/src/arena_core.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+size_t arena_heap_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t off = 0;
+    while (off < a->used) {
+        Block b;
+        b.base = (unsigned char *)a->mem;
+        b.off = off;
+        size_t total = tag_read_size(&b);
+        if (total == 0) {
+            break;
+        }
+        if (z_is_flag(&b)) {
+            sig += total * 17;
+        }
+        off += total;
+    }
+    return sig;
+}
+
+size_t arena_fl_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        Block b = {(unsigned char *)a->mem, cur};
+        sig += tag_read_size(&b);
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return sig;
+}
+
+int arena_fl_count(const Arena *a) {
+    int c = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        c++;
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return c;
+}
+root@091939ae3883:/app# cat /app/src/init_heap.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+void arena_init(Arena *a) {
+    Block h;
+    size_t i;
+    memset(a, 0, sizeof(*a));
+    for (i = 0; i < FL_MAP_SZ; i++) {
+        a->fl_link_next[i] = FL_END;
+        a->fl_link_prev[i] = FL_END;
+    }
+    a->used = HEAP_BYTES;
+    h.base = a->mem;
+    h.off = 0;
+    xa0(&h, HEAP_BYTES);
+    z_set_flag(&h, 0);
+    a->head = h;
+    a->fl_head.base = h.base;
+    a->fl_head.off = FL_END;
+    xb1(a, &h);
+}
+root@091939ae3883:/app# cat /app/src/slot_split.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+    size_t old_total = tag_read_size(oldb);
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (old_total < need + MIN_BLK) {
+        a->slot_payload[idx] = req;
+        return idx;
+    }
+    z_set_flag(oldb, 0);
+    xd3(&a->stats, -(ssize_t)old_total);
+    mark_c(a, oldb, req);
+    xd3(&a->stats, (ssize_t)need);
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+    size_t merged;
+    size_t old_total = tag_read_size(oldb);
+    size_t ntotal;
+    Block nb;
+    nb.base = oldb->base;
+    nb.off = oldb->off + old_total;
+    ntotal = tag_read_size(&nb);
+    if (q8f_blk(a, oldb, need, &merged) != 0) {
+        return -1;
+    }
+    xd3(&a->stats, (ssize_t)ntotal);
+    if (merged >= need + MIN_BLK) {
+        z_set_flag(oldb, 0);
+        xd3(&a->stats, -(ssize_t)merged);
+        mark_c(a, oldb, req);
+        xd3(&a->stats, (ssize_t)need);
+    }
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+    mark_c(a, fit, req);
+    xd3(&a->stats, (ssize_t)need);
+}
+root@091939ae3883:/app# cat /app/src/slot_take.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+void slot_take_whole(Arena *a, Block *fit, size_t total) {
+    list_remove(a, fit);
+    xa0(fit, total);
+    z_set_flag(fit, 1);
+    xd3(&a->stats, (ssize_t)total);
+}
+root@091939ae3883:/app#

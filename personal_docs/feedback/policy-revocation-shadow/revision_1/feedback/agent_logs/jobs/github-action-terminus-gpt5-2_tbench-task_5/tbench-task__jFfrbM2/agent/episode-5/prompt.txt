@@ -1,0 +1,38 @@
+New Terminal Output:
+
+root@ddaff815948e:/app# mv -f /app/scripts/run-matrix.sh.bak /app/scripts/run-matrix.sh
+root@ddaff815948e:/app# cat > /app/scripts/run-matrix.sh <<'SH'
+> #!/bin/bash
+> set -euo pipefail
+> cd /app
+> mkdir -p /app/output
+> /app/target/debug/pollab \
+>   /app/output/policy-audit.json \
+>   /app/traces/alpha.trace \
+>   /app/traces/beta.trace \
+>   /app/traces/gamma.trace \
+>   /app/traces/delta.trace \
+>   /app/traces/epsilon.trace \
+>   /app/traces/zeta.trace
+> SH
+root@ddaff815948e:/app# chmod +x /app/scripts/run-matrix.sh
+root@ddaff815948e:/app# sed -n '1,80p' /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+cd /app
+mkdir -p /app/output
+/app/target/debug/pollab \
+  /app/output/policy-audit.json \
+  /app/traces/alpha.trace \
+  /app/traces/beta.trace \
+  /app/traces/gamma.trace \
+  /app/traces/delta.trace \
+  /app/traces/epsilon.trace \
+  /app/traces/zeta.trace
+root@ddaff815948e:/app# rm -f /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh
+root@ddaff815948e:/app# sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@ddaff815948e:/app# bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@ddaff815948e:/app# diff -u <(sha256sum /app/output/policy-audit.json) <(sha256sum /app/output/policy-audit.json)
+root@ddaff815948e:/app#

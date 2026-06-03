@@ -1,0 +1,129 @@
+New Terminal Output:
+
+root@3b3cdaca49ea:/app# cat > /app/internal/d3/pair.go <<'EOF'
+> package d3
+>
+> import (
+> "fmt"
+>
+> "staged.local/snapshot/internal/f5"
+> )
+>
+> type tokenX string
+>
+> type nodeX struct {
+> Seen map[tokenX]bool
+> }
+>
+> func bind_d(a *nodeX, b tokenX) bool {
+> if a.Seen == nil {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> a.Seen = map[tokenX]bool{}
+> }
+> if b == "" {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> return false
+> }
+> if a.Seen[b] {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> return true
+> }
+> a.Seen[b] = true
+> return true
+> }
+>
+> // KeyFor returns a grouping key used during restore materialization.
+> //
+> // Contract:
+> //   - Hardlinked files (Nlink > 1 in the staged rows) must be recreated as
+> //     hardlinks in the restored tree, so they must share a key.
+> //   - Non-hardlinked files must never be grouped together, so they use their
+> //     path as a unique key.
+> //
+> // Dev is intentionally ignored: restored trees may live on a different device.
+> func KeyFor(row f5.Row, profile f5.Profile) string {
+> _ = profile
+> if row.Nlink > 1 {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> key := tokenX(fmt.Sprintf("ino:%d", row.Ino))
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> state := &nodeX{}
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> _ = bind_d(state, key)
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> return string(key)
+> }
+> return row.Path
+> }
+> EOF
+root@3b3cdaca49ea:/app# cat > /app/internal/b1/replay.go <<'EOF'
+> package b1
+>
+> import (
+> "sort"
+>
+> "staged.local/snapshot/internal/f5"
+> )
+>
+> type rowX = f5.Row
+>
+> func fold_b(a []rowX, _ uint64) ([]rowX, error) {
+> out := make([]rowX, len(a))
+> copy(out, a)
+> sort.SliceStable(out, func(i, j int) bool {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> return out[i].Seq < out[j].Seq
+> })
+> return out, nil
+> }
+>
+> // FoldRows returns the rows in the order they must be applied to produce the
+> // final restored layout. Restarts must not reorder operations: correctness is
+> // based on applying the original sequence in order.
+> func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
+> _ = profile
+> return fold_b(rows, 0)
+> }
+> EOF
+root@3b3cdaca49ea:/app# gofmt -w /app/internal/d3/pair.go /app/internal/b1/replay.go
+root@3b3cdaca49ea:/app# go test ./...
+?       staged.local/snapshot/cmd/apex  [no test files]
+?       staged.local/snapshot/cmd/ctl   [no test files]
+?       staged.local/snapshot/internal/a0       [no test files]
+?       staged.local/snapshot/internal/b1       [no test files]
+?       staged.local/snapshot/internal/c2       [no test files]
+?       staged.local/snapshot/internal/d3       [no test files]
+?       staged.local/snapshot/internal/e4       [no test files]
+?       staged.local/snapshot/internal/f5       [no test files]
+?       staged.local/snapshot/internal/g6       [no test files]
+?       staged.local/snapshot/internal/h7       [no test files]
+root@3b3cdaca49ea:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@3b3cdaca49ea:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> for c in obj['cases']:
+>     print(c['name'], 'ok=',c['ok'], 'digestMatch', c['digest']['source']==c['digest']['restored'], 'groupsMatch', c['groups']['source']==c['groups']['restored
+'])
+> PY
+alpha ok= False digestMatch True groupsMatch True
+beta ok= False digestMatch True groupsMatch True
+delta ok= False digestMatch True groupsMatch True
+epsilon ok= False digestMatch True groupsMatch True
+gamma ok= False digestMatch False groupsMatch True
+zeta ok= False digestMatch False groupsMatch True
+root@3b3cdaca49ea:/app#

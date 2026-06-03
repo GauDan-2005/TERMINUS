@@ -1,0 +1,18 @@
+{
+  "analysis": "All 6 cases now pass with `ok: true`. The single-case outputs match the matrix audit rows exactly. The records (JSONL) and log (TSV) files correctly reflect the same moves. Both fresh and resume paths produce matching signatures with 0 illegal moves.\n\nThe two bugs I fixed were:\n1. `a0/pack.go`: `PackItem` was zeroing out the `Seen` array instead of preserving it, causing the resume path to lose visibility state.\n2. `f5/run.go`: `runLoaded` was only processing \"save\" steps (using their turn number), instead of processing the steps that come AFTER the save point. This caused the resume path to run hostile movements at the wrong turn number.",
+  "plan": "Let me do a final verification by running the one-case script for a few more cases and confirming the binary is executable.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/bin/rogctl\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh warden 2>&1 && cat /app/output/single-warden.json | python3 -c \"import sys,json; d=json.load(sys.stdin); print('warden ok:', d['cases'][0]['ok'])\"\n",
+      "duration": 15.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh 2>&1 && python3 -c \"import json; d=json.load(open('/app/output/resume-audit.json')); print('All OK:', all(c['ok'] for c in d['cases'])); print('Cases:', [c['name'] for c in d['cases']])\"\n",
+      "duration": 15.0
+    }
+  ]
+}

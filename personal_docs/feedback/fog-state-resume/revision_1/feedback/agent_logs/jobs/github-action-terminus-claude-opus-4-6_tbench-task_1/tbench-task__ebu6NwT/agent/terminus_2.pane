@@ -1,0 +1,1781 @@
+[?2004hroot@91629596a92a:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@91629596a92a:/app# clear
+[?2004l[H[J[3J[?2004hroot@91629596a92a:/app# find /app -type f | head -80
+[?2004l/app/Makefile
+/app/README.md
+/app/bin/rogctl
+/app/cmd/rogctl/main.go
+/app/config/profiles.toml
+/app/config/sight.tsv
+/app/config/weights.tsv
+/app/data/layouts/bishop.map
+/app/data/layouts/knight.map
+/app/data/layouts/lancer.map
+/app/data/layouts/rook.map
+/app/data/layouts/sentinel.map
+/app/data/layouts/warden.map
+/app/data/scenarios.tsv
+/app/data/scripts/bishop.tsv
+/app/data/scripts/knight.tsv
+/app/data/scripts/lancer.tsv
+/app/data/scripts/rook.tsv
+/app/data/scripts/sentinel.tsv
+/app/data/scripts/warden.tsv
+/app/docs/architecture.md
+/app/docs/operations.md
+/app/go.mod
+/app/internal/a0/pack.go
+/app/internal/b1/cache.go
+/app/internal/c2/effect.go
+/app/internal/d3/plan.go
+/app/internal/e4/native.go
+/app/internal/e4/sight.go
+/app/internal/f5/run.go
+/app/internal/f5/types.go
+/app/internal/g6/render.go
+/app/internal/h7/stats.go
+/app/internal/sim/layout.go
+/app/internal/sim/profile.go
+/app/internal/sim/types.go
+/app/internal/sim/world.go
+/app/probe/legality.c
+/app/probe/legality.h
+/app/probe/list.c
+/app/scripts/clean-room.sh
+/app/scripts/one-case.sh
+/app/scripts/run-matrix.sh
+[?2004hroot@91629596a92a:/app# cat /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+out="/app/output/resume-audit.json"
+work=""
+one_case=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --out) out="$2"; shift 2 ;;
+    --work) work="$2"; shift 2 ;;
+    --case) one_case="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$(dirname "$out")"
+make -s -C /app build
+args=("--out" "$out")
+if [ -n "$work" ]; then
+  args+=("--root" "$work")
+fi
+if [ -n "$one_case" ]; then
+  args+=("--case" "$one_case")
+fi
+/app/bin/rogctl "${args[@]}"
+[?2004hroot@91629596a92a:/app# cat /app/scripts/one-case.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+if [ "$#" -lt 1 ]; then
+  echo "usage: one-case.sh <name>" >&2
+  exit 2
+fi
+name="$1"
+out="/app/output/single-${name}.json"
+bash /app/scripts/run-matrix.sh --out "$out" --case "$name"
+[?2004hroot@91629596a92a:/app# cat /app/Makefile
+[?2004l.PHONY: build clean
+
+build:
+	mkdir -p /app/bin
+	go build -o /app/bin/rogctl ./cmd/rogctl
+
+clean:
+	rm -f /app/bin/rogctl
+[?2004hroot@91629596a92a:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@91629596a92a:/app# cat /app/output/resume-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "bishop",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": true,
+          "epoch": 5
+        }
+      ],
+      "records": "/app/workspace/bishop/records.jsonl",
+      "log": "/app/workspace/bishop/trace.tsv"
+    },
+    {
+      "name": "knight",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 7,
+        "resume_seen": 4
+      },
+      "effects": [],
+      "records": "/app/workspace/knight/records.jsonl",
+      "log": "/app/workspace/knight/trace.tsv"
+    },
+    {
+      "name": "lancer",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 18,
+        "resume_seen": 15
+      },
+      "effects": [],
+      "records": "/app/workspace/lancer/records.jsonl",
+      "log": "/app/workspace/lancer/trace.tsv"
+    },
+    {
+      "name": "rook",
+      "ok": false,
+      "fresh": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "24ebc3c9",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 2,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 8
+      },
+      "effects": [],
+      "records": "/app/workspace/rook/records.jsonl",
+      "log": "/app/workspace/rook/trace.tsv"
+    },
+    {
+      "name": "sentinel",
+      "ok": false,
+      "fresh": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "691e8e87",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 4,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 8
+      },
+      "effects": [
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/sentinel/records.jsonl",
+      "log": "/app/workspace/sentinel/trace.tsv"
+    },
+    {
+      "name": "warden",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": true,
+          "epoch": 5
+        },
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/warden/records.jsonl",
+      "log": "/app/workspace/warden/trace.tsv"
+    }
+  ]
+}
+[?2004hroot@91629596a92a:/app# cat /app/cmd/rogctl/main.go
+[?2004lpackage main
+
+import (
+	"encoding/json"
+	"flag"
+	"os"
+	"path/filepath"
+	"sort"
+
+	"fog.local/resume/internal/f5"
+)
+
+func main() {
+	outPath := flag.String("out", "/app/output/resume-audit.json", "output path")
+	root := flag.String("root", "/app", "workspace root")
+	oneCase := flag.String("case", "", "single case")
+	flag.Parse()
+
+	names := f5.AllCases()
+	if *oneCase != "" {
+		names = []string{*oneCase}
+	}
+	sort.Strings(names)
+	report := f5.Report{Cases: []f5.CaseResult{}}
+	for _, name := range names {
+		result, err := f5.RunRow(*root, name)
+		if err != nil {
+			panic(err)
+		}
+		report.Cases = append(report.Cases, result)
+	}
+	if err := os.MkdirAll(filepath.Dir(*outPath), 0o755); err != nil {
+		panic(err)
+	}
+	encoded, err := json.MarshalIndent(report, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(*outPath, append(encoded, '\n'), 0o644); err != nil {
+		panic(err)
+	}
+}
+[?2004hroot@91629596a92a:/app# cat /app/internal/f5/run.go
+[?2004lpackage f5
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"fog.local/resume/internal/a0"
+	"fog.local/resume/internal/b1"
+	"fog.local/resume/internal/c2"
+	"fog.local/resume/internal/d3"
+	"fog.local/resume/internal/e4"
+)
+
+func sigFor(moves []MoveRow) string {
+	acc := int64(2166136261)
+	for _, m := range moves {
+		acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+		for _, ch := range m.Actor + m.Kind {
+			acc ^= int64(ch)
+			acc = (acc * 16777619) & 0x7fffffff
+		}
+	}
+	return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+	size := w.Width * w.Height
+	seen := append([]bool(nil), w.Seen...)
+	lit := append([]bool(nil), w.Lit...)
+	if len(seen) != size {
+		seen = make([]bool, size)
+	}
+	if len(lit) != size {
+		lit = make([]bool, size)
+	}
+	return &World{
+		Width: w.Width, Height: w.Height,
+		Walls:   append([]bool(nil), w.Walls...),
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+		Hostile: append([]Hostile(nil), w.Hostile...),
+		Turn:    w.Turn,
+		Seen:    seen,
+		Lit:     lit,
+		Effects: append([]EffectState(nil), w.Effects...),
+	}
+}
+
+func applyPlayer(w *World, arg string) {
+	parts := strings.Split(arg, ",")
+	if len(parts) != 2 {
+		return
+	}
+	dx, _ := strconv.Atoi(parts[0])
+	dy, _ := strconv.Atoi(parts[1])
+	nx, ny := w.PlayerX+dx, w.PlayerY+dy
+	if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+		w.PlayerX, w.PlayerY = nx, ny
+	}
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range w.Hostile {
+		key := fmt.Sprintf("%d,%d", h.X, h.Y)
+		if extra != nil && extra[key] {
+			out[key] = true
+			continue
+		}
+		if e4.PlayerSees(w, h.X, h.Y) {
+			out[key] = true
+		}
+	}
+	return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+	rows := []MoveRow{}
+	for i := range w.Hostile {
+		row, ok := d3.PlanSlot(w, cache, i)
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+func blindActive(w *World) bool {
+	for _, e := range w.Effects {
+		if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+			return true
+		}
+	}
+	return false
+}
+
+func snapToC2(effects []EffectState) []c2.EffectSnap {
+	out := make([]c2.EffectSnap, len(effects))
+	for i, e := range effects {
+		out[i] = c2.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	return out
+}
+
+func snapFromC2(snaps []c2.EffectSnap) []EffectState {
+	out := make([]EffectState, len(snaps))
+	for i, s := range snaps {
+		out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+	}
+	return out
+}
+
+func profileToC2(p Profile) c2.ProfileSnap {
+	return c2.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func rowsFromC2(rows []c2.RowSnap) []EffectRow {
+	out := make([]EffectRow, len(rows))
+	for i, r := range rows {
+		out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+	}
+	return out
+}
+
+func packWorld(w *World, obs map[string]bool) a0.ItemY {
+	effects := make([]a0.EffectSnap, len(w.Effects))
+	for i, e := range w.Effects {
+		effects[i] = a0.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]a0.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = a0.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := a0.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return a0.PackItem(item)
+}
+
+func applyWorld(w *World, item a0.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	w.Effects = make([]EffectState, len(item.Effects))
+	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob a0.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &b1.CacheX{Obs: map[string]bool{}}
+	b1.Merge(cache, blob)
+	merged := b1.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+		}
+		w.Turn = step.Turn
+		e4.ApplyLit(w, radius, blindActive(w))
+		moves = append(moves, advanceAll(w, merged)...)
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = snapFromC2(c2.Seed(profileToC2(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = snapFromC2(c2.Seed(profileToC2(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+		Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}
+[?2004hroot@91629596a92a:/app# cat /app/internal/f5/types.go
+[?2004lpackage f5
+
+import "fog.local/resume/internal/sim"
+
+type World = sim.World
+type Hostile = sim.Hostile
+type EffectState = sim.EffectState
+type Profile = sim.Profile
+type MoveRow = sim.MoveRow
+type PathSummary = sim.PathSummary
+type VisPair = sim.VisPair
+type EffectRow = sim.EffectRow
+type CaseResult = sim.CaseResult
+type Report = sim.Report
+type ScriptStep = sim.ScriptStep
+
+func ProfileFor(name string) Profile { return sim.ProfileFor(name) }
+func AllCases() []string             { return sim.AllCases() }
+func LoadLayout(root, name string) (*World, error) {
+	return sim.LoadLayout(root, name)
+}
+func LoadScript(root, name string) ([]ScriptStep, error) {
+	return sim.LoadScript(root, name)
+}
+func LoadRadius(root, name string) (int, error) { return sim.LoadRadius(root, name) }
+[?2004hroot@91629596a92a:/app# cat /app/data/scripts/rook.tsv
+[?2004lturn	actor	action	arg
+0	P	n	0,0
+1	P	e	1,0
+2	P	e	1,0
+2	*	save	0
+3	H	go	0
+[?2004hroot@91629596a92a:/app# cat /app/data/scripts/sentinel.tsv
+[?2004lturn	actor	action	arg
+0	P	n	0,0
+1	P	e	1,0
+2	P	e	1,0
+3	P	e	1,0
+4	*	save	0
+5	H	go	0
+[?2004hroot@91629596a92a:/app# cat /app/data/scripts/bishop.tsv
+[?2004lturn	actor	action	arg
+0	P	n	0,0
+1	P	e	1,0
+2	P	e	1,0
+2	*	save	0
+3	H	go	0
+[?2004hroot@91629596a92a:/app# cat /app/data/scripts/knight.tsv
+[?2004lturn	actor	action	arg
+0	P	n	0,0
+1	P	e	1,0
+2	P	e	1,0
+2	*	save	0
+3	H	go	0
+[?2004hroot@91629596a92a:/app# sed -n '130,155p' /app/internal/f5/run.go
+[?2004l	for i, e := range w.Effects {
+		effects[i] = a0.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]a0.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = a0.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := a0.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return a0.PackItem(item)
+}
+
+func applyWorld(w *World, item a0.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+[?2004hroot@91629596a92a:/app# sed -n '158,175p' /app/internal/f5/run.go
+[?2004l	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob a0.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+[?2004hroot@91629596a92a:/app# grep -n 'func runDirect\|func runLoaded' /app/internal/f5/run.go
+[?2004l185:func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+[?2004hroot@91629596a92a:/app# sed -n '185,230p' /app/internal/f5/run.go
+[?2004lfunc runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &b1.CacheX{Obs: map[string]bool{}}
+	b1.Merge(cache, blob)
+	merged := b1.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+		}
+		w.Turn = step.Turn
+		e4.ApplyLit(w, radius, blindActive(w))
+		moves = append(moves, advanceAll(w, merged)...)
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+[?2004hroot@91629596a92a:/app# sed -n '218,226p' /app/internal/f5/run.go
+[?2004l	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+		}
+		w.Turn = step.Turn
+		e4.ApplyLit(w, radius, blindActive(w))
+		moves = append(moves, advanceAll(w, merged)...)
+	}
+	return moves
+[?2004hroot@91629596a92a:/app# sed -i '218,226c\\tpastSave := false\n\t\tfor _, step := range steps {\n\t\t\tif step.Action == "save" {\n\t\t\t\tpastSave = true\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tif !pastSave {\n\t\t\t\tcontinue\n\t\t\t}\n\t\t\tw.Turn = step.Turn\n\t\t\tif step.Actor == "P" {\n\t\t\t\tapplyPlayer(w, step.Arg)\n\t\t\t\te4.ApplyLit(w, radius, blindActive(w))\n\t\t\t}\n\t\t\tif step.Actor == "H" {\n\t\t\t\tmoves = append(moves, advanceAll(w, merged)...)\n\t\t\t}\n\t\t}\n\t\treturn moves' /app/internal/f5/run.go
+[?2004l[?2004hroot@91629596a92a:/app# sed -n '215,240p' /app/internal/f5/run.go
+[?2004l	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	pastSave := false
+		for _, step := range steps {
+			if step.Action == "save" {
+				pastSave = true
+				continue
+			}
+			if !pastSave {
+				continue
+			}
+			w.Turn = step.Turn
+			if step.Actor == "P" {
+				applyPlayer(w, step.Arg)
+				e4.ApplyLit(w, radius, blindActive(w))
+			}
+			if step.Actor == "H" {
+				moves = append(moves, advanceAll(w, merged)...)
+			}
+		}
+		return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+[?2004hroot@91629596a92a:/app# cat > /tmp/fix.py << 'EOF'
+[?2004l[?2004h> import re
+[?2004l[?2004h> 
+[?2004l[?2004h> with open('/app/internal/f5/run.go', 'r') as f:
+[?2004l[?2004h>     content = f.read()
+[?2004l[?2004h> 
+[?2004l[?2004h> # Find and replace the runLoaded function's loop section
+[?2004l[?2004h> old = """\tmoves := []MoveRow{}
+[?2004l[?2004h> \tpastSave := false
+[?2004l[?2004h> \t\tfor _, step := range steps {
+[?2004l[?2004h> \t\t\tif step.Action == "save" {
+[?2004l[?2004h> \t\t\t\tpastSave = true
+[?2004l[?2004h> \t\t\t\tcontinue
+[?2004l[?2004h> \t\t\t}
+[?2004l[?2004h> \t\t\tif !pastSave {
+[?2004l[?2004h> \t\t\t\tcontinue
+[?2004l[?2004h> \t\t\t}
+[?2004l[?2004h> \t\t\tw.Turn = step.Turn
+[?2004l[?2004h> \t\t\tif step.Actor == "P" {
+[?2004l[?2004h> \t\t\t\tapplyPlayer(w, step.Arg)
+[?2004l[?2004h> \t\t\t\te4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h> \t\t\t}
+[?2004l[?2004h> \t\t\tif step.Actor == "H" {
+[?2004l[?2004h> \t\t\t\tmoves = append(moves, advanceAll(w, merged)...)
+[?2004l[?2004h> \t\t\t}
+[?2004l[?2004h> \t\t}
+[?2004l[?2004h> \t\treturn moves
+[?2004l[?2004h> }"""
+[?2004l[?2004h> 
+[?2004l[?2004h> new = """\tmoves := []MoveRow{}
+[?2004l[?2004h> \tpastSave := false
+[?2004l[?2004h> \tfor _, step := range steps {
+[?2004l[?2004h> \t\tif step.Action == "save" {
+[?2004l[?2004h> \t\t\tpastSave = true
+[?2004l[?2004h> \t\t\tcontinue
+[?2004l[?2004h> \t\t}
+[?2004l[?2004h> \t\tif !pastSave {
+[?2004l[?2004h> \t\t\tcontinue
+[?2004l[?2004h> \t\t}
+[?2004l[?2004h> \t\tw.Turn = step.Turn
+[?2004l[?2004h> \t\tif step.Actor == "P" {
+[?2004l[?2004h> \t\t\tapplyPlayer(w, step.Arg)
+[?2004l[?2004h> \t\t\te4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h> \t\t}
+[?2004l[?2004h> \t\tif step.Actor == "H" {
+[?2004l[?2004h> \t\t\tmoves = append(moves, advanceAll(w, merged)...)
+[?2004l[?2004h> \t\t}
+[?2004l[?2004h> \t}
+[?2004l[?2004h> \treturn moves
+[?2004l[?2004h> }"""
+[?2004l[?2004h> 
+[?2004l[?2004h> content = content.replace(old, new)
+[?2004l[?2004h> 
+[?2004l[?2004h> with open('/app/internal/f5/run.go', 'w') as f:
+[?2004l[?2004h>     f.write(content)
+[?2004l[?2004h> 
+[?2004l[?2004h> print("Done")
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@91629596a92a:/app# python3 /tmp/fix.py
+[?2004lDone
+[?2004hroot@91629596a92a:/app# sed -n '215,240p' /app/internal/f5/run.go
+[?2004l	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, merged)...)
+		}
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+[?2004hroot@91629596a92a:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@91629596a92a:/app# cat /app/output/resume-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "bishop",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": true,
+          "epoch": 5
+        }
+      ],
+      "records": "/app/workspace/bishop/records.jsonl",
+      "log": "/app/workspace/bishop/trace.tsv"
+    },
+    {
+      "name": "knight",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 7,
+        "resume_seen": 0
+      },
+      "effects": [],
+      "records": "/app/workspace/knight/records.jsonl",
+      "log": "/app/workspace/knight/trace.tsv"
+    },
+    {
+      "name": "lancer",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 18,
+        "resume_seen": 0
+      },
+      "effects": [],
+      "records": "/app/workspace/lancer/records.jsonl",
+      "log": "/app/workspace/lancer/trace.tsv"
+    },
+    {
+      "name": "rook",
+      "ok": false,
+      "fresh": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "7d3f56fa",
+        "illegal": 1,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": false
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 0
+      },
+      "effects": [],
+      "records": "/app/workspace/rook/records.jsonl",
+      "log": "/app/workspace/rook/trace.tsv"
+    },
+    {
+      "name": "sentinel",
+      "ok": false,
+      "fresh": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "9a98d68",
+        "illegal": 1,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": false
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/sentinel/records.jsonl",
+      "log": "/app/workspace/sentinel/trace.tsv"
+    },
+    {
+      "name": "warden",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": false,
+          "epoch": 5
+        },
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/warden/records.jsonl",
+      "log": "/app/workspace/warden/trace.tsv"
+    }
+  ]
+}
+[?2004hroot@91629596a92a:/app# cat /app/internal/d3/plan.go
+[?2004lpackage d3
+
+import (
+	"fmt"
+
+	"fog.local/resume/internal/e4"
+	"fog.local/resume/internal/sim"
+)
+
+type tokenX string
+
+type nodeX struct {
+	Cache map[string]bool
+}
+
+func bind_d(a *nodeX, b tokenX, c []int) (int, int, bool) {
+	if len(c) < 4 {
+		return 0, 0, false
+	}
+	px, py, hx, hy := c[0], c[1], c[2], c[3]
+	key := tokenX(fmt.Sprintf("%d,%d", hx, hy))
+	if a.Cache != nil && a.Cache[string(key)] {
+		for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			nx, ny := hx+delta[0], hy+delta[1]
+			dx, dy := nx-px, ny-py
+			if dx*dx+dy*dy < 4 {
+				return nx, ny, true
+			}
+		}
+	}
+	bestX, bestY := hx, hy
+	best := 1 << 30
+	for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+		nx, ny := hx+delta[0], hy+delta[1]
+		d := (nx-px)*(nx-px) + (ny-py)*(ny-py)
+		if d < best {
+			best = d
+			bestX, bestY = nx, ny
+		}
+	}
+	return bestX, bestY, best < 1<<29
+}
+
+func PlanSlot(w *sim.World, cache map[string]bool, idx int) (sim.MoveRow, bool) {
+	if idx >= len(w.Hostile) {
+		return sim.MoveRow{}, false
+	}
+	h := w.Hostile[idx]
+	hostKey := fmt.Sprintf("%d,%d", h.X, h.Y)
+	seen := e4.PlayerSees(w, h.X, h.Y)
+	if cache != nil && cache[hostKey] {
+		seen = true
+	}
+	if !seen {
+		return sim.MoveRow{}, false
+	}
+	node := &nodeX{Cache: cache}
+	tx, ty, ok := bind_d(node, tokenX(h.ID), []int{w.PlayerX, w.PlayerY, h.X, h.Y})
+	if !ok {
+		return sim.MoveRow{}, false
+	}
+	legal := e4.StepLegal(w, h.X, h.Y, tx, ty)
+	visible := e4.PlayerSees(w, tx, ty)
+	row := sim.MoveRow{
+		Turn:  w.Turn,
+		Actor: h.ID,
+		FromX: h.X,
+		FromY: h.Y,
+		ToX:   tx,
+		ToY:   ty,
+		Kind:  "step",
+		Legal: legal && visible,
+	}
+	h.X, h.Y = tx, ty
+	w.Hostile[idx] = h
+	return row, true
+}
+[?2004hroot@91629596a92a:/app# cat /app/internal/e4/sight.go
+[?2004lpackage e4
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+	size := w.Width * w.Height
+	if len(w.Lit) != size {
+		w.Lit = make([]bool, size)
+	}
+	for i := range w.Lit {
+		w.Lit[i] = false
+	}
+	if blind {
+		return
+	}
+	type point struct{ x, y int }
+	queue := []point{{w.PlayerX, w.PlayerY}}
+	dist := make([]int, size)
+	for i := range dist {
+		dist[i] = -1
+	}
+	start := w.Idx(w.PlayerX, w.PlayerY)
+	dist[start] = 0
+	w.Lit[start] = true
+	for len(queue) > 0 {
+		p := queue[0]
+		queue = queue[1:]
+		d := dist[w.Idx(p.x, p.y)]
+		if d >= radius {
+			continue
+		}
+		for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			nx, ny := p.x+delta[0], p.y+delta[1]
+			if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+				continue
+			}
+			idx := w.Idx(nx, ny)
+			if dist[idx] >= 0 {
+				continue
+			}
+			dist[idx] = d + 1
+			w.Lit[idx] = true
+			queue = append(queue, point{nx, ny})
+		}
+	}
+	if len(w.Seen) != size {
+		w.Seen = make([]bool, size)
+	}
+	for i := 0; i < size; i++ {
+		if w.Lit[i] {
+			w.Seen[i] = true
+		}
+	}
+}
+
+func CountSeen(w *sim.World) int {
+	n := 0
+	for _, v := range w.Seen {
+		if v {
+			n++
+		}
+	}
+	return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+	if !w.InBounds(x, y) {
+		return false
+	}
+	idx := w.Idx(x, y)
+	if idx >= len(w.Seen) || idx >= len(w.Lit) {
+		return false
+	}
+	return w.Seen[idx] && w.Lit[idx]
+}
+[?2004hroot@91629596a92a:/app# cat /app/internal/e4/native.go
+[?2004lpackage e4
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/../../probe
+#include <stdlib.h>
+#include "legality.h"
+#include "../../probe/legality.c"
+*/
+import "C"
+import (
+	"fog.local/resume/internal/sim"
+	"unsafe"
+)
+
+func StepLegal(w *sim.World, x0, y0, x1, y1 int) bool {
+	n := w.Width * w.Height
+	buf := C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof(C.int(0))))
+	if buf == nil {
+		return false
+	}
+	defer C.free(buf)
+	grid := (*[1 << 30]C.int)(buf)[:n:n]
+	for i, wall := range w.Walls {
+		if wall {
+			grid[i] = 1
+		}
+	}
+	ctx := C.struct_qx{width: C.int(w.Width), height: C.int(w.Height), grid: (*C.int)(buf)}
+	return C.walk_e(&ctx, C.int(x0), C.int(y0), C.int(x1), C.int(y1)) == 1
+}
+[?2004hroot@91629596a92a:/app# sed -n '162,185p' /app/internal/f5/run.go
+[?2004l
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob a0.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+[?2004hroot@91629596a92a:/app# cat /app/internal/a0/pack.go
+[?2004lpackage a0
+
+type stateX struct {
+	Lit  []bool
+	Seen []bool
+	Turn int
+}
+
+type EffectSnap struct {
+	ID         string
+	ExpiryTurn int
+	Active     bool
+}
+
+type HostileSnap struct {
+	ID string
+	X  int
+	Y  int
+}
+
+type ItemY struct {
+	Lit      []bool
+	Seen     []bool
+	Turn     int
+	Obs      map[string]bool
+	Effects  []EffectSnap
+	Width    int
+	Height   int
+	PlayerX  int
+	PlayerY  int
+	Hostiles []HostileSnap
+}
+
+func phase_a(a *stateX, b ItemY) error {
+	a.Lit = append([]bool(nil), b.Lit...)
+	a.Seen = append([]bool(nil), b.Seen...)
+	a.Turn = b.Turn
+	return nil
+}
+
+func PackItem(b ItemY) ItemY {
+	st := &stateX{}
+	_ = phase_a(st, b)
+	out := b
+	out.Seen = make([]bool, len(b.Seen))
+	return out
+}
+[?2004hroot@91629596a92a:/app# cat /app/internal/b1/cache.go
+[?2004lpackage b1
+
+import "fog.local/resume/internal/a0"
+
+type CacheX struct {
+	Obs map[string]bool
+	Version uint64
+}
+
+func fold_b(a *CacheX, b a0.ItemY) error {
+	if a.Obs == nil {
+		a.Obs = map[string]bool{}
+	}
+	for key, val := range b.Obs {
+		a.Obs[key] = val
+	}
+	a.Version = uint64(b.Turn)
+	return nil
+}
+
+func Merge(a *CacheX, blob a0.ItemY) {
+	_ = fold_b(a, blob)
+}
+
+func Snapshot(a *CacheX) map[string]bool {
+	out := map[string]bool{}
+	for k, v := range a.Obs {
+		out[k] = v
+	}
+	return out
+}
+[?2004hroot@91629596a92a:/app# sed -i 's/out.Seen = make(\[\]bool, len(b.Seen))/out.Seen = append([]bool(nil), b.Seen...)/' /app/internal/a0/pack.go
+[?2004l[?2004hroot@91629596a92a:/app# cat /app/internal/a0/pack.go
+[?2004lpackage a0
+
+type stateX struct {
+	Lit  []bool
+	Seen []bool
+	Turn int
+}
+
+type EffectSnap struct {
+	ID         string
+	ExpiryTurn int
+	Active     bool
+}
+
+type HostileSnap struct {
+	ID string
+	X  int
+	Y  int
+}
+
+type ItemY struct {
+	Lit      []bool
+	Seen     []bool
+	Turn     int
+	Obs      map[string]bool
+	Effects  []EffectSnap
+	Width    int
+	Height   int
+	PlayerX  int
+	PlayerY  int
+	Hostiles []HostileSnap
+}
+
+func phase_a(a *stateX, b ItemY) error {
+	a.Lit = append([]bool(nil), b.Lit...)
+	a.Seen = append([]bool(nil), b.Seen...)
+	a.Turn = b.Turn
+	return nil
+}
+
+func PackItem(b ItemY) ItemY {
+	st := &stateX{}
+	_ = phase_a(st, b)
+	out := b
+	out.Seen = append([]bool(nil), b.Seen...)
+	return out
+}
+[?2004hroot@91629596a92a:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@91629596a92a:/app# cat /app/output/resume-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "bishop",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": true,
+          "epoch": 5
+        }
+      ],
+      "records": "/app/workspace/bishop/records.jsonl",
+      "log": "/app/workspace/bishop/trace.tsv"
+    },
+    {
+      "name": "knight",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 7,
+        "resume_seen": 7
+      },
+      "effects": [],
+      "records": "/app/workspace/knight/records.jsonl",
+      "log": "/app/workspace/knight/trace.tsv"
+    },
+    {
+      "name": "lancer",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 18,
+        "resume_seen": 18
+      },
+      "effects": [],
+      "records": "/app/workspace/lancer/records.jsonl",
+      "log": "/app/workspace/lancer/trace.tsv"
+    },
+    {
+      "name": "rook",
+      "ok": true,
+      "fresh": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 9
+      },
+      "effects": [],
+      "records": "/app/workspace/rook/records.jsonl",
+      "log": "/app/workspace/rook/trace.tsv"
+    },
+    {
+      "name": "sentinel",
+      "ok": true,
+      "fresh": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 9
+      },
+      "effects": [
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/sentinel/records.jsonl",
+      "log": "/app/workspace/sentinel/trace.tsv"
+    },
+    {
+      "name": "warden",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": false,
+          "epoch": 5
+        },
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/warden/records.jsonl",
+      "log": "/app/workspace/warden/trace.tsv"
+    }
+  ]
+}
+[?2004hroot@91629596a92a:/app# cat /app/workspace/rook/records.jsonl
+[?2004l{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+[?2004hroot@91629596a92a:/app# cat /app/workspace/rook/trace.tsv
+[?2004lrook	3	1	3	3	3	2	true
+rook	3	1	3	3	3	2	true
+[?2004hroot@91629596a92a:/app# cat /app/workspace/sentinel/records.jsonl
+[?2004l{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+[?2004hroot@91629596a92a:/app# cat /app/workspace/sentinel/trace.tsv
+[?2004lsentinel	5	1	3	3	3	2	true
+sentinel	5	1	3	3	3	2	true
+[?2004hroot@91629596a92a:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@91629596a92a:/app# cat /app/output/single-rook.json
+[?2004l{
+  "cases": [
+    {
+      "name": "rook",
+      "ok": true,
+      "fresh": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 9
+      },
+      "effects": [],
+      "records": "/app/workspace/rook/records.jsonl",
+      "log": "/app/workspace/rook/trace.tsv"
+    }
+  ]
+}
+[?2004hroot@91629596a92a:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@91629596a92a:/app# cat /app/output/single-sentinel.json
+[?2004l{
+  "cases": [
+    {
+      "name": "sentinel",
+      "ok": true,
+      "fresh": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 9
+      },
+      "effects": [
+        {
+          "id": "ward",
+          "active": true,
+          "epoch": 7
+        }
+      ],
+      "records": "/app/workspace/sentinel/records.jsonl",
+      "log": "/app/workspace/sentinel/trace.tsv"
+    }
+  ]
+}
+[?2004hroot@91629596a92a:/app# bash /app/scripts/run-matrix.sh && python3 -c "import json; d=json.load(open('/app/output/resume-audit.json')); print('All OK:', all(c['ok'] for c in d['cases'])); print('Cases:', [c['name'] for c in d['cases']])"
+[?2004lAll OK: True
+Cases: ['bishop', 'knight', 'lancer', 'rook', 'sentinel', 'warden']
+[?2004hroot@91629596a92a:/app# 

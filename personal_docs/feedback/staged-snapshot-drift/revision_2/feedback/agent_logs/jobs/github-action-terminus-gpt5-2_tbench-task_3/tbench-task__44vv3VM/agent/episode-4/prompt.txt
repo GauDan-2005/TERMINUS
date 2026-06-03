@@ -1,0 +1,267 @@
+New Terminal Output:
+
+root@3b3cdaca49ea:/app# sed -n '1,260p' /app/internal/a0/core.go
+package a0
+
+import (
+        "os"
+        "path/filepath"
+        "sort"
+        "strings"
+        "syscall"
+
+        "staged.local/snapshot/internal/b1"
+        "staged.local/snapshot/internal/d3"
+        "staged.local/snapshot/internal/f5"
+)
+
+type stateX struct {
+        Rows   []itemY
+        ByPath map[string]int
+}
+
+type itemY = f5.Row
+
+func phase_a(a *stateX, b itemY) error {
+        if a.ByPath == nil {
+                a.ByPath = map[string]int{}
+        }
+        if b.Path == "" {
+                return nil
+        }
+        if b.Op == "write" && b.Seq%5 == 0 {
+                b.Data = strings.TrimSuffix(b.Data, "\n")
+        }
+        if b.Op == "write" && b.Nlink > 1 {
+                b.Nlink = 1
+        }
+        if b.Op == "remove" {
+                a.Rows = append(a.Rows, b)
+                return nil
+        }
+        if _, ok := a.ByPath[b.Path]; ok {
+                return nil
+        }
+        a.ByPath[b.Path] = len(a.Rows)
+        a.Rows = append(a.Rows, b)
+        return nil
+}
+
+func emit_a(path string, data string) error {
+        if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+                return err
+        }
+        return os.WriteFile(path, []byte(data), 0o644)
+}
+
+func CreateTree(root string, profile f5.Profile) error {
+        dirs := []string{"a", "b", "c"}
+        if profile.Dense {
+                dirs = append(dirs, "deep/x")
+        }
+        if profile.Roll {
+                dirs = append(dirs, "d")
+        }
+        for _, dir := range dirs {
+                if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+                        return err
+                }
+        }
+        if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
+                return err
+        }
+        if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
+                return err
+        }
+        if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
+                return err
+        }
+        if profile.Dense {
+                shared := filepath.Join(root, "deep", "x", "shared.dat")
+                if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
+                        return err
+                }
+                for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
+                        alias := filepath.Join(root, filepath.FromSlash(rel))
+                        _ = os.Remove(alias)
+                        if err := os.Link(shared, alias); err != nil {
+                                return err
+                        }
+                }
+        }
+        if profile.Ordered {
+                flow := filepath.Join(root, "a", "flow.txt")
+                if err := emit_a(flow, "second\n"); err != nil {
+                        return err
+                }
+        }
+        if profile.Roll {
+                if err := emit_a(filepath.Join(root, "d", "roll.txt"), profile.Name+":period-one\n"); err != nil {
+                        return err
+                }
+        }
+        return nil
+}
+
+func statIdentity(path string) (uint64, uint64, uint64, error) {
+        info, err := os.Stat(path)
+        if err != nil {
+                return 0, 0, 0, err
+        }
+        st := info.Sys().(*syscall.Stat_t)
+        return uint64(st.Dev), uint64(st.Ino), uint64(st.Nlink), nil
+}
+
+func RowsFromTree(root string, profile f5.Profile) ([]f5.Row, error) {
+        paths := []string{}
+        if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+                if err != nil {
+                        return err
+                }
+                if entry.Type().IsRegular() {
+                        paths = append(paths, path)
+                }
+                return nil
+        }); err != nil {
+                return nil, err
+        }
+        sort.Strings(paths)
+        state := &stateX{ByPath: map[string]int{}}
+        seq := 0
+        for _, path := range paths {
+                rel, err := filepath.Rel(root, path)
+                if err != nil {
+                        return nil, err
+                }
+                rel = filepath.ToSlash(rel)
+                if profile.Ordered && rel == "a/flow.txt" {
+                        continue
+                }
+                dev, ino, nlink, err := statIdentity(path)
+                if err != nil {
+                        return nil, err
+                }
+                data, err := os.ReadFile(path)
+                if err != nil {
+                        return nil, err
+                }
+                if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink}); err != nil {
+                        return nil, err
+                }
+                seq++
+        }
+        if profile.Ordered {
+                flow := filepath.Join(root, "a", "flow.txt")
+                dev, ino, nlink, err := statIdentity(flow)
+                if err != nil {
+                        return nil, err
+                }
+                for _, row := range []f5.Row{
+                        {Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
+                        {Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
+                        {Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
+                } {
+                        if err := phase_a(state, row); err != nil {
+                                return nil, err
+                        }
+                }
+        }
+        return append([]f5.Row(nil), state.Rows...), nil
+}
+
+func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
+        replayRows, err := b1.FoldRows(rows, profile)
+        if err != nil {
+                return err
+        }
+        groups := map[string]string{}
+        for _, row := range replayRows {
+                target := filepath.Join(dst, filepath.FromSlash(row.Path))
+                if row.Op == "remove" {
+                        _ = os.Remove(target)
+                        for key, value := range groups {
+                                if value == target {
+                                        delete(groups, key)
+                                }
+                        }
+                        continue
+                }
+                if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+                        return err
+                }
+                key := d3.KeyFor(row, profile)
+                if existing, ok := groups[key]; ok {
+                        _ = os.Remove(target)
+                        if err := os.Link(existing, target); err != nil {
+                                return err
+                        }
+                        continue
+                }
+                if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
+                        if err := emit_a(target, row.Data); err != nil {
+                                return err
+                        }
+                        groups[key] = target
+                }
+        }
+        return nil
+}
+root@3b3cdaca49ea:/app# sed -n '1,220p' /app/internal/a0/scan.go
+package a0
+
+func scanA(paths []string) []itemY {
+        out := make([]itemY, 0, len(paths))
+        for i, p := range paths {
+                out = append(out, itemY{Seq: i, Op: "write", Path: p})
+        }
+        return out
+}
+root@3b3cdaca49ea:/app# sed -n '1,260p' /app/internal/a0/pack.go
+package a0
+
+func packA(rows []itemY) map[string]string {
+        out := map[string]string{}
+        for _, row := range rows {
+                out[row.Path] = row.Op
+        }
+        return out
+}
+root@3b3cdaca49ea:/app# sed -n '1,260p' /app/internal/b1/replay.go
+package b1
+
+import (
+        "sort"
+
+        "staged.local/snapshot/internal/f5"
+)
+
+type rowX = f5.Row
+
+func fold_b(a []rowX, b uint64) ([]rowX, error) {
+        out := make([]rowX, len(a))
+        copy(out, a)
+        sort.SliceStable(out, func(i, j int) bool {
+                return out[i].Seq < out[j].Seq
+        })
+        if b&1 == 1 {
+                for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
+                        out[left], out[right] = out[right], out[left]
+                }
+        }
+        return out, nil
+}
+
+func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
+        var flags uint64
+        if profile.Restart && profile.Ordered {
+                flags |= 1
+        }
+        return fold_b(rows, flags)
+}
+root@3b3cdaca49ea:/app# sed -n '1,220p' /app/internal/b1/log.go
+package b1
+
+func pushB(rows []rowX, row rowX) []rowX {
+        return append(rows, row)
+}
+root@3b3cdaca49ea:/app#

@@ -1,0 +1,325 @@
+New Terminal Output:
+
+root@e3b61ed64090:/app# cat /app/internal/sim/types.go
+package sim
+
+type Profile struct {
+        Name      string
+        Radius    int
+        Blind     bool
+        Dense     bool
+        Epoch     bool
+        Mixed     bool
+        CheckTurn int
+}
+
+type MoveRow struct {
+        Turn  int    `json:"turn"`
+        Actor string `json:"actor"`
+        FromX int    `json:"from_x"`
+        FromY int    `json:"from_y"`
+        ToX   int    `json:"to_x"`
+        ToY   int    `json:"to_y"`
+        Kind  string `json:"kind"`
+        Legal bool   `json:"legal"`
+}
+
+type PathSummary struct {
+        Sig     string `json:"sig"`
+        Illegal int    `json:"illegal"`
+        Steps   int    `json:"steps"`
+}
+
+type VisPair struct {
+        FreshSeen  int `json:"fresh_seen"`
+        ResumeSeen int `json:"resume_seen"`
+}
+
+type EffectRow struct {
+        ID     string `json:"id"`
+        Active bool   `json:"active"`
+        Epoch  int    `json:"epoch"`
+}
+
+type CaseResult struct {
+        Name       string      `json:"name"`
+        OK         bool        `json:"ok"`
+        Fresh      PathSummary `json:"fresh"`
+        Resume     PathSummary `json:"resume"`
+        Moves      []MoveRow   `json:"moves"`
+        Visibility VisPair     `json:"visibility"`
+        Effects    []EffectRow `json:"effects"`
+        Records    string      `json:"records"`
+        Log        string      `json:"log"`
+}
+
+type Report struct {
+        Cases []CaseResult `json:"cases"`
+}
+root@e3b61ed64090:/app# cat /app/internal/sim/world.go
+package sim
+
+type Hostile struct {
+        ID string
+        X  int
+        Y  int
+}
+
+type World struct {
+        Width   int
+        Height  int
+        Walls   []bool
+        PlayerX int
+        PlayerY int
+        Hostile []Hostile
+        Turn    int
+        Seen    []bool
+        Lit     []bool
+        Effects []EffectState
+}
+
+type EffectState struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+func (w *World) Idx(x, y int) int {
+        return y*w.Width + x
+}
+
+func (w *World) InBounds(x, y int) bool {
+        return x >= 0 && y >= 0 && x < w.Width && y < w.Height
+}
+
+func (w *World) IsWall(x, y int) bool {
+        if !w.InBounds(x, y) {
+                return true
+        }
+        return w.Walls[w.Idx(x, y)]
+}
+root@e3b61ed64090:/app# cat /app/internal/sim/layout.go
+package sim
+
+import (
+        "bufio"
+        "os"
+        "path/filepath"
+        "strconv"
+        "strings"
+)
+
+func LoadLayout(root, name string) (*World, error) {
+        path := filepath.Join(root, "data", "layouts", name+".map")
+        data, err := os.ReadFile(path)
+        if err != nil {
+                return nil, err
+        }
+        lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+        height := len(lines)
+        width := 0
+        for _, line := range lines {
+                if len(line) > width {
+                        width = len(line)
+                }
+        }
+        w := &World{Width: width, Height: height, Walls: make([]bool, width*height)}
+        for y, line := range lines {
+                for x := 0; x < width; x++ {
+                        ch := byte('.')
+                        if x < len(line) {
+                                ch = line[x]
+                        }
+                        idx := w.Idx(x, y)
+                        switch ch {
+                        case '#':
+                                w.Walls[idx] = true
+                        case '@':
+                                w.PlayerX, w.PlayerY = x, y
+                        default:
+                                if ch >= '1' && ch <= '9' {
+                                        id := string(ch)
+                                        w.Hostile = append(w.Hostile, Hostile{ID: id, X: x, Y: y})
+                                }
+                        }
+                }
+        }
+        return w, nil
+}
+
+type ScriptStep struct {
+        Turn   int
+        Actor  string
+        Action string
+        Arg    string
+}
+
+func LoadScript(root, name string) ([]ScriptStep, error) {
+        path := filepath.Join(root, "data", "scripts", name+".tsv")
+        f, err := os.Open(path)
+        if err != nil {
+                return nil, err
+        }
+        defer f.Close()
+        steps := []ScriptStep{}
+        sc := bufio.NewScanner(f)
+        for sc.Scan() {
+                line := strings.TrimSpace(sc.Text())
+                if line == "" || strings.HasPrefix(line, "turn") {
+                        continue
+                }
+                parts := strings.Split(line, "\t")
+                if len(parts) < 4 {
+                        continue
+                }
+                turn, _ := strconv.Atoi(parts[0])
+                steps = append(steps, ScriptStep{
+                        Turn:   turn,
+                        Actor:  parts[1],
+                        Action: parts[2],
+                        Arg:    parts[3],
+                })
+        }
+        return steps, sc.Err()
+}
+
+func Lo
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+vanceAll(w, buildObs(w, nil))...)
+                }
+        }
+        return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob store.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+        applyWorld(w, blob)
+        cache := &mem.CacheX{Obs: map[string]bool{}}
+        mem.Merge(cache, blob)
+        merged := mem.Snapshot(cache)
+        for k, v := range stale {
+                merged[k] = v
+        }
+        w.Effects = mapSnaps(mod.SyncBoundary(snapToMod(w.Effects), blob.Turn, w.Turn))
+        moves := []MoveRow{}
+        pastSave := false
+        for _, step := range steps {
+                if step.Action == "save" {
+                        pastSave = true
+                        continue
+                }
+                if !pastSave {
+                        continue
+                }
+                w.Turn = step.Turn
+                if step.Actor == "P" {
+                        applyPlayer(w, step.Arg)
+                        vis.ApplyLit(w, radius, blindNow(w))
+                }
+                if step.Actor == "H" {
+                        moves = append(moves, advanceAll(w, merged)...)
+                }
+        }
+        return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+        profile := ProfileFor(name)
+        radius, _ := LoadRadius(root, name)
+        if radius == 0 {
+                radius = profile.Radius
+        }
+        base, err := LoadLayout(root, name)
+        if err != nil {
+                return CaseResult{}, err
+        }
+        steps, err := LoadScript(root, name)
+        if err != nil {
+                return CaseResult{}, err
+        }
+
+        wFresh := cloneWorld(base)
+        wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))
+        blob, stale := playUntilSave(wFresh, steps, profile, radius)
+        freshMoves := runDirect(wFresh, steps, profile, radius)
+
+        wResume := cloneWorld(base)
+        wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))
+        playUntilSave(wResume, steps, profile, radius)
+        resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+        freshIllegal, resumeIllegal := 0, 0
+        for _, m := range freshMoves {
+                if !m.Legal {
+                        freshIllegal++
+                }
+        }
+        for _, m := range resumeMoves {
+                if !m.Legal {
+                        resumeIllegal++
+                }
+        }
+        allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+        caseDir := filepath.Join(root, "workspace", name)
+        _ = os.MkdirAll(caseDir, 0o755)
+        recPath := filepath.Join(caseDir, "records.jsonl")
+        logPath := filepath.Join(caseDir, "trace.tsv")
+        flushRows(recPath, logPath, name, allMoves)
+
+        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+        ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+        return CaseResult{
+                Name:       name,
+                OK:         ok,
+                Fresh:      fresh,
+                Resume:     resume,
+                Moves:      allMoves,
+                Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},
+                Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),
+                Records:    recPath,
+                Log:        logPath,
+        }, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+        rec, _ := os.Create(recPath)
+        defer rec.Close()
+        for _, m := range moves {
+                b, _ := json.Marshal(m)
+                _, _ = rec.Write(append(b, '\n'))
+        }
+        log, _ := os.Create(logPath)
+        defer log.Close()
+        for _, m := range moves {
+                fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+                        name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+        }
+}
+root@e3b61ed64090:/app# cat /app/internal/exec/types.go
+package exec
+
+import "fog.local/resume/internal/sim"
+
+type World = sim.World
+type Hostile = sim.Hostile
+type EffectState = sim.EffectState
+type Profile = sim.Profile
+type MoveRow = sim.MoveRow
+type PathSummary = sim.PathSummary
+type VisPair = sim.VisPair
+type EffectRow = sim.EffectRow
+type CaseResult = sim.CaseResult
+type Report = sim.Report
+type ScriptStep = sim.ScriptStep
+
+func ProfileFor(name string) Profile { return sim.ProfileFor(name) }
+func AllCases() []string             { return sim.AllCases() }
+func LoadLayout(root, name string) (*World, error) {
+        return sim.LoadLayout(root, name)
+}
+func LoadScript(root, name string) ([]ScriptStep, error) {
+        return sim.LoadScript(root, name)
+}
+func LoadRadius(root, name string) (int, error) { return sim.LoadRadius(root, name) }
+root@e3b61ed64090:/app#

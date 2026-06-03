@@ -1,0 +1,41 @@
+Current Terminal Screen:
+>         ledger_rows = [json.loads(line) for line in f if line.strip()]
+>     steps = case['steps']
+>     assert len(ledger_rows) == len(steps), f"{name}: ledger count mismatch {len(ledger_rows)} vs {len(steps)}"
+>     for i, (lr, st) in enumerate(zip(ledger_rows, steps)):
+>         for key in lr:
+>             assert lr[key] == st[key], f"{name} step {i} key {key}: ledger={lr[key]} vs step={st[key]}"
+>     print(f"{name}: ledger consistent ({len(steps)} steps)")
+>
+> print("\nAll ledgers consistent!")
+> EOF
+cedar: ledger consistent (5 steps)
+jade: ledger consistent (8 steps)
+slate: ledger consistent (7 steps)
+coral: ledger consistent (3 steps)
+onyx: ledger consistent (7 steps)
+pearl: ledger consistent (9 steps)
+
+All ledgers consistent!
+root@9147ef5e1606:/app# for name in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh $name; done
+root@9147ef5e1606:/app# python3 << 'EOF'
+> import json
+>
+> matrix = json.load(open('/app/output/alloc-audit.json'))
+> for case in matrix['cases']:
+>     name = case['name']
+>     single = json.load(open(f'/app/output/{name}-audit.json'))
+>     assert single['cases'][0] == case, f"{name}: MISMATCH between matrix and single"
+>     print(f"{name}: single matches matrix")
+>
+> print("\nAll cases match!")
+> EOF
+cedar: single matches matrix
+jade: single matches matrix
+slate: single matches matrix
+coral: single matches matrix
+onyx: single matches matrix
+pearl: single matches matrix
+
+All cases match!
+root@9147ef5e1606:/app#

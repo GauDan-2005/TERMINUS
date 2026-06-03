@@ -1,0 +1,35 @@
+{
+  "analysis": "Wrapper scripts are now functional: they use /app/build/bin/solverctl, do not wipe /app/output, and per-case basalt-audit.json matches the matrix slice. However, the audit contents are still wrong: all cases show iterations=1, final_residual=0, reported_residual=0.0001, residual_agrees=false, ok=false. This indicates the underlying solverctl (C++ code) is computing/recording iterations and residuals incorrectly, and ok is therefore false. Next we must fix solverctl’s audit generation: correctly tally PCG iterations, compute the true final L2 residual from the same inputs, ensure reported_residual matches the metric helper’s emitted value, and mark ok true when settled and residuals agree and not hit_limit. Then rebuild with CMake and rerun scripts; also ensure determinism remains.",
+  "plan": "1) Locate where solverctl writes audit JSON and where residual/iterations are computed (likely in src/main.cpp, drive_u/run.cpp, solve_s/driver.cpp, scale_q/metric.cpp, flow_t/report.cpp). 2) Read those source files to identify bugs causing final_residual=0 and iterations=1. 3) Implement correct residual computation (L2 norm of Ax-b or equivalent per docs/operations) and correct iteration counting, and correct ok/residual_agrees logic with tolerance. 4) Rebuild with cmake --build. 5) Rerun run-matrix.sh and verify every case has ok true and residual_agrees true, and that values match the independent computation (final_residual) and reported_residual. 6) Run run-matrix twice and diff outputs to confirm determinism.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/solve_s/driver.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/flow_t/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/case_io.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/docs/operations.md\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

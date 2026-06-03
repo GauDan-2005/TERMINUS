@@ -1,0 +1,43 @@
+{
+  "analysis": "KeyFor already keys by Dev:Ino, which should group hardlinks, except it has a special-case: if profile.Restart && profile.Dense it returns row.Path. Beta and zeta both have Restart=true and Dense=true, so KeyFor disables hardlink grouping exactly for the dense restart cases—explaining why restored has no hardlinks for beta/zeta. That special-case is wrong for the contract (we must preserve hardlinks). We should remove or adjust it. However, we must ensure gamma (Restart+Ordered but not Dense) is unaffected. We'll patch KeyFor to always use Dev:Ino for writes (or at least when Nlink>1), regardless of restart/dense, because hardlink identities are stable within the snapshot rows and must be recreated. We'll update and rerun matrix.",
+  "plan": "1) Edit internal/d3/pair.go to remove the Restart+Dense path-based key override. Preferably, key by Dev:Ino always; optionally only for rows with Nlink>1, but safe to use Dev:Ino since non-hardlinked files have unique inodes anyway. 2) Rebuild. 3) Rerun beta and zeta cases and verify restored shared files have same inode with nlink=4 and groups restored matches source. 4) Run full matrix and see remaining digest mismatches (likely TrimSuffix in phase_a causing content mismatch across many cases).",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\n\\s*if profile\\.Restart && profile\\.Dense \\{\\n\\s*return row\\.Path\\n\\s*\\}\\n/\\n/sg' /app/internal/d3/pair.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/d3/pair.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "work=/tmp/matrix-work; rm -rf \"$work\"; mkdir -p \"$work\"; /app/bin/snapctl --out /app/output/restore-audit.json --work \"$work\" --case beta\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "echo '--- beta restored shared inodes/links'; (cd /tmp/matrix-work/beta/restored && ls -li a/shared-a.dat b/shared-b.dat c/shared-c.dat deep/x/shared.dat)\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "work=/tmp/matrix-work; rm -rf \"$work\"; mkdir -p \"$work\"; /app/bin/snapctl --out /app/output/restore-audit.json --work \"$work\" --case zeta\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "echo '--- zeta restored shared inodes/links'; (cd /tmp/matrix-work/zeta/restored && ls -li a/shared-a.dat b/shared-b.dat c/shared-c.dat deep/x/shared.dat)\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/restore-audit.json'))\nfor c in obj['cases']:\n    print(c['name'], 'ok='+str(c['ok']), 'digestMatch='+str(c['digest']['source']==c['digest']['restored']), 'groupsMatch='+str(c['groups']['source']==c['groups']['restored']))\nPY\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,63 @@
+{
+  "analysis": "solverctl already contains the logic to write /app/output/solver-audit.json for matrix and /app/output/<name>-audit.json for one, via emit_matrix/emit_t, and it creates /app/output. The reason scripts currently fail is they invoke /app/bin/solverctl, but the build places it in /app/build/bin/solverctl. Also, running solverctl matrix/one produced no terminal output, which is consistent with writing files only. Next we should inspect flow_t/report.cpp to ensure JSON schema matches docs (name, ok, iterations, final_residual, reported_residual, residual_agrees, hit_limit) and determinism. Then fix scripts to call the correct binary (preferably locate it robustly). Finally run scripts and verify JSON exists and is stable across runs.",
+  "plan": "1) Inspect solver_report.h and flow_t/report.cpp to confirm fields, especially hit_limit and name inclusion, and ensure deterministic JSON ordering. 2) Inspect drive_u/run.cpp to confirm hit_limit is set in SolveResult. 3) Patch run-matrix.sh and run-one.sh to invoke the built solverctl (e.g., /app/build/bin/solverctl), with a fallback to /app/bin/solverctl if present, and ensure they write the expected output paths (which solverctl already does). 4) Rebuild with CMake (per requirement), then run the scripts. 5) Validate outputs: cat JSON, jq parse, and run matrix twice and diff for equivalence. Also verify per-case JSON matches the slice from matrix for that case.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,120p' /app/include/solver_report.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/flow_t/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-matrix.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" matrix\n+\n+# Binary lives under the CMake build tree by default.\n+SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+if [[ -x \"${APP_ROOT}/bin/solverctl\" ]]; then\n+  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+fi\n+\n+\"${SOLVERCTL}\" matrix\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-one.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n NAME=\"${1:?case name required}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" one \"${NAME}\"\n+\n+# Binary lives under the CMake build tree by default.\n+SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+if [[ -x \"${APP_ROOT}/bin/solverctl\" ]]; then\n+  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+fi\n+\n+\"${SOLVERCTL}\" one \"${NAME}\"\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/output/solver-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/output/basalt-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.json.run1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "diff -u /app/output/solver-audit.json.run1 /app/output/solver-audit.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

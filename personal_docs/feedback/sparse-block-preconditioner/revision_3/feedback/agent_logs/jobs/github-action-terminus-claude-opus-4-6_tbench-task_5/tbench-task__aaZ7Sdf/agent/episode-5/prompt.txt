@@ -1,0 +1,170 @@
+New Terminal Output:
+
+root@a4818f8ff802:/app# cat /app/solve_s/driver.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+#include <string.h>
+
+static double l2_norm(const double *v, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += v[i] * v[i];
+    }
+    return sqrt(s);
+}
+
+void step_r(const BsrPack *a, const double *b, double *c);
+
+int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res) {
+    const int n = pack->n;
+    const int max_iter = 200;
+    const double tol = 1e-9;
+    double r[MAX_DIM];
+    double z[MAX_DIM];
+    double p[MAX_DIM];
+    double ap[MAX_DIM];
+    double rz_old;
+    double alpha;
+    double beta;
+    double rs;
+    int k;
+
+    for (int i = 0; i < n; i++) {
+        x[i] = 0.0;
+    }
+    bsr_matvec(pack, x, r);
+    for (int i = 0; i < n; i++) {
+        r[i] = rhs[i] - r[i];
+    }
+    rs = l2_norm(r, n);
+    if (rs < tol) {
+        *iters = 0;
+        *final_res = rs;
+        return 0;
+    }
+    step_r(pack, r, z);
+    memcpy(p, z, (size_t)n * sizeof(double));
+    rz_old = 0.0;
+    for (int i = 0; i < n; i++) {
+        rz_old += r[i] * z[i];
+    }
+    for (k = 1; k <= max_iter; k++) {
+        bsr_matvec(pack, p, ap);
+        alpha = rz_old;
+        double denom = 0.0;
+        for (int i = 0; i < n; i++) {
+            denom += p[i] * ap[i];
+        }
+        if (fabs(denom) < 1e-30) {
+            break;
+        }
+        alpha /= denom;
+        for (int i = 0; i < n; i++) {
+            x[i] += alpha * p[i];
+            r[i] -= alpha * ap[i];
+        }
+        rs = l2_norm(r, n);
+        if (rs < tol) {
+            *iters = k;
+            *final_res = rs;
+            return 0;
+        }
+        step_r(pack, r, z);
+        beta = 0.0;
+        for (int i = 0; i < n; i++) {
+            beta += r[i] * z[i];
+        }
+        beta /= rz_old;
+        for (int i = 0; i < n; i++) {
+            p[i] = z[i] + beta * p[i];
+        }
+        rz_old = 0.0;
+        for (int i = 0; i < n; i++) {
+            rz_old += r[i] * z[i];
+        }
+    }
+    *iters = max_iter;
+    *final_res = rs;
+    return 1;
+}
+root@a4818f8ff802:/app# cat /app/data/cases/basalt.case
+# basalt — identity layout, diagonal blocks
+name basalt
+nblocks 2
+bs 2
+reorder 0
+perm 0 1
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+rhs 1 0 1 0
+root@a4818f8ff802:/app# cat /app/data/cases/flint.case
+# flint — identity layout with off-diagonal coupling
+name flint
+nblocks 2
+bs 2
+reorder 0
+perm 0 1
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+block 0 1 0 0.5 0 0
+block 1 0 0 0.5 0 0
+rhs 1 0 1 0
+root@a4818f8ff802:/app# cat /app/data/cases/shale.case
+# shale — reordered flint-equivalent system
+name shale
+nblocks 2
+bs 2
+reorder 1
+perm 1 0
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+block 0 1 0 0.5 0 0
+block 1 0 0 0.5 0 0
+rhs 1 0 1 0
+root@a4818f8ff802:/app# cat /app/data/cases/garnet.case
+# garnet — three blocks with reorder
+name garnet
+nblocks 3
+bs 2
+reorder 1
+perm 2 0 1
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+root@a4818f8ff802:/app# cat /app/data/cases/mica.case
+# mica — three blocks with reorder (garnet-class conditioning)
+name mica
+nblocks 3
+bs 2
+reorder 1
+perm 1 2 0
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+root@a4818f8ff802:/app# cat /app/data/cases/opal.case
+# opal — three blocks with reorder (garnet-class conditioning)
+name opal
+nblocks 3
+bs 2
+reorder 1
+perm 1 2 0
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+root@a4818f8ff802:/app#

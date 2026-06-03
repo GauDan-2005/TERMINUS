@@ -1,0 +1,47 @@
+{
+  "analysis": "apt cannot reach deb.debian.org (no DNS/network), so we can’t install cargo/rg. However, /usr/local/cargo/bin exists and contains cargo->rustup symlinks, meaning a Rust toolchain may already be present but not on PATH. We should add /usr/local/cargo/bin to PATH and run rustup/cargo from there. If rustup exists but no toolchain is installed, we may need to point to a preinstalled toolchain elsewhere or use an offline rustup toolchain already bundled.",
+  "plan": "1) Export PATH to include /usr/local/cargo/bin and retry cargo/rustup. 2) Inspect rustup status and installed toolchains. 3) If a toolchain is installed, set default and run cargo build/run. 4) If no toolchain is installed, search the filesystem for an existing rustc/cargo binary (possibly under /opt or /usr/local). 5) Once cargo works, rerun run-matrix.sh to generate policy-audit.json.",
+  "commands": [
+    {
+      "keystrokes": "export PATH=/usr/local/cargo/bin:$PATH\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "command -v rustup && rustup --version\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "command -v cargo || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rustup show\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rustup toolchain list || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rustup default || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cargo --version && rustc --version\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "ls -la /app/output && wc -c /app/output/policy-audit.json && head -n 20 /app/output/policy-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find / -maxdepth 4 -type f -name cargo -o -name rustc 2>/dev/null | head -n 50\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

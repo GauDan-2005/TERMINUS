@@ -1,0 +1,124 @@
+New Terminal Output:
+
+root@e746dc20c356:/app# sed -n '1,200p' /app/cmd/align/main.go
+package main
+
+import (
+    "encoding/json"
+    "os"
+    "sort"
+)
+
+type entry struct {
+    Case      string `json:"case"`
+    Produced  []int  `json:"produced"`
+    Trace     []int  `json:"slot_trace"`
+    OrderUsed []int  `json:"order_used"`
+    Packed    bool   `json:"packed"`
+    Grouped   bool   `json:"grouped"`
+    Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+    Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+    Rows    []entry        `json:"rows"`
+    Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+    seen := map[byte]entry{}
+    for _, row := range a {
+        key := row.Case[0]
+        seen[key] = row
+    }
+    out := make([]entry, 0, len(seen))
+    for _, row := range seen {
+        out = append(out, row)
+    }
+    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+    return out
+}
+
+func main() {
+    if len(os.Args) != 3 {
+        panic("usage: align raw final")
+    }
+    buf, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+    var raw rawDoc
+    if err := json.Unmarshal(buf, &raw); err != nil {
+        panic(err)
+    }
+    rows := fold(raw.Raw)
+    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+    out, err := json.MarshalIndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+        panic(err)
+    }
+}
+root@e746dc20c356:/app# find /app/internal -type f -maxdepth 5 -name '*.go' -print -exec sed -n '1,200p' {} \;
+find: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests spe
+cified before it as well as those specified after it.  Please specify global options before other arguments.
+/app/internal/collate/table.go
+package collate
+
+import "strings"
+
+func Mix(a string) string {
+    return strings.TrimSpace(a)
+}
+
+func Keep(a []string) []string {
+    out := append([]string{}, a...)
+    return out
+}
+root@e746dc20c356:/app# python3 - <<'PY'
+> import json,copy
+> p='/app/output/report.json'
+> obj=json.load(open(p))
+> # induce mismatch: change produced on alpha
+> for r in obj['rows']:
+>     if r['case']=='alpha':
+>         r['produced']=r['produced']+[999]
+>         break
+> json.dump(obj,open(p,'w'))
+> print('modified report.json to force mismatch')
+> PY
+modified report.json to force mismatch
+root@e746dc20c356:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@e746dc20c356:/app# python3 - <<'PY'
+> import json
+> rep=json.load(open('/app/output/report.json'))
+> print(rep.get('summary'))
+> PY
+{'agree': True, 'total': 6}
+root@e746dc20c356:/app#

@@ -1,0 +1,39 @@
+{
+  "analysis": "After patching runLoaded to replay post-save steps, signatures now match, but resume path marks the move illegal and resume_seen drops to 0, indicating lighting/visibility was never applied after loading (w.Lit/Seen likely empty/false due to packing) or obs cache is empty and/or world lit state not recomputed on resume before hostile acts, causing planning to treat tiles as unseen/blocked leading to illegal move. Previously runLoaded applied e4.ApplyLit at save boundary; we removed that, so now lit isn't applied before first hostile step. Fix: ensure e4.ApplyLit runs once immediately after applyWorld(blob) (and maybe after syncing effects) to populate Lit/Seen consistently, and initialize obs to buildObs(w,nil) if merged empty. Also resume_seen 0 suggests w.Seen slice length mismatch after applyWorld? but applyWorld copies item.Seen; maybe item.Seen is nil/empty in blob. In packWorld, it stores w.Lit and w.Seen directly (slices) without copying; then a0.PackItem likely compresses; but playUntilSave never calls e4.ApplyLit at save time, so w.Lit/Seen could be all false when saved unless updated on player steps. For rook/sentinel, perhaps no player step before save, so save snapshot has empty Seen/Lit. Fresh path still applies lit before hostile planning (runDirect applies lit on player steps only; but if no player steps after save, still fresh_seen 9 at end due to earlier ApplyLit in playUntilSave? Actually playUntilSave applies lit only on player steps too; hmm). So we should apply lit at the moment of save in playUntilSave, and also right after loading in runLoaded, to ensure consistent visibility baseline.",
+  "plan": "1) Inspect scripts location to confirm whether player moves occur before save for rook/sentinel; but we can implement robust fix regardless. 2) In playUntilSave, when encountering save, call e4.ApplyLit(w, radius, blindActive(w)) before packing so blob contains correct Lit/Seen. 3) In runLoaded, after applyWorld and syncing effects, call e4.ApplyLit(w, radius, blindActive(w)) once, and set obs = buildObs(w, nil) initially (then merge stale entries into obs) so hostiles use current visibility like fresh path. 4) Rebuild and rerun one-case and matrix.",
+  "commands": [
+    {
+      "keystrokes": "find /app/data -maxdepth 3 -type f -name \"*rook*\" -o -name \"*sentinel*\" | sed 's#^/app/##'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np=Path('/app/internal/f5/run.go')\ns=p.read_text().splitlines(True)\n# Patch playUntilSave: inject ApplyLit before packing on save\nout=[]\nfor i,line in enumerate(s):\n    out.append(line)\n    if line.strip()==\"if step.Action == \\\"save\\\" {\":\n        # look ahead to ensure we patch only once at correct spot\n        pass\n# do a simpler text replace\ntext=''.join(s)\nneedle='\\t\\tif step.Action == \"save\" {\\n\\t\\t\\tvis := buildObs(w, nil)\\n'\nif needle in text:\n    text=text.replace(needle,'\\t\\tif step.Action == \"save\" {\\n\\t\\t\\t// Ensure snapshot carries the same lighting/visibility baseline as a direct run.\\n\\t\\t\\te4.ApplyLit(w, radius, blindActive(w))\\n\\t\\t\\tvis := buildObs(w, nil)\\n')\nelse:\n    print('playUntilSave needle not found')\n# Patch runLoaded: after SyncBoundary, apply lit; init obs via buildObs then merge stale\nneedle2='\\tw.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\\n\\n\\t// Resume path should replay the same post-save script steps as the fresh\\n'\nif needle2 in text:\n    text=text.replace(needle2,'\\tw.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\\n\\t// Recompute lighting after loading so planning/visibility matches fresh runs.\\n\\te4.ApplyLit(w, radius, blindActive(w))\\n\\n\\t// Resume path should replay the same post-save script steps as the fresh\\n')\nelse:\n    print('runLoaded sync needle not found')\nneedle3='\\tpastSave := false\\n\\tobs := merged\\n'\nif needle3 in text:\n    text=text.replace(needle3,'\\tpastSave := false\\n\\tobs := buildObs(w, nil)\\n\\tfor k, v := range merged {\\n\\t\\tif v {\\n\\t\\t\\tobs[k] = true\\n\\t\\t}\\n\\t}\\n')\nelse:\n    print('obs init needle not found')\np.write_text(text)\nprint('patched playUntilSave + runLoaded lit/obs init')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh rook\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh sentinel\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfor name in ['rook','sentinel']:\n    p=f'/app/output/single-{name}.json'\n    with open(p) as f: data=json.load(f)\n    c=data['cases'][0]\n    print(name,'ok',c['ok'], 'fresh',c['fresh'], 'resume',c['resume'], 'vis',c['visibility'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\nprint('all ok:', all(c.get('ok') for c in data.get('cases',[])))\nfor c in data.get('cases',[]):\n    if not c.get('ok'):\n        print('FAIL',c['name'],c['fresh'],c['resume'],c.get('visibility'))\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

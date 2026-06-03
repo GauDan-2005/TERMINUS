@@ -1,0 +1,117 @@
+New Terminal Output:
+
+root@59645c3f7916:/app# sed -n '1,220p' /app/internal/sim/types.go
+package sim
+
+type Profile struct {
+        Name      string
+        Radius    int
+        Blind     bool
+        Dense     bool
+        Epoch     bool
+        Mixed     bool
+        CheckTurn int
+}
+
+type MoveRow struct {
+        Turn  int    `json:"turn"`
+        Actor string `json:"actor"`
+        FromX int    `json:"from_x"`
+        FromY int    `json:"from_y"`
+        ToX   int    `json:"to_x"`
+        ToY   int    `json:"to_y"`
+        Kind  string `json:"kind"`
+        Legal bool   `json:"legal"`
+}
+
+type PathSummary struct {
+        Sig     string `json:"sig"`
+        Illegal int    `json:"illegal"`
+        Steps   int    `json:"steps"`
+}
+
+type VisPair struct {
+        FreshSeen  int `json:"fresh_seen"`
+        ResumeSeen int `json:"resume_seen"`
+}
+
+type EffectRow struct {
+        ID     string `json:"id"`
+        Active bool   `json:"active"`
+        Epoch  int    `json:"epoch"`
+}
+
+type CaseResult struct {
+        Name       string      `json:"name"`
+        OK         bool        `json:"ok"`
+        Fresh      PathSummary `json:"fresh"`
+        Resume     PathSummary `json:"resume"`
+        Moves      []MoveRow   `json:"moves"`
+        Visibility VisPair     `json:"visibility"`
+        Effects    []EffectRow `json:"effects"`
+        Records    string      `json:"records"`
+        Log        string      `json:"log"`
+}
+
+type Report struct {
+        Cases []CaseResult `json:"cases"`
+}
+root@59645c3f7916:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: internal/exec/run.go
+> @@
+>  func RunRow(root, name string) (CaseResult, error) {
+> @@
+>  resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+> @@
+> -allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+> +// The audit compares fresh vs resume internally, but the case output (and
+> +// the records/log sidecars) must reflect a single resolved move stream in
+> +// order, not a concatenation of both paths.
+> +//
+> +// Using a single canonical stream also avoids spurious duplicates when the
+> +// fresh and resumed runs agree (the expected clean state).
+> +allMoves := append([]MoveRow{}, freshMoves...)
+> @@
+> -fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+> -resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+> -ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+> +fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+> +resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+> +// A row is only clean if both paths are legal and agree on the move stream,
+> +// and if the visibility accounting matches.
+> +ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig &&
+> +vis.CountSeen(wFresh) == vis.CountSeen(wResume)
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@59645c3f7916:/app# make -C /app
+make: Entering directory '/app'
+mkdir -p /app/bin
+go build -o /app/bin/rogctl ./cmd/rogctl
+make: Leaving directory '/app'
+root@59645c3f7916:/app# bash /app/scripts/run-matrix.sh
+root@59645c3f7916:/app# python3 - <<'PY'
+> import json, collections
+> p='/app/output/resume-audit.json'
+> with open(p) as f:
+>     d=json.load(f)
+> print('cases', len(d['cases']))
+> bad=[c for c in d['cases'] if not c.get('ok')]
+> print('bad', len(bad))
+> for c in bad:
+>     print('FAIL', c['name'], c.get('visibility'), c['fresh'], c['resume'])
+> # sanity: check for duplicates in move streams
+> for c in d['cases']:
+>     moves=c.get('moves',[])
+>     key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'),m.get('legal'))
+>     ctr=collections.Counter(key(m) for m in moves)
+>     if any(v>1 for v in ctr.values()):
+>         print('DUPS_IN_JSON', c['name'], 'total', len(moves), 'unique', len(ctr))
+> PY
+cases 7
+bad 0
+DUPS_IN_JSON ranger total 4 unique 2
+DUPS_IN_JSON rook total 2 unique 1
+DUPS_IN_JSON sentinel total 2 unique 1
+root@59645c3f7916:/app#

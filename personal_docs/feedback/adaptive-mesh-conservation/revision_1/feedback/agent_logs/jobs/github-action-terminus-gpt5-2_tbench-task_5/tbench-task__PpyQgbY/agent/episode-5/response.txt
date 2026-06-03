@@ -1,0 +1,59 @@
+{
+  "analysis": "Storm/canyon drift only when do_flux=1, pointing to reflux bookkeeping. In op_m (edge_corr.cpp), it stores only a->flux_vals[v] but EdgePulse packs per-subface flux_vals[j*NVAR+v]. The code mistakenly copies only the first subface, and also stores leaf index as base_idx (start), not each leaf. expected in run.cpp counts all refined leaves (sum leaf_count), but bank stores only 1 per coarse seam, so balanced=false as seen. This incorrect reflux also perturbs totals. Fix: op_m should push one pending entry per subface j: leaf = base_idx + j; flux = flux_vals[j*NVAR+v]. That should make bank.n_pending equal expected and conserve totals (because apply_reflux divides by vol to update q; flux_vals were built as REFLUX_RATE*vol*(qbar - q), so adding flux/vol moves q toward qbar conservatively across children if sum flux is zero). After fixing, rerun matrix; store outputs in /tmp for run-to-run diff since /app/output gets cleaned.",
+  "plan": "1) Patch /app/acc_m/edge_corr.cpp op_m to iterate j over a->subfaces, adding an entry for each leaf (base_idx+j) and copying the corresponding flux_vals slice. Guard MAX_FACES capacity. 2) Rebuild. 3) Run matrix and inspect conservation_audit.json expecting storm/canyon drift_ratio 0, base_match true, and balanced true for do_flux cases (storm/canyon/basin/dune). 4) Verify determinism by copying audit json to /tmp between runs and diff/sha256. 5) Run run-replay for a do_restart scenario (basin or dune) to ensure snapshot round-trip matches.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/acc_m/edge_corr.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/void op_m\\(const EdgePulse \\*a, FluxBank \\*b\\) \\{\\n    if \\(!a \\|\\| !b\\) return;\\n    if \\(b->n_pending >= MAX_FACES\\) return;\\n    int slot = b->n_pending\\+\\+;\\n    b->leaf\\[slot\\] = a->base_idx;\\n    for \\(int v = 0; v < NVAR; v\\+\\+\\) \\{\\n        b->flux\\[slot \\* NVAR \\+ v\\] = a->flux_vals\\[v\\];\\n    \\}\\n\\}/void op_m(const EdgePulse *a, FluxBank *b) {\\n    if (!a || !b) return;\\n    if (a->subfaces <= 0) return;\\n\\n    // Record one reflux entry per refined subface. EdgePulse::flux_vals is laid out\\n    // as [subface0 vars..., subface1 vars..., ...].\\n    for (int j = 0; j < a->subfaces; j++) {\\n        if (b->n_pending >= MAX_FACES) return;\\n        int slot = b->n_pending++;\\n        b->leaf[slot] = a->base_idx + j;\\n        for (int v = 0; v < NVAR; v++) {\\n            b->flux[slot * NVAR + v] = a->flux_vals[j * NVAR + v];\\n        }\\n    }\\n}/s' /app/acc_m/edge_corr.cpp\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat /app/acc_m/edge_corr.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp /app/output/conservation_audit.json /tmp/conservation_audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp /app/output/conservation_audit.json /tmp/conservation_audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sha256sum /tmp/conservation_audit.run1.json /tmp/conservation_audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /tmp/conservation_audit.run1.json /tmp/conservation_audit.run2.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-replay.sh basin\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cat /app/output/basin-replay.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

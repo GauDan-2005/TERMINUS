@@ -1,0 +1,43 @@
+{
+  "analysis": "Directory shapes match but file contents differ (alpha a/one.txt differs; gamma a/flow.txt and a/one.txt differ). Hardlink groups are empty for most cases; for beta/zeta source has hardlink groups but restored has none, meaning restore likely breaks hardlinks (copies instead of linking). The content mismatches suggest staging/restore is writing wrong bytes (possibly truncation, newline handling, encoding/decoding mismatch, or replay applying operations out of order/duplicated). Next: inspect snapctl implementation and internal encode/decode, pack/scan, and replay logic; also directly view differing files to see pattern.",
+  "plan": "1) Show hex/escaped contents and sizes for the differing files in alpha and gamma to infer systematic corruption (e.g., missing newline, wrong ordering, repeated prefix). 2) Inspect internal packages: scan/pack/encode/io/replay to find where file bytes are captured and restored, and where hardlinks are handled. 3) Identify how hardlink metadata is represented; ensure restore uses linkat/os.Link when multiple paths share same inode. 4) Patch and rerun run-matrix.sh to regenerate audit JSON and confirm ok=true across cases.",
+  "commands": [
+    {
+      "keystrokes": "src=/tmp/staged-snapshot-4142074810/alpha/source/a/one.txt; rst=/tmp/staged-snapshot-4142074810/alpha/restored/a/one.txt; echo \"== alpha one.txt sizes\"; wc -c \"$src\" \"$rst\"; echo \"== alpha one.txt source\"; python3 -c 'import sys;print(open(sys.argv[1],\"rb\").read())' \"$src\"; echo \"== alpha one.txt restored\"; python3 -c 'import sys;print(open(sys.argv[1],\"rb\").read())' \"$rst\"; echo \"== alpha one.txt diff (hexdump)\"; (hexdump -C \"$src\"; echo \"---\"; hexdump -C \"$rst\") | head -n 80\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "src=/tmp/staged-snapshot-4142074810/gamma/source/a/flow.txt; rst=/tmp/staged-snapshot-4142074810/gamma/restored/a/flow.txt; echo \"== gamma flow.txt sizes\"; wc -c \"$src\" \"$rst\"; echo \"== gamma flow.txt source\"; hexdump -C \"$src\" | head -n 60; echo \"== gamma flow.txt restored\"; hexdump -C \"$rst\" | head -n 60\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "src=/tmp/staged-snapshot-4142074810/gamma/source/a/one.txt; rst=/tmp/staged-snapshot-4142074810/gamma/restored/a/one.txt; echo \"== gamma one.txt sizes\"; wc -c \"$src\" \"$rst\"; echo \"== gamma one.txt source\"; hexdump -C \"$src\" | head -n 40; echo \"== gamma one.txt restored\"; hexdump -C \"$rst\" | head -n 40\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/cmd/ctl/main.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rg -n \"restore|stage|snapshot|audit|hardlink|link\\(\" /app/internal /app/cmd/ctl/main.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/internal/e4/io.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/internal/f5/encode.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/b1/replay.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/a0/pack.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

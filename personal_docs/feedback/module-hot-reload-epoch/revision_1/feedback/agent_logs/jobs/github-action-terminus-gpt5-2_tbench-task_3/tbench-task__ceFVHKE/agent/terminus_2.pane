@@ -1,0 +1,1340 @@
+[?2004hroot@594e8276182b:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@594e8276182b:/app# clear
+[?2004l[H[J[3J[?2004hroot@594e8276182b:/app# cd /app
+[?2004l[?2004hroot@594e8276182b:/app# ls -la
+[?2004ltotal 20
+drwxr-xr-x 12 root root 225 May 25 12:15 .
+drwxr-xr-x 19 root root 265 May 25 12:16 ..
+-rw-r--r--  1 root root 114 May 25 12:12 Cargo.lock
+-rw-r--r--  1 root root 166 May 25 12:12 Cargo.toml
+-rw-r--r--  1 root root 540 May 25 12:12 README.md
+drwxr-xr-x  2 root root  18 May 25 12:12 a1
+drwxr-xr-x  2 root root  18 May 25 12:12 b2
+drwxr-xr-x  2 root root  18 May 25 12:12 c3
+drwxr-xr-x  2 root root  18 May 25 12:12 d4
+drwxr-xr-x  2 root root  98 May 25 12:12 docs
+drwxr-xr-x  2 root root  28 May 25 12:12 fixtures
+-rw-r--r--  1 root root 191 May 25 12:12 package-lock.json
+-rw-r--r--  1 root root 204 May 25 12:12 package.json
+drwxr-xr-x  2 root root  28 May 25 12:15 scripts
+drwxr-xr-x  4 root root  32 May 25 12:12 src
+drwxr-xr-x  3 root root  63 May 25 12:15 target
+drwxr-xr-x  2 root root  27 May 25 12:15 tools
+[?2004hroot@594e8276182b:/app# cat package.json
+[?2004l{"name":"local-runtime-matrix","version":"1.0.0","private":true,"description":"local mixed runtime scenario matrix","scripts":{"matrix":"node tools/run_matrix.js"},"dependencies":{},"devDependencies":{}}
+[?2004hroot@594e8276182b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative [90m(/app/[39ma1/p.js:11:11[90m)[39m
+    at f_a [90m(/app/[39ma1/p.js:24:25[90m)[39m
+    at [90m/app/[39mtools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main [90m(/app/[39mtools/run_matrix.js:14:34[90m)[39m
+    at Object.<anonymous> [90m(/app/[39mtools/run_matrix.js:20:1[90m)[39m
+[90m    at Module._compile (node:internal/modules/cjs/loader:1364:14)[39m
+[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)[39m
+[90m    at Module.load (node:internal/modules/cjs/loader:1203:32)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1019:12)[39m
+
+Node.js v18.20.4
+[?2004hroot@594e8276182b:/app# ls -la outcome || true
+[?2004lls: cannot access 'outcome': No such file or directory
+[?2004hroot@594e8276182b:/app# cat outcome/report.json
+[?2004lcat: outcome/report.json: No such file or directory
+[?2004hroot@594e8276182b:/app# sed -n '1,200p' a1/p.js
+[?2004lconst { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function callNative(root, rev, primary, carry) {
+  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+      accepted = false;
+    }
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+    carry = cycle.base;
+  }
+  return {
+    name: a.name,
+    rows,
+    finalCounter: carry,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy: false
+  };
+}
+
+module.exports = { f_a };
+[?2004hroot@594e8276182b:/app# sed -n '1,200p' tools/run_matrix.js
+[?2004l#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { f_a } = require('../a1/p');
+const { m_e } = require('../d4/s');
+
+const base = process.cwd();
+const dataPath = path.join(base, 'fixtures', 'scenarios.json');
+const outDir = path.join(base, 'outcome');
+const outPath = path.join(outDir, 'report.json');
+
+function main() {
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
+  const aggregate = m_e(records, { source: 'local' });
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
+}
+
+main();
+[?2004hroot@594e8276182b:/app# ls -la src
+[?2004ltotal 0
+drwxr-xr-x  4 root root  32 May 25 12:12 .
+drwxr-xr-x 12 root root 225 May 25 12:15 ..
+drwxr-xr-x 10 root root  86 May 25 12:12 core
+drwxr-xr-x  3 root root  34 May 25 12:12 native
+[?2004hroot@594e8276182b:/app# find src -maxdepth 3 -type f -print -exec sed -n '1,200p' {} \;
+[?2004lsrc/core/e5/epsilon.js
+function shape_e(a, b, c) {
+  return { title: String(a), width: Number(b || 0), tags: Array.isArray(c) ? c.slice() : [] };
+}
+
+function print_e(a) {
+  return `${a.title}:${a.width}`;
+}
+
+module.exports = { shape_e, print_e };
+src/core/f6/zeta.js
+function order_f(a) {
+  return a.slice().sort((left, right) => String(left).localeCompare(String(right)));
+}
+
+function merge_f(a, b) {
+  return order_f([].concat(a || [], b || []));
+}
+
+module.exports = { order_f, merge_f };
+src/core/g7/theta.js
+function meter_g(a) {
+  return a.reduce((acc, value) => acc + Number(value || 0), 0);
+}
+
+function average_g(a) {
+  return a.length === 0 ? 0 : meter_g(a) / a.length;
+}
+
+module.exports = { meter_g, average_g };
+src/core/h8/iota.js
+function clone_h(a) {
+  return JSON.parse(JSON.stringify(a));
+}
+
+function stamp_h(a, b) {
+  const copy = clone_h(a);
+  copy.marker = b;
+  return copy;
+}
+
+module.exports = { clone_h, stamp_h };
+src/native/README.md
+# Native component
+
+The native component accepts three command-line values and returns a single integer. It stays deliberately small so JavaScript callers can invoke it through cargo during local development.
+src/native/src/lib.rs
+pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    match a {
+        "old" => b,
+        "new" => b + c,
+        _ => b,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+src/native/src/main.rs
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        eprintln!("usage: mhre_native <rev> <primary> <carry>");
+        std::process::exit(2);
+    }
+    let rev = &args[1];
+    let primary: i64 = args[2].parse().expect("primary number");
+    let carry: i64 = args[3].parse().expect("carry number");
+    println!("{}", mhre_native::r_d(rev, primary, carry));
+}
+src/native/src/view.rs
+pub fn panel_v(a: &[i64]) -> String {
+    a.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+}
+[?2004hroot@594e8276182b:/app# cat Cargo.toml
+[?2004l[package]
+name = "mhre_native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/native/src/lib.rs"
+
+[[bin]]
+name = "mhre_native"
+path = "src/native/src/main.rs"
+[?2004hroot@594e8276182b:/app# cargo run
+[?2004lbash: cargo: command not found
+[?2004hroot@594e8276182b:/app# cat /etc/os-release
+[?2004lPRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+[?2004hroot@594e8276182b:/app# command -v cargo || true
+[?2004l[?2004hroot@594e8276182b:/app# apt-get update
+[?2004l0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Reading package lists... 0%Reading package lists... 0%Reading package lists... 19%Reading package lists... Done
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+[?2004hroot@594e8276182b:/app# apt-get install -y cargo rustc
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 19%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+E: Unable to locate package cargo
+E: Unable to locate package rustc
+[?2004hroot@594e8276182b:/app# cargo --version
+[?2004lbash: cargo: command not found
+[?2004hroot@594e8276182b:/app# rustc --version
+[?2004lbash: rustc: command not found
+[?2004hroot@594e8276182b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative [90m(/app/[39ma1/p.js:11:11[90m)[39m
+    at f_a [90m(/app/[39ma1/p.js:24:25[90m)[39m
+    at [90m/app/[39mtools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main [90m(/app/[39mtools/run_matrix.js:14:34[90m)[39m
+    at Object.<anonymous> [90m(/app/[39mtools/run_matrix.js:20:1[90m)[39m
+[90m    at Module._compile (node:internal/modules/cjs/loader:1364:14)[39m
+[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)[39m
+[90m    at Module.load (node:internal/modules/cjs/loader:1203:32)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1019:12)[39m
+
+Node.js v18.20.4
+[?2004hroot@594e8276182b:/app# ls -la outcome
+[?2004lls: cannot access 'outcome': No such file or directory
+[?2004hroot@594e8276182b:/app# cat outcome/report.json
+[?2004lcat: outcome/report.json: No such file or directory
+[?2004hroot@594e8276182b:/app# ls -la /root || true
+[?2004ltotal 8
+drwx------  4 root root  64 May 25 12:16 .
+drwxr-xr-x 19 root root 265 May 25 12:16 ..
+-rw-r--r--  1 root root 571 Apr 10  2021 .bashrc
+drwxr-xr-x  3 root root  23 May 25 12:16 .config
+drwxr-xr-x  3 root root  56 May 25 12:16 .npm
+-rw-r--r--  1 root root 161 Jul  9  2019 .profile
+[?2004hroot@594e8276182b:/app# ls -la /root/.cargo/bin 2>/dev/null || true
+[?2004l[?2004hroot@594e8276182b:/app# ls -la /usr/local/bin | head
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 Mar 17  2025 .
+drwxr-xr-x 12 root root 141 Mar 17  2025 ..
+[?2004hroot@594e8276182b:/app# find / -maxdepth 4 -type f -name cargo -o -name rustc 2>/dev/null | head -n 50
+[?2004l[?2004hroot@594e8276182b:/app# find /app -maxdepth 4 -type f -name cargo -o -name rustc 2>/dev/null
+[?2004l[?2004hroot@594e8276182b:/app# ls -la tools scripts
+[?2004lscripts:
+total 4
+drwxr-xr-x  2 root root  28 May 25 12:15 .
+drwxr-xr-x 12 root root 225 May 25 12:15 ..
+-rwxr-xr-x  1 root root  30 May 25 12:12 clean-local.sh
+
+tools:
+total 4
+drwxr-xr-x  2 root root  27 May 25 12:15 .
+drwxr-xr-x 12 root root 225 May 25 12:15 ..
+-rwxr-xr-x  1 root root 682 May 25 12:12 run_matrix.js
+[?2004hroot@594e8276182b:/app# find tools scripts -type f -maxdepth 2 -print -exec sed -n '1,200p' {} \;
+[?2004lfind: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests specified before it as well as those specified after it.  Please specify global options before other arguments.
+tools/run_matrix.js
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { f_a } = require('../a1/p');
+const { m_e } = require('../d4/s');
+
+const base = process.cwd();
+const dataPath = path.join(base, 'fixtures', 'scenarios.json');
+const outDir = path.join(base, 'outcome');
+const outPath = path.join(outDir, 'report.json');
+
+function main() {
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
+  const aggregate = m_e(records, { source: 'local' });
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
+}
+
+main();
+scripts/clean-local.sh
+#!/bin/sh
+rm -rf /app/outcome
+[?2004hroot@594e8276182b:/app# rg -n "\bcargo\b|\brustc\b|rustup|mhre_native" -S .
+[?2004lbash: rg: command not found
+[?2004hroot@594e8276182b:/app# find target -maxdepth 3 -type f -print | head -n 100
+[?2004ltarget/.rustc_info.json
+target/CACHEDIR.TAG
+target/debug/.cargo-lock
+target/debug/deps/libmhre_native-9b3a0e1ceff0c84e.rlib
+target/debug/deps/libmhre_native-9b3a0e1ceff0c84e.rmeta
+target/debug/deps/mhre_native-9b3a0e1ceff0c84e.d
+target/debug/deps/mhre_native-d9996458702041fe
+target/debug/deps/mhre_native-d9996458702041fe.d
+target/debug/mhre_native
+target/debug/mhre_native.d
+[?2004hroot@594e8276182b:/app# find /app -maxdepth 3 -type f -name mhre_native -o -name "mhre_native*" 2>/dev/null
+[?2004l/app/target/debug/mhre_native
+/app/target/debug/mhre_native.d
+[?2004hroot@594e8276182b:/app# /app/target/debug/mhre_native old 3 5; echo $?
+[?2004l3
+0
+[?2004hroot@594e8276182b:/app# /app/target/debug/mhre_native new 3 5; echo $?
+[?2004l8
+0
+[?2004hroot@594e8276182b:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: a1/p.js
+[?2004l[?2004h> @@
+[?2004l[?2004h>  const { spawnSync } = require('child_process');
+[?2004l[?2004h>  const { q_b } = require('../b2/q');
+[?2004l[?2004h>  const { k_c } = require('../c3/r');
+[?2004l[?2004h>  
+[?2004l[?2004h> +function hasCargo() {
+[?2004l[?2004h> +  const probe = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+[?2004l[?2004h> +  return probe.status === 0;
+[?2004l[?2004h> +}
+[?2004l[?2004h> +
+[?2004l[?2004h>  function callNative(root, rev, primary, carry) {
+[?2004l[?2004h> -  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+[?2004l[?2004h> -    cwd: root,
+[?2004l[?2004h> -    encoding: 'utf8'
+[?2004l[?2004h> -  });
+[?2004l[?2004h> +  const args = [rev, String(primary), String(carry)];
+[?2004l[?2004h> +  const proc = hasCargo()
+[?2004l[?2004h> +    ? spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', ...args], {
+[?2004l[?2004h> +        cwd: root,
+[?2004l[?2004h> +        encoding: 'utf8'
+[?2004l[?2004h> +      })
+[?2004l[?2004h> +    : spawnSync(`${root}/target/debug/mhre_native`, args, {
+[?2004l[?2004h> +        cwd: root,
+[?2004l[?2004h> +        encoding: 'utf8'
+[?2004l[?2004h> +      });
+[?2004l[?2004h>    if (proc.status !== 0) {
+[?2004l[?2004h>      throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+[?2004l[?2004h>    }
+[?2004l[?2004h>    return Number(proc.stdout.trim());
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@594e8276182b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative [90m(/app/[39ma1/p.js:11:11[90m)[39m
+    at f_a [90m(/app/[39ma1/p.js:24:25[90m)[39m
+    at [90m/app/[39mtools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main [90m(/app/[39mtools/run_matrix.js:14:34[90m)[39m
+    at Object.<anonymous> [90m(/app/[39mtools/run_matrix.js:20:1[90m)[39m
+[90m    at Module._compile (node:internal/modules/cjs/loader:1364:14)[39m
+[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)[39m
+[90m    at Module.load (node:internal/modules/cjs/loader:1203:32)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1019:12)[39m
+
+Node.js v18.20.4
+[?2004hroot@594e8276182b:/app# ls -la outcome
+[?2004lls: cannot access 'outcome': No such file or directory
+[?2004hroot@594e8276182b:/app# cat outcome/report.json
+[?2004lcat: outcome/report.json: No such file or directory
+[?2004hroot@594e8276182b:/app# sed -n '1,120p' a1/p.js
+[?2004lconst { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function callNative(root, rev, primary, carry) {
+  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+      accepted = false;
+    }
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+    carry = cycle.base;
+  }
+  return {
+    name: a.name,
+    rows,
+    finalCounter: carry,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy: false
+  };
+}
+
+module.exports = { f_a };
+[?2004hroot@594e8276182b:/app# cat > a1/p.js <<'EOF'
+[?2004l[?2004h> const { spawnSync } = require('child_process');
+[?2004l[?2004h> const { q_b } = require('../b2/q');
+[?2004l[?2004h> const { k_c } = require('../c3/r');
+[?2004l[?2004h> 
+[?2004l[?2004h> function hasCargo() {
+[?2004l[?2004h>   const probe = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+[?2004l[?2004h>   return probe.status === 0;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function callNative(root, rev, primary, carry) {
+[?2004l[?2004h>   const args = [rev, String(primary), String(carry)];
+[?2004l[?2004h>   const proc = hasCargo()
+[?2004l[?2004h>     ? spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', ...args], {
+[?2004l[?2004h>         cwd: root,
+[?2004l[?2004h>         encoding: 'utf8'
+[?2004l[?2004h>       })
+[?2004l[?2004h>     : spawnSync(`${root}/target/debug/mhre_native`, args, {
+[?2004l[?2004h>         cwd: root,
+[?2004l[?2004h>         encoding: 'utf8'
+[?2004l[?2004h>       });
+[?2004l[?2004h>   if (proc.status !== 0) {
+[?2004l[?2004h>     throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+[?2004l[?2004h>   }
+[?2004l[?2004h>   return Number(proc.stdout.trim());
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function f_a(a, b, c) {
+[?2004l[?2004h>   let carry = 0;
+[?2004l[?2004h>   const rows = [];
+[?2004l[?2004h>   let accepted = true;
+[?2004l[?2004h>   for (let index = 0; index < a.cycles.length; index += 1) {
+[?2004l[?2004h>     const cycle = a.cycles[index];
+[?2004l[?2004h>     const owned = q_b(cycle.deferred || [], index, c);
+[?2004l[?2004h>     const factor = k_c(cycle.dep, index, c);
+[?2004l[?2004h>     const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+[?2004l[?2004h>     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+[?2004l[?2004h>     if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+[?2004l[?2004h>       accepted = false;
+[?2004l[?2004h>     }
+[?2004l[?2004h>     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+[?2004l[?2004h>     carry = cycle.base;
+[?2004l[?2004h>   }
+[?2004l[?2004h>   return {
+[?2004l[?2004h>     name: a.name,
+[?2004l[?2004h>     rows,
+[?2004l[?2004h>     finalCounter: carry,
+[?2004l[?2004h>     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+[?2004l[?2004h>     acceptedOlder: accepted,
+[?2004l[?2004h>     healthy: false
+[?2004l[?2004h>   };
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { f_a };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@594e8276182b:/app# node -e "require('./a1/p') && console.log('ok')"
+[?2004lok
+[?2004hroot@594e8276182b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+[?2004hroot@594e8276182b:/app# ls -la outcome
+[?2004ltotal 4
+drwxr-xr-x  2 root root   25 May 25 12:17 .
+drwxr-xr-x 13 root root  240 May 25 12:17 ..
+-rw-r--r--  1 root root 3179 May 25 12:17 report.json
+[?2004hroot@594e8276182b:/app# cat outcome/report.json
+[?2004l{
+  "records": [
+    {
+      "name": "alpha",
+      "rows": [
+        {
+          "index": 0,
+          "value": 6,
+          "factor": 2,
+          "nativeValue": 4,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 12,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 5,
+      "dependencyTotal": 5,
+      "acceptedOlder": true,
+      "healthy": false
+    },
+    {
+      "name": "beta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 4,
+          "factor": 2,
+          "nativeValue": 2,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 6,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": []
+        },
+        {
+          "index": 2,
+          "value": 8,
+          "factor": 4,
+          "nativeValue": 4,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 1,
+      "dependencyTotal": 9,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "gamma",
+      "rows": [
+        {
+          "index": 0,
+          "value": 8,
+          "factor": 2,
+          "nativeValue": 6,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 5,
+          "factor": 3,
+          "nativeValue": 2,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 2,
+      "dependencyTotal": 5,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "delta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 3,
+          "factor": 2,
+          "nativeValue": 1,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 12,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 8,
+      "dependencyTotal": 5,
+      "acceptedOlder": true,
+      "healthy": false
+    },
+    {
+      "name": "epsilon",
+      "rows": [
+        {
+          "index": 0,
+          "value": 5,
+          "factor": 2,
+          "nativeValue": 3,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 6,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": []
+        },
+        {
+          "index": 2,
+          "value": 10,
+          "factor": 4,
+          "nativeValue": 6,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 3,
+      "dependencyTotal": 9,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "zeta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 11,
+          "factor": 2,
+          "nativeValue": 9,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 3,
+          "nativeValue": 10,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 1,
+      "dependencyTotal": 5,
+      "acceptedOlder": true,
+      "healthy": false
+    }
+  ],
+  "aggregate": {
+    "source": "local",
+    "recordCount": 6,
+    "totalCounter": 20,
+    "dependencyTotal": 38,
+    "rowTotal": 109,
+    "healthyCount": 3,
+    "status": "stale"
+  }
+}
+[?2004hroot@594e8276182b:/app# cat fixtures/scenarios.json
+[?2004l{
+  "scenarios": [
+    {
+      "name": "alpha",
+      "cycles": [
+        {
+          "base": 4,
+          "dep": 2,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 5,
+          "dep": 3,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "cycles": [
+        {
+          "base": 2,
+          "dep": 4,
+          "deferred": [
+            5,
+            1
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 4,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 5,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "gamma",
+      "cycles": [
+        {
+          "base": 6,
+          "dep": 1,
+          "deferred": [],
+          "native": "new"
+        },
+        {
+          "base": 2,
+          "dep": 6,
+          "deferred": [
+            4
+          ],
+          "native": "old"
+        }
+      ]
+    },
+    {
+      "name": "delta",
+      "cycles": [
+        {
+          "base": 1,
+          "dep": 7,
+          "deferred": [
+            2,
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 8,
+          "dep": 2,
+          "deferred": [
+            1
+          ],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "epsilon",
+      "cycles": [
+        {
+          "base": 3,
+          "dep": 3,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 8,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 2,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "zeta",
+      "cycles": [
+        {
+          "base": 9,
+          "dep": 2,
+          "deferred": [],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 9,
+          "deferred": [
+            3
+          ],
+          "native": "new"
+        }
+      ]
+    }
+  ]
+}
+[?2004hroot@594e8276182b:/app# sed -n '1,200p' b2/q.js
+[?2004lfunction q_b(a, b, c) {
+  const label = `slot-${b}`;
+  c[label] = (c[label] || []).concat(a);
+  const next = `slot-${b + 1}`;
+  const visible = c[next] || [];
+  c[next] = [];
+  return visible.slice().sort((left, right) => left - right);
+}
+
+function scan_b(a) {
+  return Object.keys(a).sort();
+}
+
+module.exports = { q_b, scan_b };
+[?2004hroot@594e8276182b:/app# sed -n '1,200p' c3/r.js
+[?2004llet saved = null;
+
+function k_c(a, b, c) {
+  if (saved === null) {
+    saved = Number(a);
+  }
+  return saved + b;
+}
+
+function lens_c(a) {
+  return String(a).length;
+}
+
+module.exports = { k_c, lens_c };
+[?2004hroot@594e8276182b:/app# sed -n '1,200p' d4/s.js
+[?2004lfunction m_e(a, b) {
+  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+  const healthyCount = a.filter((row) => row.acceptedOlder).length;
+  return {
+    source: b.source,
+    recordCount: a.length,
+    totalCounter,
+    dependencyTotal,
+    rowTotal,
+    healthyCount,
+    status: 'stale'
+  };
+}
+
+function view_e(a) {
+  return a.map((row) => row.name).join(',');
+}
+
+module.exports = { m_e, view_e };
+[?2004hroot@594e8276182b:/app# sed -n '1,120p' src/native/src/lib.rs
+[?2004lpub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    match a {
+        "old" => b,
+        "new" => b + c,
+        _ => b,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+[?2004hroot@594e8276182b:/app# cat > b2/q.js <<'EOF'
+[?2004l[?2004h> function q_b(a, b, c) {
+[?2004l[?2004h>   // Deferred values belong to the same cycle they are declared on.
+[?2004l[?2004h>   // Keep a trace in the session context for introspection, but do not shift
+[?2004l[?2004h>   // visibility to the next slot.
+[?2004l[?2004h>   const label = `slot-${b}`;
+[?2004l[?2004h>   c[label] = (c[label] || []).concat(a || []);
+[?2004l[?2004h>   return (a || []).slice().sort((left, right) => left - right);
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function scan_b(a) {
+[?2004l[?2004h>   return Object.keys(a).sort();
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { q_b, scan_b };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@594e8276182b:/app# cat > c3/r.js <<'EOF'
+[?2004l[?2004h> function k_c(a, b, c) {
+[?2004l[?2004h>   // Recompute per-row from that row's descriptor and position.
+[?2004l[?2004h>   // No cross-row caching.
+[?2004l[?2004h>   return Number(a) + Number(b);
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function lens_c(a) {
+[?2004l[?2004h>   return String(a).length;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { k_c, lens_c };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@594e8276182b:/app# cat > d4/s.js <<'EOF'
+[?2004l[?2004h> function m_e(a, b) {
+[?2004l[?2004h>   const totalCounter = a.reduce((acc, record) => acc + Number(record.finalCounter || 0), 0);
+[?2004l[?2004h>   const dependencyTotal = a.reduce((acc, record) => acc + Number(record.dependencyTotal || 0), 0);
+[?2004l[?2004h>   const rowTotal = a.reduce(
+[?2004l[?2004h>     (acc, record) =>
+[?2004l[?2004h>       acc + (record.rows || []).reduce((inner, item) => inner + Number(item.value || 0), 0),
+[?2004l[?2004h>     0
+[?2004l[?2004h>   );
+[?2004l[?2004h>   const healthyCount = a.filter((record) => record.healthy).length;
+[?2004l[?2004h>   const status = healthyCount === a.length ? 'healthy' : 'stale';
+[?2004l[?2004h> 
+[?2004l[?2004h>   return {
+[?2004l[?2004h>     source: b.source,
+[?2004l[?2004h>     recordCount: a.length,
+[?2004l[?2004h>     totalCounter,
+[?2004l[?2004h>     dependencyTotal,
+[?2004l[?2004h>     rowTotal,
+[?2004l[?2004h>     healthyCount,
+[?2004l[?2004h>     status
+[?2004l[?2004h>   };
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function view_e(a) {
+[?2004l[?2004h>   return a.map((row) => row.name).join(',');
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { m_e, view_e };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@594e8276182b:/app# cat > a1/p.js <<'EOF'
+[?2004l[?2004h> const { spawnSync } = require('child_process');
+[?2004l[?2004h> const { q_b } = require('../b2/q');
+[?2004l[?2004h> const { k_c } = require('../c3/r');
+[?2004l[?2004h> 
+[?2004l[?2004h> function hasCargo() {
+[?2004l[?2004h>   const probe = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+[?2004l[?2004h>   return probe.status === 0;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function callNative(root, rev, primary, carry) {
+[?2004l[?2004h>   const args = [rev, String(primary), String(carry)];
+[?2004l[?2004h>   const proc = hasCargo()
+[?2004l[?2004h>     ? spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', ...args], {
+[?2004l[?2004h>         cwd: root,
+[?2004l[?2004h>         encoding: 'utf8'
+[?2004l[?2004h>       })
+[?2004l[?2004h>     : spawnSync(`${root}/target/debug/mhre_native`, args, {
+[?2004l[?2004h>         cwd: root,
+[?2004l[?2004h>         encoding: 'utf8'
+[?2004l[?2004h>       });
+[?2004l[?2004h> 
+[?2004l[?2004h>   if (proc.status !== 0) {
+[?2004l[?2004h>     throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+[?2004l[?2004h>   }
+[?2004l[?2004h>   return Number(proc.stdout.trim());
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function f_a(a, b, c) {
+[?2004l[?2004h>   let carry = 0;
+[?2004l[?2004h>   const rows = [];
+[?2004l[?2004h>   let accepted = true;
+[?2004l[?2004h>   let lastNative = 0;
+[?2004l[?2004h>   const sumBases = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base || 0), 0);
+[?2004l[?2004h> 
+[?2004l[?2004h>   for (let index = 0; index < a.cycles.length; index += 1) {
+[?2004l[?2004h>     const cycle = a.cycles[index];
+[?2004l[?2004h> 
+[?2004l[?2004h>     const owned = q_b(cycle.deferred || [], index, c);
+[?2004l[?2004h>     const factor = k_c(cycle.dep, index, c);
+[?2004l[?2004h> 
+[?2004l[?2004h>     const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Older revision markers must normalize like newer ones: incorporate carry.
+[?2004l[?2004h>     const expectedNative = Number(cycle.base || 0) + Number(carry || 0);
+[?2004l[?2004h>     if (cycle.native === 'old' && nativeValue !== expectedNative) {
+[?2004l[?2004h>       accepted = false;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+[?2004l[?2004h> 
+[?2004l[?2004h>     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Each cycle's native row feeds the next cycle.
+[?2004l[?2004h>     carry = nativeValue;
+[?2004l[?2004h>     lastNative = nativeValue;
+[?2004l[?2004h>   }
+[?2004l[?2004h> 
+[?2004l[?2004h>   const healthy = accepted && lastNative === sumBases;
+[?2004l[?2004h> 
+[?2004l[?2004h>   return {
+[?2004l[?2004h>     name: a.name,
+[?2004l[?2004h>     rows,
+[?2004l[?2004h>     finalCounter: lastNative,
+[?2004l[?2004h>     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+[?2004l[?2004h>     acceptedOlder: accepted,
+[?2004l[?2004h>     healthy
+[?2004l[?2004h>   };
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { f_a };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@594e8276182b:/app# cat > src/native/src/lib.rs <<'EOF'
+[?2004l[?2004h> pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+[?2004l[?2004h>     // Normalize older revision markers to the current behavior: the carried
+[?2004l[?2004h>     // state participates in the produced native value.
+[?2004l[?2004h>     match a {
+[?2004l[?2004h>         "old" => b + c,
+[?2004l[?2004h>         "new" => b + c,
+[?2004l[?2004h>         _ => b + c,
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn aux_r(a: i64) -> i64 {
+[?2004l[?2004h>     a * 2
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@594e8276182b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+[?2004hroot@594e8276182b:/app# cat outcome/report.json
+[?2004l{
+  "records": [
+    {
+      "name": "alpha",
+      "rows": [
+        {
+          "index": 0,
+          "value": 9,
+          "factor": 2,
+          "nativeValue": 4,
+          "deferred": [
+            3
+          ]
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 4,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 6,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "beta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 12,
+          "factor": 4,
+          "nativeValue": 2,
+          "deferred": [
+            1,
+            5
+          ]
+        },
+        {
+          "index": 1,
+          "value": 10,
+          "factor": 5,
+          "nativeValue": 3,
+          "deferred": [
+            2
+          ]
+        },
+        {
+          "index": 2,
+          "value": 11,
+          "factor": 7,
+          "nativeValue": 4,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 4,
+      "dependencyTotal": 16,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "gamma",
+      "rows": [
+        {
+          "index": 0,
+          "value": 7,
+          "factor": 1,
+          "nativeValue": 6,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 7,
+          "nativeValue": 2,
+          "deferred": [
+            4
+          ]
+        }
+      ],
+      "finalCounter": 2,
+      "dependencyTotal": 8,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "delta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 12,
+          "factor": 7,
+          "nativeValue": 1,
+          "deferred": [
+            2,
+            2
+          ]
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": [
+            1
+          ]
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 10,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "epsilon",
+      "rows": [
+        {
+          "index": 0,
+          "value": 9,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": [
+            3
+          ]
+        },
+        {
+          "index": 1,
+          "value": 14,
+          "factor": 9,
+          "nativeValue": 3,
+          "deferred": [
+            2
+          ]
+        },
+        {
+          "index": 2,
+          "value": 10,
+          "factor": 4,
+          "nativeValue": 6,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 6,
+      "dependencyTotal": 16,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "zeta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 11,
+          "factor": 2,
+          "nativeValue": 9,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 23,
+          "factor": 10,
+          "nativeValue": 10,
+          "deferred": [
+            3
+          ]
+        }
+      ],
+      "finalCounter": 10,
+      "dependencyTotal": 12,
+      "acceptedOlder": true,
+      "healthy": true
+    }
+  ],
+  "aggregate": {
+    "source": "local",
+    "recordCount": 6,
+    "totalCounter": 40,
+    "dependencyTotal": 68,
+    "rowTotal": 167,
+    "healthyCount": 3,
+    "status": "stale"
+  }
+}
+[?2004hroot@594e8276182b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+[?2004hroot@594e8276182b:/app# diff -u outcome/report.json outcome/report.json || true
+[?2004l[?2004hroot@594e8276182b:/app# node - <<'NODE'
+[?2004l[?2004h> const data = require('./fixtures/scenarios.json');
+[?2004l[?2004h> for (const s of data.scenarios) {
+[?2004l[?2004h>   const sumBases = s.cycles.reduce((a,c)=>a+Number(c.base||0),0);
+[?2004l[?2004h>   console.log(s.name, 'sumBases=', sumBases);
+[?2004l[?2004h> }
+[?2004l[?2004h> NODE
+[?2004lalpha sumBases= [33m9[39m
+beta sumBases= [33m6[39m
+gamma sumBases= [33m8[39m
+delta sumBases= [33m9[39m
+epsilon sumBases= [33m9[39m
+zeta sumBases= [33m10[39m
+[?2004hroot@594e8276182b:/app# /app/target/debug/mhre_native old 3 7
+[?2004l3
+[?2004hroot@594e8276182b:/app# sed -n '1,120p' a1/p.js
+[?2004lconst { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function hasCargo() {
+  const probe = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+  return probe.status === 0;
+}
+
+function callNative(root, rev, primary, carry) {
+  const args = [rev, String(primary), String(carry)];
+  const proc = hasCargo()
+    ? spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', ...args], {
+        cwd: root,
+        encoding: 'utf8'
+      })
+    : spawnSync(`${root}/target/debug/mhre_native`, args, {
+        cwd: root,
+        encoding: 'utf8'
+      });
+
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  let lastNative = 0;
+  const sumBases = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base || 0), 0);
+
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+
+    // Older revision markers must normalize like newer ones: incorporate carry.
+    const expectedNative = Number(cycle.base || 0) + Number(carry || 0);
+    if (cycle.native === 'old' && nativeValue !== expectedNative) {
+      accepted = false;
+    }
+
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+
+    // Each cycle's native row feeds the next cycle.
+    carry = nativeValue;
+    lastNative = nativeValue;
+  }
+
+  const healthy = accepted && lastNative === sumBases;
+
+  return {
+    name: a.name,
+    rows,
+    finalCounter: lastNative,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy
+  };
+}
+
+module.exports = { f_a };
+[?2004hroot@594e8276182b:/app# sed -n '1,120p' src/native/src/lib.rs
+[?2004lpub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    // Normalize older revision markers to the current behavior: the carried
+    // state participates in the produced native value.
+    match a {
+        "old" => b + c,
+        "new" => b + c,
+        _ => b + c,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+[?2004hroot@594e8276182b:/app# 

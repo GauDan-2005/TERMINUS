@@ -1,0 +1,198 @@
+New Terminal Output:
+
+root@cb92047aa9e0:/app# cat /app/include/case_spec.h
+#pragma once
+
+#include <stddef.h>
+
+#define MAX_BLOCKS 8
+#define MAX_BS 4
+#define MAX_NNZ_BLOCKS 64
+#define CASE_NAME_LEN 32
+
+typedef struct {
+    int rb;
+    int cb;
+    double vals[MAX_BS * MAX_BS];
+} BlockEntry;
+
+typedef struct {
+    char name[CASE_NAME_LEN];
+    int nblocks;
+    int bs;
+    int reorder;
+    int perm[MAX_BLOCKS];
+    int block_count;
+    BlockEntry blocks[MAX_NNZ_BLOCKS];
+    double rhs[MAX_BLOCKS * MAX_BS];
+} CaseSpec;
+
+int case_load(const char *path, CaseSpec *spec);
+root@cb92047aa9e0:/app# cat /app/include/solver_report.h
+#pragma once
+
+#define MAX_CASES 8
+
+typedef struct {
+    char name[32];
+    int ok;
+    int iterations;
+    double final_residual;
+    double reported_residual;
+    int residual_agrees;
+    int hit_limit;
+} SolveResult;
+
+int emit_t(const SolveResult *res, const char *audit_path);
+int emit_matrix(const SolveResult *cases, int count, const char *audit_path);
+root@cb92047aa9e0:/app# cat /app/include/matrix_view.h
+#pragma once
+
+#include "case_spec.h"
+
+#define MAX_DIM 32
+
+typedef struct {
+    int n;
+    int bs;
+    int nblocks;
+    int reorder;
+    int perm[MAX_BLOCKS];
+    double a[MAX_DIM * MAX_DIM];
+    double b[MAX_DIM];
+} MatrixView;
+
+typedef struct {
+    int n;
+    int bs;
+    int nblocks;
+    int reorder;
+    int perm[MAX_BLOCKS];
+    int row_ptr[MAX_BLOCKS + 1];
+    int col_idx[MAX_NNZ_BLOCKS];
+    double data[MAX_NNZ_BLOCKS * MAX_BS * MAX_BS];
+    double diag_inv[MAX_DIM];
+} BsrPack;
+
+void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+void bsr_matvec(const BsrPack *pack, const double *x, double *y);
+root@cb92047aa9e0:/app# cat /app/src/case_io.cpp
+#include "../include/case_spec.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static void trim(char *s) {
+    size_t n = strlen(s);
+    while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) {
+        s[--n] = '\0';
+    }
+}
+
+int case_load(const char *path, CaseSpec *spec) {
+    FILE *fp = fopen(path, "r");
+    char line[512];
+    if (!fp) {
+        return -1;
+    }
+    memset(spec, 0, sizeof(*spec));
+    for (int i = 0; i < MAX_BLOCKS; i++) {
+        spec->perm[i] = i;
+    }
+    while (fgets(line, sizeof(line), fp)) {
+        trim(line);
+        if (line[0] == '#' || line[0] == '\0') {
+            continue;
+        }
+        if (strncmp(line, "name ", 5) == 0) {
+            strncpy(spec->name, line + 5, CASE_NAME_LEN - 1);
+        } else if (strncmp(line, "nblocks ", 8) == 0) {
+            spec->nblocks = atoi(line + 8);
+        } else if (strncmp(line, "bs ", 3) == 0) {
+            spec->bs = atoi(line + 3);
+        } else if (strncmp(line, "reorder ", 8) == 0) {
+            spec->reorder = atoi(line + 8);
+        } else if (strncmp(line, "perm ", 5) == 0) {
+            char *tok = strtok(line + 5, " ");
+            int ix = 0;
+            while (tok && ix < MAX_BLOCKS) {
+                spec->perm[ix++] = atoi(tok);
+                tok = strtok(NULL, " ");
+            }
+        } else if (strncmp(line, "block ", 6) == 0) {
+            BlockEntry *be = &spec->blocks[spec->block_count++];
+            char *tok = strtok(line + 6, " ");
+            be->rb = atoi(tok);
+            tok = strtok(NULL, " ");
+            be->cb = atoi(tok);
+            for (int k = 0; k < spec->bs * spec->bs; k++) {
+                tok = strtok(NULL, " ");
+                be->vals[k] = tok ? atof(tok) : 0.0;
+            }
+        } else if (strncmp(line, "rhs ", 4) == 0) {
+            char *tok = strtok(line + 4, " ");
+            int ix = 0;
+            while (tok && ix < MAX_BLOCKS * MAX_BS) {
+                spec->rhs[ix++] = atof(tok);
+                tok = strtok(NULL, " ");
+            }
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+root@cb92047aa9e0:/app# cat /app/drive_u/run.cpp
+#include "../include/case_spec.h"
+#include "../include/matrix_view.h"
+#include "../include/solver_report.h"
+
+#include <math.h>
+#include <string.h>
+
+void fn_n(const MatrixView *a, int reorder, BsrPack *c);
+void map_p(const double *a, const int *b, int c, int d, double *e);
+double norm_q(const double *a, int b);
+void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res);
+
+static double l2_norm(const double *v, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += v[i] * v[i];
+    }
+    return sqrt(s);
+}
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
+    MatrixView view;
+    BsrPack pack;
+    double rhs[MAX_DIM];
+    double x[MAX_DIM];
+    double r[MAX_DIM];
+    double true_res;
+    double rep_res;
+    int hit;
+    int iters;
+
+    (void)out_dir;
+    matrix_from_case(spec, &view);
+    fn_n(&view, view.reorder, &pack);
+    map_p(view.b, view.perm, view.n, view.bs, rhs);
+    hit = pcg_solve(&pack, rhs, x, &iters, &true_res);
+    bsr_matvec(&pack, x, r);
+    for (int i = 0; i < view.n; i++) {
+        r[i] = rhs[i] - r[i];
+    }
+    true_res = l2_norm(r, view.n);
+    rep_res = norm_q(r, view.n);
+    strncpy(out->name, spec->name, sizeof(out->name) - 1);
+    out->iterations = iters;
+    out->final_residual = true_res;
+    out->reported_residual = rep_res;
+    out->hit_limit = hit;
+    out->residual_agrees = fabs(rep_res - true_res) <= 1e-6 * (1.0 + true_res);
+    out->ok = (!hit) && (true_res < 1e-8) && out->residual_agrees;
+    return 0;
+}
+root@cb92047aa9e0:/app#

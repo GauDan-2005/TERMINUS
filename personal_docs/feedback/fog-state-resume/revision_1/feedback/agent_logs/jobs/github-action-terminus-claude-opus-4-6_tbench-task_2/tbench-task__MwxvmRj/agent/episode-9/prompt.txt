@@ -1,0 +1,65 @@
+New Terminal Output:
+
+root@26548499ec8e:/app# sed -n '160,220p' /app/internal/f5/run.go
+        }
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+        visStale := map[string]bool{}
+        var blob a0.ItemY
+        for _, step := range steps {
+                w.Turn = step.Turn
+                if step.Action == "save" {
+                        vis := buildObs(w, nil)
+                        for k, v := range visStale {
+                                vis[k] = v
+                        }
+                        blob = packWorld(w, vis)
+                        break
+                }
+                if step.Actor == "P" {
+                        applyPlayer(w, step.Arg)
+                        e4.ApplyLit(w, radius, blindActive(w))
+                        visStale = buildObs(w, nil)
+                }
+        }
+        return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+        moves := []MoveRow{}
+        pastSave := false
+        for _, step := range steps {
+                if step.Action == "save" {
+                        pastSave = true
+                        continue
+                }
+                if !pastSave {
+                        continue
+                }
+                w.Turn = step.Turn
+                if step.Actor == "P" {
+                        applyPlayer(w, step.Arg)
+                        e4.ApplyLit(w, radius, blindActive(w))
+                }
+                if step.Actor == "H" {
+                        moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+                }
+        }
+        return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+        applyWorld(w, blob)
+        cache := &b1.CacheX{Obs: map[string]bool{}}
+        b1.Merge(cache, blob)
+        merged := b1.Snapshot(cache)
+        for k, v := range stale {
+                merged[k] = v
+        }
+        w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+        moves := []MoveRow{}
+        for _, step := range steps {
+                if step.Action != "save" {
+                        continue
+root@26548499ec8e:/app#

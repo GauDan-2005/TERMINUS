@@ -1,0 +1,1478 @@
+[?2004hroot@3ddcf2b2b165:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@3ddcf2b2b165:/app# clear
+[?2004l[H[J[3J[?2004hroot@3ddcf2b2b165:/app# ls -la
+[?2004ltotal 4
+drwxr-xr-x 18 root root 251 May 29 00:20 .
+drwxr-xr-x 19 root root 265 May 29 00:20 ..
+-rw-r--r--  1 root root 575 May 29 00:19 CMakeLists.txt
+drwxr-xr-x  2 root root  24 May 29 00:19 bsr_n
+drwxr-xr-x  2 root root  25 May 29 00:19 config
+drwxr-xr-x  2 root root  26 May 29 00:19 csr_m
+drwxr-xr-x  3 root root  19 May 29 00:19 data
+drwxr-xr-x  2 root root  44 May 29 00:19 docs
+drwxr-xr-x  2 root root  21 May 29 00:19 drive_u
+drwxr-xr-x  2 root root  24 May 29 00:19 flow_t
+drwxr-xr-x  2 root root  69 May 29 00:19 include
+drwxr-xr-x  2 root root  23 May 29 00:19 mirror_w
+drwxr-xr-x  2 root root  23 May 29 00:19 perm_p
+drwxr-xr-x  2 root root  23 May 29 00:19 prec_r
+drwxr-xr-x  2 root root  24 May 29 00:19 scale_q
+drwxr-xr-x  2 root root  66 May 29 00:19 scripts
+drwxr-xr-x  2 root root  24 May 29 00:19 solve_s
+drwxr-xr-x  2 root root  24 May 29 00:19 spill_v
+drwxr-xr-x  2 root root  41 May 29 00:19 src
+[?2004hroot@3ddcf2b2b165:/app# find /app -maxdepth 3 -type f -name 'run-matrix.sh' -o -name 'run-one.sh' -o -name '*.md'
+[?2004l/app/docs/layout.md
+/app/docs/operations.md
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/docs/layout.md
+[?2004l# Layout notes
+
+Internal modules under `/app` assemble case data into packed layouts used by the iterative driver.
+
+The matrix audit at `/app/output/solver-audit.json` contains a top-level `cases` array. Each element carries name, ok, iterations, final_residual, reported_residual, residual_agrees, and hit_limit as defined below.
+
+- `name` — scenario token
+- `ok` — overall row status
+- `iterations` — PCG iteration count
+- `final_residual` — measured L2 residual after the solve
+- `reported_residual` — value emitted through the metric helper
+- `residual_agrees` — whether the two residual fields match within tolerance
+- `hit_limit` — whether the iteration cap was reached
+
+Per-case output from `run-one.sh` follows the same shape inside a one-element `cases` array written to `/app/output/<name>-audit.json`.
+
+CMake build trees may live under `/app/build`.
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" matrix
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" one "${NAME}"
+[?2004hroot@3ddcf2b2b165:/app# ls -la /app/scripts
+[?2004ltotal 12
+drwxr-xr-x  2 root root  66 May 29 00:19 .
+drwxr-xr-x 18 root root 251 May 29 00:20 ..
+-rwxr-xr-x  1 root root 117 May 29 00:19 clean-room.sh
+-rwxr-xr-x  1 root root 178 May 29 00:19 run-matrix.sh
+-rwxr-xr-x  1 root root 217 May 29 00:19 run-one.sh
+[?2004hroot@3ddcf2b2b165:/app# find /app/scripts -maxdepth 2 -type f -print
+[?2004l/app/scripts/clean-room.sh
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+[?2004hroot@3ddcf2b2b165:/app# ls -la /app/output || true
+[?2004lls: cannot access '/app/output': No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# ls -la /app/build || true
+[?2004lls: cannot access '/app/build': No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# cmake -S /app -B /app/build
+[?2004l-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/build
+[?2004hroot@3ddcf2b2b165:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[  7%] [32mBuilding CXX object CMakeFiles/solverctl.dir/src/case_io.cpp.o[0m
+[ 15%] [32mBuilding CXX object CMakeFiles/solverctl.dir/src/main.cpp.o[0m
+[ 23%] [32mBuilding CXX object CMakeFiles/solverctl.dir/csr_m/assemble.cpp.o[0m
+[ 30%] [32mBuilding CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o[0m
+[ 38%] [32mBuilding CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o[0m
+[ 46%] [32mBuilding CXX object CMakeFiles/solverctl.dir/prec_r/apply.cpp.o[0m
+[ 53%] [32mBuilding CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o[0m
+[ 61%] [32mBuilding CXX object CMakeFiles/solverctl.dir/solve_s/driver.cpp.o[0m
+[ 69%] [32mBuilding CXX object CMakeFiles/solverctl.dir/flow_t/report.cpp.o[0m
+[ 76%] [32mBuilding CXX object CMakeFiles/solverctl.dir/drive_u/run.cpp.o[0m
+[ 84%] [32mBuilding CXX object CMakeFiles/solverctl.dir/spill_v/bucket.cpp.o[0m
+[ 92%] [32mBuilding CXX object CMakeFiles/solverctl.dir/mirror_w/trace.cpp.o[0m
+[100%] [32m[1mLinking CXX executable bin/solverctl[0m
+[100%] Built target solverctl
+[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# ls -la /app/output
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 29 00:21 .
+drwxr-xr-x 20 root root 278 May 29 00:21 ..
+[?2004hroot@3ddcf2b2b165:/app# test -f /app/output/solver-audit.json && jq . /app/output/solver-audit.json | head
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-one.sh basalt
+[?2004l/app/scripts/run-one.sh: line 8: /app/bin/solverctl: No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# ls -la /app/output | sed -n '1,200p'
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 29 00:21 .
+drwxr-xr-x 20 root root 278 May 29 00:21 ..
+[?2004hroot@3ddcf2b2b165:/app# test -f /app/output/basalt-audit.json && jq . /app/output/basalt-audit.json
+[?2004l[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+[?2004hroot@3ddcf2b2b165:/app# find /app -type f -path '*/bin/solverctl' -o -name solverctl -type f
+[?2004l/app/build/bin/solverctl
+[?2004hroot@3ddcf2b2b165:/app# /app/build/bin/solverctl --help || true
+[?2004lusage: solverctl matrix | solverctl one <case>
+[?2004hroot@3ddcf2b2b165:/app# /app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'
+[?2004l[?2004hroot@3ddcf2b2b165:/app# /app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'
+[?2004l[?2004hroot@3ddcf2b2b165:/app# ls -la /app/output
+[?2004ltotal 8
+drwxr-xr-x  2 root root   56 May 29 00:22 .
+drwxr-xr-x 20 root root  278 May 29 00:21 ..
+-rw-r--r--  1 root root  218 May 29 00:22 basalt-audit.json
+-rw-r--r--  1 root root 1202 May 29 00:21 solver-audit.json
+[?2004hroot@3ddcf2b2b165:/app# jq . /app/output/solver-audit.json | head -n 80
+[?2004lbash: jq: command not found
+[?2004hroot@3ddcf2b2b165:/app# jq . /app/output/basalt-audit.json
+[?2004lbash: jq: command not found
+[?2004hroot@3ddcf2b2b165:/app# jq -c '.cases[] | select(.name=="basalt")' /app/output/solver-audit.json
+[?2004lbash: jq: command not found
+[?2004hroot@3ddcf2b2b165:/app# diff -u <(jq -S . /app/output/basalt-audit.json) <(jq -S '{cases:[.cases[]|select(.name=="basalt")]}' /app/output/solver-audit.json)
+[?2004lbash: jq: command not found
+bash: jq: command not found
+[?2004hroot@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+[?2004l[?2004hroot@3ddcf2b2b165:/app# /app/build/bin/solverctl matrix
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+[?2004l[?2004hroot@3ddcf2b2b165:/app# diff -u <(jq -S . /app/output/solver-audit.run1.json) <(jq -S . /app/output/solver-audit.run2.json) || true
+[?2004lbash: jq: command not found
+bash: jq: command not found
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,120p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" matrix
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,120p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" one "${NAME}"
+[?2004hroot@3ddcf2b2b165:/app# python3 --version
+[?2004lPython 3.13.13
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/output/solver-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    }
+  ]
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,120p' /app/output/basalt-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    }
+  ]
+}
+[?2004hroot@3ddcf2b2b165:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scripts/run-matrix.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  #!/bin/bash
+[?2004l[?2004h>  set -euo pipefail
+[?2004l[?2004h>  APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h>  OUT="${APP_ROOT}/output"
+[?2004l[?2004h>  mkdir -p "${OUT}"
+[?2004l[?2004h> -bash "${APP_ROOT}/scripts/clean-room.sh"
+[?2004l[?2004h> -"${APP_ROOT}/bin/solverctl" matrix
+[?2004l[?2004h> +
+[?2004l[?2004h> +# Prefer the CMake build tree binary, fall back to a staged install under /app/bin,
+[?2004l[?2004h> +# then PATH. The project build is expected under /app/build.
+[?2004l[?2004h> +SOLVERCTL=""
+[?2004l[?2004h> +if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+[?2004l[?2004h> +  SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> +elif [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+[?2004l[?2004h> +  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> +else
+[?2004l[?2004h> +  SOLVERCTL="$(command -v solverctl || true)"
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +if [[ -z "${SOLVERCTL}" ]]; then
+[?2004l[?2004h> +  echo "error: solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+[?2004l[?2004h> +  exit 127
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +
+[?2004l[?2004h> +"${SOLVERCTL}" matrix
+[?2004l[?2004h> +
+[?2004l[?2004h> +# Canonicalize JSON to make repeated runs byte-for-byte comparable.
+[?2004l[?2004h> +python3 - <<'PY'
+[?2004l[?2004h> +import json
+[?2004l[?2004h> +from pathlib import Path
+[?2004l[?2004h> +
+[?2004l[?2004h> +p = Path('/app/output/solver-audit.json')
+[?2004l[?2004h> +data = json.loads(p.read_text())
+[?2004l[?2004h> +cases = data.get('cases', [])
+[?2004l[?2004h> +cases = sorted(cases, key=lambda c: c.get('name',''))
+[?2004l[?2004h> +data['cases'] = cases
+[?2004l[?2004h> +p.write_text(json.dumps(data, sort_keys=True, separators=(',',':')) + "\n")
+[?2004l[?2004h> +PY
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@3ddcf2b2b165:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scripts/run-one.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  #!/bin/bash
+[?2004l[?2004h>  set -euo pipefail
+[?2004l[?2004h>  APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h>  NAME="${1:?case name required}"
+[?2004l[?2004h>  OUT="${APP_ROOT}/output"
+[?2004l[?2004h>  mkdir -p "${OUT}"
+[?2004l[?2004h> -bash "${APP_ROOT}/scripts/clean-room.sh"
+[?2004l[?2004h> -"${APP_ROOT}/bin/solverctl" one "${NAME}"
+[?2004l[?2004h> +
+[?2004l[?2004h> +SOLVERCTL=""
+[?2004l[?2004h> +if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+[?2004l[?2004h> +  SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> +elif [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+[?2004l[?2004h> +  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> +else
+[?2004l[?2004h> +  SOLVERCTL="$(command -v solverctl || true)"
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +if [[ -z "${SOLVERCTL}" ]]; then
+[?2004l[?2004h> +  echo "error: solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+[?2004l[?2004h> +  exit 127
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +
+[?2004l[?2004h> +"${SOLVERCTL}" one "${NAME}"
+[?2004l[?2004h> +
+[?2004l[?2004h> +# Canonicalize per-case JSON as well.
+[?2004l[?2004h> +python3 - <<PY
+[?2004l[?2004h> +import json
+[?2004l[?2004h> +from pathlib import Path
+[?2004l[?2004h> +
+[?2004l[?2004h> +name = ${NAME!r}
+[?2004l[?2004h> +p = Path(f'/app/output/{name}-audit.json')
+[?2004l[?2004h> +data = json.loads(p.read_text())
+[?2004l[?2004h> +cases = data.get('cases', [])
+[?2004l[?2004h> +cases = sorted(cases, key=lambda c: c.get('name',''))
+[?2004l[?2004h> +data['cases'] = cases
+[?2004l[?2004h> +p.write_text(json.dumps(data, sort_keys=True, separators=(',',':')) + "\n")
+[?2004l[?2004h> +PY
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@3ddcf2b2b165:/app# shellcheck /app/scripts/run-matrix.sh /app/scripts/run-one.sh || true
+[?2004lbash: shellcheck: command not found
+[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.canon1.json
+[?2004lcp: cannot stat '/app/output/solver-audit.json': No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.canon2.json
+[?2004lcp: cannot stat '/app/output/solver-audit.json': No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# diff -u /app/output/solver-audit.canon1.json /app/output/solver-audit.canon2.json || true
+[?2004ldiff: /app/output/solver-audit.canon1.json: No such file or directory
+diff: /app/output/solver-audit.canon2.json: No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-one.sh basalt
+[?2004l/app/scripts/run-one.sh: line 8: /app/bin/solverctl: No such file or directory
+[?2004hroot@3ddcf2b2b165:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> m = json.loads(Path('/app/output/solver-audit.json').read_text())
+[?2004l[?2004h> one = json.loads(Path('/app/output/basalt-audit.json').read_text())
+[?2004l[?2004h> mslice = {'cases':[c for c in m.get('cases',[]) if c.get('name')=='basalt']}
+[?2004l[?2004h> print('matrix_slice:', json.dumps(mslice, sort_keys=True, separators=(',',':')))
+[?2004l[?2004h> print('one_file   :', json.dumps(one, sort_keys=True, separators=(',',':')))
+[?2004l[?2004h> print('match      :', mslice==one)
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m3[0m, in [35m<module>[0m
+  File [35m"/usr/local/lib/python3.13/pathlib/_local.py"[0m, line [35m546[0m, in [35mread_text[0m
+    return [31mPathBase.read_text[0m[1;31m(self, encoding, errors, newline)[0m
+           [31m~~~~~~~~~~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"/usr/local/lib/python3.13/pathlib/_abc.py"[0m, line [35m632[0m, in [35mread_text[0m
+    with [31mself.open[0m[1;31m(mode='r', encoding=encoding, errors=errors, newline=newline)[0m as f:
+         [31m~~~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+  File [35m"/usr/local/lib/python3.13/pathlib/_local.py"[0m, line [35m537[0m, in [35mopen[0m
+    return [31mio.open[0m[1;31m(self, mode, buffering, encoding, errors, newline)[0m
+           [31m~~~~~~~[0m[1;31m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+[1;35mFileNotFoundError[0m: [35m[Errno 2] No such file or directory: '/app/output/solver-audit.json'[0m
+[?2004hroot@3ddcf2b2b165:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h> OUT="${APP_ROOT}/output"
+[?2004l[?2004h> mkdir -p "${OUT}"
+[?2004l[?2004h> 
+[?2004l[?2004h> # Prefer the CMake build tree binary, fall back to a staged install under /app/bin,
+[?2004l[?2004h> # then PATH.
+[?2004l[?2004h> if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> elif [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> else
+[?2004l[?2004h>   SOLVERCTL="$(command -v solverctl || true)"
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> if [[ -z "${SOLVERCTL}" ]]; then
+[?2004l[?2004h>   echo "error: solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+[?2004l[?2004h>   exit 127
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> "${SOLVERCTL}" matrix
+[?2004l[?2004h> 
+[?2004l[?2004h> # Canonicalize JSON to make repeated runs byte-for-byte comparable.
+[?2004l[?2004h> python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> 
+[?2004l[?2004h> p = Path('/app/output/solver-audit.json')
+[?2004l[?2004h> data = json.loads(p.read_text())
+[?2004l[?2004h> cases = data.get('cases', [])
+[?2004l[?2004h> data['cases'] = sorted(cases, key=lambda c: c.get('name',''))
+[?2004l[?2004h> p.write_text(json.dumps(data, sort_keys=True, separators=(',',':')) + "\n")
+[?2004l[?2004h> PY
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cat > /app/scripts/run-one.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h> NAME="${1:?case name required}"
+[?2004l[?2004h> OUT="${APP_ROOT}/output"
+[?2004l[?2004h> mkdir -p "${OUT}"
+[?2004l[?2004h> 
+[?2004l[?2004h> if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> elif [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> else
+[?2004l[?2004h>   SOLVERCTL="$(command -v solverctl || true)"
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> if [[ -z "${SOLVERCTL}" ]]; then
+[?2004l[?2004h>   echo "error: solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+[?2004l[?2004h>   exit 127
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> "${SOLVERCTL}" one "${NAME}"
+[?2004l[?2004h> 
+[?2004l[?2004h> python3 - <<PY
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> 
+[?2004l[?2004h> name = ${NAME@Q}
+[?2004l[?2004h> # ${NAME@Q} produces a shell-quoted string; strip quotes in python by letting it be a literal.
+[?2004l[?2004h> # Bash will expand it like 'basalt', which is valid python.
+[?2004l[?2004h> 
+[?2004l[?2004h> p = Path(f"/app/output/{name.strip("'\"")}-audit.json")
+[?2004l[?2004h> # Safer: compute again from argv-like literal
+[?2004l[?2004h> case_name = name.strip("'\"")
+[?2004l[?2004h> p = Path(f"/app/output/{case_name}-audit.json")
+[?2004l[?2004h> 
+[?2004l[?2004h> data = json.loads(p.read_text())
+[?2004l[?2004h> cases = data.get('cases', [])
+[?2004l[?2004h> data['cases'] = sorted(cases, key=lambda c: c.get('name',''))
+[?2004l[?2004h> p.write_text(json.dumps(data, sort_keys=True, separators=(',',':')) + "\n")
+[?2004l[?2004h> PY
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@3ddcf2b2b165:/app# chmod +x /app/scripts/run-matrix.sh /app/scripts/run-one.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[100%] Built target solverctl
+[?2004hroot@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# ls -la /app/output
+[?2004ltotal 4
+drwxr-xr-x  2 root root  31 May 29 00:23 .
+drwxr-xr-x 20 root root 278 May 29 00:23 ..
+-rw-r--r--  1 root root 798 May 29 00:23 solver-audit.json
+[?2004hroot@3ddcf2b2b165:/app# python3 -c 'import json;print(json.load(open("/app/output/solver-audit.json")))'
+[?2004l{'cases': [{'final_residual': 0, 'hit_limit': False, 'iterations': 1, 'name': 'basalt', 'ok': False, 'reported_residual': 0.0001, 'residual_agrees': False}, {'final_residual': 0, 'hit_limit': False, 'iterations': 1, 'name': 'flint', 'ok': False, 'reported_residual': 0.0001, 'residual_agrees': False}, {'final_residual': 0, 'hit_limit': False, 'iterations': 1, 'name': 'garnet', 'ok': False, 'reported_residual': 0.0001, 'residual_agrees': False}, {'final_residual': 0, 'hit_limit': False, 'iterations': 1, 'name': 'mica', 'ok': False, 'reported_residual': 0.0001, 'residual_agrees': False}, {'final_residual': 0, 'hit_limit': False, 'iterations': 1, 'name': 'opal', 'ok': False, 'reported_residual': 0.0001, 'residual_agrees': False}, {'final_residual': 0, 'hit_limit': False, 'iterations': 1, 'name': 'shale', 'ok': False, 'reported_residual': 0.0001, 'residual_agrees': False}]}
+[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-one.sh basalt
+[?2004l[?2004hroot@3ddcf2b2b165:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> m = json.loads(Path('/app/output/solver-audit.json').read_text())
+[?2004l[?2004h> one = json.loads(Path('/app/output/basalt-audit.json').read_text())
+[?2004l[?2004h> mslice = {'cases':[c for c in m.get('cases',[]) if c.get('name')=='basalt']}
+[?2004l[?2004h> print(mslice==one)
+[?2004l[?2004h> PY
+[?2004lTrue
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/src/main.cpp
+[?2004l#include "../include/case_spec.h"
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
+
+static const char *CASES[] = {"basalt", "flint", "shale", "garnet", "mica", "opal", NULL};
+
+static int run_named(const char *name, const char *out_dir, SolveResult *res) {
+    char path[512];
+    CaseSpec spec;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.case", name);
+    if (case_load(path, &spec) != 0) {
+        return -1;
+    }
+    return run_u(&spec, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        SolveResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/solver-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        SolveResult res;
+        char audit[512];
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_t(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
+    return 1;
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,240p' /app/drive_u/run.cpp
+[?2004l#include "../include/case_spec.h"
+#include "../include/matrix_view.h"
+#include "../include/solver_report.h"
+
+#include <math.h>
+#include <string.h>
+
+void fn_n(const MatrixView *a, int reorder, BsrPack *c);
+void map_p(const double *a, const int *b, int c, int d, double *e);
+double norm_q(const double *a, int b);
+void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res);
+
+static double l2_norm(const double *v, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += v[i] * v[i];
+    }
+    return sqrt(s);
+}
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
+    MatrixView view;
+    BsrPack pack;
+    double rhs[MAX_DIM];
+    double x[MAX_DIM];
+    double r[MAX_DIM];
+    double true_res;
+    double rep_res;
+    int hit;
+    int iters;
+
+    (void)out_dir;
+    matrix_from_case(spec, &view);
+    fn_n(&view, view.reorder, &pack);
+    map_p(view.b, view.perm, view.n, view.bs, rhs);
+    hit = pcg_solve(&pack, rhs, x, &iters, &true_res);
+    bsr_matvec(&pack, x, r);
+    for (int i = 0; i < view.n; i++) {
+        r[i] = rhs[i] - r[i];
+    }
+    true_res = l2_norm(r, view.n);
+    rep_res = norm_q(r, view.n);
+    strncpy(out->name, spec->name, sizeof(out->name) - 1);
+    out->iterations = iters;
+    out->final_residual = true_res;
+    out->reported_residual = rep_res;
+    out->hit_limit = hit;
+    out->residual_agrees = fabs(rep_res - true_res) <= 1e-6 * (1.0 + true_res);
+    out->ok = (!hit) && (true_res < 1e-8) && out->residual_agrees;
+    return 0;
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/solve_s/driver.cpp
+[?2004l#include "../include/matrix_view.h"
+
+#include <math.h>
+#include <string.h>
+
+static double l2_norm(const double *v, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += v[i] * v[i];
+    }
+    return sqrt(s);
+}
+
+void step_r(const BsrPack *a, const double *b, double *c);
+
+int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res) {
+    const int n = pack->n;
+    const int max_iter = 200;
+    const double tol = 1e-9;
+    double r[MAX_DIM];
+    double z[MAX_DIM];
+    double p[MAX_DIM];
+    double ap[MAX_DIM];
+    double rz_old;
+    double alpha;
+    double beta;
+    double rs;
+    int k;
+
+    for (int i = 0; i < n; i++) {
+        x[i] = 0.0;
+    }
+    bsr_matvec(pack, x, r);
+    for (int i = 0; i < n; i++) {
+        r[i] = rhs[i] - r[i];
+    }
+    rs = l2_norm(r, n);
+    if (rs < tol) {
+        *iters = 0;
+        *final_res = rs;
+        return 0;
+    }
+    step_r(pack, r, z);
+    memcpy(p, z, (size_t)n * sizeof(double));
+    rz_old = 0.0;
+    for (int i = 0; i < n; i++) {
+        rz_old += r[i] * z[i];
+    }
+    for (k = 1; k <= max_iter; k++) {
+        bsr_matvec(pack, p, ap);
+        alpha = rz_old;
+        double denom = 0.0;
+        for (int i = 0; i < n; i++) {
+            denom += p[i] * ap[i];
+        }
+        if (fabs(denom) < 1e-30) {
+            break;
+        }
+        alpha /= denom;
+        for (int i = 0; i < n; i++) {
+            x[i] += alpha * p[i];
+            r[i] -= alpha * ap[i];
+        }
+        rs = l2_norm(r, n);
+        if (rs < tol) {
+            *iters = k;
+            *final_res = rs;
+            return 0;
+        }
+        step_r(pack, r, z);
+        beta = 0.0;
+        for (int i = 0; i < n; i++) {
+            beta += r[i] * z[i];
+        }
+        beta /= rz_old;
+        for (int i = 0; i < n; i++) {
+            p[i] = z[i] + beta * p[i];
+        }
+        rz_old = 0.0;
+        for (int i = 0; i < n; i++) {
+            rz_old += r[i] * z[i];
+        }
+    }
+    *iters = max_iter;
+    *final_res = rs;
+    return 1;
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,240p' /app/scale_q/metric.cpp
+[?2004l#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s) + 1.0e-4;
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/flow_t/report.cpp
+[?2004l#include "../include/solver_report.h"
+
+#include <stdio.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const SolveResult *res, int last) {
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
+    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
+    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
+    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
+    fprintf(fp, "      \"hit_limit\": %s\n    }", res->hit_limit ? "true" : "false");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+}
+
+int emit_t(const SolveResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const SolveResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (int i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/src/case_io.cpp
+[?2004l#include "../include/case_spec.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static void trim(char *s) {
+    size_t n = strlen(s);
+    while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) {
+        s[--n] = '\0';
+    }
+}
+
+int case_load(const char *path, CaseSpec *spec) {
+    FILE *fp = fopen(path, "r");
+    char line[512];
+    if (!fp) {
+        return -1;
+    }
+    memset(spec, 0, sizeof(*spec));
+    for (int i = 0; i < MAX_BLOCKS; i++) {
+        spec->perm[i] = i;
+    }
+    while (fgets(line, sizeof(line), fp)) {
+        trim(line);
+        if (line[0] == '#' || line[0] == '\0') {
+            continue;
+        }
+        if (strncmp(line, "name ", 5) == 0) {
+            strncpy(spec->name, line + 5, CASE_NAME_LEN - 1);
+        } else if (strncmp(line, "nblocks ", 8) == 0) {
+            spec->nblocks = atoi(line + 8);
+        } else if (strncmp(line, "bs ", 3) == 0) {
+            spec->bs = atoi(line + 3);
+        } else if (strncmp(line, "reorder ", 8) == 0) {
+            spec->reorder = atoi(line + 8);
+        } else if (strncmp(line, "perm ", 5) == 0) {
+            char *tok = strtok(line + 5, " ");
+            int ix = 0;
+            while (tok && ix < MAX_BLOCKS) {
+                spec->perm[ix++] = atoi(tok);
+                tok = strtok(NULL, " ");
+            }
+        } else if (strncmp(line, "block ", 6) == 0) {
+            BlockEntry *be = &spec->blocks[spec->block_count++];
+            char *tok = strtok(line + 6, " ");
+            be->rb = atoi(tok);
+            tok = strtok(NULL, " ");
+            be->cb = atoi(tok);
+            for (int k = 0; k < spec->bs * spec->bs; k++) {
+                tok = strtok(NULL, " ");
+                be->vals[k] = tok ? atof(tok) : 0.0;
+            }
+        } else if (strncmp(line, "rhs ", 4) == 0) {
+            char *tok = strtok(line + 4, " ");
+            int ix = 0;
+            while (tok && ix < MAX_BLOCKS * MAX_BS) {
+                spec->rhs[ix++] = atof(tok);
+                tok = strtok(NULL, " ");
+            }
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,240p' /app/docs/operations.md
+[?2004l# Operations
+
+The control binary lives at `/app/bin/solverctl`. Scenario specifications are under `/app/data/cases`.
+
+CMake build trees may be created under `/app/build`. Outputs land in `/app/output`.
+[?2004hroot@3ddcf2b2b165:/app# grep -RIn "matrix_from_case\|map_p\|fn_n\|bsr_matvec\|step_r" /app | head -n 50
+[?2004l/app/bsr_n/layout.cpp:6:void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
+/app/bsr_n/layout.cpp:68:void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
+/app/csr_m/assemble.cpp:5:void matrix_from_case(const CaseSpec *spec, MatrixView *view) {
+/app/drive_u/run.cpp:8:void fn_n(const MatrixView *a, int reorder, BsrPack *c);
+/app/drive_u/run.cpp:9:void map_p(const double *a, const int *b, int c, int d, double *e);
+/app/drive_u/run.cpp:11:void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+/app/drive_u/run.cpp:34:    matrix_from_case(spec, &view);
+/app/drive_u/run.cpp:35:    fn_n(&view, view.reorder, &pack);
+/app/drive_u/run.cpp:36:    map_p(view.b, view.perm, view.n, view.bs, rhs);
+/app/drive_u/run.cpp:38:    bsr_matvec(&pack, x, r);
+/app/include/matrix_view.h:29:void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+/app/include/matrix_view.h:30:void bsr_matvec(const BsrPack *pack, const double *x, double *y);
+/app/perm_p/order.cpp:5:void map_p(const double *a, const int *b, int c, int d, double *e) {
+/app/prec_r/apply.cpp:3:void step_r(const BsrPack *a, const double *b, double *c) {
+/app/solve_s/driver.cpp:14:void step_r(const BsrPack *a, const double *b, double *c);
+/app/solve_s/driver.cpp:33:    bsr_matvec(pack, x, r);
+/app/solve_s/driver.cpp:43:    step_r(pack, r, z);
+/app/solve_s/driver.cpp:50:        bsr_matvec(pack, p, ap);
+/app/solve_s/driver.cpp:70:        step_r(pack, r, z);
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/csr_m/assemble.cpp
+[?2004l#include "../include/matrix_view.h"
+
+#include <string.h>
+
+void matrix_from_case(const CaseSpec *spec, MatrixView *view) {
+    int dim = spec->nblocks * spec->bs;
+    int i;
+    memset(view, 0, sizeof(*view));
+    view->n = dim;
+    view->bs = spec->bs;
+    view->nblocks = spec->nblocks;
+    view->reorder = spec->reorder;
+    for (i = 0; i < spec->nblocks; i++) {
+        view->perm[i] = spec->perm[i];
+    }
+    for (i = 0; i < dim * dim; i++) {
+        view->a[i] = 0.0;
+    }
+    for (i = 0; i < spec->block_count; i++) {
+        const BlockEntry *be = &spec->blocks[i];
+        int rb = be->rb;
+        int cb = be->cb;
+        int r;
+        int c;
+        for (r = 0; r < spec->bs; r++) {
+            for (c = 0; c < spec->bs; c++) {
+                int gr = rb * spec->bs + r;
+                int gc = cb * spec->bs + c;
+                view->a[gr * dim + gc] = be->vals[r * spec->bs + c];
+            }
+        }
+    }
+    for (i = 0; i < dim; i++) {
+        view->b[i] = spec->rhs[i];
+    }
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/bsr_n/layout.cpp
+[?2004l#include "../include/matrix_view.h"
+
+#include <math.h>
+#include <string.h>
+
+void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
+    int nb = a->nblocks;
+    int bs = a->bs;
+    int dim = a->n;
+    int ptr = 0;
+    memset(c, 0, sizeof(*c));
+    c->n = dim;
+    c->bs = bs;
+    c->nblocks = nb;
+    c->reorder = reorder;
+    for (int i = 0; i < nb; i++) {
+        c->perm[i] = a->perm[i];
+    }
+    for (int bi = 0; bi < nb; bi++) {
+        int row_blk = reorder ? a->perm[bi] : bi;
+        c->row_ptr[bi] = ptr;
+        for (int bj = 0; bj < nb; bj++) {
+            int col_blk = reorder ? ((bj + 1) % nb) : bj;
+            int has = 0;
+            for (int r = 0; r < bs; r++) {
+                for (int cc = 0; cc < bs; cc++) {
+                    int gr = row_blk * bs + r;
+                    int gc = col_blk * bs + cc;
+                    double v = a->a[gr * dim + gc];
+                    if (fabs(v) > 0.0) {
+                        has = 1;
+                    }
+                }
+            }
+            if (has) {
+                c->col_idx[ptr] = col_blk;
+                for (int r = 0; r < bs; r++) {
+                    for (int cc = 0; cc < bs; cc++) {
+                        int gr = row_blk * bs + r;
+                        int gc = col_blk * bs + cc;
+                        c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];
+                    }
+                }
+                ptr++;
+            }
+        }
+    }
+    c->row_ptr[nb] = ptr;
+    for (int i = 0; i < dim; i++) {
+        c->diag_inv[i] = 1.0;
+    }
+    for (int bi = 0; bi < nb; bi++) {
+        int start = c->row_ptr[bi];
+        int end = c->row_ptr[bi + 1];
+        for (int k = start; k < end; k++) {
+            if (c->col_idx[k] == bi) {
+                for (int r = 0; r < bs; r++) {
+                    double d = c->data[k * bs * bs + r * bs + r];
+                    if (fabs(d) > 1e-14) {
+                        c->diag_inv[bi * bs + r] = 1.0 / d;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
+    int nb = pack->nblocks;
+    int bs = pack->bs;
+    int dim = pack->n;
+    for (int i = 0; i < dim; i++) {
+        y[i] = 0.0;
+    }
+    for (int bi = 0; bi < nb; bi++) {
+        int start = pack->row_ptr[bi];
+        int end = pack->row_ptr[bi + 1];
+        for (int k = start; k < end; k++) {
+            int bj = pack->col_idx[k];
+            for (int r = 0; r < bs; r++) {
+                for (int c = 0; c < bs; c++) {
+                    int gi = bi * bs + r;
+                    int gj = bj * bs + c;
+                    y[gi] += pack->data[k * bs * bs + r * bs + c] * x[gj];
+                }
+            }
+        }
+    }
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/perm_p/order.cpp
+[?2004l#include "../include/matrix_view.h"
+
+#include <string.h>
+
+void map_p(const double *a, const int *b, int c, int d, double *e) {
+    (void)b;
+    (void)c;
+    (void)d;
+    memcpy(e, a, (size_t)c * sizeof(double));
+}
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,260p' /app/prec_r/apply.cpp
+[?2004l#include "../include/matrix_view.h"
+
+void step_r(const BsrPack *a, const double *b, double *c) {
+    int dim = a->n;
+    for (int i = 0; i < dim; i++) {
+        int blk = i / a->bs;
+        int loc = i % a->bs;
+        int src_blk = blk;
+        if (a->reorder) {
+            src_blk = (blk + 1) % a->nblocks;
+        }
+        c[i] = a->diag_inv[src_blk * a->bs + loc] * b[i];
+    }
+}
+[?2004hroot@3ddcf2b2b165:/app# grep -RIn "double norm_q" -n /app/scale_q/metric.cpp
+[?2004l5:double norm_q(const double *a, int b) {
+[?2004hroot@3ddcf2b2b165:/app# cat > /app/scale_q/metric.cpp <<'EOF'
+[?2004l[?2004h> #include "../include/matrix_view.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> #include <math.h>
+[?2004l[?2004h> 
+[?2004l[?2004h> // Reported residual should match the independently computed L2 residual.
+[?2004l[?2004h> // (Previously this added a constant bias, making audits fail.)
+[?2004l[?2004h> double norm_q(const double *a, int b) {
+[?2004l[?2004h>     double s = 0.0;
+[?2004l[?2004h>     for (int i = 0; i < b; i++) {
+[?2004l[?2004h>         s += a[i] * a[i];
+[?2004l[?2004h>     }
+[?2004l[?2004h>     return sqrt(s);
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@3ddcf2b2b165:/app# perl -0777 -i -pe 's/if \(fabs\(denom\) < 1e-30\) \{\n\s*break;\n\s*\}/if (fabs(denom) < 1e-30) {\n            *iters = k - 1;\n            *final_res = rs;\n            return 1;\n        }/s' /app/solve_s/driver.cpp
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[ 15%] [32mBuilding CXX object CMakeFiles/solverctl.dir/solve_s/driver.cpp.o[0m
+[ 15%] [32mBuilding CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o[0m
+[ 23%] [32m[1mLinking CXX executable bin/solverctl[0m
+[100%] Built target solverctl
+[?2004hroot@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> j = json.loads(Path('/app/output/solver-audit.json').read_text())
+[?2004l[?2004h> for c in j['cases']:
+[?2004l[?2004h>     print(c['name'], 'ok=',c['ok'], 'iters=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'], 'agree=',c['residual_agrees'], 'hit=',c['hit_limit'])
+[?2004l[?2004h> PY
+[?2004lbasalt ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+flint ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+garnet ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+mica ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+opal ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+shale ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+[?2004hroot@3ddcf2b2b165:/app# for f in /app/data/cases/*.case; do echo "--- $f"; sed -n '1,120p' "$f"; done
+[?2004l--- /app/data/cases/basalt.case
+# basalt — identity layout, diagonal blocks
+name basalt
+nblocks 2
+bs 2
+reorder 0
+perm 0 1
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+rhs 1 0 1 0
+--- /app/data/cases/flint.case
+# flint — identity layout with off-diagonal coupling
+name flint
+nblocks 2
+bs 2
+reorder 0
+perm 0 1
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+block 0 1 0 0.5 0 0
+block 1 0 0 0.5 0 0
+rhs 1 0 1 0
+--- /app/data/cases/garnet.case
+# garnet — three blocks with reorder
+name garnet
+nblocks 3
+bs 2
+reorder 1
+perm 2 0 1
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+--- /app/data/cases/mica.case
+# mica — three blocks with reorder (garnet-class conditioning)
+name mica
+nblocks 3
+bs 2
+reorder 1
+perm 1 2 0
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+--- /app/data/cases/opal.case
+# opal — three blocks with reorder (garnet-class conditioning)
+name opal
+nblocks 3
+bs 2
+reorder 1
+perm 1 2 0
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+--- /app/data/cases/shale.case
+# shale — reordered flint-equivalent system
+name shale
+nblocks 2
+bs 2
+reorder 1
+perm 1 0
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+block 0 1 0 0.5 0 0
+block 1 0 0 0.5 0 0
+rhs 1 0 1 0
+[?2004hroot@3ddcf2b2b165:/app# cat > /app/bsr_n/layout.cpp <<'EOF'
+[?2004l[?2004h> #include "../include/matrix_view.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> #include <math.h>
+[?2004l[?2004h> #include <string.h>
+[?2004l[?2004h> 
+[?2004l[?2004h> void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
+[?2004l[?2004h>     int nb = a->nblocks;
+[?2004l[?2004h>     int bs = a->bs;
+[?2004l[?2004h>     int dim = a->n;
+[?2004l[?2004h>     int ptr = 0;
+[?2004l[?2004h>     memset(c, 0, sizeof(*c));
+[?2004l[?2004h>     c->n = dim;
+[?2004l[?2004h>     c->bs = bs;
+[?2004l[?2004h>     c->nblocks = nb;
+[?2004l[?2004h>     c->reorder = reorder;
+[?2004l[?2004h>     for (int i = 0; i < nb; i++) {
+[?2004l[?2004h>         c->perm[i] = a->perm[i];
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Build BSR in the packed block order.
+[?2004l[?2004h>     // If reorder is enabled, packed block index bi corresponds to original block perm[bi].
+[?2004l[?2004h>     for (int bi = 0; bi < nb; bi++) {
+[?2004l[?2004h>         int row_blk = reorder ? a->perm[bi] : bi;
+[?2004l[?2004h>         c->row_ptr[bi] = ptr;
+[?2004l[?2004h>         for (int bj = 0; bj < nb; bj++) {
+[?2004l[?2004h>             int col_blk = reorder ? a->perm[bj] : bj;
+[?2004l[?2004h>             int has = 0;
+[?2004l[?2004h>             for (int r = 0; r < bs; r++) {
+[?2004l[?2004h>                 for (int cc = 0; cc < bs; cc++) {
+[?2004l[?2004h>                     int gr = row_blk * bs + r;
+[?2004l[?2004h>                     int gc = col_blk * bs + cc;
+[?2004l[?2004h>                     double v = a->a[gr * dim + gc];
+[?2004l[?2004h>                     if (fabs(v) > 0.0) {
+[?2004l[?2004h>                         has = 1;
+[?2004l[?2004h>                     }
+[?2004l[?2004h>                 }
+[?2004l[?2004h>             }
+[?2004l[?2004h>             if (has) {
+[?2004l[?2004h>                 // Store the column using packed index bj so matvec works in packed space.
+[?2004l[?2004h>                 c->col_idx[ptr] = bj;
+[?2004l[?2004h>                 for (int r = 0; r < bs; r++) {
+[?2004l[?2004h>                     for (int cc = 0; cc < bs; cc++) {
+[?2004l[?2004h>                         int gr = row_blk * bs + r;
+[?2004l[?2004h>                         int gc = col_blk * bs + cc;
+[?2004l[?2004h>                         c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];
+[?2004l[?2004h>                     }
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 ptr++;
+[?2004l[?2004h>             }
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h>     c->row_ptr[nb] = ptr;
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Diagonal preconditioner in packed indexing.
+[?2004l[?2004h>     for (int i = 0; i < dim; i++) {
+[?2004l[?2004h>         c->diag_inv[i] = 1.0;
+[?2004l[?2004h>     }
+[?2004l[?2004h>     for (int bi = 0; bi < nb; bi++) {
+[?2004l[?2004h>         int start = c->row_ptr[bi];
+[?2004l[?2004h>         int end = c->row_ptr[bi + 1];
+[?2004l[?2004h>         for (int k = start; k < end; k++) {
+[?2004l[?2004h>             if (c->col_idx[k] == bi) {
+[?2004l[?2004h>                 for (int r = 0; r < bs; r++) {
+[?2004l[?2004h>                     double d = c->data[k * bs * bs + r * bs + r];
+[?2004l[?2004h>                     if (fabs(d) > 1e-14) {
+[?2004l[?2004h>                         c->diag_inv[bi * bs + r] = 1.0 / d;
+[?2004l[?2004h>                     }
+[?2004l[?2004h>                 }
+[?2004l[?2004h>             }
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
+[?2004l[?2004h>     int nb = pack->nblocks;
+[?2004l[?2004h>     int bs = pack->bs;
+[?2004l[?2004h>     int dim = pack->n;
+[?2004l[?2004h>     for (int i = 0; i < dim; i++) {
+[?2004l[?2004h>         y[i] = 0.0;
+[?2004l[?2004h>     }
+[?2004l[?2004h>     for (int bi = 0; bi < nb; bi++) {
+[?2004l[?2004h>         int start = pack->row_ptr[bi];
+[?2004l[?2004h>         int end = pack->row_ptr[bi + 1];
+[?2004l[?2004h>         for (int k = start; k < end; k++) {
+[?2004l[?2004h>             int bj = pack->col_idx[k];
+[?2004l[?2004h>             for (int r = 0; r < bs; r++) {
+[?2004l[?2004h>                 for (int ccc = 0; ccc < bs; ccc++) {
+[?2004l[?2004h>                     int gi = bi * bs + r;
+[?2004l[?2004h>                     int gj = bj * bs + ccc;
+[?2004l[?2004h>                     y[gi] += pack->data[k * bs * bs + r * bs + ccc] * x[gj];
+[?2004l[?2004h>                 }
+[?2004l[?2004h>             }
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cat > /app/perm_p/order.cpp <<'EOF'
+[?2004l[?2004h> #include "../include/matrix_view.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> #include <string.h>
+[?2004l[?2004h> 
+[?2004l[?2004h> // Map a vector from original ordering to packed ordering.
+[?2004l[?2004h> // When reorder is enabled, packed block index bi corresponds to original block perm[bi].
+[?2004l[?2004h> void map_p(const double *in, const int *perm, int n, int bs, double *out) {
+[?2004l[?2004h>     int nb = n / bs;
+[?2004l[?2004h>     // Default: identity mapping.
+[?2004l[?2004h>     for (int i = 0; i < n; i++) {
+[?2004l[?2004h>         out[i] = in[i];
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // If perm is present and differs, map by blocks.
+[?2004l[?2004h>     // out[bi] = in[perm[bi]] (block-wise)
+[?2004l[?2004h>     // This matches fn_n building rows in packed order.
+[?2004l[?2004h>     if (perm) {
+[?2004l[?2004h>         for (int bi = 0; bi < nb; bi++) {
+[?2004l[?2004h>             int src_blk = perm[bi];
+[?2004l[?2004h>             memcpy(out + bi * bs, in + src_blk * bs, (size_t)bs * sizeof(double));
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cat > /app/prec_r/apply.cpp <<'EOF'
+[?2004l[?2004h> #include "../include/matrix_view.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> // Apply diagonal preconditioner in packed ordering.
+[?2004l[?2004h> void step_r(const BsrPack *a, const double *b, double *c) {
+[?2004l[?2004h>     int dim = a->n;
+[?2004l[?2004h>     for (int i = 0; i < dim; i++) {
+[?2004l[?2004h>         c[i] = a->diag_inv[i] * b[i];
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[  7%] [32mBuilding CXX object CMakeFiles/solverctl.dir/prec_r/apply.cpp.o[0m
+[ 15%] [32mBuilding CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o[0m
+[ 23%] [32mBuilding CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o[0m
+[ 30%] [32m[1mLinking CXX executable bin/solverctl[0m
+[100%] Built target solverctl
+[?2004hroot@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> j = json.loads(Path('/app/output/solver-audit.json').read_text())
+[?2004l[?2004h> for c in j['cases']:
+[?2004l[?2004h>     print(c['name'], 'ok=',c['ok'], 'iters=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'], 'agree=',c['residual_agrees'], 'hit=',c['hit_limit'])
+[?2004l[?2004h> PY
+[?2004lbasalt ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+flint ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+garnet ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+mica ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+opal ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+shale ok= True iters= 1 final= 0 reported= 0 agree= True hit= False
+[?2004hroot@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@3ddcf2b2b165:/app# /app/build/bin/solverctl matrix
+[?2004l[?2004hroot@3ddcf2b2b165:/app# sed -n '1,120p' /app/output/solver-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    }
+  ]
+}
+[?2004hroot@3ddcf2b2b165:/app# python3 - <<'PY'
+[?2004l[?2004h> import math, re
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_case(path):
+[?2004l[?2004h>     name=None; nblocks=0; bs=0; reorder=0; perm=[]; blocks=[]; rhs=[]
+[?2004l[?2004h>     for line in Path(path).read_text().splitlines():
+[?2004l[?2004h>         line=line.strip()
+[?2004l[?2004h>         if not line or line.startswith('#'): continue
+[?2004l[?2004h>         parts=line.split()
+[?2004l[?2004h>         if parts[0]=='name': name=parts[1]
+[?2004l[?2004h>         elif parts[0]=='nblocks': nblocks=int(parts[1])
+[?2004l[?2004h>         elif parts[0]=='bs': bs=int(parts[1])
+[?2004l[?2004h>         elif parts[0]=='reorder': reorder=int(parts[1])
+[?2004l[?2004h>         elif parts[0]=='perm': perm=list(map(int, parts[1:]))
+[?2004l[?2004h>         elif parts[0]=='block':
+[?2004l[?2004h>             rb=int(parts[1]); cb=int(parts[2]); vals=list(map(float, parts[3:]))
+[?2004l[?2004h>             blocks.append((rb,cb,vals))
+[?2004l[?2004h>         elif parts[0]=='rhs': rhs=list(map(float, parts[1:]))
+[?2004l[?2004h>     n=nblocks*bs
+[?2004l[?2004h>     A=[[0.0]*n for _ in range(n)]
+[?2004l[?2004h>     for rb,cb,vals in blocks:
+[?2004l[?2004h>         for r in range(bs):
+[?2004l[?2004h>             for c in range(bs):
+[?2004l[?2004h>                 gr=rb*bs+r; gc=cb*bs+c
+[?2004l[?2004h>                 A[gr][gc]=vals[r*bs+c]
+[?2004l[?2004h>     b=rhs[:n]
+[?2004l[?2004h>     return name,A,b
+[?2004l[?2004h> 
+[?2004l[?2004h> def solve_gauss(A,b):
+[?2004l[?2004h>     n=len(b)
+[?2004l[?2004h>     M=[row[:] + [b[i]] for i,row in enumerate(A)]
+[?2004l[?2004h>     for col in range(n):
+[?2004l[?2004h>         piv=max(range(col,n), key=lambda r: abs(M[r][col]))
+[?2004l[?2004h>         M[col],M[piv]=M[piv],M[col]
+[?2004l[?2004h>         p=M[col][col]
+[?2004l[?2004h>         if abs(p)<1e-15: raise ValueError('singular')
+[?2004l[?2004h>         for j in range(col,n+1): M[col][j]/=p
+[?2004l[?2004h>         for r in range(n):
+[?2004l[?2004h>             if r==col: continue
+[?2004l[?2004h>             f=M[r][col]
+[?2004l[?2004h>             if f==0: continue
+[?2004l[?2004h>             for j in range(col,n+1):
+[?2004l[?2004h>                 M[r][j]-=f*M[col][j]
+[?2004l[?2004h>     return [M[i][n] for i in range(n)]
+[?2004l[?2004h> 
+[?2004l[?2004h> def residual_norm(A,x,b):
+[?2004l[?2004h>     n=len(b)
+[?2004l[?2004h>     r=[]
+[?2004l[?2004h>     for i in range(n):
+[?2004l[?2004h>         ax=sum(A[i][j]*x[j] for j in range(n))
+[?2004l[?2004h>         r.append(b[i]-ax)
+[?2004l[?2004h>     return math.sqrt(sum(v*v for v in r))
+[?2004l[?2004h> 
+[?2004l[?2004h> for case in ['basalt','flint','shale','garnet','mica','opal']:
+[?2004l[?2004h>     name,A,b=load_case(f'/app/data/cases/{case}.case')
+[?2004l[?2004h>     x=solve_gauss(A,b)
+[?2004l[?2004h>     rn=residual_norm(A,x,b)
+[?2004l[?2004h>     print(case,'direct_residual',rn,'x0',x[0])
+[?2004l[?2004h> PY
+[?2004lbasalt direct_residual 0.0 x0 0.25
+flint direct_residual 0.0 x0 0.25
+shale direct_residual 0.0 x0 0.25
+garnet direct_residual 0.0 x0 0.2
+mica direct_residual 0.0 x0 0.2
+opal direct_residual 0.0 x0 0.2
+[?2004hroot@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+[?2004l[?2004hroot@3ddcf2b2b165:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+[?2004l[?2004hroot@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-one.sh garnet
+[?2004l[?2004hroot@3ddcf2b2b165:/app# ls -la /app/output
+[?2004ltotal 8
+drwxr-xr-x  2 root root  56 May 29 00:26 .
+drwxr-xr-x 20 root root 278 May 29 00:26 ..
+-rw-r--r--  1 root root 137 May 29 00:26 garnet-audit.json
+-rw-r--r--  1 root root 756 May 29 00:26 solver-audit.json
+[?2004hroot@3ddcf2b2b165:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> m=json.loads(Path('/app/output/solver-audit.json').read_text())
+[?2004l[?2004h> one=json.loads(Path('/app/output/garnet-audit.json').read_text())
+[?2004l[?2004h> mslice={'cases':[c for c in m['cases'] if c.get('name')=='garnet']}
+[?2004l[?2004h> print('match', mslice==one)
+[?2004l[?2004h> PY
+[?2004lmatch True
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+# Prefer the CMake build tree binary, fall back to a staged install under /app/bin,
+# then PATH.
+if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+  SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+elif [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+else
+  SOLVERCTL="$(command -v solverctl || true)"
+fi
+
+if [[ -z "${SOLVERCTL}" ]]; then
+  echo "error: solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+  exit 127
+fi
+
+"${SOLVERCTL}" matrix
+
+# Canonicalize JSON to make repeated runs byte-for-byte comparable.
+python3 - <<'PY'
+import json
+from pathlib import Path
+
+p = Path('/app/output/solver-audit.json')
+data = json.loads(p.read_text())
+cases = data.get('cases', [])
+data['cases'] = sorted(cases, key=lambda c: c.get('name',''))
+p.write_text(json.dumps(data, sort_keys=True, separators=(',',':')) + "\n")
+PY
+[?2004hroot@3ddcf2b2b165:/app# sed -n '1,220p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+if [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+  SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+elif [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+else
+  SOLVERCTL="$(command -v solverctl || true)"
+fi
+
+if [[ -z "${SOLVERCTL}" ]]; then
+  echo "error: solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+  exit 127
+fi
+
+"${SOLVERCTL}" one "${NAME}"
+
+python3 - <<PY
+import json
+from pathlib import Path
+
+name = ${NAME@Q}
+# ${NAME@Q} produces a shell-quoted string; strip quotes in python by letting it be a literal.
+# Bash will expand it like 'basalt', which is valid python.
+
+p = Path(f"/app/output/{name.strip("'\"")}-audit.json")
+# Safer: compute again from argv-like literal
+case_name = name.strip("'\"")
+p = Path(f"/app/output/{case_name}-audit.json")
+
+data = json.loads(p.read_text())
+cases = data.get('cases', [])
+data['cases'] = sorted(cases, key=lambda c: c.get('name',''))
+p.write_text(json.dumps(data, sort_keys=True, separators=(',',':')) + "\n")
+PY
+[?2004hroot@3ddcf2b2b165:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[100%] Built target solverctl
+[?2004hroot@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3ddcf2b2b165:/app# python3 -c 'import json; j=json.load(open("/app/output/solver-audit.json")); import sys; sys.exit(0 if all(c["ok"] and c["residual_agrees"] for c in j["cases"]) else 1)'
+[?2004l[?2004hroot@3ddcf2b2b165:/app# 

@@ -1,0 +1,105 @@
+New Terminal Output:
+
+root@6d34054701b6:/app# python3 - <<'PY'
+> from pathlib import Path
+> p=Path('/app/internal/f5/run.go')
+> s=p.read_text()
+> start=s.find('func runLoaded(')
+> if start==-1:
+>     raise SystemExit('runLoaded not found')
+> # crude parse: find matching closing brace for function by counting braces
+> i=s.find('{', start)
+> brace=0
+> j=i
+> while j < len(s):
+>     if s[j]=='{': brace+=1
+>     elif s[j]=='}':
+>         brace-=1
+>         if brace==0:
+>             end=j+1
+>             break
+>     j+=1
+> else:
+>     raise SystemExit('could not find end')
+> old=s[start:end]
+> new='''func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+>         applyWorld(w, blob)
+>         cache := &b1.CacheX{Obs: map[string]bool{}}
+>         b1.Merge(cache, blob)
+>         merged := b1.Snapshot(cache)
+>         for k, v := range stale {
+>                 merged[k] = v
+>         }
+>         w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+>
+>         // Resume path should replay the same post-save script steps as the fresh
+>         // (direct) path. The loaded snapshot already contains the state at the
+>         // save boundary, including any cached visibility observations.
+>         moves := []MoveRow{}
+>         pastSave := false
+>         obs := merged
+>         for _, step := range steps {
+>                 if step.Action == "save" {
+>                         pastSave = true
+>                         continue
+>                 }
+>                 if !pastSave {
+>                         continue
+>                 }
+>                 w.Turn = step.Turn
+>                 if step.Actor == "P" {
+>                         applyPlayer(w, step.Arg)
+>                         e4.ApplyLit(w, radius, blindActive(w))
+>                         // After player movement, refresh observations from the
+>                         // current world state.
+>                         obs = buildObs(w, nil)
+>                 }
+>                 if step.Actor == "H" {
+>                         moves = append(moves, advanceAll(w, obs)...)
+>                 }
+>         }
+>         return moves
+> }'''
+> if old==new:
+>     print('runLoaded already patched')
+> else:
+>     p.write_text(s[:start]+new+s[end:])
+>     print('patched runLoaded')
+> PY
+patched runLoaded
+root@6d34054701b6:/app# make -s -C /app build
+root@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+root@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+root@6d34054701b6:/app# python3 - <<'PY'
+> import json
+> for name in ['rook','sentinel']:
+>     p=f'/app/output/single-{name}.json'
+>     with open(p) as f: data=json.load(f)
+>     c=data['cases'][0]
+>     print(name,'ok',c['ok'])
+>     print(' fresh',c['fresh'])
+>     print(' resume',c['resume'])
+>     print(' visibility',c['visibility'])
+> PY
+rook ok False
+ fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+ resume {'sig': '7d3f56fa', 'illegal': 1, 'steps': 1}
+ visibility {'fresh_seen': 9, 'resume_seen': 0}
+sentinel ok False
+ fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+ resume {'sig': '9a98d68', 'illegal': 1, 'steps': 1}
+ visibility {'fresh_seen': 9, 'resume_seen': 0}
+root@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+root@6d34054701b6:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> print('all ok:', all(c.get('ok') for c in data.get('cases',[])))
+> for c in data.get('cases',[]):
+>     if not c.get('ok'):
+>         print('FAIL',c['name'],c['fresh'],c['resume'],c.get('visibility'))
+> PY
+all ok: False
+FAIL rook {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} {'sig': '7d3f56fa', 'illegal': 1, 'steps': 1} {'fresh_seen': 9, 'resume_seen': 0}
+FAIL sentinel {'sig': '9a98d68', 'illegal': 0, 'steps': 1} {'sig': '9a98d68', 'illegal': 1, 'steps': 1} {'fresh_seen': 9, 'resume_seen': 0}
+root@6d34054701b6:/app#

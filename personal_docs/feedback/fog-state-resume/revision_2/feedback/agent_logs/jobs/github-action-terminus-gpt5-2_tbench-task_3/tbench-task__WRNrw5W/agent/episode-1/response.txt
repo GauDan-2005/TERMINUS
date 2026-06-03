@@ -1,0 +1,23 @@
+{
+  "analysis": "Matrix ran and produced /app/output/resume-audit.json. We attempted to use jq to inspect failures, but jq is not installed in this environment. Next we need to inspect the JSON using available tools (cat/sed/grep/python), identify failing cases, then run one-case for a failing case to debug and fix resume-vs-fresh divergence.",
+  "plan": "1) View resume-audit.json with cat/sed to see structure and locate failing cases. 2) Use python3 to parse the JSON and print a concise list of failing cases and key mismatch fields (illegal counts, signatures). 3) Pick the first failing case and run one-case.sh to generate the focused single-case JSON for deeper comparison.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/output/resume-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\nprint('cases:', len(d.get('cases',[])))\nbad=[]\nfor c in d.get('cases',[]):\n    if not c.get('ok', False):\n        bad.append(c)\nprint('bad:', len(bad))\nfor c in bad:\n    fresh=c.get('fresh',{})\n    resume=c.get('resume',{})\n    print(f\"{c.get('case')}: vis={c.get('visibility')} fresh.illegal={fresh.get('illegal')} resume.illegal={resume.get('illegal')} fresh.sig={fresh.get('signature')} resume.sig={resume.get('signature')}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\nfor c in d.get('cases',[]):\n    if not c.get('ok', False):\n        print(c.get('case'))\n        break\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "case=$(python3 - <<'PY'\nimport json\nwith open('/app/output/resume-audit.json') as f:\n    d=json.load(f)\nfor c in d.get('cases',[]):\n    if not c.get('ok', False):\n        print(c['case'])\n        break\nPY\n); echo \"FIRST_FAIL=$case\"; bash /app/scripts/one-case.sh \"$case\"; ls -la \"/app/output/single-$case.json\"; sed -n '1,200p' \"/app/output/single-$case.json\"\n",
+      "duration": 60
+    }
+  ],
+  "task_complete": false
+}

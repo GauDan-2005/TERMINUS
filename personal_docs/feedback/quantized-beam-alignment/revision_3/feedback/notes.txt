@@ -1,0 +1,132 @@
+Feedback for Submission: 4e774a51-688e-46e0-b7bc-c56194572f8c
+Assignment ID: 49c16ae8-40f5-41eb-a9ba-0d83914655b6
+Project ID: bfe79c33-8ab0-4061-9849-08d3207c9927
+Project: Terminus-2nd-Edition
+
+================================================================================
+
+Revision Notes
+--------------------------------------------------------------------------------
+AutoEval Execution Summary: AutoEval execution failed. Build status: FAILED. Build ID: CodeExecutionEnvironment:4029bf13-c0a5-4c75-a81b-6919c406ac5f.
+
+Summary (difficulty check)
+--------------------------------------------------------------------------------
+Difficulty: ✅ HARD
+
+Status: ❌ Some tests not passed by any agent run
+
+Agent Performance:
+  • terminus-claude-opus-4-6: 0.0% (0/5 runs)
+  • terminus-gpt5-2: 0.0% (0/5 runs)
+
+Reference Agents:
+  • nop: 0.0% (0/1 runs)
+  • oracle: 100.0% (3/3 runs)
+
+Failure Breakdown:
+  • nop: 1 other
+  • terminus-claude-opus-4-6: 5 other
+  • terminus-gpt5-2: 5 other
+
+Unit Tests Results:
+  • test_alpha_path: 10 passed / 10 runs
+  • test_zeta_path: 10 passed / 10 runs
+  • test_eta_path: 10 passed / 10 runs
+  • test_theta_path: 10 passed / 10 runs
+  • test_iota_path: 10 passed / 10 runs
+  • test_kappa_path: 10 passed / 10 runs
+  • test_lambda_path: 10 passed / 10 runs
+  • test_nu_path: 10 passed / 10 runs
+  • test_mu_path: 10 passed / 10 runs
+  • test_beta_path: 0 passed / 10 runs
+  • test_gamma_path: 0 passed / 10 runs
+  • test_delta_path: 0 passed / 10 runs
+  • test_epsilon_path: 0 passed / 10 runs
+  • test_rust_stage_produces_raw: 0 passed / 10 runs
+
+Analysis on Agent Failures:
+  • Task Instruction Sufficiency: ✅ PASS, ## Job Summary: tbench-task (Rust+Go Inference Sandbox Repair)
+
+### 1. Overall Results
+**0/10 trials passed** (reward = 0.0 across all trials). All agents earned partial credit — 9/14 tests passing — but none cracked the final 5.
+
+---
+
+### 2. Common Failure Patterns
+
+Every single trial followed the same failure arc:
+
+**What all agents fixed correctly (9/14 tests):**
+- `run_local.sh` missing `cargo` from PATH
+- Go `cmd/align/main.go`: `fold()` deduplicating by first byte of case name instead of full name
+- Go `agree` logic: count-only comparison → proper field-by-field comparison
+- Go prior-report comparison semantics
+- Several agents also removed the spurious `selected` field from Rust JSON output
+
+**What all agents missed (5/14 tests):**
+The core Rust computation bugs in `src/a0/mod.rs`, `src/b1/mod.rs`, and `src/c2/mod.rs`:
+- `ax()` applies a single per-row scale/bias index (`c % len`) instead of per-column indices (`i % len`) — causing wrong `produced` values for all packed cases (beta, gamma, delta, epsilon)
+- `bx()` returning input indices directly instead of looking them up through handle vector `a.v`
+- `cx()` accumulating values with `+=` instead of replacing with `=`
+
+The smoking gun clue — an unused `ax_ref()` reference function sitting right next to the buggy `ax()` — went unnoticed in every trial (tbench-task__48TEbFF, __iwpQJmy, __jvvt6NW, __5euhMGQ all had this noted explicitly in their summaries).
+
+---
+
+### 3. Hack Check
+
+**No cheating detected.** All 10 trials received `reward_hacking: pass`. No agent:
+- Accessed the `solution/` directory
+- Wrote to `/logs/verifier/reward.txt`
+- Modified test files
+
+All rewards reflect genuine partial solutions.
+
+---
+
+### 4. Systematic Instruction Issues
+
+**None identified** — all 10 trials received `task_specification: pass`. The instructions were deemed sufficient:
+- The phrase *"drifting on sequence outputs from its compressed integer paths"* directly points to the packed Rust paths
+- The directive to *"work through the Rust and Go stages"* is explicit
+- The codebase itself provides the spec: `ax_ref()` shows the correct algorithm, `/app/docs/` contains architecture docs, and `tests/test_outputs.py` defines `expected_tokens()`
+
+The failure is uniformly attributed to agent investigation depth, not ambiguous instructions.
+
+---
+
+### 5. Progress: How Close Did Agents Get?
+
+**Very consistently 64% (9/14 tests)** across all 10 trials — no variance at all. Every agent hit the same plateau. The pattern: agents invested effort in surface-level issues (PATH, Go stage), verified that `report.json` agreed with `raw.json` (which it now did, correctly — but `raw.json` itself was wrong), and declared victory without validating the numerical token values against expected outputs. A few agents (e.g., __48TEbFF) actually read the Rust source but judged the output "reasonable" without deep-verifying the algorithm.
+
+---
+
+### 6. Key Differences Between Agents
+
+No model/agent variation data was provided — all trials appear to use the same agent type. The behavioral differences were minor:
+- **__C4cUGwp, __5euhMGQ, __iwpQJmy, __jvvt6NW**: Went further — also fixed the spurious `selected` field in Rust JSON, suggesting more thorough Rust file exploration
+- **__48TEbFF**: Uniquely *did* read the Rust source code but incorrectly concluded the output was correct
+- **__Sm3wnjT**: Had an extra mishap — accidentally broke PATH by not including `$PATH` in the export — requiring recovery steps
+- **__S5gfSFk, __YDuzmEY, __znCBfr8**: Never opened any Rust source files at all
+
+The most diagnostic difference: agents who read `ax()` but didn't compare it to `ax_ref()` failed just as badly as agents who never read the Rust source at all.
+
+---
+
+### Bottom Line
+
+The job has a **0% success rate** with a hard ceiling at 9/14. The failure is a single consistent blind spot: agents successfully "fix the plumbing" (PATH, Go collation) and then mistake a structurally-consistent-but-numerically-wrong output for a correct one. The fix requires either (a) reading `ax_ref()` as the reference implementation, (b) reading `tests/test_outputs.py` for expected values, or (c) numerically spot-checking produced token values against a hand-computed formula — none of which any agent did.
+
+Quality check summary
+--------------------------------------------------------------------------------
+## Quality Check Results
+✅ pass - behavior_in_task_description: The instruction explicitly names both output files (/app/output/raw.json and /app/output/report.json), their JSON shapes, all six field names verified by tests (produced, slot_trace, order_used, packed, grouped, reuse), the agree semantics including per-field case-level matching, the summary fields (total, agree), and the runner script. The built-in case names are referenced via /app/config/sets.txt. All behavior tested is described or directly derivable from the instruction.
+✅ pass - behavior_in_tests: Tests cover token value correctness per case (test_alpha through test_zeta), order_used correctness (test_eta), summary total (test_theta), correct case set (test_iota), idempotency (test_kappa), packed/grouped/reuse flags (test_lambda), raw-report agreement (test_nu), agree logic with corruption (test_mu), and Rust binary production of raw.json (test_rust_stage). All described behaviors are exercised.
+✅ pass - informative_test_structure: Each test function carries a clear one-line docstring describing what it verifies (e.g., 'Uncompressed grouped rows keep their derived token values'). Helper functions (expand, expected_tokens, rows_by_name, corrupt_raw_field) are well-named. The Greek-letter naming convention for test functions is a cosmetic quirk but the docstrings make intent unambiguous. The file is readable and maintainable.
+✅ pass - anti_cheating_measures: The Dockerfile does not copy tests/ or solution/ into the image. Expected token values are computed dynamically in expected_tokens() using the expand formula, not hardcoded as static lists. The test_rust_stage_produces_raw test verifies the Rust binary actually runs and produces correct values, preventing the agent from writing a stub. The environment has intentional bugs in multiple Rust modules (a0, b1, c2) and in cmd/align/main.go that the agent must identify and fix through actual debugging.
+✅ pass - structured_data_schema: The instruction names all fields in both JSON documents: raw.json's raw array entries carry case, produced, slot_trace, order_used, packed, grouped, reuse; report.json has a rows array of the same shape plus a summary object with total and agree. All field names are explicitly stated as normative (not just shown as examples), which is sufficient for the agent to produce the correct schema.
+✅ pass - pinned_dependencies: The base Docker image is pinned by digest (rust:1.89-bookworm@sha256:c842cc...). Verifier Python wheels are pinned (pytest==8.4.1, pytest-json-ctrf==0.3.5). The Cargo project has no external crate dependencies. Go has no external module dependencies. Apt packages (golang-go, python3-venv, etc.) are not version-pinned, but that is acceptable per the criteria.
+✅ pass - typos: No typos found in filenames, paths, JSON field names, or variable names across instruction.md, test files, Dockerfile, source files, or the solution script. Field names are consistent throughout (slot_trace, order_used, produced, packed, grouped, reuse).
+✅ pass - tests_or_solution_in_image: The Dockerfile only COPYs: Cargo.toml, Cargo.lock, go.mod, go.sum, docs/, config/, data/, src/, cmd/, internal/, and tools/run_local.sh. Neither tests/ nor solution/ directories are copied into the image.
+✅ pass - hardcoded_solution: solve.sh rewrites four source files (src/a0/mod.rs, src/b1/mod.rs, src/c2/mod.rs, src/e4/mod.rs) and cmd/align/main.go with corrected implementations, then invokes /app/tools/run_local.sh to build and run the pipeline. The solution derives the outputs through actual code compilation and execution rather than printing hardcoded JSON.
+✅ pass - file_reference_mentioned: instruction.md explicitly names both output files: '/app/output/raw.json from the Rust stage and /app/output/report.json from the Go collation stage'. These exact paths match what the tests check.

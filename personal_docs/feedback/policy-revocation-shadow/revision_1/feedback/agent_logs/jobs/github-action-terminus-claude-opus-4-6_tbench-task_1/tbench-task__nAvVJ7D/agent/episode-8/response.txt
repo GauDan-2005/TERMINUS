@@ -1,0 +1,18 @@
+{
+  "analysis": "The output looks correct. Let me trace through each case to verify:\n\n- **Alpha**: clerk delegates from boss. After revoke of clerk, deny (blocked subject on delegation chain). Reused=true on 'after' since same outcome 'deny'. ✓\n- **Beta**: miss=deny (no grant yet), solo=allow (direct grant). ✓\n- **Gamma**: intern delegates through clerk to boss. boss is revoked/blocked, so deny. ✓\n- **Delta**: alice has direct grant, bob's revoke doesn't affect. reused=true on second. ✓\n- **Epsilon**: leaf delegates through mid to root, mid is blocked, deny. ✓\n- **Zeta**: alpha blocked (deny), beta has direct grant and not blocked (allow). Different subjects correctly not sharing cached results in batch. ✓\n\nNow I need to verify idempotency - running again should produce byte-identical output.",
+  "plan": "Run the script again and compare output to verify byte-identical results across runs.",
+  "commands": [
+    {
+      "keystrokes": "cp /app/output/policy-audit.json /tmp/first-run.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "diff /tmp/first-run.json /app/output/policy-audit.json && echo 'IDENTICAL'\n",
+      "duration": 0.1
+    }
+  ]
+}

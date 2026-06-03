@@ -1,0 +1,345 @@
+New Terminal Output:
+
+root@594e8276182b:/app# cat > b2/q.js <<'EOF'
+> function q_b(a, b, c) {
+>   // Deferred values belong to the same cycle they are declared on.
+>   // Keep a trace in the session context for introspection, but do not shift
+>   // visibility to the next slot.
+>   const label = `slot-${b}`;
+>   c[label] = (c[label] || []).concat(a || []);
+>   return (a || []).slice().sort((left, right) => left - right);
+> }
+>
+> function scan_b(a) {
+>   return Object.keys(a).sort();
+> }
+>
+> module.exports = { q_b, scan_b };
+> EOF
+root@594e8276182b:/app# cat > c3/r.js <<'EOF'
+> function k_c(a, b, c) {
+>   // Recompute per-row from that row's descriptor and position.
+>   // No cross-row caching.
+>   return Number(a) + Number(b);
+> }
+>
+> function lens_c(a) {
+>   return String(a).length;
+> }
+>
+> module.exports = { k_c, lens_c };
+> EOF
+root@594e8276182b:/app# cat > d4/s.js <<'EOF'
+> function m_e(a, b) {
+>   const totalCounter = a.reduce((acc, record) => acc + Number(record.finalCounter || 0), 0);
+>   const dependencyTotal = a.reduce((acc, record) => acc + Number(record.dependencyTotal || 0), 0);
+>   const rowTotal = a.reduce(
+>     (acc, record) =>
+>       acc + (record.rows || []).reduce((inner, item) => inner + Number(item.value || 0), 0),
+>     0
+>   );
+>   const healthyCount = a.filter((record) => record.healthy).length;
+>   const status = healthyCount === a.length ? 'healthy' : 'stale';
+>
+>   return {
+>     source: b.source,
+>     recordCount: a.length,
+>     totalCounter,
+>     dependencyTotal,
+>     rowTotal,
+>     healthyCount,
+>     status
+>   };
+> }
+>
+> function view_e(a) {
+>   return a.map((row) => row.name).join(',');
+> }
+>
+> module.exports = { m_e, view_e };
+> EOF
+root@594e8276182b:/app# cat > a1/p.js <<'EOF'
+> const { spawnSync } = require('child_process');
+> const { q_b } = require('../b2/q');
+> const { k_c } = require('../c3/r');
+>
+> function hasCargo() {
+>   const probe = spawnSync('cargo', ['--version'], { encoding: 'utf8' });
+>   return probe.status === 0;
+> }
+>
+> function callNative(root, rev, primary, carry) {
+>   const args = [rev, String(primary), String(carry)];
+>   const proc = hasCargo()
+>     ? spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', ...args], {
+>         cwd: root,
+>         encoding: 'utf8'
+>       })
+>     : spawnSync(`${root}/target/debug/mhre_native`, args, {
+>         cwd: root,
+>         encoding: 'utf8'
+>       });
+>
+>   if (proc.status !== 0) {
+>     throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+>   }
+>   return Number(proc.stdout.trim());
+> }
+>
+> function f_a(a, b, c) {
+>   let carry = 0;
+>   const rows = [];
+>   let accepted = true;
+>   let lastNative = 0;
+>   const sumBases = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base || 0), 0);
+>
+>   for (let index = 0; index < a.cycles.length; index += 1) {
+>     const cycle = a.cycles[index];
+>
+>     const owned = q_b(cycle.deferred || [], index, c);
+>     const factor = k_c(cycle.dep, index, c);
+>
+>     const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+>
+>     // Older revision markers must normalize like newer ones: incorporate carry.
+>     const expectedNative = Number(cycle.base || 0) + Number(carry || 0);
+>     if (cycle.native === 'old' && nativeValue !== expectedNative) {
+>       accepted = false;
+>     }
+>
+>     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+>
+>     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+>
+>     // Each cycle's native row feeds the next cycle.
+>     carry = nativeValue;
+>     lastNative = nativeValue;
+>   }
+>
+>   const healthy = accepted && lastNative === sumBases;
+>
+>   return {
+>     name: a.name,
+>     rows,
+>     finalCounter: lastNative,
+>     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+>     acceptedOlder: accepted,
+>     healthy
+>   };
+> }
+>
+> module.exports = { f_a };
+> EOF
+root@594e8276182b:/app# cat > src/native/src/lib.rs <<'EOF'
+> pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+>     // Normalize older revision markers to the current behavior: the carried
+>     // state participates in the produced native value.
+>     match a {
+>         "old" => b + c,
+>         "new" => b + c,
+>         _ => b + c,
+>     }
+> }
+>
+> pub fn aux_r(a: i64) -> i64 {
+>     a * 2
+> }
+> EOF
+root@594e8276182b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+root@594e8276182b:/app# cat outcome/report.json
+{
+  "records": [
+    {
+      "name": "alpha",
+      "rows": [
+        {
+          "index": 0,
+          "value": 9,
+          "factor": 2,
+          "nativeValue": 4,
+          "deferred": [
+            3
+          ]
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 4,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 6,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "beta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 12,
+          "factor": 4,
+          "nativeValue": 2,
+          "deferred": [
+            1,
+            5
+          ]
+        },
+        {
+          "index": 1,
+          "value": 10,
+          "factor": 5,
+          "nativeValue": 3,
+          "deferred": [
+            2
+          ]
+        },
+        {
+          "index": 2,
+          "value": 11,
+          "factor": 7,
+          "nativeValue": 4,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 4,
+      "dependencyTotal": 16,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "gamma",
+      "rows": [
+        {
+          "index": 0,
+          "value": 7,
+          "factor": 1,
+          "nativeValue": 6,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 7,
+          "nativeValue": 2,
+          "deferred": [
+            4
+          ]
+        }
+      ],
+      "finalCounter": 2,
+      "dependencyTotal": 8,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "delta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 12,
+          "factor": 7,
+          "nativeValue": 1,
+          "deferred": [
+            2,
+            2
+          ]
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": [
+            1
+          ]
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 10,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "epsilon",
+      "rows": [
+        {
+          "index": 0,
+          "value": 9,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": [
+            3
+          ]
+        },
+        {
+          "index": 1,
+          "value": 14,
+          "factor": 9,
+          "nativeValue": 3,
+          "deferred": [
+            2
+          ]
+        },
+        {
+          "index": 2,
+          "value": 10,
+          "factor": 4,
+          "nativeValue": 6,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 6,
+      "dependencyTotal": 16,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "zeta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 11,
+          "factor": 2,
+          "nativeValue": 9,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 23,
+          "factor": 10,
+          "nativeValue": 10,
+          "deferred": [
+            3
+          ]
+        }
+      ],
+      "finalCounter": 10,
+      "dependencyTotal": 12,
+      "acceptedOlder": true,
+      "healthy": true
+    }
+  ],
+  "aggregate": {
+    "source": "local",
+    "recordCount": 6,
+    "totalCounter": 40,
+    "dependencyTotal": 68,
+    "rowTotal": 167,
+    "healthyCount": 3,
+    "status": "stale"
+  }
+}
+root@594e8276182b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+root@594e8276182b:/app# diff -u outcome/report.json outcome/report.json || true
+root@594e8276182b:/app#

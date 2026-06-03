@@ -1,0 +1,69 @@
+New Terminal Output:
+
+root@3447b0c626d4:/app# sed -n '1,60p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@3447b0c626d4:/app# perl -0777 -i -pe 's/set -euo pipefail\n/set -euo pipefail\n# Ensure Rust toolchain is available in minimal PATH environments.\nexport P
+ATH="\/usr\/local\/cargo\/bin:\${PATH}"\n/' /app/tools/run_local.sh
+root@3447b0c626d4:/app# chmod +x /app/tools/run_local.sh
+root@3447b0c626d4:/app# sed -n '1,15p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+# Ensure Rust toolchain is available in minimal PATH environments.
+export PATH="/usr/local/cargo/bin:${PATH}"
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@3447b0c626d4:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@3447b0c626d4:/app# ls -la /app/output
+total 8
+drwxr-xr-x  2 root root   41 May 29 06:49 .
+drwxr-xr-x 12 root root  198 May 29 06:49 ..
+-rw-r--r--  1 root root  824 May 29 06:49 raw.json
+-rw-r--r--  1 root root 1656 May 29 06:49 report.json
+root@3447b0c626d4:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))
+> rep=json.load(open('/app/output/report.json'))
+> print('raw.raw len',len(raw.get('raw',[])))
+> print('report.rows len',len(rep.get('rows',[])))
+> print('report.summary',rep.get('summary'))
+> print('first raw row keys',sorted(raw['raw'][0].keys()) if raw.get('raw') else None)
+> print('first report row keys',sorted(rep['rows'][0].keys()) if rep.get('rows') else None)
+> PY
+raw.raw len 6
+report.rows len 6
+report.summary {'agree': True, 'total': 6}
+first raw row keys ['case', 'grouped', 'order_used', 'packed', 'produced', 'reuse', 'selected', 'slot_trace']
+first report row keys ['case', 'grouped', 'order_used', 'packed', 'produced', 'reuse', 'slot_trace']
+root@3447b0c626d4:/app#

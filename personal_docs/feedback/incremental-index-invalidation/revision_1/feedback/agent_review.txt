@@ -1,0 +1,98 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ✅ PASS
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires repairing a Rust-based incremental index invalidation
+harness that processes TypeScript workspace/module traces but currently reports
+stale definition locations. The agent must diagnose and fix logic bugs across
+modules r0-r5 (symbol lookup filtering, freshness detection, staleness
+validation) so that running the matrix script produces a correct JSON audit
+report. The test suite comprises 12 pytest functions validating workspace
+switching, generated-module refresh, linked-package resolution, epoch ordering,
+reuse semantics, found/missing conventions, and deterministic output.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Pre-Staged in Environment Directory
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/wheels/ (directory)
+Problem: The environment/wheels/ directory contains pytest and pytest-json-ctrf
+         wheel files that are visible to the agent at runtime. While these are
+         installed at verification time (not build time), they are test-only
+         dependencies residing in the agent-accessible workspace.
+
+Current approach: Wheels are copied into /app/wheels/ by the Dockerfile, then
+installed by test.sh via pip --find-links.
+
+Explanation: This pattern is necessitated by allow_internet = false — test
+dependencies must be pre-staged for offline installation. The agent cannot
+exploit these wheels to solve the task, so the risk is negligible. However,
+ideally test-only artifacts would reside outside the agent workspace (e.g.,
+staged to /opt/wheels/ or similar non-/app path to keep the working tree clean).
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Instruction Clarity for Expected Debugging Scope
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 1-6)
+
+Current approach: The instruction describes symptoms ("shows old definition
+locations") and the desired outcome but does not hint at which subsystem
+contains the bugs (modules r0-r8 vs src/ infrastructure).
+
+Suggested improvement:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Add a brief sentence such as: "The core event-processing modules            │
+│  (/app/r0 through /app/r8) drive the indexing logic; the infrastructure      │
+│  under /app/src handles I/O, data models, and report serialization."         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Rationale: While appropriate ambiguity for a "hard" task, a slight narrowing
+of scope would reduce time spent reading correct infrastructure code without
+reducing the reasoning challenge of identifying the actual bugs.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-crafted hard-difficulty task that tests deep code comprehension,
+Rust debugging, and incremental-index semantics. The buggy modules present
+realistic logic errors (wrong lookup strategy, missing freshness validation,
+broken staleness detection) that require understanding the full data flow.
+
+Key Strengths:
+  ✓ Thorough 12-test suite with excellent behavior coverage and clear
+    docstrings matching every instruction requirement
+  ✓ Non-trivial debugging challenge across multiple interacting modules
+    with realistic cache-invalidation semantics
+  ✓ Clean separation of concerns — infrastructure is correct, bugs are
+    isolated to logic modules, no leakage of solution into environment
+
+Key Weaknesses:
+  ✗ Test wheels visible in agent workspace (minor, forced by offline mode)
+
+Evaluates: Rust debugging, incremental indexing logic, cache invalidation
+           semantics, cross-module code comprehension
+
+================================================================================
+  RECOMMENDATION: ✅ READY TO USE
+
+  The task is structurally sound, well-tested, and appropriately challenging.
+  The single warning is a consequence of the offline constraint and poses no
+  practical risk to task integrity.
+================================================================================

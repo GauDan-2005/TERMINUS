@@ -1,0 +1,187 @@
+New Terminal Output:
+
+root@78e85912348b:/app# cat /app/read_f/parse.c
+#include "../include/plan.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int plan_load(const char *path, Plan *out) {
+    FILE *fp = fopen(path, "r");
+    char line[256];
+    if (!fp) {
+        return -1;
+    }
+    memset(out, 0, sizeof(*out));
+    {
+        const char *slash = strrchr(path, '/');
+        const char *base = slash ? slash + 1 : path;
+        strncpy(out->name, base, sizeof(out->name) - 1);
+        char *dot = strchr(out->name, '.');
+        if (dot) {
+            *dot = '\0';
+        }
+    }
+    while (fgets(line, sizeof(line), fp)) {
+        char op[32];
+        size_t sz = 0;
+        int idx = 0;
+        int nidx = 0;
+        if (line[0] == '#' || line[0] == '\n') {
+            continue;
+        }
+        if (sscanf(line, "ALLOC %zu", &sz) == 1) {
+            PlanOp *p = &out->ops[out->op_count++];
+            p->kind = OP_ALLOC;
+            p->size = sz;
+            p->index = -1;
+        } else if (sscanf(line, "FREE %d", &idx) == 1) {
+            PlanOp *p = &out->ops[out->op_count++];
+            p->kind = OP_FREE;
+            p->index = idx;
+        } else if (sscanf(line, "REALLOC %d %zu", &idx, &sz) == 2) {
+            PlanOp *p = &out->ops[out->op_count++];
+            p->kind = OP_REALLOC;
+            p->index = idx;
+            p->size = sz;
+        } else if (sscanf(line, "%31s %d %zu %d", op, &idx, &sz, &nidx) >= 2) {
+            (void)op;
+            (void)nidx;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+root@78e85912348b:/app# cat /app/src/main.c
+#include "../include/plan.h"
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+static const char *CASES[] = {"cedar", "jade", "slate", "coral", "onyx", "pearl", NULL};
+
+static int run_named(const char *name, const char *out_dir, CaseResult *res) {
+    char path[512];
+    Plan plan;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.plan", name);
+    if (plan_load(path, &plan) != 0) {
+        return -1;
+    }
+    return run_case(&plan, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        CaseResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/alloc-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        CaseResult res;
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        char audit[512];
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_e(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: allocctl matrix | allocctl one <case>\n");
+    return 1;
+}
+root@78e85912348b:/app# cat /app/include/stats.h
+#ifndef STATS_H
+#define STATS_H
+
+#include <stddef.h>
+
+typedef struct Stats {
+    size_t allocated;
+    size_t peak;
+    size_t live_blocks;
+} Stats;
+
+#endif
+root@78e85912348b:/app# cat /app/include/plan.h
+#ifndef PLAN_H
+#define PLAN_H
+
+#include <stddef.h>
+
+#define MAX_OPS 128
+
+typedef enum {
+    OP_ALLOC = 1,
+    OP_FREE = 2,
+    OP_REALLOC = 3
+} OpKind;
+
+typedef struct PlanOp {
+    OpKind kind;
+    size_t size;
+    int index;
+    int new_index;
+} PlanOp;
+
+typedef struct Plan {
+    char name[32];
+    PlanOp ops[MAX_OPS];
+    int op_count;
+} Plan;
+
+int plan_load(const char *path, Plan *out);
+
+#endif
+root@78e85912348b:/app# cat /app/include/report.h
+#ifndef REPORT_H
+#define REPORT_H
+
+#include "arena.h"
+#include "plan.h"
+
+#include <stddef.h>
+
+#define MAX_STEPS 128
+
+typedef struct StepRec {
+    int seq;
+    char op[16];
+    int index;
+    size_t size;
+    int result_index;
+    size_t heap_sig;
+    int fl_count;
+    size_t fl_sig;
+    size_t byte_total;
+} StepRec;
+
+typedef struct CaseResult {
+    char name[32];
+    int ok;
+    StepRec steps[MAX_STEPS];
+    int step_count;
+    size_t heap_sig;
+    int fl_count;
+    size_t fl_sig;
+    size_t byte_total;
+    char ledger_path[256];
+} CaseResult;
+
+int run_case(const Plan *plan, const char *out_dir, CaseResult *res);
+int emit_e(const CaseResult *res, const char *audit_path);
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path);
+
+#endif
+root@78e85912348b:/app#

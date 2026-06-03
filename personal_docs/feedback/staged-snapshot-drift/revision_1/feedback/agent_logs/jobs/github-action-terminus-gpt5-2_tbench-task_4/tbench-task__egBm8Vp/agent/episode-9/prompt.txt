@@ -1,0 +1,72 @@
+New Terminal Output:
+
+root@1465729b6301:/app# perl -0777 -i -pe 's/func KeyFor\(row f5\.Row, profile f5\.Profile\) string \{.*?\n\}/func KeyFor(row f5.Row, profile f5.Profile) string
+ {\n\t// Hardlink identity must be stable across restarts/dense cases; use device+inode\n\t// captured from the source tree so the restore can recreate link gro
+ups.\n\tif row.Dev == 0 && row.Ino == 0 {\n\t\treturn row.Path\n\t}\t\n\tkey := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))\n\tstate := &nodeX{}\n\t_ = bind_
+d(state, key)\n\treturn string(key)\n}\n/s' internal/d3/pair.go
+Backslash found where operator expected (Missing operator before "\"?) at -e line 1, near "inode\"
+syntax error at -e line 1, near "inode\"
+Execution of -e aborted due to compilation errors.
+root@1465729b6301:/app# perl -0777 -i -pe 's/func FoldRows\(rows \[\]f5\.Row, profile f5\.Profile\) \(\[\]f5\.Row, error\) \{.*?\n\}/func FoldRows(rows []f5.Row
+, profile f5.Profile) ([]f5.Row, error) {\n\t// Replay must preserve increasing Seq order so that later writes/removes win.\n\t// Restart scenarios are exercise
+d by the data itself; do not reverse rows.\n\treturn fold_b(rows, 0)\n}\n/s' internal/b1/replay.go
+Backslash found where operator expected (Missing operator before "\"?) at -e line 1, near "n\"
+syntax error at -e line 1, near "n\"
+Execution of -e aborted due to compilation errors.
+root@1465729b6301:/app# gofmt -w internal/d3/pair.go internal/b1/replay.go
+root@1465729b6301:/app# go test ./...
+?       staged.local/snapshot/cmd/apex  [no test files]
+?       staged.local/snapshot/cmd/ctl   [no test files]
+?       staged.local/snapshot/internal/a0       [no test files]
+?       staged.local/snapshot/internal/b1       [no test files]
+?       staged.local/snapshot/internal/c2       [no test files]
+?       staged.local/snapshot/internal/d3       [no test files]
+?       staged.local/snapshot/internal/e4       [no test files]
+?       staged.local/snapshot/internal/f5       [no test files]
+?       staged.local/snapshot/internal/g6       [no test files]
+?       staged.local/snapshot/internal/h7       [no test files]
+root@1465729b6301:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     d=c.get('digest',{})
+>     print(f"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={
+len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}")
+> PY
+alpha: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=3
+beta: ok=False digest_equal=True groups_src=1 groups_rst=0 accounting=7
+delta: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=3
+epsilon: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=4
+gamma: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+zeta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=9
+root@1465729b6301:/app# python3 - <<'PY'
+> import json,os
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> for name in ['beta','zeta','gamma']:
+>     c=next(x for x in data['cases'] if x['name']==name)
+>     print('\n',name,'ok',c['ok'])
+>     print('groups src',c['groups']['source'])
+>     print('groups rst',c['groups']['restored'])
+> PY
+
+ beta ok False
+groups src [['a/shared-a.dat', 'b/shared-b.dat', 'c/shared-c.dat', 'deep/x/shared.dat']]
+groups rst []
+
+ zeta ok False
+groups src [['a/shared-a.dat', 'b/shared-b.dat', 'c/shared-c.dat', 'deep/x/shared.dat']]
+groups rst []
+
+ gamma ok False
+groups src []
+groups rst []
+root@1465729b6301:/app#

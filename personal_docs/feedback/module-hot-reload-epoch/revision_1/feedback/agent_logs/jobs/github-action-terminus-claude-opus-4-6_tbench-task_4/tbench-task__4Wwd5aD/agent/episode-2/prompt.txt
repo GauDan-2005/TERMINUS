@@ -1,0 +1,258 @@
+New Terminal Output:
+
+root@79f05e799cd1:/app# cat /app/tools/run_matrix.js
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { f_a } = require('../a1/p');
+const { m_e } = require('../d4/s');
+
+const base = process.cwd();
+const dataPath = path.join(base, 'fixtures', 'scenarios.json');
+const outDir = path.join(base, 'outcome');
+const outPath = path.join(outDir, 'report.json');
+
+function main() {
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
+  const aggregate = m_e(records, { source: 'local' });
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
+}
+
+main();
+root@79f05e799cd1:/app# cat /app/fixtures/scenarios.json
+{
+  "scenarios": [
+    {
+      "name": "alpha",
+      "cycles": [
+        {
+          "base": 4,
+          "dep": 2,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 5,
+          "dep": 3,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "cycles": [
+        {
+          "base": 2,
+          "dep": 4,
+          "deferred": [
+            5,
+            1
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 4,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 5,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "gamma",
+      "cycles": [
+        {
+          "base": 6,
+          "dep": 1,
+          "deferred": [],
+          "native": "new"
+        },
+        {
+          "base": 2,
+          "dep": 6,
+          "deferred": [
+            4
+          ],
+          "native": "old"
+        }
+      ]
+    },
+    {
+      "name": "delta",
+      "cycles": [
+        {
+          "base": 1,
+          "dep": 7,
+          "deferred": [
+            2,
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 8,
+          "dep": 2,
+          "deferred": [
+            1
+          ],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "epsilon",
+      "cycles": [
+        {
+          "base": 3,
+          "dep": 3,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 8,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 2,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "zeta",
+      "cycles": [
+        {
+          "base": 9,
+          "dep": 2,
+          "deferred": [],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 9,
+          "deferred": [
+            3
+          ],
+          "native": "new"
+        }
+      ]
+    }
+  ]
+}
+root@79f05e799cd1:/app# cat /app/a1/p.js
+const { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function callNative(root, rev, primary, carry) {
+  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+      accepted = false;
+    }
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+    carry = cycle.base;
+  }
+  return {
+    name: a.name,
+    rows,
+    finalCounter: carry,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy: false
+  };
+}
+
+module.exports = { f_a };
+root@79f05e799cd1:/app# cat /app/b2/q.js
+function q_b(a, b, c) {
+  const label = `slot-${b}`;
+  c[label] = (c[label] || []).concat(a);
+  const next = `slot-${b + 1}`;
+  const visible = c[next] || [];
+  c[next] = [];
+  return visible.slice().sort((left, right) => left - right);
+}
+
+function scan_b(a) {
+  return Object.keys(a).sort();
+}
+
+module.exports = { q_b, scan_b };
+root@79f05e799cd1:/app# cat /app/c3/r.js
+let saved = null;
+
+function k_c(a, b, c) {
+  if (saved === null) {
+    saved = Number(a);
+  }
+  return saved + b;
+}
+
+function lens_c(a) {
+  return String(a).length;
+}
+
+module.exports = { k_c, lens_c };
+root@79f05e799cd1:/app# cat /app/d4/s.js
+function m_e(a, b) {
+  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+  const healthyCount = a.filter((row) => row.acceptedOlder).length;
+  return {
+    source: b.source,
+    recordCount: a.length,
+    totalCounter,
+    dependencyTotal,
+    rowTotal,
+    healthyCount,
+    status: 'stale'
+  };
+}
+
+function view_e(a) {
+  return a.map((row) => row.name).join(',');
+}
+
+module.exports = { m_e, view_e };
+root@79f05e799cd1:/app#

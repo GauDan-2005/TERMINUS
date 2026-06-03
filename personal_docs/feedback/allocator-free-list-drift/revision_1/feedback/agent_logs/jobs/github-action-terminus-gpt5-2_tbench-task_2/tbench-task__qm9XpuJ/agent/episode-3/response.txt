@@ -1,0 +1,27 @@
+{
+  "analysis": "jq is not installed, so we can’t easily query JSON. A raw diff of two consecutive matrix runs shows no differences (diff output empty), suggesting determinism at the file text level for alloc-audit.json at least in this environment/run. However, the task claims the combined audit drifts; it may be inside per-case audit JSONs or ledgers, or there may be hidden inconsistencies not caught by diffing only the top-level file (e.g., ledger contents change, or ok flags false but still stable). Next we should inspect the JSON and JSONL using python (available) to validate schema, step consistency, and ledger alignment, and also diff ledger files across runs.",
+  "plan": "1) Use python to load output/alloc-audit.json and print per-case summary and any ok=false cases. 2) Validate required keys exist and that steps count matches number of ledger lines for each case. 3) Validate each step has required fields and that signatures/tallies remain consistent (at least presence and type checks). 4) Run matrix twice and diff ledger files too to confirm determinism. If validation finds inconsistencies, proceed to locate and fix code in src/ that produces audit and ledger.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, pathlib\np=pathlib.Path('output/alloc-audit.json')\nobj=json.loads(p.read_text())\nprint('top_keys',sorted(obj.keys()))\ncases=obj.get('cases',[])\nprint('cases',len(cases))\nfor c in cases:\n    print(c.get('name'), 'ok=',c.get('ok'), 'steps=',len(c.get('steps',[])), 'ledger=',c.get('ledger'))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, pathlib, sys\nobj=json.loads(pathlib.Path('output/alloc-audit.json').read_text())\nreq_case={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}\nreq_step={'op','heap_sig','fl_count','fl_sig','byte_total'}\nerrs=[]\nfor c in obj.get('cases',[]):\n    miss=req_case-set(c)\n    if miss: errs.append((c.get('name'), 'missing_case_keys', sorted(miss)))\n    steps=c.get('steps',[])\n    for i,s in enumerate(steps):\n        miss=req_step-set(s)\n        if miss: errs.append((c.get('name'), f'missing_step_keys@{i}', sorted(miss)))\n    led=pathlib.Path(c.get('ledger',''))\n    if not led.exists():\n        errs.append((c.get('name'),'missing_ledger',str(led)))\n    else:\n        n=sum(1 for _ in led.open('r'))\n        if n!=len(steps):\n            errs.append((c.get('name'),'ledger_len_mismatch',{'steps':len(steps),'ledger_lines':n,'path':str(led)}))\nprint('errors',len(errs))\nfor e in errs[:50]:\n    print('ERR',e)\nsys.exit(1 if errs else 0)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp -a output /tmp/output.1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-matrix.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "diff -ur /tmp/output.1 output | sed -n '1,200p'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,27 @@
+{
+  "analysis": "We found key code locations. /app/internal/exec/run.go copies w.Seen into a local seen slice and includes it in something at line ~46, suggesting Seen is part of the world/state. The audit builder in exec/run.go appends freshMoves and resumeMoves into allMoves, which explains duplicates in the JSON moves array. ok is computed only from illegal counts and signature match, ignoring visibility mismatch; so matrix reports ok=true even though visibility differs. The bug to fix for a clean matrix is that resumed visibility must match fresh (restore Seen correctly and/or recompute deterministically), and audit output should likely separate fresh/resume moves or otherwise ensure JSON and sidecars agree on resolved moves in order. Next: open exec/run.go and relevant vis/slot code to see how Seen is initialized for fresh vs resume and why resume_seen is smaller.",
+  "plan": "1) Open /app/internal/exec/run.go around the Seen handling, save/resume logic, and how visibility counts are computed. 2) Inspect /app/internal/slot/plan.go and /app/internal/vis/* to understand how Seen is mutated and how resume load reconstructs world. 3) Implement fix: ensure resume path uses the same initial Seen state as fresh (likely must persist Seen into the saved blob and restore it), or ensure the loaded world’s Seen is initialized from bundled input rather than zeroed. Also adjust ok to include visibility equality and adjust moves in CaseResult to avoid concatenation confusion (e.g., only include resolved moves once, or include separate arrays). 4) Re-run run-matrix.sh and confirm visibility matches and no duplicate move rows (or that ordering requirements are satisfied).",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '220,380p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/slot/plan.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/internal/vis/sight.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/internal/vis/native.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,27 @@
+{
+  "analysis": "We are at a shell prompt in /app with no prior commands executed in this session. The task is to reproduce the failing resume audits, inspect differences between fresh vs resumed runs, locate the nondeterminism/state-restore bug in the grid engine (likely in sim/state serialization, RNG, ordering, or effect/move resolution), fix it, then re-run the matrix so /app/output/resume-audit.json is clean (all cases ok=true; signatures match; illegal=0; and JSON/records/log sidecars agree on resolved moves order). Next step is to run the matrix to generate the audit and inspect which cases fail.",
+  "plan": "1) Run the matrix script to generate /app/output/resume-audit.json. 2) Pretty-print and summarize failing cases (ok=false or signature mismatch) using jq. 3) For one failing case, run one-case.sh to produce a single-case JSON and inspect fresh vs resume deltas. 4) Based on deltas, inspect relevant Go code (types.go for fields; sim engine for ordering/RNG/serialization) and identify where resume diverges. 5) After making a fix, re-run the failing single case(s) and then the full matrix.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "jq '.' /app/output/resume-audit.json | head -n 40\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature or .fresh.illegal!=0 or .resume.illegal!=0) | [.case, \"ok=\"+(.ok|tostring), \"fresh_sig=\"+.fresh.signature, \"resume_sig=\"+.resume.signature, \"fresh_illegal=\"+(.fresh.illegal|tostring), \"resume_illegal=\"+(.resume.illegal|tostring)] | @tsv' /app/output/resume-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature) | .case' /app/output/resume-audit.json | head\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

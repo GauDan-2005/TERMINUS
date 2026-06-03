@@ -1,0 +1,81 @@
+New Terminal Output:
+
+root@f0090f19629f:/app# ls -la /app/build/bin
+total 24
+drwxr-xr-x 2 root root    23 May 25 16:05 .
+drwxr-xr-x 4 root root   100 May 25 16:05 ..
+-rwxr-xr-x 1 root root 22400 May 25 16:05 solverctl
+root@f0090f19629f:/app# /app/build/bin/solverctl 2>&1 | sed -n '1,120p'
+usage: solverctl matrix | solverctl one <case>
+root@f0090f19629f:/app# /app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'
+root@f0090f19629f:/app# /app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'
+root@f0090f19629f:/app# sed -n '1,240p' /app/src/main.cpp
+#include "../include/case_spec.h"
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
+
+static const char *CASES[] = {"basalt", "flint", "shale", "garnet", "mica", "opal", NULL};
+
+static int run_named(const char *name, const char *out_dir, SolveResult *res) {
+    char path[512];
+    CaseSpec spec;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.case", name);
+    if (case_load(path, &spec) != 0) {
+        return -1;
+    }
+    return run_u(&spec, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        SolveResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/solver-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        SolveResult res;
+        char audit[512];
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_t(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
+    return 1;
+}
+root@f0090f19629f:/app# grep -RIn --line-number 'iterations\|residual\|metric\|report' /app/src /app/include /app/flow_t /app/scale_q /app/solve_s /app/drive_u
+| head -n 120
+/app/src/main.cpp:2:#include "../include/solver_report.h"
+/app/include/solver_report.h:8:    int iterations;
+/app/include/solver_report.h:9:    double final_residual;
+/app/include/solver_report.h:10:    double reported_residual;
+/app/include/solver_report.h:11:    int residual_agrees;
+/app/flow_t/report.cpp:1:#include "../include/solver_report.h"
+/app/flow_t/report.cpp:20:    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
+/app/flow_t/report.cpp:21:    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
+/app/flow_t/report.cpp:22:    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
+/app/flow_t/report.cpp:23:    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
+/app/drive_u/run.cpp:3:#include "../include/solver_report.h"
+/app/drive_u/run.cpp:45:    out->iterations = iters;
+/app/drive_u/run.cpp:46:    out->final_residual = true_res;
+/app/drive_u/run.cpp:47:    out->reported_residual = rep_res;
+/app/drive_u/run.cpp:49:    out->residual_agrees = fabs(rep_res - true_res) <= 1e-6 * (1.0 + true_res);
+/app/drive_u/run.cpp:50:    out->ok = (!hit) && (true_res < 1e-8) && out->residual_agrees;
+root@f0090f19629f:/app#

@@ -1,0 +1,23 @@
+{
+  "analysis": "solverctl provides only minimal help text and running `solverctl matrix` produced no stdout output (empty /tmp/solverctl-matrix.out). That suggests solverctl writes results to files under /app/output (or elsewhere) rather than printing. Our scripts also currently reference /app/bin/solverctl, which doesn’t exist after the build. Next we need to discover what solverctl generates (files/logs) when running matrix/one, and what artifacts can be used to compute iterations and residuals. Then we can implement JSON assembly in the scripts and ensure determinism and per-case consistency.",
+  "plan": "1) After a clean-room and a matrix run, list /app/output and search for newly created files. 2) Inspect /app/data/cases to get case names. 3) Run `solverctl one <name>` for a single case and again inspect /app/output and any logs. 4) Grep the repository for strings like \"iterations\", \"residual\", \"settled\", or filenames to understand what outputs exist and how to compute the independent residual. 5) Once we know the produced artifacts/format, update run-matrix.sh and run-one.sh to: use /app/build/bin/solverctl (or copy to /app/bin), parse outputs, compute/verify residual, and write the required audit JSON files deterministically.",
+  "commands": [
+    {
+      "keystrokes": "find /app/output -maxdepth 2 -type f -printf '%p\t%TY-%Tm-%Td %TH:%TM:%TS\t%s\n' | sort\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "find /app/data/cases -maxdepth 1 -type f -printf '%f\n' | sort | head\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "NAME=$(find /app/data/cases -maxdepth 1 -type f -printf '%f\n' | sort | head -n 1); echo \"Picked case: $NAME\"; bash /app/scripts/clean-room.sh; /app/build/bin/solverctl one \"$NAME\"; echo \"--- output files ---\"; find /app/output -maxdepth 3 -type f -printf '%p\n' | sort | head -n 200\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "grep -RIn --line-number -E 'residual|iteration|settled|hit_limit|metric' /app/src /app/*_* /app/include | head -n 200\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,41 @@
+Current Terminal Screen:
+        names := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta"}
+        if *oneCase != "" {
+                names = []string{*oneCase}
+        }
+        sort.Strings(names)
+        report := f5.Report{Cases: []f5.CaseResult{}}
+        for _, name := range names {
+                result, err := runCase(base, name)
+                if err != nil {
+                        panic(err)
+                }
+                report.Cases = append(report.Cases, result)
+        }
+        if err := os.MkdirAll(filepath.Dir(*outPath), 0o755); err != nil {
+                panic(err)
+        }
+        encoded, err := json.MarshalIndent(report, "", "  ")
+        if err != nil {
+                panic(err)
+        }
+        if err := os.WriteFile(*outPath, append(encoded, '\n'), 0o644); err != nil {
+                panic(err)
+        }
+}
+root@3b3cdaca49ea:/app# grep -n "func accountingEqual\|func accountingMatchesDisk\|OK\s*:=" -n /app/cmd/ctl/main.go
+17:func accountingEqual(a, b []f5.AccountItem) bool {
+29:func accountingMatchesDisk(root string, items []f5.AccountItem) bool {
+root@3b3cdaca49ea:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> for c in obj['cases']:
+>     # quick heuristic: compare accounting arrays between cases' source/restored by re-running script? not possible here.
+>     # Instead, just show if any path under d/ has period p1.
+>     d=[x for x in c['accounting'] if x['path'].startswith('d/')]
+>     if d:
+>         print(c['name'], 'd-items:', d)
+> PY
+epsilon d-items: [{'path': 'd/roll.txt', 'bytes': 0, 'period': 'p0'}]
+zeta d-items: [{'path': 'd/roll.txt', 'bytes': 0, 'period': 'p0'}]
+root@3b3cdaca49ea:/app#

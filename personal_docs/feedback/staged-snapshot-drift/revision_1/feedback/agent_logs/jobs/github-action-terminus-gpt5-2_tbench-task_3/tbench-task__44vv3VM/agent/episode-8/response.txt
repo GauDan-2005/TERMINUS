@@ -1,0 +1,31 @@
+{
+  "analysis": "d3.KeyFor currently uses Dev:Ino for grouping, but during materialization we should group by the source identity recorded in rows; Dev may differ across environments/runs or be unstable, preventing hardlink creation (explains beta/zeta restored groups empty). Also KeyFor has a special case: if Restart && Dense, it returns row.Path, which disables hardlink grouping exactly for beta (Dense+Restart) and zeta (Dense+Restart), guaranteeing groups mismatch. For gamma digest mismatch: b1.FoldRows reverses order when Restart && Ordered, which applies to gamma and zeta; reversing will break final state (e.g., flow.txt ends wrong). Fixes: make KeyFor stable and enable hardlink grouping: if row.Nlink>1, key on row.Ino (and maybe Dev) but NOT row.Path; otherwise key on row.Path so non-hardlinked files don't collide. And remove the row reversal in FoldRows; always sort by Seq.",
+  "plan": "1) Patch internal/d3/pair.go KeyFor: if row.Nlink>1 use fmt.Sprintf(\"ino:%d\", row.Ino) (or include Dev if desired) to group hardlinks; else return row.Path to avoid grouping unrelated files. Remove the Restart&&Dense path override. 2) Patch internal/b1/replay.go FoldRows/fold_b to not reverse on flags; just stable sort by Seq and return. 3) gofmt, go test, rerun matrix, then confirm all cases ok true. If ok still false due to ok-flag logic, inspect cmd/ctl/main.go next.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/internal/d3/pair.go <<'EOF'\npackage d3\n\nimport (\n\t\"fmt\"\n\n\t\"staged.local/snapshot/internal/f5\"\n)\n\ntype tokenX string\n\ntype nodeX struct {\n\tSeen map[tokenX]bool\n}\n\nfunc bind_d(a *nodeX, b tokenX) bool {\n\tif a.Seen == nil {\n\t\ta.Seen = map[tokenX]bool{}\n\t}\n\tif b == \"\" {\n\t\treturn false\n\t}\n\tif a.Seen[b] {\n\t\treturn true\n\t}\n\ta.Seen[b] = true\n\treturn true\n}\n\n// KeyFor returns a grouping key used during restore materialization.\n//\n// Contract:\n//   - Hardlinked files (Nlink > 1 in the staged rows) must be recreated as\n//     hardlinks in the restored tree, so they must share a key.\n//   - Non-hardlinked files must never be grouped together, so they use their\n//     path as a unique key.\n//\n// Dev is intentionally ignored: restored trees may live on a different device.\nfunc KeyFor(row f5.Row, profile f5.Profile) string {\n\t_ = profile\n\tif row.Nlink > 1 {\n\t\tkey := tokenX(fmt.Sprintf(\"ino:%d\", row.Ino))\n\t\tstate := &nodeX{}\n\t\t_ = bind_d(state, key)\n\t\treturn string(key)\n\t}\n\treturn row.Path\n}\nEOF\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat > /app/internal/b1/replay.go <<'EOF'\npackage b1\n\nimport (\n\t\"sort\"\n\n\t\"staged.local/snapshot/internal/f5\"\n)\n\ntype rowX = f5.Row\n\nfunc fold_b(a []rowX, _ uint64) ([]rowX, error) {\n\tout := make([]rowX, len(a))\n\tcopy(out, a)\n\tsort.SliceStable(out, func(i, j int) bool {\n\t\treturn out[i].Seq < out[j].Seq\n\t})\n\treturn out, nil\n}\n\n// FoldRows returns the rows in the order they must be applied to produce the\n// final restored layout. Restarts must not reorder operations: correctness is\n// based on applying the original sequence in order.\nfunc FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {\n\t_ = profile\n\treturn fold_b(rows, 0)\n}\nEOF\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gofmt -w /app/internal/d3/pair.go /app/internal/b1/replay.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go test ./...\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/restore-audit.json'))\nfor c in obj['cases']:\n    print(c['name'], 'ok=',c['ok'], 'digestMatch', c['digest']['source']==c['digest']['restored'], 'groupsMatch', c['groups']['source']==c['groups']['restored'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

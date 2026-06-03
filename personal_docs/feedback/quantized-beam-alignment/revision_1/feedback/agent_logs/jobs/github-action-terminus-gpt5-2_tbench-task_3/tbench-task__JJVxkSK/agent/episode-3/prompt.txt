@@ -1,0 +1,342 @@
+New Terminal Output:
+
+root@dbc8229de6ff:/app# apply_patch<<'PATCH'
+][]int{{10, 4, 1}}},
++    {Name: "gamma", Packed: true, Group: true, Reuse: false, Seq: []int{0, 1}, Rows: [][]int{{8, 3, 2}, {6, 5, 1}}},
++    {Name: "delta", Packed: true, Group: true, Reuse: false, Seq: []int{1, 0}, Rows: [][]int{{7, 4, 2}, {5, 6, 3}}},
++    {Name: "epsilon", Packed: true, Group: true, Reuse: true, Seq: []int{1, 0, 2}, Rows: [][]int{{4, 7, 2}, {9, 2, 3}, {3, 8, 1}}},
++    {Name: "zeta", Packed: false, Group: true, Reuse: true, Seq: []int{2, 0, 1}, Rows: [][]int{{12, 9, 5}, {18, 4, 7}, {10, 6, 8}}},
++  }
++}
++
++// a0::ax(&meta, row, i) when packed.
++func ax(row []int, i int) []int {
++  out := make([]int, len(row))
++  for j, v := range row {
++    out[j] = v + (i+1)*(j+2)
++  }
++  return out
++}
++
++// b1::bx(&mut h, &seq)
++func bx(n int, seq []int) []int {
++  // handle list is 0..n, then we pop by seq index and re-append.
++  handles := make([]int, n)
++  for i := 0; i < n; i++ {
++    handles[i] = i
++  }
++  moved := make([]int, 0, len(seq))
++  for _, idx := range seq {
++    h := handles[idx]
++    > *** Begin Patch
+> *** Add File: cmd/localinfer/main.go
+> +package main
+> +
+> +import (
+> +  "encoding/json"
+> +  "os"
+> +  "path/filepath"
+> +)
+> +
+> +// This Go program mirrors the logic of /app/src/main.rs so the sandbox can run
+> +// without a Rust toolchain installed. It writes the Rust-stage raw.json.
+> +
+> +type Case struct {
+> +  Name   string
+> +  Packed bool
+> +  Group  bool
+> +  Reuse  bool
+> +  Seq    []int
+> +  Rows   [][]int
+> +}
+> +
+> +type RawEntry struct {
+> +  Case      string `json:"case"`
+> +  Produced  []int  `json:"produced"`
+> +  SlotTrace []int  `json:"slot_trace"`
+> +  OrderUsed []int  `json:"order_used"`
+> +  Packed    bool   `json:"packed"`
+> +  Grouped   bool   `json:"grouped"`
+> +  Reuse     bool   `json:"reuse"`
+> +}
+> +
+> +type RawDoc struct {
+> +  Raw []RawEntry `json:"raw"`
+> +}
+> +
+> +func cases() []Case {
+> +  return []Case{
+> +    {Name: "alpha", Packed: false, Group: true, Reuse: false, Seq: []int{0, 1}, Rows: [][]int{{21, 10, 4}, {15, 8, 6}}},
+> +    {Name: "beta", Packed: true, Group: false, Reuse: false, Seq: []int{0}, Rows: [][]int{{10, 4, 1}}},
+> +    {Name: "gamma", Packed: true, Group: true, Reuse: false, Seq: []int{0, 1}, Rows: [][]int{{8, 3, 2}, {6, 5, 1}}},
+> +    {Name: "delta", Packed: true, Group: true, Reuse: false, Seq: []int{1, 0}, Rows: [][]int{{7, 4, 2}, {5, 6, 3}}},
+> +    {Name: "epsilon", Packed: true, Group: true, Reuse: true, Seq: []int{1, 0, 2}, Rows: [][]int{{4, 7, 2}, {9, 2, 3}, {3, 8, 1}}},
+> +    {Name: "zeta", Packed: false, Group: true, Reuse: true, Seq: []int{2, 0, 1}, Rows: [][]int{{12, 9, 5}, {18, 4, 7}, {10, 6, 8}}},
+> +  }
+> +}
+> +
+> +// a0::ax(&meta, row, i) when packed.
+> +func ax(row []int, i int) []int {
+> +  out := make([]int, len(row))
+> +  for j, v := range row {
+> +    out[j] = v + (i+1)*(j+2)
+> +  }
+> +  return out
+> +}
+> +
+> +// b1::bx(&mut h, &seq)
+> +func bx(n int, seq []int) []int {
+> +  // handle list is 0..n, then we pop by seq index and re-append.
+> +  handles := make([]int, n)
+> +  for i := 0; i < n; i++ {
+> +    handles[i] = i
+> +  }
+> +  moved := make([]int, 0, len(seq))
+> +  for _, idx := range seq {
+> +    h := handles[idx]
+> +    moved = append(moved, h)
+> +    // remove idx
+> +    handles = append(handles[:idx], handles[idx+1:]...)
+> +    handles = append(handles, h)
+> +  }
+> +  return moved
+> +}
+> +
+> +// c2::cx(&mut local, handle, row)
+> +func cx(handle int, row []int) int {
+> +  // deterministic accumulator derived from row and handle.
+> +  acc := 0
+> +  for i, v := range row {
+> +    acc += v*(i+1) + handle*3
+> +  }
+> +  return acc
+> +}
+> +
+> +// d3::dx(..., &seq) => chosen order, used only for "selected" in Rust output.
+> +// raw.json does not include selected, so we don't need it.
+> +
+> +func token(sum int, slot int, packed bool, group bool, reuse bool) int {
+> +  v := sum + slot*7
+> +  if packed {
+> +    v += 3
+> +  }
+> +  if group {
+> +    v += 5
+> +  }
+> +  if reuse {
+> +    v += 11
+> +  }
+> +  // rem_euclid(101)
+> +  v %= 101
+> +  if v < 0 {
+> +    v += 101
+> +  }
+> +  return v
+> +}
+> +
+> +func runOne(c Case) RawEntry {
+> +  moved := bx(len(c.Rows), c.Seq)
+> +  baseRows := make([][]int, len(c.Rows))
+> +  for i, row := range c.Rows {
+> +    if c.Packed {
+> +      baseRows[i] = ax(row, i)
+> +    } else {
+> +      cp := make([]int, len(row))
+> +      copy(cp, row)
+> +      baseRows[i] = cp
+> +    }
+> +  }
+> +  vals := make([]int, 0, len(c.Seq))
+> +  trace := make([]int, 0, len(c.Seq))
+> +  for pos, src := range c.Seq {
+> +    handle := moved[pos]
+> +    acc := cx(handle, baseRows[src])
+> +    vals = append(vals, token(acc, handle, c.Packed, c.Group, c.Reuse))
+> +    trace = append(trace, handle)
+> +  }
+> +  orderUsed := make([]int, len(c.Seq))
+> +  copy(orderUsed, c.Seq)
+> +  return RawEntry{
+> +    Case:      c.Name,
+> +    Produced:  vals,
+> +    SlotTrace: trace,
+> +    OrderUsed: orderUsed,
+> +    Packed:    c.Packed,
+> +    Grouped
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ +  Produced  []int  `json:"produced"`
+> +  Trace     []int  `json:"slot_trace"`
+> +  OrderUsed []int  `json:"order_used"`
+> +  Packed    bool   `json:"packed"`
+> +  Grouped   bool   `json:"grouped"`
+> +  Reuse     bool   `json:"reuse"`
+> +}
+> +
+> +type rawDoc struct {
+> +  Raw []entry `json:"raw"`
+> +}
+> +
+> +type finalDoc struct {
+> +  Rows    []entry        `json:"rows"`
+> +  Summary map[string]any `json:"summary"`
+> +}
+> +
+> +func readJSONFile[T any](path string, out *T) error {
+> +  b, err := os.ReadFile(path)
+> +  if err != nil {
+> +    return err
+> +  }
+> +  dec := json.NewDecoder(bytes.NewReader(b))
+> +  dec.DisallowUnknownFields()
+> +  return dec.Decode(out)
+> +}
+> +
+> +func toMap(rows []entry) (map[string]entry, error) {
+> +  m := make(map[string]entry, len(rows))
+> +  for _, r := range rows {
+> +    if r.Case == "" {
+> +      return nil, errors.New("row missing case")
+> +    }
+> +    if _, ok := m[r.Case]; ok {
+> +      return nil, errors.New("duplicate case: " + r.Case)
+> +    }
+> +    m[r.Case] = r
+> +  }
+> +  return m, nil
+> +}
+> +
+> +func eqSlice(a, b []int) bool {
+> +  if len(a) != len(b) {
+> +    return false
+> +  }
+> +  for i := range a {
+> +    if a[i] != b[i] {
+> +      return false
+> +    }
+> +  }
+> +  return true
+> +}
+> +
+> +// Compare across the six required fields.
+> +func sameSix(a, b entry) bool {
+> +  return a.Case == b.Case &&
+> +    eqSlice(a.Produced, b.Produced) &&
+> +    eqSlice(a.Trace, b.Trace) &&
+> +    eqSlice(a.OrderUsed, b.OrderUsed) &&
+> +    a.Packed == b.Packed &&
+> +    a.Grouped == b.Grouped &&
+> +    a.Reuse == b.Reuse
+> +}
+> +
+> +func main() {
+> +  if len(os.Args) != 3 {
+> +    panic("usage: align raw final")
+> +  }
+> +  rawPath := os.Args[1]
+> +  finalPath := os.Args[2]
+> +
+> +  // Load incoming raw.
+> +  var raw rawDoc
+> +  if err := readJSONFile(rawPath, &raw); err != nil {
+> +    panic(err)
+> +  }
+> +  rawMap, err := toMap(raw.Raw)
+> +  if err != nil {
+> +    panic(err)
+> +  }
+> +
+> +  // Build rows: one per raw entry, sorted by case.
+> +  rows := make([]entry, 0, len(raw.Raw))
+> +  for _, r := range raw.Raw {
+> +    rows = append(rows, r)
+> +  }
+> +  sort.Slice(rows, func(i, j int) bool { return rows[i].Case < rows[j].Case })
+> +
+> +  // agree is true iff:
+> +  // 1) new report rows match raw across the six fields for each case name.
+> +  // 2) if an old report exists at finalPath, it matches the newly generated
+> +  //    report rows across the six fields for each case name.
+> +  agree := true
+> +
+> +  // (1) Compare new rows to raw.
+> +  if len(rows) != len(rawMap) {
+> +    agree = false
+> +  }
+> +  for _, r := range rows {
+> +    rr, ok := rawMap[r.Case]
+> +    if !ok || !sameSix(r, rr) {
+> +      agree = false
+> +      break
+> +    }
+> +  }
+> +
+> +  // (2) Compare against prior report, if present.
+> +  if _, err := os.Stat(finalPath); err == nil {
+> +    var prior finalDoc
+> +    if err := readJSONFile(finalPath, &prior); err == nil {
+> +      priorMap, err := toMap(prior.Rows)
+> +      if err != nil {
+> +        agree = false
+> +      } else {
+> +        newMap, _ := toMap(rows)
+> +        if len(priorMap) != len(newMap) {
+> +          agree = false
+> +        } else {
+> +          for name, pr := range priorMap {
+> +            nr, ok := newMap[name]
+> +            if !ok || !sameSix(pr, nr) {
+> +              agree = false
+> +              break
+> +            }
+> +          }
+> +        }
+> +      }
+> +    } else {
+> +      // If we can't stat for reasons other than not-exist, fail hard.
+> +      panic(err)
+> +    }
+> +  }
+> +
+> +  doc := finalDoc{
+> +    Rows:    rows,
+> +    Summary: map[string]any{"total": len(rows), "agree": agree},
+> +  }
+> +  out, err := json.MarshalIndent(doc, "", "  ")
+> +  if err != nil {
+> +    panic(err)
+> +  }
+> +  if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+> +    panic(err)
+> +  }
+> +  if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+> +    panic(err)
+> +  }
+> +}
+> +
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@dbc8229de6ff:/app# go test ./... 2>/dev/null || true
+/app/tools/run_local.sh
+?       local/aligner/cmd/align [no test files]
+?       local/aligner/internal/collate  [no test files]
+root@dbc8229de6ff:/app# /app/tools/run_local.sh
+/app/tools/run_local.sh: line 4: cargo: command not found
+root@dbc8229de6ff:/app# ls -la /app/output
+total 0
+drwxr-xr-x  2 root root   6 May 25 16:00 .
+drwxr-xr-x 11 root root 184 May 25 16:00 ..
+root@dbc8229de6ff:/app# python3 - <<'PY'
+> import json
+> for p in ['/app/output/raw.json','/app/output/report.json']:
+>   print('==',p)
+>   with open(p) as f: d=json.load(f)
+>   print(d.keys())
+>   if 'raw' in d: print('raw rows',len(d['raw']))
+>   if 'rows' in d: print('report rows',len(d['rows']),'summary',d.get('summary'))
+> PY
+== /app/output/raw.json
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/raw.json'
+root@dbc8229de6ff:/app#

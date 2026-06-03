@@ -1,0 +1,18 @@
+{
+  "analysis": "Looking at the output, all cases show `ok: true`, but there are visibility discrepancies between fresh and resume paths (e.g., rook: fresh_seen=9, resume_seen=8; knight: fresh_seen=7, resume_seen=4). This indicates bugs in the save/restore logic. I've identified several bugs:\n\n1. **store/pack.go**: `PackItem` copies `st.Lit` to `out.Seen` instead of `st.Seen` - corrupts the Seen state on save.\n2. **vis/sight.go**: `PlayerSees` has a wrong special case for `y == w.Height-1` that checks a different litIdx.\n3. **mod/effect.go**: `SyncBoundary` has an off-by-one error with `currentTurn + rem - 1` (should be `currentTurn + rem`).\n\nLet me fix these bugs and re-run.",
+  "plan": "Fix the three identified bugs:\n1. In store/pack.go, change `st.Lit` to `st.Seen`\n2. In vis/sight.go, remove the bottom-row litIdx special case\n3. In mod/effect.go, fix the off-by-one in SyncBoundary\n\nThen rebuild and re-run the matrix.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/out.Seen = append(\\[\\]bool(nil), st.Lit...)/out.Seen = append([]bool(nil), st.Seen...)/' /app/internal/store/pack.go\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat /app/internal/store/pack.go\n",
+      "duration": 0.3
+    },
+    {
+      "keystrokes": "cat /app/internal/vis/sight.go\n",
+      "duration": 0.3
+    }
+  ]
+}

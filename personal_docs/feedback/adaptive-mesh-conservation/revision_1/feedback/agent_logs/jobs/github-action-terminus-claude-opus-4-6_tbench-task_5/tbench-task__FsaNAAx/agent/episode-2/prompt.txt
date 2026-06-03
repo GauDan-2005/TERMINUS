@@ -1,0 +1,180 @@
+New Terminal Output:
+
+root@3854d6db4558:/app# cat /app/CMakeLists.txt
+cmake_minimum_required(VERSION 3.16)
+project(sim_run LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(NOT DEFINED BUILD_STAMP)
+    if(DEFINED ENV{SOURCE_DATE_EPOCH})
+        set(BUILD_STAMP $ENV{SOURCE_DATE_EPOCH})
+    else()
+        set(BUILD_STAMP "0")
+    endif()
+endif()
+add_compile_definitions(BUILD_STAMP=${BUILD_STAMP})
+
+add_executable(sim_run
+    src/main.cpp
+    src/case_io.cpp
+    src/vault_io.cpp
+    src/audit_emit.cpp
+    acc_m/edge_corr.cpp
+    lnk_n/relate.cpp
+    agg_q/blend.cpp
+    srl_p/serial.cpp
+    rsm_k/resume.cpp
+    sync_b/halo.cpp
+    drv_u/run.cpp
+    drv_u/run_refine.cpp
+    drv_u/run_blend.cpp
+    drv_u/run_sync.cpp
+    swp_t/sweep.cpp
+    emt_e/report.cpp
+    prb_v/hist.cpp
+    tap_w/trace.cpp
+    cch_z/ring.cpp
+)
+
+target_include_directories(sim_run PRIVATE include)
+
+set_target_properties(sim_run PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+root@3854d6db4558:/app# cat /app/swp_t/sweep.cpp
+#include "../include/cell_view.h"
+
+typedef void (*cell_fn)(CellView *, void *);
+
+void traverse_t(CellGrid *a, cell_fn fn, void *ctx) {
+    if (!a || !fn) return;
+    for (int i = 0; i < a->n; i++) {
+        fn(&a->cells[i], ctx);
+    }
+}
+
+double span_t(const CellGrid *a) {
+    if (!a || a->n == 0) return 0.0;
+    double lo = a->cells[0].vol;
+    double hi = a->cells[0].vol;
+    for (int i = 1; i < a->n; i++) {
+        double v = a->cells[i].vol;
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+    }
+    return hi - lo;
+}
+root@3854d6db4558:/app# cat /app/drv_u/run.cpp
+#include "phases.h"
+#include "../include/ic_loader.h"
+
+#include <math.h>
+#include <string.h>
+#include <stdio.h>
+
+static int compute_adjacency(const SimState *st) {
+    int count = 0;
+    for (int i = 0; i < st->grid.n; i++) {
+        int p = st->topo.parent[i];
+        if (p < 0) continue;
+        int c0 = st->topo.child0[p];
+        int cn = st->topo.child_count[p];
+        if (cn > 0 && i >= c0 && i < c0 + cn) count++;
+    }
+    return count;
+}
+
+static void apply_reflux(SimState *st) {
+    for (int i = 0; i < st->bank.n_pending; i++) {
+        int leaf = st->bank.leaf[i];
+        if (leaf < 0 || leaf >= st->grid.n) continue;
+        double vol = st->grid.cells[leaf].vol;
+        if (vol <= 0.0) continue;
+        for (int v = 0; v < NVAR; v++) {
+            st->grid.cells[leaf].q[v] += st->bank.flux[i * NVAR + v] / vol;
+        }
+    }
+}
+
+int run_u(const ScenarioSpec *spec, const char *mode, ScenarioOutcome *out) {
+    (void)mode;
+    memset(out, 0, sizeof(*out));
+    snprintf(out->name, sizeof(out->name), "%s", spec->name);
+
+    SimState st;
+    memset(&st, 0, sizeof(st));
+
+    CellGrid coarse;
+    if (load_init(spec->profile, spec->n_coarse, &coarse) != 0) return -1;
+
+    double base[NVAR] = {0.0, 0.0, 0.0};
+    for (int c = 0; c < spec->n_coarse; c++) {
+        for (int v = 0; v < NVAR; v++) base[v] += coarse.cells[c].vol * coarse.cells[c].q[v];
+    }
+
+    st.grid = coarse;
+    uint64_t fp = vault_fnv1a(spec->name, (int)strlen(spec->name), 0ull);
+    fp = vault_fnv1a(&spec->profile, (int)sizeof(int), fp);
+    fp = vault_fnv1a(&spec->n_coarse, (int)sizeof(int), fp);
+    st.fingerprint_payload = fp;
+
+    phase_grow(&st, spec);
+
+    if (spec->do_restart) {
+        VaultAudit aud;
+        memset(&aud, 0, sizeof(aud));
+        char vault[256];
+        char probe[256];
+        char logp[256];
+        snprintf(vault, sizeof(vault), "%s/work/vault.bin", app_root());
+        snprintf(probe, sizeof(probe), "%s/work/vault_probe.bin", app_root());
+        snprintf(logp, sizeof(logp), "%s/output/persistence_audit.log", app_root());
+        phase_persist(&st, vault, probe, logp, &aud);
+    }
+
+    out->adjacency = compute_adjacency(&st);
+
+    apply_reflux(&st);
+
+    phase_fold(&st, spec);
+
+    double after[NVAR] = {0.0, 0.0, 0.0};
+    double moment[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < st.grid.n; i++) {
+        double vol = st.grid.cells[i].vol;
+        for (int v = 0; v < NVAR; v++) {
+            double m = vol * st.grid.cells[i].q[v];
+            after[v] += m;
+            moment[v] += (double)(i + 1) * m;
+        }
+    }
+
+    int expected = 0;
+    if (spec->do_flux) {
+        for (int c = 0; c < spec->n_coarse; c++) {
+            if (spec->leaf_count[c] > 1) expected += spec->leaf_count[c];
+        }
+    }
+
+    double drift = 0.0;
+    for (int v = 0; v < NVAR; v++) {
+        double denom = fabs(base[v]);
+        if (denom < 1e-12) denom = 1e-12;
+        double d = fabs(after[v] - base[v]) / denom;
+        if (d > drift) drift = d;
+    }
+
+    for (int v = 0; v < NVAR; v++) {
+        out->base_total[v] = base[v];
+        out->after_total[v] = after[v];
+        out->resumed_total[v] = moment[v];
+        out->halo_q[v] = st.halo_q[v];
+    }
+    out->drift_ratio = drift;
+    out->balanced = (st.bank.n_pending == expected) ? 1 : 0;
+    out->base_match = (drift < 1e-9) ? 1 : 0;
+    return 0;
+}
+root@3854d6db4558:/app#

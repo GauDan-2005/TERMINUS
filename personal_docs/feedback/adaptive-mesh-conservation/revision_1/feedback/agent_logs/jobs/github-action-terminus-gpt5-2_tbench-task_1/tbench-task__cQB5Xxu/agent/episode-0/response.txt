@@ -1,0 +1,27 @@
+{
+  "analysis": "We are at a root shell in /app with no prior commands run. The task is to identify and fix a conservation bug that appears when the finite-volume grid structure changes (splits/merges) and when saving/loading a mid-run snapshot. We need to inspect the codebase, reproduce the issue by building with CMake and running /app/scripts/run-matrix.sh, then locate where totals drift (likely in split/merge remap or snapshot serialization), implement a fix, rebuild, and re-run the matrix script to regenerate /app/output/conservation_audit.json.",
+  "plan": "1) Configure and build with CMake, then run the provided matrix script to reproduce and capture the failing conservation report. 2) Inspect the generated conservation_audit.json to see which scenarios fail and by how much. 3) Use ripgrep to locate code related to split/merge operations, conservation, and snapshot save/load (vault.bin). 4) Add targeted instrumentation if needed (optional), then fix the bug: ensure conservative remapping during split/merge (mass/total distributed exactly), and ensure snapshot serialization restores all conserved quantities and any per-cell volumes/weights consistently. 5) Rebuild and re-run the matrix; confirm that drift_ratio is ~1 (or exactly 1 within tolerance) and that two runs produce identical/equivalent reports.",
+  "commands": [
+    {
+      "keystrokes": "cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=RelWithDebInfo\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j$(nproc)\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

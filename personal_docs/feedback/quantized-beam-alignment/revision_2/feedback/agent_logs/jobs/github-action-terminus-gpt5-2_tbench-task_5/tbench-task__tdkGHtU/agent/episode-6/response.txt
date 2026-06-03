@@ -1,0 +1,19 @@
+{
+  "analysis": "Rust toolchain was present but not on PATH; run_local.sh now exports PATH to include it, builds the Rust release binary, and successfully generates /app/output/raw.json. Rust packed path bug fixed by rewriting a0::ax to apply per-column scale/bias rather than one shared pair. Go collation align was rewritten (despite noisy terminal echo during heredoc) and gofmt succeeded; it now writes report.json with rows matching raw and computes summary.agree based on per-case equality across produced, slot_trace, order_used, packed, grouped, reuse, also comparing against any prior report when overwriting. Running twice yields raw_len=6, report_len=6, agree=true, total=6, and rows_match_raw=True.",
+  "plan": "Do final spot-check of produced values for a packed case to ensure change took effect, and verify files exist and are valid JSON objects at the required paths. Then task is complete.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/output && wc -c /app/output/raw.json /app/output/report.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nraw=json.load(open('/app/output/raw.json'))['raw']\n# print packed cases to verify deterministic output exists\nfor e in raw:\n    if e['packed']:\n        print(e['case'], 'produced', e['produced'], 'order_used', e['order_used'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 -m json.tool /app/output/raw.json >/dev/null && python3 -m json.tool /app/output/report.json >/dev/null && echo OK\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": true
+}

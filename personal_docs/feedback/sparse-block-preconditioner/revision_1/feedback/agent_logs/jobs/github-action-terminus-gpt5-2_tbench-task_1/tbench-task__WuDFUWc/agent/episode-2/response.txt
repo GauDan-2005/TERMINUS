@@ -1,0 +1,39 @@
+{
+  "analysis": "The only solverctl is /app/build/bin/solverctl. Scripts currently call /app/bin/solverctl, so they fail. solverctl has only two subcommands (matrix, one <case>) and no help for subcommands, implying it likely prints results to stdout and/or writes fixed output files. clean-room.sh wipes /app/output each run, so matrix needs to recreate /app/output/solver-audit.json and run-one needs to recreate /app/output/<name>-audit.json. Next: run solverctl directly to see its current output behavior, then update scripts to use the correct binary and capture/route output into the required JSON paths deterministically.",
+  "plan": "1) Run solverctl matrix directly and capture stdout/stderr to see if it already emits JSON or writes files. 2) Run solverctl one basalt and inspect outputs created under /app/output. 3) Based on observed output format, modify run-matrix.sh and run-one.sh to (a) locate solverctl reliably (prefer /app/build/bin/solverctl, fallback to /app/bin/solverctl), and (b) write the required audit JSON files (either by redirecting stdout, or moving/renaming produced files). 4) Validate that run-one’s output matches the corresponding case from the matrix audit. 5) Run matrix twice and compare canonicalized JSON for equivalence.",
+  "commands": [
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix | tee /app/output/_matrix_stdout.txt\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/output/_matrix_stdout.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt | tee /app/output/_one_stdout.txt\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/output/_one_stdout.txt\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,52 @@
+# Rubric — quantized-beam-alignment (revision_1 capture)
+
+Two rubric sources were captured at fetch time. Both are included verbatim.
+
+================================================================================
+## Source A — Local repo rubric (personal_docs/rubrics/quantized-beam-alignment-rubric.md)
+================================================================================
+
+Agent runs `/app/tools/run_local.sh` and compares both `/app/output/raw.json` and `/app/output/report.json` before editing, +3
+Agent identifies that the compressed integer path needs per-column reconstruction rather than a per-row/shared scale, +5
+Agent fixes candidate order handling so slot traces move with the produced values for shuffled grouped cases, +5
+Agent fixes reusable local storage so adjacent grouped requests do not contaminate one another, +3
+Agent repairs Go collation to emit one row per case without merge or drop, +3
+Agent implements `summary.agree` as full raw-to-report row alignment rather than row-count equality, +3
+Agent ensures `packed`, `grouped`, and `reuse` propagate correctly on every output row, +3
+Agent re-runs the local runner to validate repairs after code changes, +2
+Agent bypasses the runtime by hardcoding the final JSON report instead of repairing source behavior, -5
+Agent removes or weakens grouped/compressed/shuffled scenarios to make the report agree, -3
+Agent changes verifier files or expected values rather than fixing the application code, -3
+
+Positive sum: 3 + 5 + 5 + 3 + 3 + 3 + 3 + 2 = 27
+Negative sum: -5 - 3 - 3 = -11
+Max attainable: 27 (within the 10–40 band)
+
+================================================================================
+## Source B — Platform-generated rubric (from rubric-claude-single.py log in metadata)
+================================================================================
+
+Platform reports: Rubrics: 3, Checks: 17, Max score: 37
+
+# Rubric 1
+Agent identifies that a0/mod.rs uses a fixed index (c % a.s.len()) applying the same scale to all elements instead of per-element modular indexing, +3
+Agent fixes a0/mod.rs to iterate per-element with modular index (i % a.s.len()) matching the expand function specification from the task, +5
+Agent fixes b1/mod.rs to perform actual slot value lookups from the internal vector rather than copying the input directly, +2
+Agent fixes c2/mod.rs to use direct assignment instead of accumulation for the computed sum, +2
+Agent rebuilds the Rust binary from corrected source using cargo build rather than relying on the prebuilt buggy binary, +3
+Agent uses the prebuilt Rust binary without modifying the buggy source modules, producing incorrect produced values for packed cases, -5
+
+# Rubric 2
+Agent identifies that the Go fold function deduplicates rows by first character of case name (byte key map) which is incorrect for preserving all entries, +2
+Agent rewrites fold to preserve all raw rows (copying or stable-sorting by case name) without lossy deduplication, +3
+Agent identifies that agree uses only row-count comparison (len check) rather than per-field equality, +2
+Agent implements per-case field comparison checking produced, slot_trace, order_used, packed, grouped, and reuse between raw and report rows, +3
+Agent implements reading of existing report.json (prior rows) to detect agreement failure when replacing a report, as required by the instruction, +3
+Agent compares raw rows only against their own copy without reading prior report state, causing agree to always be true on re-runs, -3
+
+# Rubric 3
+Agent ensures run_local.sh executes successfully end-to-end producing both /app/output/raw.json and /app/output/report.json, +3
+Agent verifies that raw.json contains all 6 built-in cases (alpha, beta, gamma, delta, epsilon, zeta) with correct produced token values, +3
+Agent confirms report.json summary has agree set to true and total equal to the full case count of 6, +2
+Agent runs the pipeline at least twice to verify deterministic behavior (same outputs on repeated runs), +1
+Agent claims task completion without verifying that produced values match the expected per-element scaling computation for packed cases, -3

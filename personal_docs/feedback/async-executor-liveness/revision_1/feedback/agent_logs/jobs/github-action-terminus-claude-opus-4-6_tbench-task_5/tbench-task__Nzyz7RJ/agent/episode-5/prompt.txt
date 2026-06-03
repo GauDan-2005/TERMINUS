@@ -1,0 +1,94 @@
+New Terminal Output:
+
+root@1927511641be:/app# cat /app/host_d/host.rs
+use std::collections::BTreeMap;
+
+use crate::core_a::E0;
+use crate::types_f::Item;
+
+pub struct S2 {
+    pub items: BTreeMap<String, Item>,
+}
+
+pub struct R1 {
+    pub item: Item,
+}
+
+pub struct R2 {
+    pub item: Item,
+}
+
+impl S2 {
+    pub fn new() -> Self {
+        Self { items: BTreeMap::new() }
+    }
+}
+
+pub fn bind_d(a: &mut S2, b: R1) -> Result<R2, E0> {
+    let mut item = b.item.clone();
+    if item.parent != "-" {
+        item.parent = "-".to_string();
+        item.depth = 0;
+        item.chain = vec![item.ident.clone()];
+    }
+    a.items.insert(item.ident.clone(), item.clone());
+    Ok(R2 { item })
+}
+root@1927511641be:/app# cat /app/book_b/book.rs
+use std::collections::BTreeMap;
+
+use crate::core_a::R0;
+
+pub fn fold_b(a: &[R0], b: usize) -> Vec<R0> {
+    let mut by_lane_turn: BTreeMap<(String, u64), Vec<R0>> = BTreeMap::new();
+    for row in a.iter().cloned() {
+        by_lane_turn.entry((row.lane_name.clone(), row.base_turn)).or_default().push(row);
+    }
+    let mut out = Vec::new();
+    for ((_lane, _turn), mut rows) in by_lane_turn {
+        rows.sort_by_key(|row| row.seq);
+        for row in rows.into_iter().take(b.max(1)) {
+            out.push(row);
+        }
+    }
+    out.sort_by(|left, right| left.lane_name.cmp(&right.lane_name).then(left.turn.cmp(&right.turn)).then(left.task_name.cmp(&right.task_name)));
+    out
+}
+root@1927511641be:/app# cat /app/flow_e/flow.rs
+use std::fs::{self, File};
+use std::io::{self, Write};
+use std::path::Path;
+
+use crate::serde_f::row_json;
+use crate::types_f::Record;
+
+pub struct S3 {
+    pub count: usize,
+}
+
+pub fn walk_e(a: &[Record], b: &mut S3) {
+    b.count += a.len();
+}
+
+pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
+    if let Some(parent) = a.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(a)?;
+    for row in b {
+        writeln!(file, "{}", row_json(row))?;
+    }
+    Ok(())
+}
+
+pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
+    if let Some(parent) = a.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(a)?;
+    for row in b.iter().rev() {
+        writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
+    }
+    Ok(())
+}
+root@1927511641be:/app#

@@ -1,0 +1,39 @@
+{
+  "analysis": "After removing newline trimming and Nlink clobbering, alpha/delta/epsilon digests now match, confirming the newline bug is fixed. Beta digest matches but restored hardlink groups still missing (rest_groups=0) despite Nlink preserved, implying grouping key logic (d3.KeyFor) or e4.Groups detection/ordering is off, or Materialize isn't linking for dense cases due to key mismatch. Gamma and zeta still have digest mismatches: likely due to Ordered flow handling/replay logic in RowsFromTree/Materialize for flow.txt updates and restart replay semantics beyond simple reversal. Need to inspect the remainder of RowsFromTree and Materialize (core.go beyond the truncation) plus d3.KeyFor and e4.Groups implementation; then fix ordered/restart logic so gamma/zeta contents match and ensure hardlinks restored.",
+  "plan": "1) View the rest of internal/a0/core.go (RowsFromTree tail and full Materialize) to see how ordered/restart cases generate extra rows (flow.txt updates, removes). 2) Inspect internal/d3/map.go and pair.go for KeyFor implementation; ensure it keys hardlink groups by (dev,ino) (or another stable identity from source rows) and that rows for aliases share the same key. 3) Inspect e4/groups implementation to ensure it detects hardlinks correctly. 4) Reproduce beta diff: compare inode numbers in restored for shared files and see if they are hardlinked. 5) Fix whatever prevents os.Link calls (likely KeyFor includes Path, making it unique), rebuild, rerun matrix, and re-check summary.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '110,260p' /app/internal/a0/core.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '260,420p' /app/internal/a0/core.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/d3/map.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/d3/pair.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/e4/walk.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nbeta=next(c for c in d['cases'] if c['name']=='beta')\nprint(beta['source'])\nprint(beta['restored'])\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='beta')['source'])\nPY\n); rst=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='beta')['restored'])\nPY\n); echo \"beta hardlinks in source:\"; find \"$src\" -type f -links +1 -printf '%n %s %p\\n' | sort -n; echo \"beta hardlinks in restored:\"; find \"$rst\" -type f -links +1 -printf '%n %s %p\\n' | sort -n; echo \"beta inode listing restored shared*\"; ls -li \"$rst\"/deep/x/shared.dat \"$rst\"/a/shared-a.dat \"$rst\"/b/shared-b.dat \"$rst\"/c/shared-c.dat 2>/dev/null || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gamma_src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='gamma')['source'])\nPY\n); gamma_rst=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nprint(next(c for c in d['cases'] if c['name']=='gamma')['restored'])\nPY\n); echo \"gamma diff:\"; diff -qr \"$gamma_src\" \"$gamma_rst\" | head -n 50; echo \"gamma source flow:\"; cat \"$gamma_src/a/flow.txt\"; echo \"gamma restored flow:\"; cat \"$gamma_rst/a/flow.txt\"; echo \"gamma source one:\"; cat \"$gamma_src/a/one.txt\"; echo \"gamma restored one:\"; cat \"$gamma_rst/a/one.txt\"\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

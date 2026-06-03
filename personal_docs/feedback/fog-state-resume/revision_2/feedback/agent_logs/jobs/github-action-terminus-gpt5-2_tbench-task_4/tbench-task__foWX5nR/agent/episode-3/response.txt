@@ -1,0 +1,19 @@
+{
+  "analysis": "Matrix run reports not_ok_count 0, but our added sanity check flagged 7 rows because fresh.summary.illegal and resume.summary.illegal (and signatures) are None/missing in the JSON structure we assumed. So while ok=true for all cases, we have not yet verified the required cleanliness conditions (illegal 0, signatures match, resolved moves order consistency) using the actual schema in /app/internal/sim/types.go. We should inspect the JSON schema and confirm the fields required by the prompt are present and aligned. If fields are missing, that itself indicates a problem with audit generation/types, and we need to fix the engine/audit writer accordingly.",
+  "plan": "1) Inspect /app/internal/sim/types.go to find CaseResult, MoveRow, EffectRow and the actual JSON field names/paths (especially summaries). 2) Print the top-level keys and one case object from /app/output/resume-audit.json to understand real structure. 3) Write a python verifier matching the real schema to check illegal==0, signature equality, and move/effect lists equality/order between fresh and resume. Based on results, decide if code changes are needed.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/internal/sim/types.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/resume-audit.json') as f:\n    d=json.load(f)\nprint('top_keys:', sorted(d.keys()))\ncs=d.get('cases',[])\nprint('cases:', len(cs))\nif cs:\n    c=cs[0]\n    print('case0_keys:', sorted(c.keys()))\n    for k in ['case','ok','visibility','fresh','resume']:\n        if k in c:\n            print(k, 'type', type(c[k]).__name__)\n    # print a compact preview of fresh/resume keys\n    for side in ['fresh','resume']:\n        if side in c and isinstance(c[side], dict):\n            print(side+'_keys:', sorted(c[side].keys()))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfrom pprint import pprint\nwith open('/app/output/resume-audit.json') as f:\n    d=json.load(f)\ncs=d.get('cases',[])\nif not cs:\n    raise SystemExit('no cases')\n# pretty-print first case (trim large arrays)\nc=dict(cs[0])\nfor side in ['fresh','resume']:\n    if side in c and isinstance(c[side], dict):\n        for k,v in list(c[side].items()):\n            if isinstance(v,list) and len(v)>10:\n                c[side][k]=v[:3]+['...(%d total)'%len(v)]+v[-3:]\npprint(c)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

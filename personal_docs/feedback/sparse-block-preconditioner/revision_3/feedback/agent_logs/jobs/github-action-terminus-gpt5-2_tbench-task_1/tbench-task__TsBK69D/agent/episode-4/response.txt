@@ -1,0 +1,47 @@
+{
+  "analysis": "The attempted patches failed because the environment lacks an apply_patch helper, so no source/scripts were modified. Scripts still call /app/bin/solverctl (missing), so audits cannot run. Need to edit files using available tools (e.g., sed/heredoc with cat) to (1) fix scale_q/metric.cpp and (2) update scripts to use /app/build/bin/solverctl fallback. Then rebuild and re-run audits and determinism checks.",
+  "plan": "1) Modify scale_q/metric.cpp by rewriting the file (or using sed) to remove the +1e-4 bias. 2) Rewrite scripts/run-matrix.sh and scripts/run-one.sh with robust solverctl discovery and output existence checks. 3) Rebuild with CMake. 4) Run matrix and one, confirm ok/residual_agrees true and per-case matches matrix slice. 5) Run matrix twice and verify JSON equivalence.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/scale_q/metric.cpp <<'EOF'\n#include \"../include/matrix_view.h\"\n\n#include <math.h>\n\n// Metric helper: report an unbiased L2 norm.\n// This value is cross-checked against the independently measured residual.\ndouble norm_q(const double *a, int b) {\n    double s = 0.0;\n    for (int i = 0; i < b; i++) {\n        s += a[i] * a[i];\n    }\n    return sqrt(s);\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/scripts/run-matrix.sh <<'EOF'\n#!/bin/bash\nset -euo pipefail\nAPP_ROOT=\"${APP_ROOT:-/app}\"\nOUT=\"${APP_ROOT}/output\"\nmkdir -p \"${OUT}\"\n\nbash \"${APP_ROOT}/scripts/clean-room.sh\"\n\nSOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\nif [[ ! -x \"${SOLVERCTL}\" ]]; then\n  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\nfi\n\n\"${SOLVERCTL}\" matrix\n\ntest -s \"${OUT}/solver-audit.json\"\nEOF\nchmod +x /app/scripts/run-matrix.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/scripts/run-one.sh <<'EOF'\n#!/bin/bash\nset -euo pipefail\nAPP_ROOT=\"${APP_ROOT:-/app}\"\nNAME=\"${1:?case name required}\"\nOUT=\"${APP_ROOT}/output\"\nmkdir -p \"${OUT}\"\n\nbash \"${APP_ROOT}/scripts/clean-room.sh\"\n\nSOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\nif [[ ! -x \"${SOLVERCTL}\" ]]; then\n  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\nfi\n\n\"${SOLVERCTL}\" one \"${NAME}\"\n\ntest -s \"${OUT}/${NAME}-audit.json\"\nEOF\nchmod +x /app/scripts/run-one.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/solver-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfor c in data['cases']:\n    print(c['name'], c['ok'], c['iterations'], c['final_residual'], c['reported_residual'], c['residual_agrees'], c['hit_limit'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))\no=json.load(open('/app/output/basalt-audit.json'))\nms=[c for c in m['cases'] if c['name']=='basalt']\nprint('equal', bool(ms) and (o['cases'][0]==ms[0]))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run1.json\nbash /app/scripts/run-matrix.sh\ncp /app/output/solver-audit.json /app/output/solver-audit.run2.json\npython3 - <<'PY'\nimport pathlib,json\np1=pathlib.Path('/app/output/solver-audit.run1.json')\np2=pathlib.Path('/app/output/solver-audit.run2.json')\nprint('byte_equal', p1.read_bytes()==p2.read_bytes())\nprint('json_equal', json.loads(p1.read_text())==json.loads(p2.read_text()))\nPY\n",
+      "duration": 12.0
+    }
+  ],
+  "task_complete": false
+}

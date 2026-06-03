@@ -1,0 +1,26 @@
+New Terminal Output:
+
+root@5d46ad38ee8d:/app# ls -la /app/scripts/clean-room.sh
+-rwxr-xr-x 1 root root 130 May 28 23:38 /app/scripts/clean-room.sh
+root@5d46ad38ee8d:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+rm -rf "${APP}/output" "${APP}/work"
+mkdir -p "${APP}/output" "${APP}/work"
+root@5d46ad38ee8d:/app# cp /app/output/conservation_audit.json /tmp/conservation_audit.first.json
+root@5d46ad38ee8d:/app# bash /app/scripts/run-matrix.sh
+root@5d46ad38ee8d:/app# diff -u /tmp/conservation_audit.first.json /app/output/conservation_audit.json || true
+root@5d46ad38ee8d:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+>
+> a = json.loads(Path('/tmp/conservation_audit.first.json').read_text())
+> b = json.loads(Path('/app/output/conservation_audit.json').read_text())
+> print('equal:', a==b)
+> if a!=b:
+>     # canonical dump to help see whether it's only float repr/order
+>     print('cases:', len(a.get('cases',[])), len(b.get('cases',[])))
+> PY
+equal: True
+root@5d46ad38ee8d:/app#

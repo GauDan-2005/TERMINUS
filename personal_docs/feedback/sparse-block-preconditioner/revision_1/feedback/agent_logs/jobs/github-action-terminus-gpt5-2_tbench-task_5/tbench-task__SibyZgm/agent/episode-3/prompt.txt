@@ -1,0 +1,123 @@
+New Terminal Output:
+
+root@78b1d39f5e77:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> # Prefer the CMake build tree binary, but allow an installed /app/bin/solverctl or PATH.
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="$(command -v solverctl || true)"
+> fi
+> if [[ -z "${SOLVERCTL}" || ! -x "${SOLVERCTL}" ]]; then
+>   echo "solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+>   exit 127
+> fi
+>
+> "${SOLVERCTL}" matrix
+> EOF
+root@78b1d39f5e77:/app# chmod +x /app/scripts/run-matrix.sh
+root@78b1d39f5e77:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> # Prefer the CMake build tree binary, but allow an installed /app/bin/solverctl or PATH.
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="$(command -v solverctl || true)"
+> fi
+> if [[ -z "${SOLVERCTL}" || ! -x "${SOLVERCTL}" ]]; then
+>   echo "solverctl not found (expected ${APP_ROOT}/build/bin/solverctl)" >&2
+>   exit 127
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}"
+> EOF
+root@78b1d39f5e77:/app# chmod +x /app/scripts/run-one.sh
+root@78b1d39f5e77:/app# bash /app/scripts/run-matrix.sh
+root@78b1d39f5e77:/app# bash /app/scripts/run-one.sh basalt
+root@78b1d39f5e77:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root  31 May 25 16:07 .
+drwxr-xr-x 20 root root 278 May 25 16:07 ..
+-rw-r--r--  1 root root 218 May 25 16:07 basalt-audit.json
+root@78b1d39f5e77:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> p=Path('/app/output/solver-audit.json')
+> q=Path('/app/output/basalt-audit.json')
+> print('solver-audit exists:', p.exists(), 'bytes:', p.stat().st_size if p.exists() else None)
+> print('basalt-audit exists:', q.exists(), 'bytes:', q.stat().st_size if q.exists() else None)
+> if p.exists():
+>     data=json.loads(p.read_text())
+>     print('matrix cases:', len(data.get('cases',[])))
+>     print('matrix names:', [c['name'] for c in data.get('cases',[])])
+> PY
+solver-audit exists: False bytes: None
+basalt-audit exists: True bytes: 218
+root@78b1d39f5e77:/app# cp /app/output/solver-audit.json /app/output/solver-audit.1.json
+cp: cannot stat '/app/output/solver-audit.json': No such file or directory
+root@78b1d39f5e77:/app# bash /app/scripts/run-matrix.sh
+root@78b1d39f5e77:/app# cp /app/output/solver-audit.json /app/output/solver-audit.2.json
+root@78b1d39f5e77:/app# python3 - <<'PY'
+> import hashlib
+> from pathlib import Path
+> for name in ['solver-audit.1.json','solver-audit.2.json']:
+>     b=Path('/app/output',name).read_bytes()
+>     print(name, 'sha256', hashlib.sha256(b).hexdigest(), 'bytes', len(b))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "/usr/local/lib/python3.13/pathlib/_abc.py", line 625, in read_bytes
+    with self.open(mode='rb') as f:
+         ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.1.json'
+root@78b1d39f5e77:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> m=json.loads(Path('/app/output/solver-audit.json').read_text())
+> one=json.loads(Path('/app/output/basalt-audit.json').read_text())
+> case=[c for c in m['cases'] if c['name']=='basalt']
+> print('matrix basalt entries:', len(case))
+> print('one cases:', len(one.get('cases',[])))
+> print('matrix basalt == one basalt:', case[0]==one['cases'][0] if case and one.get('cases') else False)
+> if case and one.get('cases'):
+>     if case[0]!=one['cases'][0]:
+>         print('diff keys:')
+>         for k in sorted(set(case[0])|set(one['cases'][0])):
+>             if case[0].get(k)!=one['cases'][0].get(k):
+>                 print(k, case[0].get(k), one['cases'][0].get(k))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 546, in read_text
+    return PathBase.read_text(self, encoding, errors, newline)
+           ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_abc.py", line 632, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/basalt-audit.json'
+root@78b1d39f5e77:/app#

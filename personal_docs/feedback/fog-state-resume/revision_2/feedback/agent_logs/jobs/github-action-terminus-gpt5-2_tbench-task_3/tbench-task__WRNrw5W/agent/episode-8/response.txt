@@ -1,0 +1,23 @@
+{
+  "analysis": "Duplicates in moves/sidecars are fixed (rook records now single row). Now 5 cases fail because visibility fresh_seen != resume_seen. This indicates that the two execution paths leave different Seen/Lit states. Signatures match, so move planning is consistent, but visibility update differs between fresh runDirect and resumed runLoaded. Likely runDirect does not call vis.ApplyLit at the same times/with same blind state as resume path, or runLoaded applies lit only on player steps after save while wFresh already had lit updates during pre-save play and then runDirect maybe skips/duplicates. We need to inspect playUntilSave, runDirect, and runLoaded to ensure both paths apply visibility changes identically across the whole script. Specifically: ensure that when hostiles act, we also update lit/seen consistently (or at least after every turn), and that runLoaded includes visibility application for pre-save portion (currently applyWorld sets Seen/Lit from blob, but then runLoaded only applies lit on player actions after save; if hostiles move, their positions affecting what player sees might change and should also update Seen/Lit each turn). Fix: call vis.ApplyLit after hostile moves too, and possibly after any turn change, in both runDirect and runLoaded, matching behavior.",
+  "plan": "1) Locate definitions of playUntilSave, runDirect, runLoaded in internal/exec/run.go and inspect visibility handling. 2) Identify where wFresh visibility is being advanced differently than wResume. 3) Implement consistent visibility updates: after applying player move and after advancing hostiles, call vis.ApplyLit(w, radius, blindNow(w)) in both runDirect and runLoaded (and in playUntilSave if needed). 4) Rebuild and rerun matrix; verify ok=true for all and no VIS_MISMATCH.",
+  "commands": [
+    {
+      "keystrokes": "grep -n \"func playUntilSave\" -n /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -n \"func runDirect\" -n /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -n \"func runLoaded\" -n /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '120,260p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

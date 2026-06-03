@@ -1,0 +1,109 @@
+New Terminal Output:
+
+root@023236bee917:/app# cat /app/emt_e/report.cpp /app/prb_v/hist.cpp /app/tap_w/trace.cpp /app/cch_z/ring.cpp
+#include "../include/audit_emit.h"
+
+#include <stdio.h>
+
+void summarize_e(const ScenarioOutcome *a, int n, const char *out_path) {
+    if (!a || !out_path) return;
+    FILE *fp = fopen(out_path, "w");
+    if (!fp) return;
+    int ok = 0;
+    for (int i = 0; i < n; i++) {
+        if (a[i].balanced && a[i].base_match) ok++;
+    }
+    fprintf(fp, "scenarios=%d balanced_and_matched=%d\n", n, ok);
+    fclose(fp);
+}
+#include "../include/cell_view.h"
+
+void walk_v(const CellGrid *a, int b, int c, double *d) {
+    if (!a || !d || b <= 0) return;
+    for (int i = 0; i < b; i++) d[i] = 0.0;
+    for (int i = 0; i < a->n; i++) {
+        double key = a->cells[i].q[c % NVAR];
+        int slot = (int)(key * b);
+        if (slot < 0) slot = 0;
+        if (slot >= b) slot = b - 1;
+        d[slot] += a->cells[i].vol;
+    }
+}
+#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+
+int stamp_w(CellGrid *a, const int *b, int c, TopoLink *d) {
+    if (!a || !d) return -1;
+    const char *env = getenv("SCN_TRACE");
+    if (!env || env[0] != '1') return 0;
+    int touched = 0;
+    for (int i = 0; i < c; i++) {
+        int idx = b ? b[i] : i;
+        if (idx < 0 || idx >= a->n) continue;
+        fprintf(stderr, "[trace] cell=%d tier=%d vol=%.6f\n",
+                idx, a->cells[idx].tier, a->cells[idx].vol);
+        touched++;
+    }
+    return touched;
+}
+#include "../include/cell_view.h"
+
+#define RING_CAP 16
+
+void phase_z(const CellPatch *a, int b, CellPatch *c) {
+    if (!a || !c) return;
+    static double ring[RING_CAP * NVAR];
+    static int head = 0;
+    int n = (a->n < MAX_LEAVES) ? a->n : MAX_LEAVES;
+    for (int v = 0; v < NVAR; v++) {
+        double acc = 0.0;
+        for (int i = 0; i < n; i++) acc += a->q[i * NVAR + v];
+        ring[(head % RING_CAP) * NVAR + v] = (n > 0) ? acc / n : 0.0;
+    }
+    head = (head + 1) % RING_CAP;
+    c->n = 1;
+    c->vol[0] = (double)b;
+    for (int v = 0; v < NVAR; v++) c->q[v] = ring[v];
+}
+root@023236bee917:/app# cat /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+rm -rf "${APP}/output" "${APP}/work"
+mkdir -p "${APP}/output" "${APP}/work"
+root@023236bee917:/app# rm -rf /app/build && cmake -S /app -B /app/build 2>&1
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/build
+root@023236bee917:/app# cmake --build /app/build -j2 2>&1
+[ 10%] Building CXX object CMakeFiles/sim_run.dir/src/case_io.cpp.o
+[ 10%] Building CXX object CMakeFiles/sim_run.dir/src/main.cpp.o
+[ 15%] Building CXX object CMakeFiles/sim_run.dir/src/vault_io.cpp.o
+[ 20%] Building CXX object CMakeFiles/sim_run.dir/src/audit_emit.cpp.o
+[ 25%] Building CXX object CMakeFiles/sim_run.dir/acc_m/edge_corr.cpp.o
+[ 30%] Building CXX object CMakeFiles/sim_run.dir/lnk_n/relate.cpp.o
+[ 35%] Building CXX object CMakeFiles/sim_run.dir/agg_q/blend.cpp.o
+[ 40%] Building CXX object CMakeFiles/sim_run.dir/srl_p/serial.cpp.o
+[ 45%] Building CXX object CMakeFiles/sim_run.dir/rsm_k/resume.cpp.o
+[ 50%] Building CXX object CMakeFiles/sim_run.dir/sync_b/halo.cpp.o
+[ 55%] Building CXX object CMakeFiles/sim_run.dir/drv_u/run.cpp.o
+[ 60%] Building CXX object CMakeFiles/sim_run.dir/drv_u/run_refine.cpp.o
+[ 65%] Building CXX object CMakeFiles/sim_run.dir/drv_u/run_blend.cpp.o
+[ 70%] Building CXX object CMakeFiles/sim_run.dir/drv_u/run_sync.cpp.o
+[ 75%] Building CXX object CMakeFiles/sim_run.dir/swp_t/sweep.cpp.o
+[ 80%] Building CXX object CMakeFiles/sim_run.dir/emt_e/report.cpp.o
+[ 85%] Building CXX object CMakeFiles/sim_run.dir/prb_v/hist.cpp.o
+[ 90%] Building CXX object CMakeFiles/sim_run.dir/tap_w/trace.cpp.o
+[ 95%] Building CXX object CMakeFiles/sim_run.dir/cch_z/ring.cpp.o
+[100%] Linking CXX executable bin/sim_run
+[100%] Built target sim_run
+root@023236bee917:/app#

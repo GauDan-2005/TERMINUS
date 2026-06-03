@@ -1,0 +1,106 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.13, pytest-8.4.1, pluggy-1.6.0
+cachedir: /tmp/pytest_cache
+rootdir: /tests
+plugins: json-ctrf-0.3.5
+collected 13 items
+
+../tests/test_outputs.py ..FF....FFFF.                                   [100%]
+
+=================================== FAILURES ===================================
+___________________________ test_c2_plume_adjacency ____________________________
+
+report = {'cases': [{'adjacency': 0, 'after_total': [1.98, 1.75, 1.7429999999999999], 'balanced': True, 'base_match': True, ......acency': 0, 'after_total': [2.29, 1.6689999999999998, 1.7520000000000002], 'balanced': True, 'base_match': True, ...}]}
+
+    def test_c2_plume_adjacency(report):
+        """plume resolves every parent/child link after growth."""
+        row = _row(report, "plume")
+        ref = simulate("plume")
+        assert ref["adjacency"] == 4
+>       assert row["adjacency"] == ref["adjacency"]
+E       assert 0 == 4
+
+/tests/test_outputs.py:220: AssertionError
+___________________________ test_d3_spire_adjacency ____________________________
+
+report = {'cases': [{'adjacency': 0, 'after_total': [1.98, 1.75, 1.7429999999999999], 'balanced': True, 'base_match': True, ......acency': 0, 'after_total': [2.29, 1.6689999999999998, 1.7520000000000002], 'balanced': True, 'base_match': True, ...}]}
+
+    def test_d3_spire_adjacency(report):
+        """spire resolves the expected link count under a collapse layout."""
+        row = _row(report, "spire")
+        ref = simulate("spire")
+        assert ref["adjacency"] == 2
+>       assert row["adjacency"] == ref["adjacency"]
+E       assert 0 == 2
+
+/tests/test_outputs.py:228: AssertionError
+______________________ test_i8_tampered_snapshot_rejected ______________________
+
+report = {'cases': [{'adjacency': 0, 'after_total': [1.98, 1.75, 1.7429999999999999], 'balanced': True, 'base_match': True, ......acency': 0, 'after_total': [2.29, 1.6689999999999998, 1.7520000000000002], 'balanced': True, 'base_match': True, ...}]}
+
+    def test_i8_tampered_snapshot_rejected(report):
+        """a tampered snapshot is rejected with a mismatched-signature line."""
+        assert AUDIT_LOG.exists()
+        text = AUDIT_LOG.read_text(encoding="utf-8")
+        rejected = [ln for ln in text.splitlines()
+                    if "REJECTED" in ln and "SIGNATURE_MISMATCH" in ln]
+>       assert len(rejected) >= 1
+E       assert 0 >= 1
+E        +  where 0 = len([])
+
+/tests/test_outputs.py:267: AssertionError
+_______________________ test_j9_basin_resumed_adjacency ________________________
+
+report = {'cases': [{'adjacency': 0, 'after_total': [1.98, 1.75, 1.7429999999999999], 'balanced': True, 'base_match': True, ......acency': 0, 'after_total': [2.29, 1.6689999999999998, 1.7520000000000002], 'balanced': True, 'base_match': True, ...}]}
+
+    def test_j9_basin_resumed_adjacency(report):
+        """basin rebuilds its parent/child links after resuming from a snapshot."""
+        row = _row(report, "basin")
+        ref = simulate("basin")
+        assert ref["adjacency"] == 3
+>       assert row["adjacency"] == ref["adjacency"]
+E       assert 0 == 3
+
+/tests/test_outputs.py:275: AssertionError
+___________________________ test_k0_canyon_halo_band ___________________________
+
+report = {'cases': [{'adjacency': 0, 'after_total': [1.98, 1.75, 1.7429999999999999], 'balanced': True, 'base_match': True, ......acency': 0, 'after_total': [2.29, 1.6689999999999998, 1.7520000000000002], 'balanced': True, 'base_match': True, ...}]}
+
+    def test_k0_canyon_halo_band(report):
+        """canyon's ghost band at the first seam matches the reference sample."""
+        row = _row(report, "canyon")
+        ref = simulate("canyon")
+>       assert _vec_close(row["halo_q"], ref["halo_q"])
+E       assert False
+E        +  where False = _vec_close([0.56235, 0.24551874999999998, 0.69988125], [0.52095, 0.22744375, 0.6483562500000001])
+
+/tests/test_outputs.py:282: AssertionError
+____________________________ test_l1_dune_halo_band ____________________________
+
+report = {'cases': [{'adjacency': 0, 'after_total': [1.98, 1.75, 1.7429999999999999], 'balanced': True, 'base_match': True, ......acency': 0, 'after_total': [2.29, 1.6689999999999998, 1.7520000000000002], 'balanced': True, 'base_match': True, ...}]}
+
+    def test_l1_dune_halo_band(report):
+        """dune's ghost band at the first seam matches the reference sample."""
+        row = _row(report, "dune")
+        ref = simulate("dune")
+>       assert _vec_close(row["halo_q"], ref["halo_q"])
+E       assert False
+E        +  where False = _vec_close([0.6499625, 0.48084999999999994, 0.28626875], [0.6021125, 0.44545, 0.26519375])
+
+/tests/test_outputs.py:289: AssertionError
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED ../tests/test_outputs.py::test_a0_storm_seam_balance
+PASSED ../tests/test_outputs.py::test_b1_canyon_seam_balance
+PASSED ../tests/test_outputs.py::test_e4_spire_collapse_conserves
+PASSED ../tests/test_outputs.py::test_f5_plume_round_trip_conserves
+PASSED ../tests/test_outputs.py::test_g6_basin_resumed_moment
+PASSED ../tests/test_outputs.py::test_h7_dune_resumed_moment
+PASSED ../tests/test_outputs.py::test_no_canary_in_sources
+FAILED ../tests/test_outputs.py::test_c2_plume_adjacency - assert 0 == 4
+FAILED ../tests/test_outputs.py::test_d3_spire_adjacency - assert 0 == 2
+FAILED ../tests/test_outputs.py::test_i8_tampered_snapshot_rejected - assert ...
+FAILED ../tests/test_outputs.py::test_j9_basin_resumed_adjacency - assert 0 == 3
+FAILED ../tests/test_outputs.py::test_k0_canyon_halo_band - assert False
+FAILED ../tests/test_outputs.py::test_l1_dune_halo_band - assert False
+========================= 6 failed, 7 passed in 0.85s ==========================

@@ -1,0 +1,241 @@
+New Terminal Output:
+
+root@f75739620649:/app# find /app/fixtures/epsilon -maxdepth 4 -type f -name '*.ts' -o -name '*.schema' | sort
+/app/fixtures/epsilon/gen-v1/generated/legacy.ts
+/app/fixtures/epsilon/gen-v2/generated/client.ts
+/app/fixtures/epsilon/schemas/v1/legacy.schema
+/app/fixtures/epsilon/schemas/v2/client.schema
+root@f75739620649:/app# python3 - <<'PY'
+> import pathlib, re
+> for v in ['gen-v1','gen-v2']:
+>     root=pathlib.Path('/app/fixtures/epsilon')/v
+>     print('==',root)
+>     for p in sorted(root.rglob('*.ts')):
+>         txt=p.read_text()
+>         syms=[]
+>         for i,line in enumerate(txt.splitlines(),1):
+>             m=re.match(r'\s*export (?:const|function)\s+([A-Za-z0-9_]+)', line)
+>             if m: syms.append((m.group(1),i))
+>         if syms:
+>             print(p, syms)
+> PY
+== /app/fixtures/epsilon/gen-v1
+/app/fixtures/epsilon/gen-v1/generated/legacy.ts [('Legacy', 2), ('epsilonLegacy', 3)]
+== /app/fixtures/epsilon/gen-v2
+/app/fixtures/epsilon/gen-v2/generated/client.ts [('Client', 2), ('epsilonClient', 3)]
+root@f75739620649:/app# grep -nR "export" -n /app/fixtures/epsilon/gen-v1 /app/fixtures/epsilon/gen-v2 | head -n 50
+/app/fixtures/epsilon/gen-v1/generated/legacy.ts:2:export const Legacy = "epsilon-legacy-v1";
+/app/fixtures/epsilon/gen-v1/generated/legacy.ts:3:export function epsilonLegacy() {
+/app/fixtures/epsilon/gen-v2/generated/client.ts:2:export const Client = "epsilon-client-v2";
+/app/fixtures/epsilon/gen-v2/generated/client.ts:3:export function epsilonClient() {
+root@f75739620649:/app# perl -0777 -i -pe 's/abs\.replace\("\\/ws-old", "\\/ws-new"\)\n        \.replace\("\\/app-old", "\\/app-new"\)\n        \.replace\("\\/g
+en-v1", "\\/gen-v2"\)\n        \.replace\("\\/alias-a", "\\/alias-b"\)/{
+>     my $x="abs";
+>     $x
+> }/s' /app/src/io.rs
+String found where operator expected (Missing operator before ""\)\n        \.replace\(""?) at -e line 1, near "new"\)\n        \.replace\(""
+Unknown regexp modifier "/w" at -e line 1, at end of line
+syntax error at -e line 1, near "new"\)\n        \.replace\(""
+Execution of -e aborted due to compilation errors.
+root@f75739620649:/app# grep -n "resolve_fixture_root" -n /app/src/io.rs
+70:pub fn resolve_fixture_root(root: &str) -> String {
+root@f75739620649:/app# nl -ba /app/src/io.rs | sed -n '55,95p'
+    55          return Ok(app_path(value));
+    56      }
+    57      let raw = fs::read_to_string(&marker).map_err(|e| format!("read {}: {e}", marker.display()))?;
+    58      let trimmed = raw.trim();
+    59      let joined = base.join(trimmed);
+    60      let absolute = joined
+    61          .canonicalize()
+    62          .map_err(|e| format!("resolve {}: {e}", joined.display()))?;
+    63      let text = absolute.to_string_lossy().to_string();
+    64      Ok(text)
+    65  }
+    66
+    67  /// Map trace roots that mention older fixture layouts to the currently-active
+    68  /// layout. The traces intentionally reference e.g. `*-old` and `gen-v1` while
+    69  /// the audit expects the harness to point at the current files.
+    70  pub fn resolve_fixture_root(root: &str) -> String {
+    71      let abs = app_path(root);
+    72      abs.replace("/ws-old", "/ws-new")
+    73          .replace("/app-old", "/app-new")
+    74          .replace("/gen-v1", "/gen-v2")
+    75          .replace("/alias-a", "/alias-b")
+    76  }
+    77
+    78  pub fn collect_entries(
+    79      state: &mut State,
+    80      slot: &str,
+    81      root: &str,
+    82      epoch: u64,
+    83  ) -> Result<Vec<Entry>, String> {
+    84      let root_path = disk_path(root);
+    85      let mut files = Vec::new();
+    86      gather_ts(&root_path, &mut files)?;
+    87      files.sort();
+    88      let mut out = Vec::new();
+    89      for file in files {
+    90          let app_file = file_to_app(&file)?;
+    91          let source = source_for(&file)?;
+    92          let text = fs::read_to_string(&file).map_err(|e| format!("read {}: {e}", file.display()))?;
+    93          for (line, symbol) in exported_symbols(&text) {
+    94              let handle = state.handle_for(slot, &app_file, &symbol);
+    95              out.push(Entry {
+root@f75739620649:/app# perl -i -pe 'if($.==0){}' /app/src/io.rs
+root@f75739620649:/app# cat > /app/src/io.rs <<'EOF'
+> use crate::model::{Entry, Event, State};
+> use std::fs;
+> use std::path::{Path, PathBuf};
+>
+> pub fn read_trace(path: &Path) -> Result<Vec<Event>, String> {
+>     let text = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+>     let mut events = Vec::new();
+>     for raw in text.lines() {
+>         let line = raw.trim();
+>         if line.is_empty() || line.starts_with('#') {
+>             continue;
+>         }
+>         let parts: Vec<&str> = line.split_whitespace().collect();
+>         if parts.len() != 3 {
+>             return Err(format!("trace {} has malformed row: {line}", path.display()));
+>         }
+>         events.push(Event {
+>             kind: parts[0].to_string(),
+>
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+ath = disk_path(root);
+>     let mut files = Vec::new();
+>     gather_ts(&root_path, &mut files)?;
+>     files.sort();
+>     let mut out = Vec::new();
+>     for file in files {
+>         let app_file = file_to_app(&file)?;
+>         let source = source_for(&file)?;
+>         let text = fs::read_to_string(&file).map_err(|e| format!("read {}: {e}", file.display()))?;
+>         for (line, symbol) in exported_symbols(&text) {
+>             let handle = state.handle_for(slot, &app_file, &symbol);
+>             out.push(Entry {
+>                 slot: slot.to_string(),
+>                 symbol,
+>                 path: app_file.clone(),
+>                 source: source.clone(),
+>                 line,
+>                 epoch,
+>                 handle,
+>             });
+>         }
+>     }
+>     Ok(out)
+> }
+>
+> fn gather_ts(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+>     let entries = fs::read_dir(dir).map_err(|e| format!("scan {}: {e}", dir.display()))?;
+>     for item in entries {
+>         let path = item.map_err(|e| format!("scan {}: {e}", dir.display()))?.path();
+>         if path.is_dir() {
+>             gather_ts(&path, out)?;
+>         } else if path.extension().and_then(|s| s.to_str()) == Some("ts") {
+>             out.push(path);
+>         }
+>     }
+>     Ok(())
+> }
+>
+> fn file_to_app(path: &Path) -> Result<String, String> {
+>     let abs = path
+>         .canonicalize()
+>         .map_err(|e| format!("resolve {}: {e}", path.display()))?;
+>     Ok(abs.to_string_lossy().to_string())
+> }
+>
+> fn source_for(path: &Path) -> Result<String, String> {
+>     let text = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+>     for raw in text.lines().take(4) {
+>         let line = raw.trim();
+>         if let Some(rest) = line.strip_prefix("// origin:") {
+>             return Ok(app_path(rest.trim()));
+>         }
+>     }
+>     file_to_app(path)
+> }
+>
+> fn exported_symbols(text: &str) -> Vec<(usize, String)> {
+>     let mut out = Vec::new();
+>     for (idx, raw) in text.lines().enumerate() {
+>         let line = raw.trim_start();
+>         for prefix in ["export const ", "export function "] {
+>             if let Some(rest) = line.strip_prefix(prefix) {
+>                 let symbol: String = rest
+>                     .chars()
+>                     .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+>                     .collect();
+>                 if !symbol.is_empty() {
+>                     out.push((idx + 1, symbol));
+>                 }
+>             }
+>         }
+>     }
+>     out
+> }
+> EOF
+root@f75739620649:/app# cat > /app/r4/e.rs <<'EOF'
+> use crate::model::{Observation, State};
+>
+> pub fn mote_e(a: &mut State, b: &str, c: bool) -> Observation {
+>     if let Some(entry) = a.entries.iter().find(|entry| entry.symbol == b) {
+>         let reused = a
+>             .last_seen
+>             .get(b)
+>             .map(|old| *old == entry.handle)
+>             .unwrap_or(false);
+>         a.last_seen.insert(b.to_string(), entry.handle);
+>         let fresh = a
+>             .active
+>             .get(&entry.slot)
+>             .map(|root| entry.path.starts_with(root))
+>             .unwrap_or(false);
+>         Observation {
+>             label: String::new(),
+>             symbol: b.to_string(),
+>             found: true,
+>             path: entry.path.clone(),
+>             source: entry.source.clone(),
+>             line: entry.line,
+>             // The audit expects the harness epoch at query time.
+>             epoch: a.epoch,
+>             reused,
+>             fresh,
+>         }
+>     } else {
+>         Observation::missing(b, b, a.epoch, !c)
+>     }
+> }
+> EOF
+root@f75739620649:/app# cargo build
+   Compiling incremental-index-invalidation v0.1.0 (/app)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.61s
+root@f75739620649:/app# bash /app/scripts/run-matrix.sh
+root@f75739620649:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/index-report.json'))
+> for c in obj['cases']:
+>     epochs=[o['epoch'] for o in c['observations']]
+>     print(c['name'], 'ok=', c['ok'], 'stale=', c['stale'], 'epochs=', epochs)
+>     assert epochs==sorted(epochs), (c['name'], epochs)
+>     assert c['stale']==[], (c['name'], c['stale'])
+>     assert c['ok'] is True
+> print('ALL CLEAN')
+> PY
+alpha ok= True stale= [] epochs= [1, 2]
+beta ok= True stale= [] epochs= [1, 2]
+gamma ok= True stale= [] epochs= [1, 2]
+delta ok= True stale= [] epochs= [2, 2, 3, 3, 4, 4]
+epsilon ok= True stale= [] epochs= [1, 2, 2]
+zeta ok= True stale= [] epochs= [2, 2, 3, 3, 4, 4]
+ALL CLEAN
+root@f75739620649:/app# cp /app/output/index-report.json /app/output/index-report.1.json
+root@f75739620649:/app# bash /app/scripts/run-matrix.sh
+root@f75739620649:/app# cmp -s /app/output/index-report.1.json /app/output/index-report.json && echo IDENTICAL || (echo DIFFERENT; diff -u /app/output/index-rep
+ort.1.json /app/output/index-report.json | head)
+IDENTICAL
+root@f75739620649:/app#

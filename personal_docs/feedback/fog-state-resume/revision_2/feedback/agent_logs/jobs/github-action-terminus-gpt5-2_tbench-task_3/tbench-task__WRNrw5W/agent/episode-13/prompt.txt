@@ -1,0 +1,87 @@
+New Terminal Output:
+
+root@59645c3f7916:/app# perl -0777 -pi -e 's/\bitem := store\.ItemY\{\n\s*Lit: w\.Lit, Seen: w\.Seen, Turn: w\.Turn, Obs: obs,/item := store.ItemY{\n\t\t\tLit:
+append([]bool(nil), w.Lit...), Seen: append([]bool(nil), w.Seen...), Turn: w.Turn, Obs: obs,/s' /app/internal/exec/run.go
+root@59645c3f7916:/app# grep -n "store.ItemY" -n /app/internal/exec/run.go | head
+128:func packWorld(w *World, obs map[string]bool) store.ItemY {
+137:    item := store.ItemY{
+145:func applyWorld(w *World, item store.ItemY) {
+163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (store.ItemY, map[string]bool) {
+165:    var blob store.ItemY
+217:func runLoaded(w *World, steps []ScriptStep, blob store.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+root@59645c3f7916:/app# sed -n '120,170p' /app/internal/exec/run.go
+func mapRowSnaps(rows []mod.RowSnap) []EffectRow {
+        out := make([]EffectRow, len(rows))
+        for i, r := range rows {
+                out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+        }
+        return out
+}
+
+func packWorld(w *World, obs map[string]bool) store.ItemY {
+        effects := make([]store.EffectSnap, len(w.Effects))
+        for i, e := range w.Effects {
+                effects[i] = store.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+        }
+        hostiles := make([]store.HostileSnap, len(w.Hostile))
+        for i, h := range w.Hostile {
+                hostiles[i] = store.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+        }
+        item := store.ItemY{
+                        Lit: append([]bool(nil), w.Lit...), Seen: append([]bool(nil), w.Seen...), Turn: w.Turn, Obs: obs,
+                Effects: effects, Width: w.Width, Height: w.Height,
+                PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+        }
+        return store.PackItem(item)
+}
+
+func applyWorld(w *World, item store.ItemY) {
+        w.Width = item.Width
+        w.Height = item.Height
+        w.PlayerX = item.PlayerX
+        w.PlayerY = item.PlayerY
+        w.Turn = item.Turn
+        w.Lit = append([]bool(nil), item.Lit...)
+        w.Seen = append([]bool(nil), item.Seen...)
+        w.Hostile = make([]Hostile, len(item.Hostiles))
+        for i, h := range item.Hostiles {
+                w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+        }
+        w.Effects = make([]EffectState, len(item.Effects))
+        for i, e := range item.Effects {
+                w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+        }
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (store.ItemY, map[string]bool) {
+        visStale := map[string]bool{}
+        var blob store.ItemY
+        for _, step := range steps {
+                w.Turn = step.Turn
+                if step.Action == "save" {
+                        // Ensure visibility fields are up to date at the save boundary.
+                        vis.ApplyLit(w, radius, blindNow(w))
+root@59645c3f7916:/app# make -C /app
+make: Entering directory '/app'
+mkdir -p /app/bin
+go build -o /app/bin/rogctl ./cmd/rogctl
+make: Leaving directory '/app'
+root@59645c3f7916:/app# bash /app/scripts/run-matrix.sh
+root@59645c3f7916:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f:
+>     d=json.load(f)
+> print('bad', sum(1 for c in d['cases'] if not c.get('ok')))
+> for c in d['cases']:
+>     vis=c.get('visibility',{})
+>     if vis.get('fresh_seen')!=vis.get('resume_seen'):
+>         print('VIS_MISMATCH', c['name'], vis)
+> PY
+bad 5
+VIS_MISMATCH knight {'fresh_seen': 7, 'resume_seen': 4}
+VIS_MISMATCH lancer {'fresh_seen': 18, 'resume_seen': 15}
+VIS_MISMATCH ranger {'fresh_seen': 9, 'resume_seen': 8}
+VIS_MISMATCH rook {'fresh_seen': 9, 'resume_seen': 8}
+VIS_MISMATCH sentinel {'fresh_seen': 9, 'resume_seen': 8}
+root@59645c3f7916:/app#

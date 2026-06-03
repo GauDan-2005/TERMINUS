@@ -1,0 +1,37 @@
+New Terminal Output:
+
+root@ddaff815948e:/app# perl -0777 -i -pe 's/\n\s*let row = if a\.group_active\.is_empty\(\) \{\n\s*wrap_g\(a, &b\.left, &subject, &object, &mode\)\n\s*\} else
+\{\n\s*lift_d\(a, &b\.left, &subject, &object, &mode\)\n\s*\};/\n            let row = if a.group_active.is_empty() {\n                wrap_g(a, &b.left, &subje
+ct, &object, &mode)\n            } else {\n                lift_d(a, &b.left, &subject, &object, &mode)\n            };\n/s' /app/k0/a.rs
+root@ddaff815948e:/app# perl -0777 -i -pe 's/use crate::k5_f::cast_f;\n/use crate::k5_f::cast_f;\n/; s/use crate::k2_c::emit_c;\n//g' /app/k0/a.rs
+root@ddaff815948e:/app# perl -0777 -i -pe 's/\n\s*let tick = a\.tick_for\(subject\);\n\s*if let Some\(outcome\) = emit_c\(a, subject, object, mode\) \{[\s\S]*?r
+eturn row;\n\s*\}\n\s*let \(outcome, via\) = mote_e\(a, subject, object, mode\);\n\s*a\.store\.insert\([\s\S]*?\);/\n    let tick = a.tick_for(subject);\n    le
+t (outcome, via) = mote_e(a, subject, object, mode);/s' /app/k0/a.rs
+root@ddaff815948e:/app# grep -n "fn wrap_g" -A80 /app/k0/a.rs
+51:fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+52-        use crate::k4_e::mote_e;
+53-    let tick = a.tick_for(subject);
+54-    let (outcome, via) = mote_e(a, subject, object, mode);
+55-    let mut row = Decision::blank(label, subject, object, mode, tick);
+56-    row.outcome = outcome;
+57-    row.via = via;
+58-    row
+59-}
+root@ddaff815948e:/app# cargo build -q
+root@ddaff815948e:/app# rm -f /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh
+root@ddaff815948e:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/policy-audit.json') as f: d=json.load(f)
+> for c in d['cases']:
+>     if c['name']=='beta':
+>         for r in c['decisions']:
+>             print(r)
+> PY
+{'label': 'miss', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 0, 'reused': False, 'batch_id': '', 'delegated_from'
+: ''}
+{'label': 'solo', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'allow', 'epoch': 0, 'reused': False, 'batch_id': '', 'delegated_from
+': ''}
+root@ddaff815948e:/app# sha256sum /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json
+62144ec0e841738c493baa14f711e72ba30ca5963d0c22d890aaf83fd5191094  /app/output/policy-audit.json
+62144ec0e841738c493baa14f711e72ba30ca5963d0c22d890aaf83fd5191094  /app/output/policy-audit.json
+root@ddaff815948e:/app#

@@ -1,0 +1,1900 @@
+[?2004hroot@ccbd9cc473ba:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@ccbd9cc473ba:/app# clear
+[?2004l[H[J[3J[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ccbd9cc473ba:/app# ls -la /app/output
+[?2004ltotal 8
+drwxr-xr-x  2 root root   31 May 28 17:11 .
+drwxr-xr-x 12 root root  188 May 28 17:11 ..
+-rw-r--r--  1 root root 5437 May 28 17:11 resume-audit.json
+[?2004hroot@ccbd9cc473ba:/app# jq '.' /app/output/resume-audit.json | head -n 40
+[?2004lbash: jq: command not found
+[?2004hroot@ccbd9cc473ba:/app# jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature or .fresh.illegal!=0 or .resume.illegal!=0) | [.case, "ok="+(.ok|tostring), "fresh_sig="+.fresh.signature, "resume_sig="+.resume.signature, "fresh_illegal="+(.fresh.illegal|tostring), "resume_illegal="+(.resume.illegal|tostring)] | @tsv' /app/output/resume-audit.json
+[?2004lbash: jq: command not found
+[?2004hroot@ccbd9cc473ba:/app# jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature) | .case' /app/output/resume-audit.json | head
+[?2004lbash: jq: command not found
+[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> cases=data.get('cases',[])
+[?2004l[?2004h> print('cases:',len(cases))
+[?2004l[?2004h> fail=[]
+[?2004l[?2004h> for c in cases:
+[?2004l[?2004h>     fresh=c.get('fresh',{})
+[?2004l[?2004h>     resume=c.get('resume',{})
+[?2004l[?2004h>     ok=c.get('ok')
+[?2004l[?2004h>     fs=fresh.get('signature')
+[?2004l[?2004h>     rs=resume.get('signature')
+[?2004l[?2004h>     fi=fresh.get('illegal')
+[?2004l[?2004h>     ri=resume.get('illegal')
+[?2004l[?2004h>     if (ok is not True) or (fs!=rs) or (fi not in (0,None)) or (ri not in (0,None)):
+[?2004l[?2004h>         fail.append(c.get('case'))
+[?2004l[?2004h>     print(f"{c.get('case')}: ok={ok} fresh_sig={fs} resume_sig={rs} fresh_illegal={fi} resume_illegal={ri}")
+[?2004l[?2004h> print('\nFAIL:',len(fail))
+[?2004l[?2004h> for x in fail:
+[?2004l[?2004h>     print(x)
+[?2004l[?2004h> PY
+[?2004lcases: 7
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+None: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0
+
+FAIL: 0
+[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     fresh=c.get('fresh',{})
+[?2004l[?2004h>     resume=c.get('resume',{})
+[?2004l[?2004h>     ok=c.get('ok')
+[?2004l[?2004h>     if (ok is not True) or (fresh.get('signature')!=resume.get('signature')):
+[?2004l[?2004h>         print(c.get('case'))
+[?2004l[?2004h>         break
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, pprint
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> print('top-level keys:', sorted(data.keys()))
+[?2004l[?2004h> cases=data.get('cases') or []
+[?2004l[?2004h> print('cases:', len(cases))
+[?2004l[?2004h> if cases:
+[?2004l[?2004h>     print('\nfirst case keys:', sorted(cases[0].keys()))
+[?2004l[?2004h>     print('\nfirst case preview:')
+[?2004l[?2004h>     pprint.pp(cases[0], width=120)
+[?2004l[?2004h> PY
+[?2004ltop-level keys: ['cases']
+cases: 7
+
+first case keys: ['effects', 'fresh', 'log', 'moves', 'name', 'ok', 'records', 'resume', 'visibility']
+
+first case preview:
+{'name': 'bishop',
+ 'ok': True,
+ 'fresh': {'sig': '811c9dc5', 'illegal': 0, 'steps': 0},
+ 'resume': {'sig': '811c9dc5', 'illegal': 0, 'steps': 0},
+ 'moves': [],
+ 'visibility': {'fresh_seen': 0, 'resume_seen': 0},
+ 'effects': [{'id': 'blind', 'active': False, 'epoch': 3}],
+ 'records': '/app/workspace/bishop/records.jsonl',
+ 'log': '/app/workspace/bishop/trace.tsv'}
+[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> c=data['cases'][0]
+[?2004l[?2004h> # Print nested keys for likely fresh/resume sections
+[?2004l[?2004h> for k in c.keys():
+[?2004l[?2004h>     v=c[k]
+[?2004l[?2004h>     if isinstance(v, dict):
+[?2004l[?2004h>         print(k, '->', sorted(v.keys()))
+[?2004l[?2004h> PY
+[?2004lfresh -> ['illegal', 'sig', 'steps']
+resume -> ['illegal', 'sig', 'steps']
+visibility -> ['fresh_seen', 'resume_seen']
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,120p' /app/output/resume-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "bishop",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": false,
+          "epoch": 3
+        }
+      ],
+      "records": "/app/workspace/bishop/records.jsonl",
+      "log": "/app/workspace/bishop/trace.tsv"
+    },
+    {
+      "name": "knight",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 7,
+        "resume_seen": 4
+      },
+      "effects": [],
+      "records": "/app/workspace/knight/records.jsonl",
+      "log": "/app/workspace/knight/trace.tsv"
+    },
+    {
+      "name": "lancer",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 18,
+        "resume_seen": 15
+      },
+      "effects": [],
+      "records": "/app/workspace/lancer/records.jsonl",
+      "log": "/app/workspace/lancer/trace.tsv"
+    },
+    {
+      "name": "ranger",
+      "ok": true,
+      "fresh": {
+        "sig": "5c4ed3de",
+        "illegal": 0,
+        "steps": 2
+      },
+      "resume": {
+        "sig": "5c4ed3de",
+        "illegal": 0,
+        "steps": 2
+      },
+      "moves": [
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 6,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 2,
+          "to_x": 3,
+          "to_y": 1,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 6,
+[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, collections
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> print('name\tok\tfresh_sig\tresume_sig\tfresh_illegal\tresume_illegal\tfresh_seen\tresume_seen\tmoves\teffects')
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     print(f"{c['name']}\t{c['ok']}\t{c['fresh']['sig']}\t{c['resume']['sig']}\t{c['fresh']['illegal']}\t{c['resume']['illegal']}\t{vis.get('fresh_seen')}\t{vis.get('resume_seen')}\t{len(c.get('moves',[]))}\t{len(c.get('effects',[]))}")
+[?2004l[?2004h> print('\nVisibility mismatches:')
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     if vis.get('fresh_seen')!=vis.get('resume_seen'):
+[?2004l[?2004h>         print(c['name'], vis)
+[?2004l[?2004h> print('\nMove duplicates by (turn,actor,from,to,kind):')
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     moves=c.get('moves',[])
+[?2004l[?2004h>     key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))
+[?2004l[?2004h>     ctr=collections.Counter(key(m) for m in moves)
+[?2004l[?2004h>     dups=[k for k,v in ctr.items() if v>1]
+[?2004l[?2004h>     if dups:
+[?2004l[?2004h>         print(c['name'], 'dups:', len(dups), 'total moves:', len(moves))
+[?2004l[?2004h> PY
+[?2004lname	ok	fresh_sig	resume_sig	fresh_illegal	resume_illegal	fresh_seen	resume_seen	moves	effects
+bishop	True	811c9dc5	811c9dc5	0	0	0	0	0	1
+knight	True	811c9dc5	811c9dc5	0	0	7	4	0	0
+lancer	True	811c9dc5	811c9dc5	0	0	18	15	0	0
+ranger	True	5c4ed3de	5c4ed3de	0	0	9	8	4	1
+rook	True	7d3f56fa	7d3f56fa	0	0	9	8	2	0
+sentinel	True	9a98d68	9a98d68	0	0	9	8	2	1
+warden	True	811c9dc5	811c9dc5	0	0	0	0	0	2
+
+Visibility mismatches:
+knight {'fresh_seen': 7, 'resume_seen': 4}
+lancer {'fresh_seen': 18, 'resume_seen': 15}
+ranger {'fresh_seen': 9, 'resume_seen': 8}
+rook {'fresh_seen': 9, 'resume_seen': 8}
+sentinel {'fresh_seen': 9, 'resume_seen': 8}
+
+Move duplicates by (turn,actor,from,to,kind):
+ranger dups: 2 total moves: 4
+rook dups: 1 total moves: 2
+sentinel dups: 1 total moves: 2
+[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     if vis.get('fresh_seen')!=vis.get('resume_seen') or len(c.get('moves',[]))%2==0 and len(c.get('moves',[]))>0:
+[?2004l[?2004h>         print(c['name'], 'records=', c.get('records'), 'log=', c.get('log'))
+[?2004l[?2004h> PY
+[?2004lknight records= /app/workspace/knight/records.jsonl log= /app/workspace/knight/trace.tsv
+lancer records= /app/workspace/lancer/records.jsonl log= /app/workspace/lancer/trace.tsv
+ranger records= /app/workspace/ranger/records.jsonl log= /app/workspace/ranger/trace.tsv
+rook records= /app/workspace/rook/records.jsonl log= /app/workspace/rook/trace.tsv
+sentinel records= /app/workspace/sentinel/records.jsonl log= /app/workspace/sentinel/trace.tsv
+[?2004hroot@ccbd9cc473ba:/app# sed -n '120,260p' /app/output/resume-audit.json
+[?2004l          "turn": 6,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 2,
+          "to_x": 3,
+          "to_y": 1,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 8
+      },
+      "effects": [
+        {
+          "id": "ward",
+          "active": false,
+          "epoch": 5
+        }
+      ],
+      "records": "/app/workspace/ranger/records.jsonl",
+      "log": "/app/workspace/ranger/trace.tsv"
+    },
+    {
+      "name": "rook",
+      "ok": true,
+      "fresh": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "7d3f56fa",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 3,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 8
+      },
+      "effects": [],
+      "records": "/app/workspace/rook/records.jsonl",
+      "log": "/app/workspace/rook/trace.tsv"
+    },
+    {
+      "name": "sentinel",
+      "ok": true,
+      "fresh": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "resume": {
+        "sig": "9a98d68",
+        "illegal": 0,
+        "steps": 1
+      },
+      "moves": [
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        },
+        {
+          "turn": 5,
+          "actor": "1",
+          "from_x": 3,
+          "from_y": 3,
+          "to_x": 3,
+          "to_y": 2,
+          "kind": "step",
+          "legal": true
+        }
+      ],
+      "visibility": {
+        "fresh_seen": 9,
+        "resume_seen": 8
+      },
+      "effects": [
+        {
+          "id": "ward",
+          "active": false,
+          "epoch": 5
+        }
+      ],
+      "records": "/app/workspace/sentinel/records.jsonl",
+      "log": "/app/workspace/sentinel/trace.tsv"
+    },
+    {
+      "name": "warden",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 0,
+        "resume_seen": 0
+      },
+      "effects": [
+        {
+          "id": "blind",
+          "active": false,
+          "epoch": 3
+        },
+        {
+[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight
+[?2004l[?2004hroot@ccbd9cc473ba:/app# ls -la /app/output | grep single-knight || true
+[?2004l-rw-r--r--  1 root root  488 May 28 17:12 single-knight.json
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,200p' /app/output/single-knight.json
+[?2004l{
+  "cases": [
+    {
+      "name": "knight",
+      "ok": true,
+      "fresh": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "resume": {
+        "sig": "811c9dc5",
+        "illegal": 0,
+        "steps": 0
+      },
+      "moves": [],
+      "visibility": {
+        "fresh_seen": 7,
+        "resume_seen": 4
+      },
+      "effects": [],
+      "records": "/app/workspace/knight/records.jsonl",
+      "log": "/app/workspace/knight/trace.tsv"
+    }
+  ]
+}
+[?2004hroot@ccbd9cc473ba:/app# echo '--- knight records ---'
+[?2004l--- knight records ---
+[?2004hroot@ccbd9cc473ba:/app# wc -l /app/workspace/knight/records.jsonl
+[?2004l0 /app/workspace/knight/records.jsonl
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,200p' /app/workspace/knight/records.jsonl
+[?2004l[?2004hroot@ccbd9cc473ba:/app# echo '--- knight trace ---'
+[?2004l--- knight trace ---
+[?2004hroot@ccbd9cc473ba:/app# wc -l /app/workspace/knight/trace.tsv
+[?2004l0 /app/workspace/knight/trace.tsv
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,200p' /app/workspace/knight/trace.tsv
+[?2004l[?2004hroot@ccbd9cc473ba:/app# rg -n "fresh_seen|resume_seen|seen|visibility|fov|fog" /app/internal/sim /app/internal -S
+[?2004lbash: rg: command not found
+[?2004hroot@ccbd9cc473ba:/app# rg -n "snapshot|resume|restore|save" /app/internal/sim /app/internal -S
+[?2004lbash: rg: command not found
+[?2004hroot@ccbd9cc473ba:/app# grep -RIn --exclude-dir=.git --include='*.go' -E 'visibility|fresh_seen|resume_seen|\bseen\b|fov|fog' /app/internal | head -n 200
+[?2004l/app/internal/exec/run.go:11:	"fog.local/resume/internal/mem"
+/app/internal/exec/run.go:12:	"fog.local/resume/internal/mod"
+/app/internal/exec/run.go:13:	"fog.local/resume/internal/slot"
+/app/internal/exec/run.go:14:	"fog.local/resume/internal/store"
+/app/internal/exec/run.go:15:	"fog.local/resume/internal/vis"
+/app/internal/exec/run.go:32:	seen := append([]bool(nil), w.Seen...)
+/app/internal/exec/run.go:34:	if len(seen) != size {
+/app/internal/exec/run.go:35:		seen = make([]bool, size)
+/app/internal/exec/run.go:46:		Seen:    seen,
+/app/internal/exec/types.go:3:import "fog.local/resume/internal/sim"
+/app/internal/mem/cache.go:3:import "fog.local/resume/internal/store"
+/app/internal/sim/types.go:31:	FreshSeen  int `json:"fresh_seen"`
+/app/internal/sim/types.go:32:	ResumeSeen int `json:"resume_seen"`
+/app/internal/sim/types.go:47:	Visibility VisPair     `json:"visibility"`
+/app/internal/slot/plan.go:4:	"fog.local/resume/internal/sim"
+/app/internal/slot/plan.go:5:	"fog.local/resume/internal/vis"
+/app/internal/vis/native.go:11:	"fog.local/resume/internal/sim"
+/app/internal/vis/sight.go:3:import "fog.local/resume/internal/sim"
+[?2004hroot@ccbd9cc473ba:/app# grep -RIn --exclude-dir=.git --include='*.go' -E 'snapshot|resume|restore|save(\b|_)|load(\b|_)' /app/internal | head -n 200
+[?2004l/app/internal/exec/run.go:11:	"fog.local/resume/internal/mem"
+/app/internal/exec/run.go:12:	"fog.local/resume/internal/mod"
+/app/internal/exec/run.go:13:	"fog.local/resume/internal/slot"
+/app/internal/exec/run.go:14:	"fog.local/resume/internal/store"
+/app/internal/exec/run.go:15:	"fog.local/resume/internal/vis"
+/app/internal/exec/run.go:168:		if step.Action == "save" {
+/app/internal/exec/run.go:189:		if step.Action == "save" {
+/app/internal/exec/run.go:220:		if step.Action == "save" {
+/app/internal/exec/run.go:262:	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+/app/internal/exec/run.go:264:	freshIllegal, resumeIllegal := 0, 0
+/app/internal/exec/run.go:270:	for _, m := range resumeMoves {
+/app/internal/exec/run.go:272:			resumeIllegal++
+/app/internal/exec/run.go:275:	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+/app/internal/exec/run.go:283:	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+/app/internal/exec/run.go:284:	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+/app/internal/exec/run.go:290:		Resume:     resume,
+/app/internal/exec/types.go:3:import "fog.local/resume/internal/sim"
+/app/internal/mem/cache.go:3:import "fog.local/resume/internal/store"
+/app/internal/sim/types.go:32:	ResumeSeen int `json:"resume_seen"`
+/app/internal/sim/types.go:45:	Resume     PathSummary `json:"resume"`
+/app/internal/slot/plan.go:4:	"fog.local/resume/internal/sim"
+/app/internal/slot/plan.go:5:	"fog.local/resume/internal/vis"
+/app/internal/vis/native.go:11:	"fog.local/resume/internal/sim"
+/app/internal/vis/sight.go:3:import "fog.local/resume/internal/sim"
+[?2004hroot@ccbd9cc473ba:/app# find /app/internal -maxdepth 4 -type f -name '*.go' | wc -l
+[?2004l14
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,220p' /app/internal/exec/run.go
+[?2004lpackage exec
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"fog.local/resume/internal/mem"
+	"fog.local/resume/internal/mod"
+	"fog.local/resume/internal/slot"
+	"fog.local/resume/internal/store"
+	"fog.local/resume/internal/vis"
+)
+
+func sigFor(moves []MoveRow) string {
+	acc := int64(2166136261)
+	for _, m := range moves {
+		acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+		for _, ch := range m.Actor + m.Kind {
+			acc ^= int64(ch)
+			acc = (acc * 16777619) & 0x7fffffff
+		}
+	}
+	return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+	size := w.Width * w.Height
+	seen := append([]bool(nil), w.Seen...)
+	lit := append([]bool(nil), w.Lit...)
+	if len(seen) != size {
+		seen = make([]bool, size)
+	}
+	if len(lit) != size {
+		lit = make([]bool, size)
+	}
+	return &World{
+		Width: w.Width, Height: w.Height,
+		Walls:   append([]bool(nil), w.Walls...),
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+		Hostile: append([]Hostile(nil), w.Hostile...),
+		Turn:    w.Turn,
+		Seen:    seen,
+		Lit:     lit,
+		Effects: append([]EffectState(nil), w.Effects...),
+	}
+}
+
+func applyPlayer(w *World, arg string) {
+	parts := strings.Split(arg, ",")
+	if len(parts) != 2 {
+		return
+	}
+	dx, _ := strconv.Atoi(parts[0])
+	dy, _ := strconv.Atoi(parts[1])
+	nx, ny := w.PlayerX+dx, w.PlayerY+dy
+	if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+		w.PlayerX, w.PlayerY = nx, ny
+	}
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range w.Hostile {
+		key := fmt.Sprintf("%d,%d", h.X, h.Y)
+		if extra != nil && extra[key] {
+			out[key] = true
+			continue
+		}
+		if vis.PlayerSees(w, h.X, h.Y) {
+			out[key] = true
+		}
+	}
+	return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+	rows := []MoveRow{}
+	for i := range w.Hostile {
+		row, ok := slot.PlanSlot(w, cache, i)
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+func blindNow(w *World) bool {
+	for _, e := range w.Effects {
+		if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+			return true
+		}
+	}
+	return false
+}
+
+func snapToMod(effects []EffectState) []mod.EffectSnap {
+	out := make([]mod.EffectSnap, len(effects))
+	for i, e := range effects {
+		out[i] = mod.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	return out
+}
+
+func mapSnaps(snaps []mod.EffectSnap) []EffectState {
+	out := make([]EffectState, len(snaps))
+	for i, s := range snaps {
+		out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+	}
+	return out
+}
+
+func profileToMod(p Profile) mod.ProfileSnap {
+	return mod.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func mapRowSnaps(rows []mod.RowSnap) []EffectRow {
+	out := make([]EffectRow, len(rows))
+	for i, r := range rows {
+		out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+	}
+	return out
+}
+
+func packWorld(w *World, obs map[string]bool) store.ItemY {
+	effects := make([]store.EffectSnap, len(w.Effects))
+	for i, e := range w.Effects {
+		effects[i] = store.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]store.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = store.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := store.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return store.PackItem(item)
+}
+
+func applyWorld(w *World, item store.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	w.Effects = make([]EffectState, len(item.Effects))
+	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (store.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob store.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob store.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &mem.CacheX{Obs: map[string]bool{}}
+	mem.Merge(cache, blob)
+	merged := mem.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = mapSnaps(mod.SyncBoundary(snapToMod(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+[?2004hroot@ccbd9cc473ba:/app# sed -n '220,380p' /app/internal/exec/run.go
+[?2004l		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, merged)...)
+		}
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},
+		Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,220p' /app/internal/slot/plan.go
+[?2004lpackage slot
+
+import (
+	"fog.local/resume/internal/sim"
+	"fog.local/resume/internal/vis"
+)
+
+type tokenX string
+
+type nodeX struct {
+	Cache map[string]bool
+}
+
+func bind_d(a *nodeX, _ tokenX, c []int) (int, int, bool) {
+	if len(c) < 4 {
+		return 0, 0, false
+	}
+	px, py, hx, hy := c[0], c[1], c[2], c[3]
+	bestX, bestY := hx, hy
+	best := 1 << 30
+	for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+		nx, ny := hx+delta[0], hy+delta[1]
+		d := (nx-px)*(nx-px) + (ny-py)*(ny-py)
+		if d <= best {
+			best = d
+			bestX, bestY = nx, ny
+		}
+	}
+	return bestX, bestY, best < 1<<29
+}
+
+func PlanSlot(w *sim.World, cache map[string]bool, idx int) (sim.MoveRow, bool) {
+	if idx >= len(w.Hostile) {
+		return sim.MoveRow{}, false
+	}
+	h := w.Hostile[idx]
+	if !vis.PlayerSees(w, h.X, h.Y) {
+		return sim.MoveRow{}, false
+	}
+	node := &nodeX{Cache: cache}
+	tx, ty, ok := bind_d(node, tokenX(h.ID), []int{w.PlayerX, w.PlayerY, h.X, h.Y})
+	if !ok {
+		return sim.MoveRow{}, false
+	}
+	if w.IsWall(tx, ty) {
+		return sim.MoveRow{}, false
+	}
+	legal := vis.StepLegal(w, h.X, h.Y, tx, ty) && vis.PlayerSees(w, tx, ty)
+	row := sim.MoveRow{
+		Turn: w.Turn, Actor: h.ID,
+		FromX: h.X, FromY: h.Y, ToX: tx, ToY: ty,
+		Kind: "step", Legal: legal,
+	}
+	h.X, h.Y = tx, ty
+	w.Hostile[idx] = h
+	return row, true
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/vis/sight.go
+[?2004lpackage vis
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+	size := w.Width * w.Height
+	if len(w.Lit) != size {
+		w.Lit = make([]bool, size)
+	}
+	for i := range w.Lit {
+		w.Lit[i] = false
+	}
+	if blind {
+		return
+	}
+	type point struct{ x, y int }
+	queue := []point{{w.PlayerX, w.PlayerY}}
+	dist := make([]int, size)
+	for i := range dist {
+		dist[i] = -1
+	}
+	start := w.Idx(w.PlayerX, w.PlayerY)
+	dist[start] = 0
+	w.Lit[start] = true
+	for len(queue) > 0 {
+		p := queue[0]
+		queue = queue[1:]
+		d := dist[w.Idx(p.x, p.y)]
+		if d >= radius {
+			continue
+		}
+		for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+			nx, ny := p.x+delta[0], p.y+delta[1]
+			if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+				continue
+			}
+			idx := w.Idx(nx, ny)
+			if dist[idx] >= 0 {
+				continue
+			}
+			dist[idx] = d + 1
+			w.Lit[idx] = true
+			queue = append(queue, point{nx, ny})
+		}
+	}
+	if len(w.Seen) != size {
+		w.Seen = make([]bool, size)
+	}
+	for i := 0; i < size; i++ {
+		if w.Lit[i] {
+			w.Seen[i] = true
+		}
+	}
+}
+
+func CountSeen(w *sim.World) int {
+	n := 0
+	for _, v := range w.Seen {
+		if v {
+			n++
+		}
+	}
+	return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+	if !w.InBounds(x, y) {
+		return false
+	}
+	idx := w.Idx(x, y)
+	if idx >= len(w.Seen) || idx >= len(w.Lit) {
+		return false
+	}
+	litIdx := idx
+	if y == w.Height-1 && y > 0 {
+		litIdx = w.Idx(x, y-1)
+	}
+	return w.Seen[idx] && w.Lit[litIdx]
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/vis/native.go
+[?2004lpackage vis
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/../../probe
+#include <stdlib.h>
+#include "legality.h"
+#include "../../probe/legality.c"
+*/
+import "C"
+import (
+	"fog.local/resume/internal/sim"
+	"unsafe"
+)
+
+func StepLegal(w *sim.World, x0, y0, x1, y1 int) bool {
+	n := w.Width * w.Height
+	buf := C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof(C.int(0))))
+	if buf == nil {
+		return false
+	}
+	defer C.free(buf)
+	grid := (*[1 << 30]C.int)(buf)[:n:n]
+	for i, wall := range w.Walls {
+		if wall {
+			grid[i] = 1
+		}
+	}
+	ctx := C.struct_qx{width: C.int(w.Width), height: C.int(w.Height), grid: (*C.int)(buf)}
+	return C.walk_e(&ctx, C.int(x0), C.int(y0), C.int(x1), C.int(y1)) == 1
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '220,520p' /app/internal/exec/run.go
+[?2004l		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, merged)...)
+		}
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},
+		Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '520,820p' /app/internal/exec/run.go
+[?2004l[?2004hroot@ccbd9cc473ba:/app# grep -n "func applyWorld" -n /app/internal/exec/run.go
+[?2004l145:func applyWorld(w *World, item store.ItemY) {
+[?2004hroot@ccbd9cc473ba:/app# sed -n '120,260p' /app/internal/exec/run.go
+[?2004lfunc mapRowSnaps(rows []mod.RowSnap) []EffectRow {
+	out := make([]EffectRow, len(rows))
+	for i, r := range rows {
+		out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+	}
+	return out
+}
+
+func packWorld(w *World, obs map[string]bool) store.ItemY {
+	effects := make([]store.EffectSnap, len(w.Effects))
+	for i, e := range w.Effects {
+		effects[i] = store.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]store.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = store.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := store.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return store.PackItem(item)
+}
+
+func applyWorld(w *World, item store.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	w.Effects = make([]EffectState, len(item.Effects))
+	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (store.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob store.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob store.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &mem.CacheX{Obs: map[string]bool{}}
+	mem.Merge(cache, blob)
+	merged := mem.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = mapSnaps(mod.SyncBoundary(snapToMod(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			vis.ApplyLit(w, radius, blindNow(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, merged)...)
+		}
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))
+[?2004hroot@ccbd9cc473ba:/app# sed -n '260,360p' /app/internal/exec/run.go
+[?2004l	wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},
+		Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,120p' /app/internal/exec/run.go
+[?2004lpackage exec
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"fog.local/resume/internal/mem"
+	"fog.local/resume/internal/mod"
+	"fog.local/resume/internal/slot"
+	"fog.local/resume/internal/store"
+	"fog.local/resume/internal/vis"
+)
+
+func sigFor(moves []MoveRow) string {
+	acc := int64(2166136261)
+	for _, m := range moves {
+		acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+		for _, ch := range m.Actor + m.Kind {
+			acc ^= int64(ch)
+			acc = (acc * 16777619) & 0x7fffffff
+		}
+	}
+	return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+	size := w.Width * w.Height
+	seen := append([]bool(nil), w.Seen...)
+	lit := append([]bool(nil), w.Lit...)
+	if len(seen) != size {
+		seen = make([]bool, size)
+	}
+	if len(lit) != size {
+		lit = make([]bool, size)
+	}
+	return &World{
+		Width: w.Width, Height: w.Height,
+		Walls:   append([]bool(nil), w.Walls...),
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+		Hostile: append([]Hostile(nil), w.Hostile...),
+		Turn:    w.Turn,
+		Seen:    seen,
+		Lit:     lit,
+		Effects: append([]EffectState(nil), w.Effects...),
+	}
+}
+
+func applyPlayer(w *World, arg string) {
+	parts := strings.Split(arg, ",")
+	if len(parts) != 2 {
+		return
+	}
+	dx, _ := strconv.Atoi(parts[0])
+	dy, _ := strconv.Atoi(parts[1])
+	nx, ny := w.PlayerX+dx, w.PlayerY+dy
+	if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+		w.PlayerX, w.PlayerY = nx, ny
+	}
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range w.Hostile {
+		key := fmt.Sprintf("%d,%d", h.X, h.Y)
+		if extra != nil && extra[key] {
+			out[key] = true
+			continue
+		}
+		if vis.PlayerSees(w, h.X, h.Y) {
+			out[key] = true
+		}
+	}
+	return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+	rows := []MoveRow{}
+	for i := range w.Hostile {
+		row, ok := slot.PlanSlot(w, cache, i)
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+func blindNow(w *World) bool {
+	for _, e := range w.Effects {
+		if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+			return true
+		}
+	}
+	return false
+}
+
+func snapToMod(effects []EffectState) []mod.EffectSnap {
+	out := make([]mod.EffectSnap, len(effects))
+	for i, e := range effects {
+		out[i] = mod.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	return out
+}
+
+func mapSnaps(snaps []mod.EffectSnap) []EffectState {
+	out := make([]EffectState, len(snaps))
+	for i, s := range snaps {
+		out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+	}
+	return out
+}
+
+func profileToMod(p Profile) mod.ProfileSnap {
+	return mod.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func mapRowSnaps(rows []mod.RowSnap) []EffectRow {
+[?2004hroot@ccbd9cc473ba:/app# ls -la /app/internal/store
+[?2004ltotal 4
+drwxr-xr-x  2 root root  21 May 28 17:09 .
+drwxr-xr-x 11 root root 107 May 28 17:09 ..
+-rw-r--r--  1 root root 887 May 28 17:09 pack.go
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/store/*.go
+[?2004lpackage store
+
+type stateX struct {
+	Lit  []bool
+	Seen []bool
+	Turn int
+}
+
+type EffectSnap struct {
+	ID         string
+	ExpiryTurn int
+	Active     bool
+}
+
+type HostileSnap struct {
+	ID string
+	X  int
+	Y  int
+}
+
+type ItemY struct {
+	Lit      []bool
+	Seen     []bool
+	Turn     int
+	Obs      map[string]bool
+	Effects  []EffectSnap
+	Width    int
+	Height   int
+	PlayerX  int
+	PlayerY  int
+	Hostiles []HostileSnap
+}
+
+func phase_a(a *stateX, b ItemY) error {
+	a.Lit = append([]bool(nil), b.Lit...)
+	a.Seen = append([]bool(nil), b.Seen...)
+	a.Turn = b.Turn
+	return nil
+}
+
+func PackItem(b ItemY) ItemY {
+	st := &stateX{}
+	_ = phase_a(st, b)
+	out := b
+	out.Seen = append([]bool(nil), st.Lit...)
+	if len(out.Seen) < len(b.Seen) {
+		out.Seen = append(out.Seen, make([]bool, len(b.Seen)-len(out.Seen))...)
+	} else if len(out.Seen) > len(b.Seen) {
+		out.Seen = out.Seen[:len(b.Seen)]
+	}
+	return out
+}
+[?2004hroot@ccbd9cc473ba:/app# sed -n '1,260p' /app/internal/mem/cache.go
+[?2004lpackage mem
+
+import "fog.local/resume/internal/store"
+
+type CacheX struct {
+	Obs     map[string]bool
+	Version uint64
+}
+
+func fold_b(a *CacheX, b store.ItemY) error {
+	if a.Obs == nil {
+		a.Obs = map[string]bool{}
+	}
+	if a.Version != 0 && a.Version != uint64(b.Turn) {
+		for key, val := range b.Obs {
+			if val {
+				a.Obs[key] = true
+			}
+		}
+		a.Version = uint64(b.Turn)
+		return nil
+	}
+	for key, val := range b.Obs {
+		a.Obs[key] = val
+	}
+	for key, val := range a.Obs {
+		if !val && b.Obs[key] {
+			a.Obs[key] = true
+		}
+	}
+	a.Version = uint64(b.Turn)
+	return nil
+}
+
+func Merge(a *CacheX, blob store.ItemY) {
+	_ = fold_b(a, blob)
+}
+
+func Snapshot(a *CacheX) map[string]bool {
+	out := map[string]bool{}
+	for k, v := range a.Obs {
+		out[k] = v
+	}
+	return out
+}
+[?2004hroot@ccbd9cc473ba:/app# apply_patch <<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: internal/store/pack.go
+[?2004l[?2004h> @@
+[?2004l[?2004h>  package store
+[?2004l[?2004h>  
+[?2004l[?2004h> -type stateX struct {
+[?2004l[?2004h> -        Lit  []bool
+[?2004l[?2004h> -        Seen []bool
+[?2004l[?2004h> -        Turn int
+[?2004l[?2004h> -}
+[?2004l[?2004h> -
+[?2004l[?2004h> @@
+[?2004l[?2004h>  type ItemY struct {
+[?2004l[?2004h> @@
+[?2004l[?2004h>  }
+[?2004l[?2004h> -
+[?2004l[?2004h> -func phase_a(a *stateX, b ItemY) error {
+[?2004l[?2004h> -        a.Lit = append([]bool(nil), b.Lit...)
+[?2004l[?2004h> -        a.Seen = append([]bool(nil), b.Seen...)
+[?2004l[?2004h> -        a.Turn = b.Turn
+[?2004l[?2004h> -        return nil
+[?2004l[?2004h> -}
+[?2004l[?2004h> -
+[?2004l[?2004h>  func PackItem(b ItemY) ItemY {
+[?2004l[?2004h> -        st := &stateX{}
+[?2004l[?2004h> -        _ = phase_a(st, b)
+[?2004l[?2004h> -        out := b
+[?2004l[?2004h> -        out.Seen = append([]bool(nil), st.Lit...)
+[?2004l[?2004h> -        if len(out.Seen) < len(b.Seen) {
+[?2004l[?2004h> -                out.Seen = append(out.Seen, make([]bool, len(b.Seen)-len(out.Seen))...)
+[?2004l[?2004h> -        } else if len(out.Seen) > len(b.Seen) {
+[?2004l[?2004h> -                out.Seen = out.Seen[:len(b.Seen)]
+[?2004l[?2004h> -        }
+[?2004l[?2004h> -        return out
+[?2004l[?2004h> +// PackItem is used as the “save blob” passed across the resume boundary.
+[?2004l[?2004h> +// It must preserve all state exactly; in particular Seen must remain the
+[?2004l[?2004h> +// cumulative exploration map, not the current Lit mask.
+[?2004l[?2004h> +out := b
+[?2004l[?2004h> +out.Lit = append([]bool(nil), b.Lit...)
+[?2004l[?2004h> +out.Seen = append([]bool(nil), b.Seen...)
+[?2004l[?2004h> +return out
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ccbd9cc473ba:/app# apply_patch <<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: internal/exec/run.go
+[?2004l[?2004h> @@
+[?2004l[?2004h>  
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/   workspace/ 
+>  fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+[?2004l[?2004h>  
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/   workspace/ 
+>  resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+[?2004l[?2004h> -ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+[?2004l[?2004h> +freshSeen := vis.CountSeen(wFresh)
+[?2004l[?2004h> +resumeSeen := vis.CountSeen(wResume)
+[?2004l[?2004h> +ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen
+[?2004l[?2004h> @@
+[?2004l[?2004h> -Moves:      allMoves,
+[?2004l[?2004h> -Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},
+[?2004l[?2004h> +// Moves are the resolved move list for the case. Fresh and resumed runs
+[?2004l[?2004h> +// must agree, so we publish the fresh path and validate via signature.
+[?2004l[?2004h> +Moves:      freshMoves,
+[?2004l[?2004h> +Visibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ccbd9cc473ba:/app# apply_patch <<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: internal/exec/run.go
+[?2004l[?2004h> @@
+[?2004l[?2004h> -allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+[?2004l[?2004h> +// Sidecars should list the resolved moves in order (same list as JSON).
+[?2004l[?2004h> +// Since fresh/resume must match, write the fresh path only.
+[?2004l[?2004h> +allMoves := freshMoves
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ccbd9cc473ba:/app# gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go
+[?2004l[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/single-knight.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> c=data['cases'][0]
+[?2004l[?2004h> print('ok',c['ok'])
+[?2004l[?2004h> print('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])
+[?2004l[?2004h> print('moves',len(c['moves']))
+[?2004l[?2004h> PY
+[?2004lok True
+fresh_seen 7 resume_seen 4
+moves 0
+[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> fail=[]
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('resume_seen'):
+[?2004l[?2004h>         fail.append(c['name'])
+[?2004l[?2004h> print('fail',fail)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))
+[?2004l[?2004h> PY
+[?2004lfail ['knight', 'lancer', 'ranger', 'rook', 'sentinel']
+bishop ok= True sig= 811c9dc5 seen= 0 0 moves= 0
+knight ok= True sig= 811c9dc5 seen= 7 4 moves= 0
+lancer ok= True sig= 811c9dc5 seen= 18 15 moves= 0
+ranger ok= True sig= 5c4ed3de seen= 9 8 moves= 4
+rook ok= True sig= 7d3f56fa seen= 9 8 moves= 2
+sentinel ok= True sig= 9a98d68 seen= 9 8 moves= 2
+warden ok= True sig= 811c9dc5 seen= 0 0 moves= 0
+[?2004hroot@ccbd9cc473ba:/app# cat > /app/internal/store/pack.go <<'EOF'
+[?2004l[?2004h> package store
+[?2004l[?2004h> 
+[?2004l[?2004h> type EffectSnap struct {
+[?2004l[?2004h> ID         string
+[?2004l[?2004h> ExpiryTurn int
+[?2004l[?2004h> Active     bool
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> type HostileSnap struct {
+[?2004l[?2004h> ID string
+[?2004l[?2004h> X  int
+[?2004l[?2004h> Y  int
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> type ItemY struct {
+[?2004l[?2004h> Lit      []bool
+[?2004l[?2004h> Seen     []bool
+[?2004l[?2004h> Turn     int
+[?2004l[?2004h> Obs      map[string]bool
+[?2004l[?2004h> Effects  []EffectSnap
+[?2004l[?2004h> Width    int
+[?2004l[?2004h> Height   int
+[?2004l[?2004h> PlayerX  int
+[?2004l[?2004h> PlayerY  int
+[?2004l[?2004h> Hostiles []HostileSnap
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> // PackItem produces the “save blob” passed across the resume boundary.
+[?2004l[?2004h> // It must preserve all state exactly.
+[?2004l[?2004h> func PackItem(b ItemY) ItemY {
+[?2004l[?2004h> out := b
+[?2004l[?2004h> out.Lit = append([]bool(nil), b.Lit...)
+[?2004l[?2004h> out.Seen = append([]bool(nil), b.Seen...)
+[?2004l[?2004h> return out
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/internal/exec/run.go')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> # 1) ensure sidecars/moves are fresh-only
+[?2004l[?2004h> s=s.replace(
+[?2004l[?2004h> "\t\tallMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n",
+[?2004l[?2004h> "\t\t// Sidecars should list the resolved moves in order (same list as JSON).\n\t\t// Since fresh/resume must match, write the fresh path only.\n\t\tallMoves := freshMoves\n",
+[?2004l[?2004h> )
+[?2004l[?2004h> # 2) compute seen and include in ok
+[?2004l[?2004h> s=s.replace(
+[?2004l[?2004h> "\t\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n\t\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n",
+[?2004l[?2004h> "\t\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n\t\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n\t\tfreshSeen := vis.CountSeen(wFresh)\n\t\tresumeSeen := vis.CountSeen(wResume)\n\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\n",
+[?2004l[?2004h> )
+[?2004l[?2004h> # 3) publish fresh moves + reuse seen vars
+[?2004l[?2004h> s=s.replace(
+[?2004l[?2004h> "\t\t\tMoves:      allMoves,\n\t\t\tVisibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n",
+[?2004l[?2004h> "\t\t\t// Moves are the resolved move list for the case. Fresh and resumed runs\n\t\t\t// must agree, so we publish the fresh path and validate via signature.\n\t\t\tMoves:      freshMoves,\n\t\t\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\n",
+[?2004l[?2004h> )
+[?2004l[?2004h> # sanity check: did we actually change?
+[?2004l[?2004h> if 'freshSeen := vis.CountSeen(wFresh)' not in s:
+[?2004l[?2004h>     raise SystemExit('patch failed: ok/seen block not updated')
+[?2004l[?2004h> p.write_text(s)
+[?2004l[?2004h> print('patched', p)
+[?2004l[?2004h> PY
+[?2004lpatch failed: ok/seen block not updated
+[?2004hroot@ccbd9cc473ba:/app# gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go
+[?2004l[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/single-knight.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     c=json.load(f)['cases'][0]
+[?2004l[?2004h> print('ok',c['ok'])
+[?2004l[?2004h> print('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])
+[?2004l[?2004h> PY
+[?2004lok True
+fresh_seen 7 resume_seen 7
+[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> fail=[]
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('resume_seen'):
+[?2004l[?2004h>         fail.append(c['name'])
+[?2004l[?2004h> print('fail',fail)
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))
+[?2004l[?2004h> PY
+[?2004lfail []
+bishop ok= True sig= 811c9dc5 seen= 0 0 moves= 0
+knight ok= True sig= 811c9dc5 seen= 7 7 moves= 0
+lancer ok= True sig= 811c9dc5 seen= 18 18 moves= 0
+ranger ok= True sig= 5c4ed3de seen= 9 9 moves= 4
+rook ok= True sig= 7d3f56fa seen= 9 9 moves= 2
+sentinel ok= True sig= 9a98d68 seen= 9 9 moves= 2
+warden ok= True sig= 811c9dc5 seen= 0 0 moves= 0
+[?2004hroot@ccbd9cc473ba:/app# nl -ba /app/internal/exec/run.go | sed -n '240,340p'
+[?2004l   240		profile := ProfileFor(name)
+   241		radius, _ := LoadRadius(root, name)
+   242		if radius == 0 {
+   243			radius = profile.Radius
+   244		}
+   245		base, err := LoadLayout(root, name)
+   246		if err != nil {
+   247			return CaseResult{}, err
+   248		}
+   249		steps, err := LoadScript(root, name)
+   250		if err != nil {
+   251			return CaseResult{}, err
+   252		}
+   253	
+   254		wFresh := cloneWorld(base)
+   255		wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))
+   256		blob, stale := playUntilSave(wFresh, steps, profile, radius)
+   257		freshMoves := runDirect(wFresh, steps, profile, radius)
+   258	
+   259		wResume := cloneWorld(base)
+   260		wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))
+   261		playUntilSave(wResume, steps, profile, radius)
+   262		resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+   263	
+   264		freshIllegal, resumeIllegal := 0, 0
+   265		for _, m := range freshMoves {
+   266			if !m.Legal {
+   267				freshIllegal++
+   268			}
+   269		}
+   270		for _, m := range resumeMoves {
+   271			if !m.Legal {
+   272				resumeIllegal++
+   273			}
+   274		}
+   275		allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+   276		caseDir := filepath.Join(root, "workspace", name)
+   277		_ = os.MkdirAll(caseDir, 0o755)
+   278		recPath := filepath.Join(caseDir, "records.jsonl")
+   279		logPath := filepath.Join(caseDir, "trace.tsv")
+   280		flushRows(recPath, logPath, name, allMoves)
+   281	
+   282		fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+   283		resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+   284		ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+   285	
+   286		return CaseResult{
+   287			Name:       name,
+   288			OK:         ok,
+   289			Fresh:      fresh,
+   290			Resume:     resume,
+   291			Moves:      allMoves,
+   292			Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},
+   293			Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),
+   294			Records:    recPath,
+   295			Log:        logPath,
+   296		}, nil
+   297	}
+   298	
+   299	func flushRows(recPath, logPath, name string, moves []MoveRow) {
+   300		rec, _ := os.Create(recPath)
+   301		defer rec.Close()
+   302		for _, m := range moves {
+   303			b, _ := json.Marshal(m)
+   304			_, _ = rec.Write(append(b, '\n'))
+   305		}
+   306		log, _ := os.Create(logPath)
+   307		defer log.Close()
+   308		for _, m := range moves {
+   309			fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+   310				name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+   311		}
+   312	}
+[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/internal/exec/run.go')
+[?2004l[?2004h> lines=p.read_text().splitlines(True)
+[?2004l[?2004h> 
+[?2004l[?2004h> def find_idx(substr):
+[?2004l[?2004h>     for i,l in enumerate(lines):
+[?2004l[?2004h>         if substr in l:
+[?2004l[?2004h>             return i
+[?2004l[?2004h>     return -1
+[?2004l[?2004h> 
+[?2004l[?2004h> # Replace the allMoves assignment
+[?2004l[?2004h> i=find_idx('allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)')
+[?2004l[?2004h> if i==-1:
+[?2004l[?2004h>     # maybe already patched or slightly different
+[?2004l[?2004h>     print('allMoves concat not found')
+[?2004l[?2004h> else:
+[?2004l[?2004h>     indent=lines[i].split('a')[0]  # crude but ok
+[?2004l[?2004h>     lines[i:i+1]=[
+[?2004l[?2004h>         '\t\t// Sidecars should list the resolved moves in order (same list as JSON).\n',
+[?2004l[?2004h>         '\t\t// Since fresh/resume must match, write the fresh path only.\n',
+[?2004l[?2004h>         '\t\tallMoves := freshMoves\n'
+[?2004l[?2004h>     ]
+[?2004l[?2004h> 
+[?2004l[?2004h> # Insert freshSeen/resumeSeen + update ok.
+[?2004l[?2004h> # Find the ok line and replace it, ensuring we have the summaries above it.
+[?2004l[?2004h> ok_i=find_idx('ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig')
+[?2004l[?2004h> if ok_i==-1:
+[?2004l[?2004h>     print('ok line not found')
+[?2004l[?2004h> else:
+[?2004l[?2004h>     lines[ok_i:ok_i+1]=[
+[?2004l[?2004h>         '\t\tfreshSeen := vis.CountSeen(wFresh)\n',
+[?2004l[?2004h>         '\t\tresumeSeen := vis.CountSeen(wResume)\n',
+[?2004l[?2004h>         '\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\n'
+[?2004l[?2004h>     ]
+[?2004l[?2004h> 
+[?2004l[?2004h> # Update CaseResult fields (Moves/Visibility)
+[?2004l[?2004h> for i,l in enumerate(lines):
+[?2004l[?2004h>     if '\t\t\tMoves:' in l:
+[?2004l[?2004h>         # replace Moves line
+[?2004l[?2004h>         if 'allMoves' in l:
+[?2004l[?2004h>             lines[i:i+1]=[
+[?2004l[?2004h>                 '\t\t\t// Moves are the resolved move list for the case. Fresh and resumed runs\n',
+[?2004l[?2004h>                 '\t\t\t// must agree, so we publish the fresh path and validate via signature.\n',
+[?2004l[?2004h>                 '\t\t\tMoves:      freshMoves,\n'
+[?2004l[?2004h>             ]
+[?2004l[?2004h>     if 'Visibility: VisPair{FreshSeen:' in l:
+[?2004l[?2004h>         lines[i:i+1]=['\t\t\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\n']
+[?2004l[?2004h> 
+[?2004l[?2004h> p.write_text(''.join(lines))
+[?2004l[?2004h> print('patched')
+[?2004l[?2004h> PY
+[?2004lpatched
+[?2004hroot@ccbd9cc473ba:/app# gofmt -w /app/internal/exec/run.go
+[?2004l[?2004hroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ccbd9cc473ba:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, os
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     data=json.load(f)
+[?2004l[?2004h> print('cases',len(data['cases']))
+[?2004l[?2004h> # verify sidecars line counts match moves length
+[?2004l[?2004h> bad=[]
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     moves=c.get('moves',[])
+[?2004l[?2004h>     rec=c.get('records')
+[?2004l[?2004h>     log=c.get('log')
+[?2004l[?2004h>     rlines=sum(1 for _ in open(rec)) if rec and os.path.exists(rec) else None
+[?2004l[?2004h>     llines=sum(1 for _ in open(log)) if log and os.path.exists(log) else None
+[?2004l[?2004h>     if rlines!=len(moves) or llines!=len(moves):
+[?2004l[?2004h>         bad.append((c['name'],len(moves),rlines,llines))
+[?2004l[?2004h> print('sidecar mismatches:',bad)
+[?2004l[?2004h> # verify no duplicated move keys
+[?2004l[?2004h> from collections import Counter
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))
+[?2004l[?2004h>     ctr=Counter(key(m) for m in c.get('moves',[]))
+[?2004l[?2004h>     dups=sum(1 for v in ctr.values() if v>1)
+[?2004l[?2004h>     if dups:
+[?2004l[?2004h>         print('dups',c['name'],dups)
+[?2004l[?2004h> # verify ok implies seen equality
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     vis=c.get('visibility',{})
+[?2004l[?2004h>     if c.get('ok') and vis.get('fresh_seen')!=vis.get('resume_seen'):
+[?2004l[?2004h>         print('ok but seen mismatch',c['name'],vis)
+[?2004l[?2004h> PY
+[?2004lcases 7
+sidecar mismatches: []
+[?2004hroot@ccbd9cc473ba:/app# 

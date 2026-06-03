@@ -1,0 +1,23 @@
+{
+  "analysis": "op_m is clearly wrong: it stores only the first subface’s flux_vals[v] into the bank, ignoring j>0, and sets bank.leaf[slot]=base_idx (the first leaf) rather than each leaf. That would cause non-conservative corrections and drift, and would affect any scenario with do_flux enabled (including basin/dune now drifting). apply_reflux then divides by vol, which seems consistent because flux_vals is built as REFLUX_RATE * cell->vol * (qbar - q), i.e., a mass delta; dividing by vol gives delta-q. The fix is to have op_m push one pending entry per subface/leaf, mapping to leaf index base_idx + j, and store corresponding flux_vals[j*NVAR+v]. That should also make st.bank.n_pending equal to expected, making balanced true where appropriate.",
+  "plan": "Patch /app/acc_m/edge_corr.cpp op_m to append corrections for every subface (up to MAX_FACES capacity), not just the first. Then rebuild and rerun the matrix. Expect: all scenarios drift_ratio -> 0 and base_match true; balanced should become true for cases with reflux expected; persistence log stays correct.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/acc_m/edge_corr.cpp <<'EOF'\n#include \"../include/flow_record.h\"\n\nvoid op_m(const EdgePulse *a, FluxBank *b) {\n    if (!a || !b) return;\n    if (a->subfaces <= 0) return;\n\n    // Store one correction per subface (leaf). Each stored flux is a conserved\n    // delta (e.g., vol * delta_q), applied later as q += flux/vol.\n    for (int j = 0; j < a->subfaces; j++) {\n        if (b->n_pending >= MAX_FACES) return;\n        int slot = b->n_pending++;\n        b->leaf[slot] = a->base_idx + j;\n        for (int v = 0; v < NVAR; v++) {\n            b->flux[slot * NVAR + v] = a->flux_vals[j * NVAR + v];\n        }\n    }\n}\nEOF\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j$(nproc)\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

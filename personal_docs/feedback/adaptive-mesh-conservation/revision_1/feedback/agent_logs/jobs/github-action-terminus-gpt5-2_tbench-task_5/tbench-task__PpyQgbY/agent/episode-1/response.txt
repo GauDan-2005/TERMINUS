@@ -1,0 +1,47 @@
+{
+  "analysis": "Build and matrix run completed and produced /app/output/conservation_audit.json. Drift is present in storm, canyon, plume, spire (nonzero drift_ratio; base_match false). basin and dune match totals but still show balanced=false, adjacency=0 across all cases, suggesting parent/child linking (grid relationship) resolution is failing entirely, which would break seam accounting and conservation across refinement/coarsening. Next we should inspect persistence_audit.log, then run per-scenario helpers (run-one and run-replay) to see whether the snapshot round-trip differs and whether link resolution is always zero. Then inspect code in lnk_n/relate.cpp and acc_m/edge_corr.cpp (seam accounting), and refinement/merge drivers for when relate() should be invoked.",
+  "plan": "1) View /app/output/persistence_audit.log to see snapshot acceptance/rejection reasons. 2) Run per-scenario audits for a drifting scenario (storm) and a non-drifting scenario (basin) to compare fields. 3) Run replay (snapshot/resume) for a drifting scenario to confirm divergence and collect persistence log details. 4) Search the code for where adjacency is computed/emitted and where grid relations are built; inspect lnk_n/relate.cpp and driver phases in drv_u/run_refine.cpp and drv_u/run_blend.cpp to see if relate() is skipped or cleared. 5) Identify why adjacency is 0 (likely relation-building returning empty due to wrong id mapping after split/merge or serialization), then fix and rebuild.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/output/persistence_audit.log\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh storm\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cat /app/output/storm-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-replay.sh storm\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cat /app/output/storm-replay.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rg -n \"adjacency\" -S /app/src /app/include\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rg -n \"relate\\(\" -S /app\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/lnk_n/relate.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/run_refine.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/run_blend.cpp\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

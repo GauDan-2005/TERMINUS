@@ -1,0 +1,22 @@
+{
+  "analysis": "Now I understand the full picture. The core bugs are:\n\n1. **Old entries never removed**: When a slot is updated (e.g., from ws-old to ws-new), old entries remain in `state.entries`. Since `mote_e` uses `find()` which returns the FIRST match, it always returns the OLD/stale entry.\n\n2. **Linked package fresh check fails**: In `lift_d`, `active` stores the alias path (e.g., `fixtures/gamma/alias-a`) but entries are collected from the resolved target (e.g., `fixtures/gamma/pkg-a`). So `entry.path.starts_with(root)` always fails for linked packages.\n\nFixes needed:\n- In `fold_b`, `emit_c`, and `lift_d`: Remove old entries for the slot before adding new ones\n- In `lift_d`: Store the resolved target root in `active` (not the alias path) so the fresh check works",
+  "plan": "Fix the three slot-handling functions:\n1. `r1/b.rs` (fold_b) - add `a.entries.retain(|e| e.slot != b)` before adding new entries\n2. `r2/c.rs` (emit_c) - same fix\n3. `r3/d.rs` (lift_d) - same fix PLUS store the actual resolved root in `active` instead of the alias",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/r1/b.rs << 'EOF'\nuse crate::io::{app_path, collect_entries};\nuse crate::model::State;\n\npub fn fold_b(a: &mut State, b: &str, c: &str) -> Result<(), String> {\n    a.epoch += 1;\n    let root = app_path(c);\n    a.active.insert(b.to_string(), root);\n    a.entries.retain(|e| e.slot != b);\n    let mut found = collect_entries(a, b, c, a.epoch)?;\n    a.entries.append(&mut found);\n    Ok(())\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/r2/c.rs << 'EOF'\nuse crate::io::{app_path, collect_entries};\nuse crate::model::State;\n\npub fn emit_c(a: &mut State, b: &str, c: &str) -> Result<(), String> {\n    a.epoch += 1;\n    let root = app_path(c);\n    a.active.insert(b.to_string(), root);\n    a.entries.retain(|e| e.slot != b);\n    let mut found = collect_entries(a, b, c, a.epoch)?;\n    a.entries.append(&mut found);\n    Ok(())\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/r3/d.rs << 'EOF'\nuse crate::io::{collect_entries, resolve_target_root};\nuse crate::model::State;\n\npub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {\n    a.epoch += 1;\n    let actual = resolve_target_root(c)?;\n    a.active.insert(b.to_string(), actual.clone());\n    a.entries.retain(|e| e.slot != b);\n    let mut found = collect_entries(a, b, &actual, a.epoch)?;\n    a.entries.append(&mut found);\n    Ok(())\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cargo build 2>&1\n",
+      "duration": 15.0
+    }
+  ]
+}

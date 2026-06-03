@@ -1,0 +1,106 @@
+{
+  "analysis": "Found root causes: (1) arena_heap_sig sums blocks where z_is_flag is true, but z flag is set to 1 on allocation and cleared on free; spec wants allocated blocks only, so current arena_heap_sig is correct if z flag means allocated. Wait: in arena_heap_sig it sums when z_is_flag(&b) is true, i.e., allocated, so OK. However earlier suspicion was wrong; confirm: free_ops sets flag 0, slot_take_whole sets 1; so heap_sig already allocated-only. (2) byte_total is currently arena.stats.allocated, but acct_e/xd3 adds +8 on positive allocations and subtracts raw total on frees, so it is not live payload bytes and will drift under realloc/coalesce/growth. Spec requires byte_total = sum of live allocated payload bytes. We should compute byte_total by summing arena.slot_payload[idx] for live slots. Also realloc-inplace paths in slot_split.c clear alloc flag and adjust stats using totals and merged sizes; but byte_total spec ignores totals, so safer to compute independently each step. Determinism: ensure uninitialized StepRec.op is set; currently strncpy without clearing might leave old bytes but JSON writer uses string until NUL; strncpy may not NUL-terminate if exactly fills, but literals are shorter than 15 so OK. Also res->step_count can exceed MAX_STEPS? probably not. Need to update drive_h/run.c to compute byte_total via helper and set ok by verifying final step matches case summary fields. Also ensure run-one creates <name>-audit.json; it did earlier but missing likely because we looked for output/cedar-audit.json after matrix run/clean-room; but requirement is just that run-one writes it when invoked. We'll implement byte_total fix and ok verification plus remove stats dependency.",
+  "plan": "1) Implement a helper in drive_h/run.c (or arena_core.c) to compute live payload sum from slot_live/slot_payload. 2) Replace st->byte_total and res->byte_total assignments to use that helper. 3) Compute res->ok by checking that the last step’s heap_sig/fl_count/fl_sig/byte_total equal the summary fields and that every step’s fields equal recomputation right after op (already recomputed). Minimal: set ok true if no allocator op returned -1 and step tallies equal recomputed values. 4) Rebuild via make, rerun run-one cedar and run-matrix, inspect outputs (sed/head), and run matrix twice then diff alloc-audit.json to ensure deterministic.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: drive_h/run.c\n@@\n #include <stdio.h>\n #include <string.h>\n \n+static size_t live_payload_bytes(const Arena *a) {\n+    size_t sum = 0;\n+    for (int i = 0; i < a->slot_count; i++) {\n+        if (a->slot_live[i]) {\n+            sum += a->slot_payload[i];\n+        }\n+    }\n+    return sum;\n+}\n+\n int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {\n     Arena arena;\n     int seq = 0;\n     memset(res, 0, sizeof(*res));\n     strncpy(res->name, plan->name, sizeof(res->name) - 1);\n@@\n         }\n         st->heap_sig = arena_heap_sig(&arena);\n         st->fl_count = arena_fl_count(&arena);\n         st->fl_sig = arena_fl_sig(&arena);\n-        st->byte_total = arena.stats.allocated;\n+        // Spec: live allocated payload bytes only (not headers/footers/alignment).\n+        st->byte_total = live_payload_bytes(&arena);\n     }\n     res->heap_sig = arena_heap_sig(&arena);\n     res->fl_count = arena_fl_count(&arena);\n     res->fl_sig = arena_fl_sig(&arena);\n-    res->byte_total = arena.stats.allocated;\n-    res->ok = 1;\n+    res->byte_total = live_payload_bytes(&arena);\n+    // Clean iff all ops succeeded (result_index non-negative for alloc/realloc; 0 for free).\n+    res->ok = 1;\n+    for (int i = 0; i < res->step_count; i++) {\n+        const StepRec *st = &res->steps[i];\n+        if ((strcmp(st->op, \"alloc\") == 0 || strcmp(st->op, \"realloc\") == 0) && st->result_index < 0) {\n+            res->ok = 0;\n+            break;\n+        }\n+        if (strcmp(st->op, \"free\") == 0 && st->result_index != 0) {\n+            res->ok = 0;\n+            break;\n+        }\n+    }\n     return 0;\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "make -n >/dev/null 2>&1 || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make\n",
+      "duration": 20
+    },
+    {
+      "keystrokes": "rm -rf output && mkdir -p output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-one.sh cedar\n",
+      "duration": 5
+    },
+    {
+      "keystrokes": "ls -la output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' output/cedar-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "sed -n '1,80p' output/alloc-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp output/alloc-audit.json /tmp/alloc-audit.1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "diff -u /tmp/alloc-audit.1.json output/alloc-audit.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}
+{
+  "analysis": "Found that StepRec.byte_total is currently taken from arena.stats.allocated, but acct accounting includes non-payload bytes (+8) and uses total block sizes on realloc/free paths, so it will drift under fragmentation/merge/growth. Spec requires byte_total to be live allocated payload bytes only. Fix should compute byte_total by summing slot_payload for live slots after each step, and use that both per-step and case summary. Also compute ok based on operation results (alloc/realloc non-negative; free returns 0). Then rebuild and verify outputs are deterministic across two matrix runs.",
+  "plan": "Patch drive_h/run.c to add a helper live_payload_bytes() and replace byte_total assignments. Add an ok validation loop. Rebuild, rerun run-one cedar to ensure it writes /app/output/cedar-audit.json with a cases array envelope, run matrix twice and diff alloc-audit.json to confirm deterministic equality.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: drive_h/run.c\n@@\n #include <stdio.h>\n #include <string.h>\n \n+static size_t live_payload_bytes(const Arena *a) {\n+    size_t sum = 0;\n+    for (int i = 0; i < a->slot_count; i++) {\n+        if (a->slot_live[i]) {\n+            sum += a->slot_payload[i];\n+        }\n+    }\n+    return sum;\n+}\n+\n int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {\n     Arena arena;\n     int seq = 0;\n     memset(res, 0, sizeof(*res));\n     strncpy(res->name, plan->name, sizeof(res->name) - 1);\n@@\n         }\n         st->heap_sig = arena_heap_sig(&arena);\n         st->fl_count = arena_fl_count(&arena);\n         st->fl_sig = arena_fl_sig(&arena);\n-        st->byte_total = arena.stats.allocated;\n+        // Spec: live allocated payload bytes only (not headers/footers/alignment).\n+        st->byte_total = live_payload_bytes(&arena);\n     }\n     res->heap_sig = arena_heap_sig(&arena);\n     res->fl_count = arena_fl_count(&arena);\n     res->fl_sig = arena_fl_sig(&arena);\n-    res->byte_total = arena.stats.allocated;\n-    res->ok = 1;\n+    res->byte_total = live_payload_bytes(&arena);\n+\n+    // Clean iff all ops succeeded.\n+    res->ok = 1;\n+    for (int i = 0; i < res->step_count; i++) {\n+        const StepRec *st = &res->steps[i];\n+        if ((strcmp(st->op, \"alloc\") == 0 || strcmp(st->op, \"realloc\") == 0) && st->result_index < 0) {\n+            res->ok = 0;\n+            break;\n+        }\n+        if (strcmp(st->op, \"free\") == 0 && st->result_index != 0) {\n+            res->ok = 0;\n+            break;\n+        }\n+    }\n     return 0;\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "make\n",
+      "duration": 20
+    },
+    {
+      "keystrokes": "rm -rf output && mkdir -p output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-one.sh cedar\n",
+      "duration": 5
+    },
+    {
+      "keystrokes": "ls -la output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' output/cedar-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "sed -n '1,80p' output/alloc-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp output/alloc-audit.json /tmp/alloc-audit.1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "diff -u /tmp/alloc-audit.1.json output/alloc-audit.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,26 @@
+New Terminal Output:
+
+root@6d5b7e92f9ee:/app# bash -lc 'perl -0777 -i -pe "s/set -euo pipefail\n/set -euo pipefail\n\n# Ensure rustup\/cargo shims are on PATH in this runtime.\nexpor
+t PATH=\"\/usr\/local\/cargo\/bin:\$PATH\"\n/" /app/tools/run_local.sh'
+root@6d5b7e92f9ee:/app# bash -lc 'head -n 20 /app/tools/run_local.sh'
+#!/bin/bash
+set -euo pipefail
+
+# Ensure rustup/cargo shims are on PATH in this runtime.
+export PATH="/usr/local/cargo/bin:"
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@6d5b7e92f9ee:/app# bash -lc '/app/tools/run_local.sh'
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+/app/tools/run_local.sh: line 7: mkdir: command not found
+root@6d5b7e92f9ee:/app# bash -lc 'ls -la /app/output'
+ls: cannot access '/app/output': No such file or directory
+root@6d5b7e92f9ee:/app# bash -lc 'command -v jq >/dev/null 2>&1 || { echo "jq missing"; exit 0; }; echo RAW_KEYS:; jq -c "keys" /app/output/raw.json | head; ech
+o RAW_LEN:; jq ".raw|length" /app/output/raw.json; echo REPORT_KEYS:; jq -c "keys" /app/output/report.json | head; echo REPORT_LEN:; jq ".rows|length" /app/outp
+ut/report.json; echo AGREE:; jq ".summary" /app/output/report.json'
+jq missing
+root@6d5b7e92f9ee:/app#

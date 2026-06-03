@@ -1,0 +1,126 @@
+New Terminal Output:
+
+root@01f99625b95f:/app# cat > /app/r4/e.rs <<'EOF'
+> use crate::model::{Entry, Observation, State};
+>
+> pub fn mote_e(a: &mut State, symbol: &str, expect_found: bool) -> Observation {
+>     let mut candidates: Vec<&Entry> = a
+>         .entries
+>         .iter()
+>         .filter(|entry| entry.symbol == symbol)
+>         .collect();
+>
+>     if candidates.is_empty() {
+>         return Observation::missing(symbol, symbol, a.epoch, !expect_found);
+>     }
+>
+>     let in_active = |e: &&Entry| {
+>         a.active
+>             .get(&e.slot)
+>             .is_some_and(|root| e.path.starts_with(root))
+>     };
+>
+>     // Newest epoch first, then stable by path+line.
+>     let sort_best = |items: &mut Vec<&Entry>| {
+>         items.sort_by(|l, r| {
+>             r.epoch
+>                 .cmp(&l.epoch)
+>                 .then_with(|| l.path.cmp(&r.path))
+>                 .then_with(|| l.line.cmp(&r.line))
+>         });
+>     };
+>
+>     let mut active_candidates: Vec<&Entry> = candidates.iter().copied().filter(in_active).collect();
+>     let entry = if !active_candidates.is_empty() {
+>         sort_best(&mut active_candidates);
+>         active_candidates[0]
+>     } else {
+>         sort_best(&mut candidates);
+>         candidates[0]
+>     };
+>
+>     let reused = a
+>         .last_seen
+>         .get(symbol)
+>         .map(|old| *old == entry.handle)
+>         .unwrap_or(false);
+>     a.last_seen.insert(symbol.to_string(), entry.handle);
+>
+>     let fresh = a
+>         .active
+>         .get(&entry.slot)
+>         .map(|root| entry.path.starts_with(root))
+>         .unwrap_or(false);
+>
+>     Observation {
+>         label: String::new(),
+>         symbol: symbol.to_string(),
+>         found: true,
+>         path: entry.path.clone(),
+>         source: entry.source.clone(),
+>         line: entry.line,
+>         epoch: a.epoch,
+>         reused,
+>         fresh,
+>     }
+> }
+> EOF
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> for c in obj['cases']:
+>     print(c['name'], 'ok', c['ok'], 'stale', c['stale'])
+> PY
+alpha ok True stale []
+beta ok True stale []
+gamma ok False stale ['gamma_before', 'gamma_after']
+delta ok True stale []
+epsilon ok False stale ['epsilon_legacy_after']
+zeta ok False stale ['zeta_bridge_before', 'zeta_bridge_after_pkg', 'zeta_bridge_after_app']
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> for name in ['alpha','beta','gamma','delta','epsilon','zeta']:
+>     c=next(x for x in obj['cases'] if x['name']==name)
+>     print('==',name,'==')
+>     for o in c['observations']:
+>         print(o['label'],o['symbol'],o['found'],o['path'],o['source'],o['line'],o['epoch'],o['reused'],o['fresh'])
+> PY
+== alpha ==
+alpha_before Widget True /app/fixtures/alpha/ws-old/src/widget.ts /app/fixtures/alpha/ws-old/src/widget.ts 1 1 False True
+alpha_after Widget True /app/fixtures/alpha/ws-new/src/widget.ts /app/fixtures/alpha/ws-new/src/widget.ts 1 2 False True
+== beta ==
+beta_before Client True /app/fixtures/beta/gen-v1/generated/api.ts /app/fixtures/beta/schemas/v1/api.schema 2 1 False True
+beta_after Client True /app/fixtures/beta/gen-v2/generated/api.ts /app/fixtures/beta/schemas/v2/api.schema 2 2 False True
+== gamma ==
+gamma_before Bridge True /app/fixtures/gamma/pkg-a/src/bridge.ts /app/fixtures/gamma/pkg-a/src/bridge.ts 1 1 False False
+gamma_after Bridge True /app/fixtures/gamma/pkg-b/src/bridge.ts /app/fixtures/gamma/pkg-b/src/bridge.ts 1 2 False False
+== delta ==
+delta_client_before DeltaClient True /app/fixtures/delta/gen-v1/generated/client.ts /app/fixtures/delta/schemas/v1/client.schema 2 2 False True
+delta_widget_before DeltaWidget True /app/fixtures/delta/app-old/src/widget.ts /app/fixtures/delta/app-old/src/widget.ts 1 2 False True
+delta_client_after_app DeltaClient True /app/fixtures/delta/gen-v1/generated/client.ts /app/fixtures/delta/schemas/v1/client.schema 2 3 True True
+delta_widget_after_app DeltaWidget True /app/fixtures/delta/app-new/src/widget.ts /app/fixtures/delta/app-new/src/widget.ts 1 3 False True
+delta_client_after_gen DeltaClient True /app/fixtures/delta/gen-v2/generated/client.ts /app/fixtures/delta/schemas/v2/client.schema 2 4 False True
+delta_widget_after_gen DeltaWidget True /app/fixtures/delta/app-new/src/widget.ts /app/fixtures/delta/app-new/src/widget.ts 1 4 True True
+== epsilon ==
+epsilon_legacy_before Legacy True /app/fixtures/epsilon/gen-v1/generated/legacy.ts /app/fixtures/epsilon/schemas/v1/legacy.schema 2 1 False True
+epsilon_legacy_after Legacy True /app/fixtures/epsilon/gen-v1/generated/legacy.ts /app/fixtures/epsilon/schemas/v1/legacy.schema 2 2 True False
+epsilon_client_after Client True /app/fixtures/epsilon/gen-v2/generated/client.ts /app/fixtures/epsilon/schemas/v2/client.schema 2 2 False True
+== zeta ==
+zeta_bridge_before Bridge True /app/fixtures/zeta/pkg-a/src/bridge.ts /app/fixtures/zeta/pkg-a/src/bridge.ts 1 2 False False
+zeta_widget_before Widget True /app/fixtures/zeta/app-old/src/widget.ts /app/fixtures/zeta/app-old/src/widget.ts 1 2 False True
+zeta_bridge_after_pkg Bridge True /app/fixtures/zeta/pkg-b/src/bridge.ts /app/fixtures/zeta/pkg-b/src/bridge.ts 1 3 False False
+zeta_widget_after_pkg Widget True /app/fixtures/zeta/app-old/src/widget.ts /app/fixtures/zeta/app-old/src/widget.ts 1 3 True True
+zeta_widget_after_app Widget True /app/fixtures/zeta/app-new/src/widget.ts /app/fixtures/zeta/app-new/src/widget.ts 1 4 False True
+zeta_bridge_after_app Bridge True /app/fixtures/zeta/pkg-b/src/bridge.ts /app/fixtures/zeta/pkg-b/src/bridge.ts 1 4 True False
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json && cp /app/output/index-report.json /app/output/index-report.json.run1
+9f5ffe3e54b13c927d05ffe5889489f157804c6bf81ac297e7cf89bbd64b8d54  /app/output/index-report.json
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json /app/output/index-report.json.run1
+9f5ffe3e54b13c927d05ffe5889489f157804c6bf81ac297e7cf89bbd64b8d54  /app/output/index-report.json
+9f5ffe3e54b13c927d05ffe5889489f157804c6bf81ac297e7cf89bbd64b8d54  /app/output/index-report.json.run1
+root@01f99625b95f:/app# diff -u /app/output/index-report.json.run1 /app/output/index-report.json || true
+root@01f99625b95f:/app#

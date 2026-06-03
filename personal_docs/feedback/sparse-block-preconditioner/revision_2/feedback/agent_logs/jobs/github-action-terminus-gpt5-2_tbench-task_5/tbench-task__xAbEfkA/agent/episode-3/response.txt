@@ -1,0 +1,47 @@
+{
+  "analysis": "Scripts are fine; clean-room.sh just wipes /app/output, so running run-one after run-matrix deletes solver-audit.json (expected). The real issue is solver correctness: every case reports iterations=1, final_residual=0, reported_residual=1e-4. In perm_p/order.cpp, map_p is a stub that ignores permutation and just memcpy’s. In bsr_n/layout.cpp, when reorder is enabled, row blocks are permuted but col blocks are rotated ((bj+1)%nb) rather than permuted consistently; also in bsr_matvec it uses bi as the global row index even when reordered data corresponds to row_blk, causing mismatched rows and likely producing an incorrect/degenerate system leading to denom breakdown and misleading residual reporting. This matches the described failure for reordered layouts. We need to fix layout packing and permutation mapping so reordered layouts are applied consistently for both rows and columns, and matvec uses the correct global indices for the stored blocks. Also ensure map_p applies permutation/inverse as intended. After code fix, rebuild, rerun audits; ensure ok=true and residuals agree and deterministic JSON. Separately, ensure run-one writes /app/output/<name>-audit.json matching matrix slice: solverctl already does this (writes basalt-audit.json etc).",
+  "plan": "1) Inspect matrix_view.h/case_spec/driver to see how reorder/permutation is intended (perm array meaning, reorder flag). 2) Fix fn_n (layout pack) so when reorder is enabled it builds BSR with consistent permuted ordering: use row_blk = perm[bi], col_blk = perm[bj] (not rotation), and store indices in col_idx in the packed row/col space (bj) or global space consistently. Easiest: store blocks in packed order (bi/bj) and during matvec map packed indices to global indices via perm[]. That requires matvec to use pack->perm for gi/gj when reorder=1. 3) Implement map_p to actually apply permutation to vectors (both forward and inverse if needed); find where it’s called and match semantics. 4) Rebuild, run solverctl matrix and verify all cases ok/residual_agrees. 5) Run run-one and compare per-case JSON to matrix slice. 6) Confirm determinism by running matrix twice and diffing JSON.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' /app/include/matrix_view.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/include/case_spec.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/case_io.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: perm_p/order.cpp\n@@\n #include \"../include/matrix_view.h\"\n \n #include <string.h>\n \n-void map_p(const double *a, const int *b, int c, int d, double *e) {\n-    (void)b;\n-    (void)c;\n-    (void)d;\n-    memcpy(e, a, (size_t)c * sizeof(double));\n+// Map vector `a` through a block permutation.\n+//\n+// The permutation array `b` is expressed in block units and matches the layout\n+// packer's `perm` field: for a packed block index i, the corresponding global\n+// block index is b[i].\n+//\n+// If d == 0: global -> packed (apply inverse permutation)\n+// If d != 0: packed -> global (apply forward permutation)\n+void map_p(const double *a, const int *b, int c, int d, double *e) {\n+    // c is the full vector length in scalar rows.\n+    if (!b) {\n+        memcpy(e, a, (size_t)c * sizeof(double));\n+        return;\n+    }\n+\n+    // Determine block size from scalar dimension and block count implied by b.\n+    // Our cases use fixed small dimensions; keep it simple and safe.\n+    // Assume permutation length equals number of blocks and blocks tile c.\n+    // (The caller ensures this invariant.)\n+    int nb = 0;\n+    while (nb < 256 && b[nb] >= 0) nb++; // not used by current code paths\n+    (void)nb;\n+\n+    // We do not have nb directly here; infer bs from c and MAX_BLOCKS layout\n+    // isn't available. The driver always calls with known bs and uses b in\n+    // block units; expose a scalar-wise mapping using block size embedded in\n+    // MatrixView/BsrPack. Since this helper is used by the driver with bs,\n+    // it passes c as n and sets up b to be length n/bs. Here, compute bs by\n+    // scanning for repeats: fallback to identity.\n+    //\n+    // Practical approach for this kata: treat b as length (c) when used on\n+    // scalar permutations too.\n+\n+    if (d) {\n+        // packed -> global : e[global] = a[packed]\n+        for (int i = 0; i < c; i++) {\n+            e[b[i]] = a[i];\n+        }\n+    } else {\n+        // global -> packed : e[packed] = a[global]\n+        for (int i = 0; i < c; i++) {\n+            e[i] = a[b[i]];\n+        }\n+    }\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: bsr_n/layout.cpp\n@@\n void fn_n(const MatrixView *a, int reorder, BsrPack *c) {\n@@\n-    for (int bi = 0; bi < nb; bi++) {\n-        int row_blk = reorder ? a->perm[bi] : bi;\n-        c->row_ptr[bi] = ptr;\n-        for (int bj = 0; bj < nb; bj++) {\n-            int col_blk = reorder ? ((bj + 1) % nb) : bj;\n+    // Build the packed structure in *packed* block coordinates (bi/bj).\n+    // When reorder==1, the pack's perm[] maps packed block index -> global\n+    // block index. Matvec uses this to map packed rows/cols back to global\n+    // scalar indices.\n+    for (int bi = 0; bi < nb; bi++) {\n+        int row_blk = reorder ? a->perm[bi] : bi;\n+        c->row_ptr[bi] = ptr;\n+        for (int bj = 0; bj < nb; bj++) {\n+            int col_blk = reorder ? a->perm[bj] : bj;\n             int has = 0;\n             for (int r = 0; r < bs; r++) {\n                 for (int cc = 0; cc < bs; cc++) {\n                     int gr = row_blk * bs + r;\n                     int gc = col_blk * bs + cc;\n@@\n             }\n             if (has) {\n-                c->col_idx[ptr] = col_blk;\n+                // Store column in packed coordinates so matvec can map through perm.\n+                c->col_idx[ptr] = bj;\n                 for (int r = 0; r < bs; r++) {\n                     for (int cc = 0; cc < bs; cc++) {\n                         int gr = row_blk * bs + r;\n                         int gc = col_blk * bs + cc;\n                         c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];\n@@\n     for (int bi = 0; bi < nb; bi++) {\n         int start = c->row_ptr[bi];\n         int end = c->row_ptr[bi + 1];\n         for (int k = start; k < end; k++) {\n-            if (c->col_idx[k] == bi) {\n+            if (c->col_idx[k] == bi) {\n                 for (int r = 0; r < bs; r++) {\n                     double d = c->data[k * bs * bs + r * bs + r];\n                     if (fabs(d) > 1e-14) {\n                         c->diag_inv[bi * bs + r] = 1.0 / d;\n                     }\n                 }\n             }\n         }\n     }\n }\n@@\n void bsr_matvec(const BsrPack *pack, const double *x, double *y) {\n@@\n     for (int bi = 0; bi < nb; bi++) {\n         int start = pack->row_ptr[bi];\n         int end = pack->row_ptr[bi + 1];\n         for (int k = start; k < end; k++) {\n-            int bj = pack->col_idx[k];\n+            int bj = pack->col_idx[k];\n+\n+            // Map packed block indices to global block indices when reordered.\n+            int row_blk = pack->reorder ? pack->perm[bi] : bi;\n+            int col_blk = pack->reorder ? pack->perm[bj] : bj;\n             for (int r = 0; r < bs; r++) {\n                 for (int c = 0; c < bs; c++) {\n-                    int gi = bi * bs + r;\n-                    int gj = bj * bs + c;\n+                    int gi = row_blk * bs + r;\n+                    int gj = col_blk * bs + c;\n                     y[gi] += pack->data[k * bs * bs + r * bs + c] * x[gj];\n                 }\n             }\n         }\n     }\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/bin/solverctl matrix\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/solver-audit.json'\nd=json.load(open(p))\nfor c in d['cases']:\n    print(c['name'], 'ok', c['ok'], 'iters', c['iterations'], 'final', c['final_residual'], 'reported', c['reported_residual'], 'agree', c['residual_agrees'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,247 @@
+New Terminal Output:
+
+root@167e824d180e:/app# grep -RIn "int run_case" -n .
+./drive_h/run.c:7:int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {
+./include/report.h:35:int run_case(const Plan *plan, const char *out_dir, CaseResult *res);
+root@167e824d180e:/app# sed -n '1,260p' src/alloc_ops.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need);
+void slot_take_whole(Arena *a, Block *fit, size_t total);
+
+static Block make_blk(Arena *a, size_t off) {
+    Block b;
+    b.base = a->mem;
+    b.off = off;
+    return b;
+}
+
+static Block *find_fit(Arena *a, size_t need) {
+    size_t cur = a->fl_head.off;
+    static Block pick;
+    while (cur != FL_END) {
+        Block b = make_blk(a, cur);
+        size_t total = tag_read_size(&b);
+        if (total >= need) {
+            pick = b;
+            return &pick;
+        }
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return NULL;
+}
+
+int arena_slot_alloc(Arena *a, size_t req) {
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    Block *fit = find_fit(a, need);
+    size_t total;
+    int idx;
+    if (!fit) {
+        return -1;
+    }
+    total = tag_read_size(fit);
+    if (total >= need + MIN_BLK) {
+        slot_take_split(a, fit, req, need);
+    } else {
+        slot_take_whole(a, fit, total);
+    }
+    idx = a->slot_count++;
+    if (idx >= MAX_SLOTS) {
+        return -1;
+    }
+    a->slots[idx] = fit->base + fit->off + HDR_SIZE;
+    a->slot_payload[idx] = req;
+    a->slot_live[idx] = 1;
+    a->stats.live_blocks++;
+    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+    return idx;
+}
+root@167e824d180e:/app# sed -n '1,260p' src/free_ops.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+int arena_slot_free(Arena *a, int idx) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block b;
+    b.base = a->mem;
+    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    size_t total = tag_read_size(&b);
+    z_set_flag(&b, 0);
+    xd3(&a->stats, -(ssize_t)total);
+    a->stats.live_blocks--;
+    a->slot_live[idx] = 0;
+    list_coalesce(a, &b);
+    return 0;
+}
+root@167e824d180e:/app# sed -n '1,320p' src/arena_core.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+size_t arena_heap_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t off = 0;
+    while (off < a->used) {
+        Block b;
+        b.base = (unsigned char *)a->mem;
+        b.off = off;
+        size_t total = tag_read_size(&b);
+        if (total == 0) {
+            break;
+        }
+        if (z_is_flag(&b)) {
+            sig += total * 17;
+        }
+        off += total;
+    }
+    return sig;
+}
+
+size_t arena_fl_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        Block b = {(unsigned char *)a->mem, cur};
+        sig += tag_read_size(&b);
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return sig;
+}
+
+int arena_fl_count(const Arena *a) {
+    int c = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        c++;
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return c;
+}
+root@167e824d180e:/app# sed -n '1,240p' src/init_heap.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+void arena_init(Arena *a) {
+    Block h;
+    size_t i;
+    memset(a, 0, sizeof(*a));
+    for (i = 0; i < FL_MAP_SZ; i++) {
+        a->fl_link_next[i] = FL_END;
+        a->fl_link_prev[i] = FL_END;
+    }
+    a->used = HEAP_BYTES;
+    h.base = a->mem;
+    h.off = 0;
+    xa0(&h, HEAP_BYTES);
+    z_set_flag(&h, 0);
+    a->head = h;
+    a->fl_head.base = h.base;
+    a->fl_head.off = FL_END;
+    xb1(a, &h);
+}
+root@167e824d180e:/app# sed -n '1,260p' include/arena.h
+#ifndef ARENA_H
+#define ARENA_H
+
+#include "block.h"
+#include "stats.h"
+
+#include <stddef.h>
+
+#define HEAP_BYTES 65536
+#define MAX_SLOTS 64
+#define FL_MAP_SZ (HEAP_BYTES / 8)
+
+typedef struct Arena {
+    unsigned char mem[HEAP_BYTES];
+    size_t used;
+    Block head;
+    Block fl_head;
+    size_t fl_link_next[FL_MAP_SZ];
+    size_t fl_link_prev[FL_MAP_SZ];
+    void *slots[MAX_SLOTS];
+    size_t slot_payload[MAX_SLOTS];
+    int slot_live[MAX_SLOTS];
+    int slot_count;
+    Stats stats;
+} Arena;
+
+void arena_init(Arena *a);
+int arena_slot_alloc(Arena *a, size_t req);
+int arena_slot_free(Arena *a, int idx);
+int arena_slot_realloc(Arena *a, int idx, size_t req);
+size_t arena_heap_sig(const Arena *a);
+size_t arena_fl_sig(const Arena *a);
+int arena_fl_count(const Arena *a);
+
+#endif
+root@167e824d180e:/app# sed -n '1,260p' include/block.h
+#ifndef BLOCK_H
+#define BLOCK_H
+
+#include <stddef.h>
+
+#define HDR_SIZE 16
+#define FTR_SIZE 8
+#define FL_END ((size_t)-1)
+#define MIN_BLK 40
+#define ALIGN 8
+
+typedef struct Block {
+    unsigned char *base;
+    size_t off;
+} Block;
+
+static inline size_t blk_align(size_t n) {
+    return (n + (ALIGN - 1)) & ~(size_t)(ALIGN - 1);
+}
+
+#endif
+root@167e824d180e:/app# sed -n '1,260p' include/stats.h
+#ifndef STATS_H
+#define STATS_H
+
+#include <stddef.h>
+
+typedef struct Stats {
+    size_t allocated;
+    size_t peak;
+    size_t live_blocks;
+} Stats;
+
+#endif
+root@167e824d180e:/app# grep -RIn "heap_sig\|fl_sig\|fl_count\|byte_total" src include | head -n 200
+src/arena_core.c:8:size_t arena_heap_sig(const Arena *a) {
+src/arena_core.c:27:size_t arena_fl_sig(const Arena *a) {
+src/arena_core.c:38:int arena_fl_count(const Arena *a) {
+include/arena.h:31:size_t arena_heap_sig(const Arena *a);
+include/arena.h:32:size_t arena_fl_sig(const Arena *a);
+include/arena.h:33:int arena_fl_count(const Arena *a);
+include/report.h:17:    size_t heap_sig;
+include/report.h:18:    int fl_count;
+include/report.h:19:    size_t fl_sig;
+include/report.h:20:    size_t byte_total;
+include/report.h:28:    size_t heap_sig;
+include/report.h:29:    int fl_count;
+include/report.h:30:    size_t fl_sig;
+include/report.h:31:    size_t byte_total;
+root@167e824d180e:/app#

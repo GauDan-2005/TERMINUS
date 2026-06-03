@@ -1,0 +1,35 @@
+{
+  "analysis": "Changing runLoaded to use current obs eliminated illegal moves and reduced rook/sentinel moves to 1 (good: now both paths likely produce one move each). However signatures diverged again: resume_sig became 811c9dc5 (same as empty/no-move sig) for rook/sentinel, implying resumeMoves is now empty while freshMoves has 1 move; hence sig mismatch and ok=false. Resume_seen still 0 for most cases, meaning after loading we never call ApplyLit unless there is a post-save player step; these scripts likely have no player steps after save, so Seen never gets updated on resume path and hostiles never considered visible, leading to no moves in resumeMoves. Fresh path does have Seen from pre-save playUntilSave (ApplyLit called on player steps before save), so buildObs sees hostiles and they move. Fix: after applyWorld(w, blob) in runLoaded, we must call e4.ApplyLit(w, radius, blindActive(w)) to restore lit/seen consistent with loaded state at boundary. Also we should probably respect blob's Lit/Seen already, but applyWorld copies them; still CountSeen ends 0, so blob.Seen likely empty because it was packed before ApplyLit? Wait playUntilSave calls ApplyLit on each player step before save, so Seen should be nonzero in blob. Yet resume_seen is 0, suggesting applyWorld loads Seen but then w.Seen gets reset somewhere (e4.ApplyLit called with blindActive? not called currently). Actually PlayerSees checks both Seen and Lit; after applyWorld, Lit from blob might be stale length mismatch? but applyWorld sets Lit/Seen from item; however PlayerSees also requires Lit true; if blob.Lit is all false at save, then buildObs sees nothing. In playUntilSave at save, it does not call ApplyLit before packing; it only packs w.Lit as-is from last player action, but if last step before save wasn't a player action, Lit might be outdated/empty. Therefore we must recompute lit at boundary on resume (and possibly on fresh right before saving too, but easier on resume). We'll add e4.ApplyLit right after applyWorld and set w.Turn appropriately (blob.Turn) before calling it.",
+  "plan": "1) Patch runLoaded: after applyWorld(w, blob), set w.Turn = blob.Turn and call e4.ApplyLit(w, radius, blindActive(w)) so lit/seen reflect the boundary state. 2) Rebuild and rerun matrix; expect resume_seen to match fresh_seen and rook/sentinel ok=true with matching sigs. 3) Sanity check rook/sentinel moves count and that records/log match moves. 4) Run one-case.sh rook/sentinel and confirm ok true.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nimport re\np=Path('/app/internal/f5/run.go')\ns=p.read_text().splitlines(True)\nout=[]\nfor i,line in enumerate(s):\n    out.append(line)\n    if line.strip()=='applyWorld(w, blob)':\n        out.append('        // Recompute lighting/visibility at the load boundary so planning matches the fresh path.\\n')\n        out.append('        w.Turn = blob.Turn\\n')\n        out.append('        e4.ApplyLit(w, radius, blindActive(w))\\n')\n        \nPath('/app/internal/f5/run.go').write_text(''.join(out))\nprint('inserted ApplyLit after applyWorld')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go build -o /app/bin/rogctl /app/cmd/rogctl/main.go\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/resume-audit.json') as f: data=json.load(f)\nfor c in data['cases']:\n    name=c['name']\n    ok=c['ok']\n    fi=c['fresh']['illegal']; ri=c['resume']['illegal']\n    fs=c['fresh']['sig']; rs=c['resume']['sig']\n    vis=c['visibility']\n    print(f\"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, itertools\nwith open('/app/output/resume-audit.json') as f: data=json.load(f)\nfor name in ['rook','sentinel']:\n    c=[x for x in data['cases'] if x['name']==name][0]\n    print('\\n==',name,'== ok',c['ok'])\n    print('moves:', c['moves'])\n    print('records:')\n    with open(c['records']) as f:\n        for line in itertools.islice(f,0,5):\n            if line.strip(): print(line.strip())\n    print('log:')\n    with open(c['log']) as f:\n        for line in itertools.islice(f,0,5):\n            if line.strip(): print(line.strip())\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh rook\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh sentinel\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}

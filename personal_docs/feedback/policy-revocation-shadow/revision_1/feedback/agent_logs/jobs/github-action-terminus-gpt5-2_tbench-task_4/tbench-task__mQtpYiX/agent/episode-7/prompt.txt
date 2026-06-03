@@ -1,0 +1,55 @@
+New Terminal Output:
+
+root@24eb2121bd3c:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> cd /app
+> mkdir -p /app/output
+>
+> if command -v cargo >/dev/null 2>&1; then
+>   runner=(cargo run --offline --quiet --)
+> elif [ -x /app/target/debug/pollab ]; then
+>   runner=(/app/target/debug/pollab)
+> else
+>   echo "error: neither cargo nor /app/target/debug/pollab is available" >&2
+>   exit 1
+> fi
+>
+> "${runner[@]}" \
+>   /app/output/policy-audit.json \
+>   /app/traces/alpha.trace \
+>   /app/traces/beta.trace \
+>   /app/traces/gamma.trace \
+>   /app/traces/delta.trace \
+>   /app/traces/epsilon.trace \
+>   /app/traces/zeta.trace
+> EOF
+root@24eb2121bd3c:/app# chmod +x /app/scripts/run-matrix.sh
+root@24eb2121bd3c:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> cd /app
+> mkdir -p /app/output
+> case_name="${1:-alpha}"
+>
+> if command -v cargo >/dev/null 2>&1; then
+>   cargo run --offline --quiet -- "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> elif [ -x /app/target/debug/pollab ]; then
+>   /app/target/debug/pollab "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> else
+>   echo "error: neither cargo nor /app/target/debug/pollab is available" >&2
+>   exit 1
+> fi
+> EOF
+root@24eb2121bd3c:/app# chmod +x /app/scripts/run-one.sh
+root@24eb2121bd3c:/app# bash /app/scripts/run-matrix.sh
+root@24eb2121bd3c:/app# ls -la /app/output && sha256sum /app/output/policy-audit.json
+total 4
+drwxr-xr-x  2 root root   31 May 25 11:37 .
+drwxr-xr-x 18 root root  245 May 25 11:30 ..
+-rw-r--r--  1 root root 3670 May 25 11:37 policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@24eb2121bd3c:/app# sha256sum /app/output/policy-audit.json; bash /app/scripts/run-matrix.sh >/dev/null 2>&1; sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@24eb2121bd3c:/app#

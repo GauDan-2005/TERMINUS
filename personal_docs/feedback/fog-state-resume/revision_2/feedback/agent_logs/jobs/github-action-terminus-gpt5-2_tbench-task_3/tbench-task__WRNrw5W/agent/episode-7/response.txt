@@ -1,0 +1,39 @@
+{
+  "analysis": "apply_patch is not available, so our intended code change did not apply. The rebuilt binary therefore still generates duplicated moves in JSON for rook/ranger/sentinel. We need to edit internal/exec/run.go using available editors/tools (sed/perl/heredoc) to implement the fix: stop concatenating fresh+resume into allMoves, update ok to include visibility match, and ensure sidecars are written from canonical moves. After editing, rebuild and rerun matrix, then verify duplicates gone and ok=true.",
+  "plan": "1) Use perl -0777 -pi or sed to modify internal/exec/run.go: replace the allMoves assignment with fresh-only, and update ok expression accordingly. 2) Confirm the file contains the new code via grep/sed. 3) Rebuild and rerun run-matrix.sh. 4) Recheck resume-audit.json for any duplicated moves and visibility mismatches; list any failing cases.",
+  "commands": [
+    {
+      "keystrokes": "grep -n \"allMoves :=\" -n /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -pi -e 's/allMoves := append\\(append\\(\\[]MoveRow\\{\\}, freshMoves\\.\\.\\.\\), resumeMoves\\.\\.\\.\\)/\\/\\/ The audit compares fresh vs resume internally, but the case output (and\\n\\/\\/ the records\\/log sidecars) must reflect a single resolved move stream in\\n\\/\\/ order, not a concatenation of both paths.\\n\\/\\/\\n\\/\\/ Using a single canonical stream also avoids spurious duplicates when the\\n\\/\\/ fresh and resumed runs agree (the expected clean state).\\nallMoves := append(\\[]MoveRow\\{}, freshMoves\\.\\.\\.)/s' /app/internal/exec/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "perl -0777 -pi -e 's/ok := freshIllegal == 0 && resumeIllegal == 0 && fresh\\.Sig == resume\\.Sig/ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig &&\\n\\t\\tvis.CountSeen(wFresh) == vis.CountSeen(wResume)/s' /app/internal/exec/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '250,320p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -C /app\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, collections\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\nprint('cases', len(d['cases']))\nbad=[c for c in d['cases'] if not c.get('ok')]\nprint('bad', len(bad))\nfor c in bad:\n    print('FAIL', c['name'], 'vis', c.get('visibility'), 'fresh', c['fresh'], 'resume', c['resume'])\nfor c in d['cases']:\n    moves=c.get('moves',[])\n    key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'),m.get('legal'))\n    ctr=collections.Counter(key(m) for m in moves)\n    if any(v>1 for v in ctr.values()):\n        print('DUPS_IN_JSON', c['name'], 'total', len(moves), 'unique', len(ctr))\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print('VIS_MISMATCH', c['name'], vis)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "echo '--- rook records'; cat /app/workspace/rook/records.jsonl; echo '--- rook trace'; cat /app/workspace/rook/trace.tsv\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

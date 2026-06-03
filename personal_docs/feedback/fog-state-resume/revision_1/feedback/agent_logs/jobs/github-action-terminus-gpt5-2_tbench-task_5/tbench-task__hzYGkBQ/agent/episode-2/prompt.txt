@@ -1,0 +1,240 @@
+New Terminal Output:
+
+root@81dea2c5d812:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> by={c['name']:c for c in data['cases']}
+> for name in ['rook','sentinel']:
+>     print('\n===== ',name,' =====')
+>     print(json.dumps(by[name], indent=2, sort_keys=True))
+> PY
+
+=====  rook  =====
+{
+  "effects": [],
+  "fresh": {
+    "illegal": 0,
+    "sig": "7d3f56fa",
+    "steps": 1
+  },
+  "log": "/app/workspace/rook/trace.tsv",
+  "moves": [
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 3
+    },
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 2
+    }
+  ],
+  "name": "rook",
+  "ok": false,
+  "records": "/app/workspace/rook/records.jsonl",
+  "resume": {
+    "illegal": 0,
+    "sig": "24ebc3c9",
+    "steps": 1
+  },
+  "visibility": {
+    "fresh_seen": 9,
+    "resume_seen": 8
+  }
+}
+
+=====  sentinel  =====
+{
+  "effects": [
+    {
+      "active": true,
+      "epoch": 7,
+      "id": "ward"
+    }
+  ],
+  "fresh": {
+    "illegal": 0,
+    "sig": "9a98d68",
+    "steps": 1
+  },
+  "log": "/app/workspace/sentinel/trace.tsv",
+  "moves": [
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 5
+    },
+    {
+      "actor": "1",
+      "from_x": 3,
+      "from_y": 3,
+      "kind": "step",
+      "legal": true,
+      "to_x": 3,
+      "to_y": 2,
+      "turn": 4
+    }
+  ],
+  "name": "sentinel",
+  "ok": false,
+  "records": "/app/workspace/sentinel/records.jsonl",
+  "resume": {
+    "illegal": 0,
+    "sig": "691e8e87",
+    "steps": 1
+  },
+  "visibility": {
+    "fresh_seen": 9,
+    "resume_seen": 8
+  }
+}
+root@81dea2c5d812:/app# echo '--- rook records.jsonl ---'; sed -n '1,120p' /app/workspace/rook/records.jsonl; echo '--- rook trace.tsv ---'; sed -n '1,120p' /ap
+p/workspace/rook/trace.tsv
+--- rook records.jsonl ---
+{"turn":3,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":2,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+--- rook trace.tsv ---
+rook    3       1       3       3       3       2       true
+rook    2       1       3       3       3       2       true
+root@81dea2c5d812:/app# echo '--- sentinel records.jsonl ---'; sed -n '1,120p' /app/workspace/sentinel/records.jsonl; echo '--- sentinel trace.tsv ---'; sed -n
+'1,120p' /app/workspace/sentinel/trace.tsv
+--- sentinel records.jsonl ---
+{"turn":5,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+{"turn":4,"actor":"1","from_x":3,"from_y":3,"to_x":3,"to_y":2,"kind":"step","legal":true}
+--- sentinel trace.tsv ---
+sentinel        5       1       3       3       3       2       true
+sentinel        4       1       3       3       3       2       true
+root@81dea2c5d812:/app# python3 - <<'PY'
+> import json, csv
+>
+> def load_audit_case(name):
+>     with open('/app/output/resume-audit.json') as f:
+>         data=json.load(f)
+>     for c in data['cases']:
+>         if c['name']==name:
+>             return c
+>     raise SystemExit('missing case')
+>
+> def load_jsonl(path):
+>     rows=[]
+>     with open(path) as f:
+>         for line in f:
+>             line=line.strip()
+>             if not line: continue
+>             rows.append(json.loads(line))
+>     return rows
+>
+> def load_tsv(path):
+>     rows=[]
+>     with open(path, newline='') as f:
+>         for line in f:
+>             line=line.strip()
+>             if not line: continue
+>             rows.append(line.split())
+>     return rows
+>
+> def norm_move(m):
+>     return {
+>         'turn': int(m['turn']),
+>         'actor': str(m['actor']),
+>         'from_x': int(m['from_x']),
+>         'from_y': int(m['from_y']),
+>         'to_x': int(m['to_x']),
+>         'to_y': int(m['to_y']),
+>         'kind': m['kind'],
+>         'legal': bool(m['legal']),
+>     }
+>
+> def norm_rec(r):
+>     # accept either move-like dicts or wrapper dicts with 'move'
+>     if 'move' in r and isinstance(r['move'], dict):
+>         r=r['move']
+>     keys=['turn','actor','from_x','from_y','to_x','to_y','kind','legal']
+>     return {k: (int(r[k]) if k in ['turn','from_x','from_y','to_x','to_y'] else (bool(r[k]) if k=='legal' else str(r[k]) if k=='actor' else r[k])) for k in ke
+ys}
+>
+> def norm_tsv(cols):
+>     # expected order: turn actor from_x from_y to_x to_y kind legal
+>     turn,actor,fx,fy,tx,ty,kind,legal = cols[:8]
+>     return {'turn':int(turn),'actor':str(actor),'from_x':int(fx),'from_y':int(fy),'to_x':int(tx),'to_y':int(ty),'kind':kind,'legal': legal.lower() in ('1','tr
+ue','t','yes')}
+>
+> for name in ['rook','sentinel']:
+>     c=load_audit_case(name)
+>     audit=[norm_move(m) for m in c['moves']]
+>     recs=[norm_rec(r) for r in load_jsonl(c['records'])]
+>     tsv=[norm_tsv(r) for r in load_tsv(c['log'])]
+>     print('\n==',name,'==')
+>     print('audit moves:', audit)
+>     print('records rows:', recs)
+>     print('tsv rows:', tsv)
+>     print('audit==records?', audit==recs)
+>     print('audit==tsv?', audit==tsv)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 57, in <module>
+  File "<stdin>", line 51, in norm_tsv
+ValueError: invalid literal for int() with base 10: 'rook'
+root@81dea2c5d812:/app# bash /app/scripts/one-case.sh rook
+root@81dea2c5d812:/app# bash /app/scripts/one-case.sh sentinel
+root@81dea2c5d812:/app# python3 - <<'PY'
+> import json
+>
+> def load_one(path):
+>     with open(path) as f: d=json.load(f)
+>     return d['cases'][0]
+>
+> def load_matrix(name):
+>     with open('/app/output/resume-audit.json') as f: d=json.load(f)
+>     for c in d['cases']:
+>         if c['name']==name: return c
+>
+> for name in ['rook','sentinel']:
+>     one=load_one(f'/app/output/single-{name}.json')
+>     mat=load_matrix(name)
+>     print('\n==== compare',name,'====')
+>     for k in ['ok','fresh','resume','visibility','effects','moves','records','log']:
+>         same = one.get(k)==mat.get(k)
+>         print(f'{k}:', 'SAME' if same else 'DIFF')
+>         if not same:
+>             print('  matrix:', mat.get(k))
+>             print('  single:', one.get(k))
+> PY
+
+==== compare rook ====
+ok: SAME
+fresh: SAME
+resume: SAME
+visibility: SAME
+effects: SAME
+moves: SAME
+records: SAME
+log: SAME
+
+==== compare sentinel ====
+ok: SAME
+fresh: SAME
+resume: SAME
+visibility: SAME
+effects: SAME
+moves: SAME
+records: SAME
+log: SAME
+root@81dea2c5d812:/app#

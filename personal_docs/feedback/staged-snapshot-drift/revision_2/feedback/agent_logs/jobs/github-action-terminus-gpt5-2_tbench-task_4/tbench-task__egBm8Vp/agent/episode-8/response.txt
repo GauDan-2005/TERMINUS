@@ -1,0 +1,35 @@
+{
+  "analysis": "Hardlinks are not being recreated: in beta restored, shared files have distinct inodes and nlink=1. In Materialize, linking uses d3.KeyFor(row, profile). KeyFor incorrectly returns row.Path for (Restart && Dense), which is exactly the cases beta and zeta. That defeats grouping by inode/dev and prevents hardlink restoration. Also b1.FoldRows reverses order when Restart && Ordered, which breaks gamma (and zeta) by replaying writes/removes in reverse, causing final content mismatch. We must fix: d3.KeyFor should always key by (Dev,Ino) for regular files to restore hardlinks; and b1.FoldRows should not reverse row order—should keep increasing Seq order so last write wins and remove/write sequence works.",
+  "plan": "1) Patch internal/d3/pair.go KeyFor: remove the special-case returning row.Path; always return fmt.Sprintf(\"%d:%d\", row.Dev, row.Ino). (If Dev/Ino zero, fallback to Path.) 2) Patch internal/b1/replay.go FoldRows: remove reversal behavior; simply stable-sort by Seq and return. 3) gofmt, go test. 4) Rerun run-matrix.sh. 5) Re-summarize audit; additionally confirm beta/zeta restored groups now match and gamma digest matches.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's/func KeyFor\\(row f5\\.Row, profile f5\\.Profile\\) string \\{.*?\\n\\}/func KeyFor(row f5.Row, profile f5.Profile) string {\\n\\t// Hardlink identity must be stable across restarts/dense cases; use device+inode\\n\\t// captured from the source tree so the restore can recreate link groups.\\n\\tif row.Dev == 0 && row.Ino == 0 {\\n\\t\\treturn row.Path\\n\\t}\\t\\n\\tkey := tokenX(fmt.Sprintf(\"%d:%d\", row.Dev, row.Ino))\\n\\tstate := &nodeX{}\\n\\t_ = bind_d(state, key)\\n\\treturn string(key)\\n}\\n/s' internal/d3/pair.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/func FoldRows\\(rows \\[\\]f5\\.Row, profile f5\\.Profile\\) \\(\\[\\]f5\\.Row, error\\) \\{.*?\\n\\}/func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {\\n\\t// Replay must preserve increasing Seq order so that later writes/removes win.\\n\\t// Restart scenarios are exercised by the data itself; do not reverse rows.\\n\\treturn fold_b(rows, 0)\\n}\\n/s' internal/b1/replay.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gofmt -w internal/d3/pair.go internal/b1/replay.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go test ./...\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/restore-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    d=c.get('digest',{})\n    print(f\"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,os\nwith open('/app/output/restore-audit.json') as f: data=json.load(f)\nfor name in ['beta','zeta','gamma']:\n    c=next(x for x in data['cases'] if x['name']==name)\n    print('\\n',name,'ok',c['ok'])\n    print('groups src',c['groups']['source'])\n    print('groups rst',c['groups']['restored'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

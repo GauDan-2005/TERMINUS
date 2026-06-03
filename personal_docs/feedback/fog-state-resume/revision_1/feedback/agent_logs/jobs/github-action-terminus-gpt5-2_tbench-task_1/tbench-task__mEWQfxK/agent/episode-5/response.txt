@@ -1,0 +1,27 @@
+{
+  "analysis": "RunRow computes freshMoves via runDirect and resumeMoves via runLoaded, then sets PathSummary.Sig using sigFor(freshMoves) and sigFor(resumeMoves). ok requires fresh.Sig==resume.Sig, which currently fails for rook/sentinel even though move rows appear identical in the output. Therefore sigFor is likely nondeterministic (e.g., iterating over a map) or incorporates hidden state not reflected in MoveRow, leading to different hashes between fresh/resume. Next step: locate sigFor implementation and inspect how it computes signatures.",
+  "plan": "1) Search for sigFor definition in internal/f5 (and elsewhere). 2) Inspect it for map iteration / nondeterminism / inclusion of world state. 3) Patch sigFor to deterministically hash only the move list contents in canonical order, e.g., JSON marshal each MoveRow with fixed field order or manual fmt string, then sha256 and truncate. 4) Rebuild and rerun one-case rook and sentinel, then full matrix.",
+  "commands": [
+    {
+      "keystrokes": "grep -RIn \"func sigFor\" /app/internal 2>/dev/null\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"sigFor\\(\" /app/internal 2>/dev/null | head -n 200\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/f5/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/internal/f5\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/f5/types.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

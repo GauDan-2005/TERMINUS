@@ -1,0 +1,23 @@
+{
+  "analysis": "We are at a shell prompt in /app with no commands run yet in this session. The task is to repair resume-audit mismatches by running the matrix, inspecting /app/output/resume-audit.json to find failing cases, then reproducing with one-case, and finally locating/fixing nondeterminism or resume-state divergence in the engine code (likely in /app/internal/sim and related config/script loading). Next step is to run the matrix to generate the audit JSON, then summarize failures and pick a representative failing case to reproduce with one-case and compare outputs.",
+  "plan": "1) Run the matrix script to generate /app/output/resume-audit.json. 2) Use jq to list failing cases and what aspect fails (ok=false, signature mismatch, illegal moves, ordering differences). 3) Pick one failing case name and run one-case to generate /app/output/single-<case>.json. 4) Inspect the JSON for fresh vs resume differences to guide code investigation in /app/internal/sim (especially resume serialization/deserialization, RNG, map/script/config iteration order).",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "jq -r '.cases[] | select(.ok==false) | [.case, (.fresh.summary.illegal|tostring), (.resume.summary.illegal|tostring), (.fresh.summary.signature==.resume.summary.signature|tostring)] | @tsv' /app/output/resume-audit.json | sed -n '1,200p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq -r '.cases[] | select(.ok==false) | .case' /app/output/resume-audit.json | head -n 1\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

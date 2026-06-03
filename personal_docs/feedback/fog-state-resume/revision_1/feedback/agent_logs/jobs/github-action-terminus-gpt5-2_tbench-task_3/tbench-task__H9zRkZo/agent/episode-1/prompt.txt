@@ -1,0 +1,101 @@
+New Terminal Output:
+root@ddf480d0dc66:/app# bash /app/scripts/run-matrix.sh
+root@ddf480d0dc66:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root   31 May 25 15:59 .
+drwxr-xr-x 12 root root  188 May 25 15:59 ..
+-rw-r--r--  1 root root 4047 May 25 15:59 resume-audit.json
+root@ddf480d0dc66:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: a=json.load(f)
+> print('cases:', len(a.get('cases',[])))
+> for c in a.get('cases',[]):
+>     name=c.get('name')
+>     ok=c.get('ok')
+>     fresh=c.get('fresh',{})
+>     resume=c.get('resume',{})
+>     print(f"{name:9} ok={ok} fresh(illegal={fresh.get('illegal')}, steps={fresh.get('steps')}, sig={fresh.get('sig')}) resume(illegal={resume.get('illegal')},
+ steps={resume.get('steps')}, sig={resume.get('sig')})")
+> PY
+cases: 6
+bishop    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5)
+knight    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5)
+lancer    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5)
+rook      ok=False fresh(illegal=0, steps=1, sig=7d3f56fa) resume(illegal=0, steps=1, sig=24ebc3c9)
+sentinel  ok=False fresh(illegal=0, steps=1, sig=9a98d68) resume(illegal=0, steps=1, sig=691e8e87)
+warden    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5)
+root@ddf480d0dc66:/app# python3 - <<'PY'
+> import json, pathlib
+> p=pathlib.Path('/app/output/resume-audit.json')
+> a=json.loads(p.read_text())
+> for c in a['cases']:
+>     if not c.get('ok') or c.get('fresh',{}).get('illegal') or c.get('resume',{}).get('illegal'):
+>         print('\n==', c['name'], '==')
+>         print('ok:', c.get('ok'))
+>         print('records:', c.get('records'))
+>         print('log:', c.get('log'))
+>         print('fresh:', c.get('fresh'))
+>         print('resume:', c.get('resume'))
+>         print('moves:', len(c.get('moves',[])))
+>         bad=[m for m in c.get('moves',[]) if not m.get('legal',True)]
+>         print('illegal moves:', len(bad))
+>         if bad:
+>             print('first illegal:', bad[0])
+> PY
+
+== rook ==
+ok: False
+records: /app/workspace/rook/records.jsonl
+log: /app/workspace/rook/trace.tsv
+fresh: {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+resume: {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}
+moves: 2
+illegal moves: 0
+
+== sentinel ==
+ok: False
+records: /app/workspace/sentinel/records.jsonl
+log: /app/workspace/sentinel/trace.tsv
+fresh: {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+resume: {'sig': '691e8e87', 'illegal': 0, 'steps': 1}
+moves: 2
+illegal moves: 0
+root@ddf480d0dc66:/app# python3 - <<'PY'
+> import json, pathlib
+> from itertools import islice
+> p=pathlib.Path('/app/output/resume-audit.json')
+> a=json.loads(p.read_text())
+> for c in a['cases']:
+>     rec=c.get('records'); log=c.get('log')
+>     if not rec or not log: continue
+>     recp=pathlib.Path(rec)
+>     logp=pathlib.Path(log)
+>     if not (recp.exists() and logp.exists()):
+>         print(c['name'], 'missing', recp.exists(), logp.exists())
+>         continue
+>     rec_rows=[json.loads(line) for line in recp.read_text().splitlines() if line.strip()]
+>     log_rows=[line.split() for line in logp.read_text().splitlines() if line.strip()]
+>     moves=c.get('moves',[])
+>     if len(rec_rows)!=len(moves) or len(log_rows)!=len(moves):
+>         print(c['name'], 'rowcount mismatch', len(moves), len(rec_rows), len(log_rows))
+>         continue
+>     # spot-check first differing entry by turn/side/from/to/kind/legal if present
+>     def norm_move(m):
+>         keys=['turn','side','from','to','kind','legal']
+>         out={k:m.get(k) for k in keys}
+>         # allow side to be id or object
+>         if isinstance(out['side'], dict) and 'id' in out['side']:
+>             out['side']=out['side']['id']
+>         return out
+>     # records may store same structure
+>     for i,(m,r) in enumerate(zip(moves,rec_rows)):
+>         if norm_move(m)!=norm_move(r):
+>             print(c['name'], 'records mismatch at', i)
+>             print('move', norm_move(m))
+>             print('rec ', norm_move(r))
+>             break
+> PY
+root@ddf480d0dc66:/app# rg -n "resume|checkpoint|audit|visibility|fov|line of sight|blocked|collision|legal" /app -S
+bash: rg: command not found
+root@ddf480d0dc66:/app#

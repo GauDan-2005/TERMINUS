@@ -1,0 +1,51 @@
+{
+  "analysis": "allocctl runs successfully and already produces /app/output/alloc-audit.json plus ledger JSONL files for all six cases, and run-one writes /app/output/<case>-audit.json. So the failure is not absence of files but likely schema/consistency drift: ok flags false, mismatched signatures/tallies vs ledger, nondeterminism between runs, or incorrect combined audit. Next we must validate the produced JSON against the stated rules and check determinism by running matrix twice and diffing. We also lack basic tooling like `file`, so we should use available tools (jq maybe) or Python to validate structure and consistency.",
+  "plan": "1) Inspect alloc-audit.json structure and per-case fields; check which cases have ok=false and what mismatches exist. 2) Use a small Python validator to assert required keys, steps/ledger length match, ledger path exists, and step signature/tally fields match case surfaces. 3) Run matrix twice in a clean room and compare resulting JSON for equivalence (canonicalize with Python sort keys) to detect nondeterminism. 4) If validator finds issues, then we’ll locate the harness source in /app/src and patch; for now we need evidence of the drift.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, pathlib\np=pathlib.Path('/app/output/alloc-audit.json')\nprint('exists',p.exists(),'size',p.stat().st_size)\nobj=json.loads(p.read_text())\nprint(obj.keys())\nprint('cases',len(obj.get('cases',[])))\nfor c in obj.get('cases',[]):\n    print(c.get('name'), 'ok=',c.get('ok'), 'steps=', len(c.get('steps',[])), 'ledger=', c.get('ledger'))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, pathlib\nREQ_CASE_KEYS={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}\nREQ_STEP_KEYS={'op','heap_sig','fl_count','fl_sig','byte_total'}\nroot=pathlib.Path('/app/output')\nobj=json.loads((root/'alloc-audit.json').read_text())\nerrs=[]\nfor case in obj.get('cases',[]):\n    missing=REQ_CASE_KEYS-set(case.keys())\n    if missing:\n        errs.append((case.get('name'),f'missing case keys {sorted(missing)}'))\n        continue\n    ledger_path=root/case['ledger'] if not str(case['ledger']).startswith('/') else pathlib.Path(case['ledger'])\n    if not ledger_path.exists():\n        errs.append((case['name'],f'ledger missing {ledger_path}'))\n        continue\n    steps=case['steps']\n    ledger_lines=ledger_path.read_text().splitlines()\n    if len(steps)!=len(ledger_lines):\n        errs.append((case['name'],f'steps ({len(steps)}) != ledger lines ({len(ledger_lines)})'))\n    # check step keys and that ledger row surfaces match step surfaces\n    for i,s in enumerate(steps):\n        m=REQ_STEP_KEYS-set(s.keys())\n        if m:\n            errs.append((case['name'],f'step {i} missing keys {sorted(m)}'))\n            break\n        try:\n            row=json.loads(ledger_lines[i])\n        except Exception as e:\n            errs.append((case['name'],f'bad ledger json line {i}: {e}'))\n            break\n        for k in ['heap_sig','fl_count','fl_sig','byte_total']:\n            if row.get(k)!=s.get(k):\n                errs.append((case['name'],f'mismatch at step {i} field {k}: step={s.get(k)} ledger={row.get(k)}'))\n                break\n        else:\n            continue\n        break\n    # final step should match case summary surfaces\n    if steps:\n        last=steps[-1]\n        for k in ['heap_sig','fl_count','fl_sig','byte_total']:\n            if last.get(k)!=case.get(k):\n                errs.append((case['name'],f'case summary {k} != last step: case={case.get(k)} last={last.get(k)}'))\n                break\nprint('errors',len(errs))\nfor e in errs[:50]:\n    print('ERR',e[0],e[1])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/bin/allocctl matrix\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, hashlib, pathlib\np=pathlib.Path('/app/output/alloc-audit.json')\nobj=json.loads(p.read_text())\ncanon=json.dumps(obj, sort_keys=True, separators=(',',':')).encode()\nprint('sha256',hashlib.sha256(canon).hexdigest())\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/bin/allocctl matrix\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, hashlib, pathlib\nfor i in [1,2]:\n    p=pathlib.Path(f'/tmp/alloc-audit.{i}.json')\n    obj=json.loads(p.read_text())\n    canon=json.dumps(obj, sort_keys=True, separators=(',',':')).encode()\n    print(i, hashlib.sha256(canon).hexdigest())\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, difflib\nimport pathlib\nj1=json.loads(pathlib.Path('/tmp/alloc-audit.1.json').read_text())\nj2=json.loads(pathlib.Path('/tmp/alloc-audit.2.json').read_text())\n# compare canonical strings for readable diff head\ns1=json.dumps(j1, sort_keys=True, indent=2)\ns2=json.dumps(j2, sort_keys=True, indent=2)\nd=list(difflib.unified_diff(s1.splitlines(), s2.splitlines(), lineterm=''))\nprint('\\n'.join(d[:120]))\nprint('diff_lines',len(d))\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,31 @@
+{
+  "analysis": "The audit JSON is produced, but it violates the contract: 3 cases are not finished/ok and have pending records (cobalt/ember/graphite). Also, for every case the journal does not match trace: trace parent field uses \"-\" string while journal uses None for '-' and also journal ordering/content appears different (first journal row is not the first trace row). That suggests (a) trace records may be using parent '-' instead of null, and (b) journal writing is not using the accepted trace order (maybe writing arrivals or per-lane order) and/or writing a different set (possibly pending). We need to inspect source code for audit emission and acceptance loop to fix: ensure run completes (no stalled pending), cancelled branches removed with descendants, CAP/turn selection correct, dedup of logical child entries, and ensure trace/ledger/journal are the same ordered accepted records with parent=null for root.",
+  "plan": "1) Open src/main.rs and library modules to locate executor loop and audit writer. 2) Inspect types for Record/Audit and how parent is represented/serialized and written to journal. 3) Identify why some cases stall (pending remains) and fix acceptance algorithm per turn, lane order, CAP overflow handling, cancellation/descendant removal, and dedup. 4) Fix journal writer to emit exactly the accepted trace order and use '-' only in journal text (not in JSON), while JSON uses null for no parent. 5) Rebuild and rerun run-matrix.sh, then re-run python validation checks.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/src/lib.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/types_f/types.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/types_f/serde.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rg -n \"audit|ledger|journal|pending|trace|accept\" /app/src /app/core_a /app/flow_e /app/gate_c /app/drive_g /app/read_h /app/spill_i /app/book_b /app/host_d /app/mirror_j /app/note_k /app/types_f\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/output/runtime && find /app/output/runtime -maxdepth 3 -type f -print\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

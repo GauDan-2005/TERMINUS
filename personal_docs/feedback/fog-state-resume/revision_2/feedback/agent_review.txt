@@ -1,0 +1,105 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ⚠️ WARNING
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task presents a turn-based roguelike grid engine written in Go that has
+bugs causing save/resume audit mismatches. The agent must diagnose and repair
+multiple code defects (fog-of-war visibility, save serialization, effect expiry,
+path planning, and hostile step ordering) so the matrix run across seven
+bundled scenarios produces a clean audit. The test suite invokes the engine's
+matrix runner and validates per-case correctness including move legality, tile
+visibility, modifier state, and sidecar alignment.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Installed in Dockerfile
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 20-22)
+Problem: pytest==8.4.1 and pytest-json-ctrf==0.3.5 are installed in the Docker
+         image. These are test-only dependencies that the agent's solution does
+         not need. Best practice is to install them in test.sh instead.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN python -m pip install --no-cache-dir \                                 │
+│      pytest==8.4.1 \                                                        │
+│      pytest-json-ctrf==0.3.5                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Suggested fix: Remove these lines from the Dockerfile and install them in
+tests/test.sh before running pytest:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  pip install pytest==8.4.1 pytest-json-ctrf==0.3.5                          │
+│  python -m pytest ...                                                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Test-only packages in the image unnecessarily bloat the agent's
+environment and leak information about the verification framework. While the
+agent is unlikely to exploit pytest for cheating here, this deviates from the
+standard pattern where test.sh is self-contained.
+
+--------------------------------------------------------------------------------
+2. Terse Task Instructions
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 1-6)
+Problem: The instructions are only 6 lines and heavily rely on the agent reading
+         source code to understand what "clean" means and what needs fixing. Key
+         debugging entry points (which modules are broken, symptom details) are
+         absent.
+
+Current approach: The instructions mention the audit structure and cleanliness
+criteria but do not describe symptoms of the bugs or hint at which subsystems
+are affected.
+
+Suggested fix: While acceptable for a "hard" task, adding 2-3 sentences about
+observable symptoms (e.g., "visibility counts diverge after restore" or
+"effect expiry is off-by-one") would improve clarity without reducing
+difficulty.
+
+Explanation: Agents need sufficient context to form a debugging hypothesis.
+Extremely terse prompts risk conflating task difficulty with instruction
+ambiguity, which penalizes comprehension rather than engineering skill.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-constructed hard debugging task that tests deep code
+comprehension across a multi-module Go codebase. The solution involves five
+distinct bug fixes spanning serialization, visibility, scheduling, and
+path-planning — a realistic and challenging workload.
+
+Key Strengths:
+  ✓ Rich multi-module Go codebase with realistic fog-of-war engine design
+  ✓ Comprehensive test suite (9 test functions) with clear docstrings and
+    parametrized coverage across all seven scenarios
+  ✓ Strong anti-cheating posture: agent must understand and fix Go code,
+    cannot shortcut via data file edits or output hardcoding
+
+Key Weaknesses:
+  ✗ Test dependencies baked into the Docker image rather than test.sh
+  ✗ Instructions are very terse for the scope of debugging required
+
+Evaluates: Go debugging and code comprehension, save/restore state management,
+           fog-of-war/visibility algorithms, multi-file codebase navigation
+
+================================================================================
+  RECOMMENDATION: ⚠️ NEEDS REVISION
+
+  Move pytest installation from Dockerfile to test.sh to follow the standard
+  pattern. Consider slightly expanding instructions to describe observable
+  symptoms. Neither issue blocks functionality, but both deviate from
+  Terminal-Bench best practices.
+================================================================================

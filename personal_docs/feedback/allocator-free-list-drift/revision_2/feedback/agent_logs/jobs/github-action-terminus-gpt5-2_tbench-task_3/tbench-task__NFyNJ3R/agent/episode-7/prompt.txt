@@ -1,0 +1,219 @@
+New Terminal Output:
+
+root@ae6ae9e1ef3c:/app# perl -0777 -i -pe 's/a->stats\.live_blocks\+\+;\n\s*memset\(/a->stats.live_blocks++;\n    a->stats.allocated += req;\n    if (a->stats.a
+llocated > a->stats.peak) {\n        a->stats.peak = a->stats.allocated;\n    }\n    memset(/s' /app/src/alloc_ops.c
+root@ae6ae9e1ef3c:/app# perl -0777 -i -pe 's/\n#include "\.\.\/acct_e\/acct\.h"\n/\n/sg; s/\n\s*size_t total = tag_read_size\(&b\);\n\s*z_set_flag\(&b, 0\);\n\s
+*xd3\(&a->stats, -\(ssize_t\)total\);/\n    (void)tag_read_size(&b);\n    z_set_flag(&b, 0);\n    a->stats.allocated -= a->slot_payload[idx];/sg; s/a->slot_live
+\[idx\] = 0;\n\s*list_coalesce/a->slot_live[idx] = 0;\n    a->slot_payload[idx] = 0;\n    list_coalesce/sg' /app/src/free_ops.c
+root@ae6ae9e1ef3c:/app# perl -0777 -i -pe 's/#include "\.\.\/acct_e\/acct\.h"\n//sg; s/\n\s*z_set_flag\(oldb, 0\);\n\s*xd3\(&a->stats, -\(ssize_t\)old_total\);\
+n\s*mark_c\(a, oldb, req\);\n\s*xd3\(&a->stats, \(ssize_t\)need\);\n\s*a->slot_payload\[idx\] = req;/\n    // Update payload accounting by delta; heap bookkeepi
+ng is handled by mark_c\/coalesce.\n    {\n        size_t old_pay = a->slot_payload[idx];\n        a->slot_payload[idx] = req;\n        if (req > old_pay) a->st
+ats.allocated += (req - old_pay);\n        else a->stats.allocated -= (old_pay - req);\n        if (a->stats.allocated > a->stats.peak) a->stats.peak = a->stats
+.allocated;\n    }/sg; s/\n\s*xd3\(&a->stats, \(ssize_t\)ntotal\);\n/\n/sg; s/\n\s*z_set_flag\(oldb, 0\);\n\s*xd3\(&a->stats, -\(ssize_t\)merged\);\n\s*mark_c\(
+a, oldb, req\);\n\s*xd3\(&a->stats, \(ssize_t\)need\);/\n        mark_c(a, oldb, req);/sg; s/\n\s*a->slot_payload\[idx\] = req;\n\s*return idx;/\n    {\n
+ size_t old_pay = a->slot_payload[idx];\n        a->slot_payload[idx] = req;\n        if (req > old_pay) a->stats.allocated += (req - old_pay);\n        else a-
+>stats.allocated -= (old_pay - req);\n        if (a->stats.allocated > a->stats.peak) a->stats.peak = a->stats.allocated;\n    }\n    return idx;/sg; s/\n\s*xd3
+\(&a->stats, \(ssize_t\)need\);\n/\n    // alloc path accounts payload in alloc_ops.c\n/sg' /app/src/slot_split.c
+Backslash found where operator expected (Missing operator before "\"?) at -e line 1, near "c\"
+syntax error at -e line 1, near "c\"
+Execution of -e aborted due to compilation errors.
+root@ae6ae9e1ef3c:/app# sed -n '1,140p' /app/src/free_ops.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+int arena_slot_free(Arena *a, int idx) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block b;
+    b.base = a->mem;
+    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    (void)tag_read_size(&b);
+    z_set_flag(&b, 0);
+    a->stats.allocated -= a->slot_payload[idx];
+    a->stats.live_blocks--;
+    a->slot_live[idx] = 0;
+    a->slot_payload[idx] = 0;
+    list_coalesce(a, &b);
+    return 0;
+}
+root@ae6ae9e1ef3c:/app# sed -n '1,120p' /app/src/alloc_ops.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need);
+void slot_take_whole(Arena *a, Block *fit, size_t total);
+
+static Block make_blk(Arena *a, size_t off) {
+    Block b;
+    b.base = a->mem;
+    b.off = off;
+    return b;
+}
+
+static Block *find_fit(Arena *a, size_t need) {
+    size_t cur = a->fl_head.off;
+    static Block pick;
+    while (cur != FL_END) {
+        Block b = make_blk(a, cur);
+        size_t total = tag_read_size(&b);
+        if (total >= need) {
+            pick = b;
+            return &pick;
+        }
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return NULL;
+}
+
+int arena_slot_alloc(Arena *a, size_t req) {
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    Block *fit = find_fit(a, need);
+    size_t total;
+    int idx;
+    if (!fit) {
+        return -1;
+    }
+    total = tag_read_size(fit);
+    if (total >= need + MIN_BLK) {
+        slot_take_split(a, fit, req, need);
+    } else {
+        slot_take_whole(a, fit, total);
+    }
+    idx = a->slot_count++;
+    if (idx >= MAX_SLOTS) {
+        return -1;
+    }
+    a->slots[idx] = fit->base + fit->off + HDR_SIZE;
+    a->slot_payload[idx] = req;
+    a->slot_live[idx] = 1;
+    a->stats.live_blocks++;
+    a->stats.allocated += req;
+    if (a->stats.allocated > a->stats.peak) {
+        a->stats.peak = a->stats.allocated;
+    }
+    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+    return idx;
+}
+root@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/src/slot_split.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+    size_t old_total = tag_read_size(oldb);
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (old_total < need + MIN_BLK) {
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+unsigned char *)p - a->mem - HDR_SIZE);
+>     z_set_flag(&b, 0);
+>     list_coalesce(a, &b);
+> }
+>
+> int arena_slot_realloc(Arena *a, int idx, size_t req) {
+>     if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+>         return -1;
+>     }
+>
+>     Block oldb;
+>     size_t old_pay = a->slot_payload[idx];
+>     size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+>
+>     oldb.base = a->mem;
+>     oldb.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+>
+>     // In-place shrink.
+>     if (need <= tag_read_size(&oldb)) {
+>         (void)split_realloc_inplace(a, &oldb, idx, req);
+>         return idx;
+>     }
+>
+>     // In-place grow by merging neighbor if possible.
+>     if (split_grow_inplace(a, &oldb, idx, req, need) >= 0) {
+>         return idx;
+>     }
+>
+>     // Move: keep the same logical slot index.
+>     {
+>         void *old_ptr = a->slots[idx];
+>         int nidx = arena_slot_alloc(a, req);
+>         if (nidx < 0) {
+>             return -1;
+>         }
+>
+>         // Copy old payload into new block.
+>         xc2(a->slots[nidx], old_ptr, old_pay);
+>
+>         // Adopt the new block into the original slot.
+>         a->slots[idx] = a->slots[nidx];
+>         a->slot_payload[idx] = req;
+>
+>         // Fix payload accounting: alloc added +req; we still need to remove old_pay
+>         // for the freed old block (and ensure we don't keep temp slot accounting).
+>         a->stats.allocated -= old_pay;
+>
+>         // Drop the temporary slot bookkeeping without freeing its block.
+>         a->slot_live[nidx] = 0;
+>         a->slot_payload[nidx] = 0;
+>         a->slots[nidx] = NULL;
+>         a->stats.live_blocks--;
+>
+>         // Now actually free the old block in the heap.
+>         free_block_for_ptr(a, old_ptr);
+>
+>         return idx;
+>     }
+> }
+> EOF
+root@ae6ae9e1ef3c:/app# make -C /app clean && make -C /app
+make: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o spl
+it_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+make: Leaving directory '/app'
+make: Entering directory '/app'
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+drive_h/run.c: In function ‘run_case’:
+drive_h/run.c:11:5: warning: ‘strncpy’ output may be truncated copying 31 bytes from a string of length 31 [-Wstringop-truncation]
+   11 |     strncpy(res->name, plan->name, sizeof(res->name) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_o
+ps.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_
+j/mirror.o
+make: Leaving directory '/app'
+root@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+root@ae6ae9e1ef3c:/app# cp /app/output/alloc-audit.json /app/output/alloc-audit.1.json
+root@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+root@ae6ae9e1ef3c:/app# diff -u /app/output/alloc-audit.1.json /app/output/alloc-audit.json || true
+diff: /app/output/alloc-audit.1.json: No such file or directory
+root@ae6ae9e1ef3c:/app# jq '.cases[]|{name,byte_total,ok,steps:(.steps|map({seq,op,index,result_index,byte_total}) )}' /app/output/alloc-audit.json
+bash: jq: command not found
+root@ae6ae9e1ef3c:/app#

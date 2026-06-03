@@ -1,0 +1,43 @@
+{
+  "analysis": "All 6 cases are failing: ok=false and residual_agrees=false. iterations=1, final_residual=0, reported_residual=0.0001. This suggests the measured residual computation is wrong (always zero) or the solve path is short-circuiting with an all-zero vector / empty system. The reported residual is a constant (likely initial tolerance). Need to inspect how final_residual is computed (metric) and how reported_residual is produced, plus verify case loading actually reads matrices/vectors. Also need to ensure run-one produces matching JSON; but first fix solver because everything is currently broken, likely due to layout/ordering mismatch causing dimensions 0 or incorrect indexing.",
+  "plan": "1) Run solverctl directly for one case with any verbose output flags (check --help) to see runtime messages. 2) Inspect src/main.cpp, drive_u/run.cpp, flow_t/report.cpp, scale_q/metric.cpp, solve_s/driver.cpp for residual calculation and reporting. 3) Check case_io.cpp reading data files and whether reorder layouts cause n=0. 4) Reproduce for one case under run-one and print its JSON. 5) Patch the bug (likely using wrong vector length after permutation, or metric uses wrong pointer/stride and returns 0). Rebuild and rerun audits.",
+  "commands": [
+    {
+      "keystrokes": "/app/bin/solverctl --help || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/bin/solverctl one basalt || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat /app/output/basalt-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/solve_s/driver.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/flow_t/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/case_io.cpp\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

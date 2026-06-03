@@ -1,0 +1,39 @@
+{
+  "analysis": "After fixing norm_q (removed +1e-4) and improving pcg_solve denom-break handling, residual_agrees is now true and ok is true for all cases. However, iterations is still 1 for all cases and both residuals are exactly 0, which is suspicious: either the RHS is zero for all cases or the matrix/rhs mapping is wrong, making r=0 trivially. The assembly shows rhs is loaded; map_p currently ignores permutation and just memcpy, which may be fine if no reorder, but some cases likely have reorder enabled. Also fn_n has a clear bug: when reorder is true, it sets col_blk to (bj+1)%nb rather than using perm[bj], corrupting the matrix structure and possibly causing zero matvec / trivial solution. step_r also applies a bogus reorder mapping (blk+1)%nblocks rather than perm inverse. These reorder-related bugs likely cause incorrect solve behavior and iteration counts. We need to implement correct permutation handling in fn_n, map_p, and step_r consistent with view.perm and reorder flag, so the solver runs real data and produces meaningful nonzero residuals and iteration counts matching reference. Then rebuild and rerun audits; ensure outputs deterministic and per-case matches matrix slice.",
+  "plan": "1) Inspect case files to see reorder/perm and rhs values; confirm rhs not all zeros. 2) Fix permutation logic:\n   - In fn_n: when reorder enabled, row_blk should be perm[bi] (already), and col_blk should be perm[bj] (not (bj+1)%nb). Use the same mapping for columns.\n   - In map_p: when reorder enabled, produce rhs in reordered ordering consistent with how matrix rows are arranged. If row_blk = perm[bi], then for each block index bi (packed row order), take original rhs block at row_blk and place into rhs at bi. Implement block-wise permutation.\n   - In step_r: preconditioner should use diagonal entries corresponding to the current packed ordering; remove the (blk+1)%nblocks hack and instead use blk directly (diag_inv already computed in packed indexing), or if diag_inv stored in original indexing, compute correctly. Given fn_n computes diag_inv using bi comparison, it expects packed indexing, so step_r should just use blk.\n3) Rebuild. 4) Rerun run-matrix and inspect that residuals are nonzero (or at least plausible) and iterations vary and are >0 when appropriate. 5) Run run-matrix twice and diff to ensure determinism; run run-one basalt and check it matches matrix slice.",
+  "commands": [
+    {
+      "keystrokes": "for f in /app/data/cases/*.case; do echo \"--- $f\"; sed -n '1,120p' \"$f\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat > /app/bsr_n/layout.cpp <<'EOF'\n#include \"../include/matrix_view.h\"\n\n#include <math.h>\n#include <string.h>\n\nvoid fn_n(const MatrixView *a, int reorder, BsrPack *c) {\n    int nb = a->nblocks;\n    int bs = a->bs;\n    int dim = a->n;\n    int ptr = 0;\n    memset(c, 0, sizeof(*c));\n    c->n = dim;\n    c->bs = bs;\n    c->nblocks = nb;\n    c->reorder = reorder;\n    for (int i = 0; i < nb; i++) {\n        c->perm[i] = a->perm[i];\n    }\n\n    // Build BSR in the packed block order.\n    // If reorder is enabled, packed block index bi corresponds to original block perm[bi].\n    for (int bi = 0; bi < nb; bi++) {\n        int row_blk = reorder ? a->perm[bi] : bi;\n        c->row_ptr[bi] = ptr;\n        for (int bj = 0; bj < nb; bj++) {\n            int col_blk = reorder ? a->perm[bj] : bj;\n            int has = 0;\n            for (int r = 0; r < bs; r++) {\n                for (int cc = 0; cc < bs; cc++) {\n                    int gr = row_blk * bs + r;\n                    int gc = col_blk * bs + cc;\n                    double v = a->a[gr * dim + gc];\n                    if (fabs(v) > 0.0) {\n                        has = 1;\n                    }\n                }\n            }\n            if (has) {\n                // Store the column using packed index bj so matvec works in packed space.\n                c->col_idx[ptr] = bj;\n                for (int r = 0; r < bs; r++) {\n                    for (int cc = 0; cc < bs; cc++) {\n                        int gr = row_blk * bs + r;\n                        int gc = col_blk * bs + cc;\n                        c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];\n                    }\n                }\n                ptr++;\n            }\n        }\n    }\n    c->row_ptr[nb] = ptr;\n\n    // Diagonal preconditioner in packed indexing.\n    for (int i = 0; i < dim; i++) {\n        c->diag_inv[i] = 1.0;\n    }\n    for (int bi = 0; bi < nb; bi++) {\n        int start = c->row_ptr[bi];\n        int end = c->row_ptr[bi + 1];\n        for (int k = start; k < end; k++) {\n            if (c->col_idx[k] == bi) {\n                for (int r = 0; r < bs; r++) {\n                    double d = c->data[k * bs * bs + r * bs + r];\n                    if (fabs(d) > 1e-14) {\n                        c->diag_inv[bi * bs + r] = 1.0 / d;\n                    }\n                }\n            }\n        }\n    }\n}\n\nvoid bsr_matvec(const BsrPack *pack, const double *x, double *y) {\n    int nb = pack->nblocks;\n    int bs = pack->bs;\n    int dim = pack->n;\n    for (int i = 0; i < dim; i++) {\n        y[i] = 0.0;\n    }\n    for (int bi = 0; bi < nb; bi++) {\n        int start = pack->row_ptr[bi];\n        int end = pack->row_ptr[bi + 1];\n        for (int k = start; k < end; k++) {\n            int bj = pack->col_idx[k];\n            for (int r = 0; r < bs; r++) {\n                for (int ccc = 0; ccc < bs; ccc++) {\n                    int gi = bi * bs + r;\n                    int gj = bj * bs + ccc;\n                    y[gi] += pack->data[k * bs * bs + r * bs + ccc] * x[gj];\n                }\n            }\n        }\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/perm_p/order.cpp <<'EOF'\n#include \"../include/matrix_view.h\"\n\n#include <string.h>\n\n// Map a vector from original ordering to packed ordering.\n// When reorder is enabled, packed block index bi corresponds to original block perm[bi].\nvoid map_p(const double *in, const int *perm, int n, int bs, double *out) {\n    int nb = n / bs;\n    // Default: identity mapping.\n    for (int i = 0; i < n; i++) {\n        out[i] = in[i];\n    }\n\n    // If perm is present and differs, map by blocks.\n    // out[bi] = in[perm[bi]] (block-wise)\n    // This matches fn_n building rows in packed order.\n    if (perm) {\n        for (int bi = 0; bi < nb; bi++) {\n            int src_blk = perm[bi];\n            memcpy(out + bi * bs, in + src_blk * bs, (size_t)bs * sizeof(double));\n        }\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/prec_r/apply.cpp <<'EOF'\n#include \"../include/matrix_view.h\"\n\n// Apply diagonal preconditioner in packed ordering.\nvoid step_r(const BsrPack *a, const double *b, double *c) {\n    int dim = a->n;\n    for (int i = 0; i < dim; i++) {\n        c[i] = a->diag_inv[i] * b[i];\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\nj = json.loads(Path('/app/output/solver-audit.json').read_text())\nfor c in j['cases']:\n    print(c['name'], 'ok=',c['ok'], 'iters=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'], 'agree=',c['residual_agrees'], 'hit=',c['hit_limit'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

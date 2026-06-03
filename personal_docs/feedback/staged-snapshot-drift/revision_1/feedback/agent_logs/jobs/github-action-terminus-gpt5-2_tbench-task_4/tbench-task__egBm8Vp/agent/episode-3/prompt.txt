@@ -1,0 +1,179 @@
+New Terminal Output:
+
+root@1465729b6301:/app# src=/tmp/staged-snapshot-1200740893/alpha/source; rst=/tmp/staged-snapshot-1200740893/alpha/restored; for p in a/one.txt b/two.txt c/thr
+ee.txt; do echo "== $p"; wc -c "$src/$p" "$rst/$p"; tail -c 20 "$src/$p" | od -An -tx1; tail -c 20 "$rst/$p" | od -An -tx1; done
+== a/one.txt
+10 /tmp/staged-snapshot-1200740893/alpha/source/a/one.txt
+ 9 /tmp/staged-snapshot-1200740893/alpha/restored/a/one.txt
+19 total
+ 61 6c 70 68 61 3a 6f 6e 65 0a
+ 61 6c 70 68 61 3a 6f 6e 65
+== b/two.txt
+10 /tmp/staged-snapshot-1200740893/alpha/source/b/two.txt
+10 /tmp/staged-snapshot-1200740893/alpha/restored/b/two.txt
+20 total
+ 61 6c 70 68 61 3a 74 77 6f 0a
+ 61 6c 70 68 61 3a 74 77 6f 0a
+== c/three.txt
+12 /tmp/staged-snapshot-1200740893/alpha/source/c/three.txt
+12 /tmp/staged-snapshot-1200740893/alpha/restored/c/three.txt
+24 total
+ 61 6c 70 68 61 3a 74 68 72 65 65 0a
+ 61 6c 70 68 61 3a 74 68 72 65 65 0a
+root@1465729b6301:/app# grep -RIn --line-number -E 'TrimSpace|TrimRight|Scanner\b|ReadString\(|ReadBytes\(|Fscan|Sscan|fmt\.Fprint|fmt\.Fprintf|bufio\.NewScanne
+r' internal cmd | head -n 200
+internal/a0/core.go:197:                if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
+internal/e4/io.go:18:   scanner := bufio.NewScanner(strings.NewReader(string(out)))
+root@1465729b6301:/app# grep -RIn --line-number -E 'restore|restor|materiali|write(file)?|os\.WriteFile|Create\(|OpenFile\(' internal cmd | head -n 200
+internal/a0/core.go:29: if b.Op == "write" && b.Seq%5 == 0 {
+internal/a0/core.go:32: if b.Op == "write" && b.Nlink > 1 {
+internal/a0/core.go:51: return os.WriteFile(path, []byte(data), 0o644)
+internal/a0/core.go:145:                if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink})
+; err != nil {
+internal/a0/core.go:157:                        {Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
+internal/a0/core.go:159:                        {Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
+internal/a0/core.go:197:                if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
+internal/a0/scan.go:6:          out = append(out, itemY{Seq: i, Op: "write", Path: p})
+internal/f5/types.go:45:        Restored string `json:"restored"`
+internal/f5/types.go:50:        Restored [][]string `json:"restored"`
+internal/f5/types.go:56:        Restored   string        `json:"restored"`
+cmd/ctl/main.go:53:     restored := filepath.Join(caseDir, "restored")
+cmd/ctl/main.go:57:     if err := os.MkdirAll(restored, 0o755); err != nil {
+cmd/ctl/main.go:67:     if err := a0.Materialize(rows, restored, profile); err != nil {
+cmd/ctl/main.go:74:     restoredDigest, err := e4.Digest(restored)
+cmd/ctl/main.go:82:     restoredGroups, err := e4.Groups(restored)
+cmd/ctl/main.go:90:     restoredAccounting, err := c2.ItemsC(restored, profile)
+cmd/ctl/main.go:94:     digestsMatch := sourceDigest == restoredDigest
+cmd/ctl/main.go:95:     groupsMatch := fmt.Sprint(sourceGroups) == fmt.Sprint(restoredGroups)
+cmd/ctl/main.go:96:     accountingMatch := accountingEqual(accounting, restoredAccounting)
+cmd/ctl/main.go:97:     diskMatch := accountingMatchesDisk(source, accounting) && accountingMatchesDisk(restored, restoredAccounting)
+cmd/ctl/main.go:102:            Restored:   restored,
+cmd/ctl/main.go:104:            Digest:     f5.DigestPair{Source: sourceDigest, Restored: restoredDigest},
+cmd/ctl/main.go:105:            Groups:     f5.GroupPair{Source: sourceGroups, Restored: restoredGroups},
+cmd/ctl/main.go:111:    outPath := flag.String("out", "/app/output/restore-audit.json", "audit output")
+cmd/ctl/main.go:147:    if err := os.WriteFile(*outPath, append(encoded, '\n'), 0o644); err != nil {
+root@1465729b6301:/app# sed -n '1,200p' internal/e4/io.go
+package e4
+
+import (
+        "bufio"
+        "fmt"
+        "os/exec"
+        "strconv"
+        "strings"
+)
+
+func NativeBytes(root string) (map[string]int, error) {
+        cmd := exec.Command("/app/bin/fsmeasure", root)
+        out, err := cmd.Output()
+        if err != nil {
+                return nil, err
+        }
+        rows := map[string]int{}
+        scanner := bufio.NewScanner(strings.NewReader(string(out)))
+        for scanner.Scan() {
+                parts := strings.Split(scanner.Text(), "\t")
+                if len(parts) != 2 {
+                        return nil, fmt.Errorf("bad native observation: %q", scanner.Text())
+                }
+                size, err := strconv.Atoi(parts[1])
+                if err != nil {
+                        return nil, err
+                }
+                rows[parts[0]] = size
+        }
+        if err := scanner.Err(); err != nil {
+                return nil, err
+        }
+        return rows, nil
+}
+root@1465729b6301:/app# sed -n '1,260p' internal/e4/walk.go
+package e4
+
+import (
+        "crypto/sha256"
+        "encoding/hex"
+        "os"
+        "path/filepath"
+        "sort"
+        "syscall"
+)
+
+func Digest(root string) (string, error) {
+        hash := sha256.New()
+        paths := []string{}
+        if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+                if err != nil {
+                        return err
+                }
+                paths = append(paths, path)
+                return nil
+        }); err != nil {
+                return "", err
+        }
+        sort.Strings(paths)
+        for _, path := range paths {
+                if path == root {
+                        continue
+                }
+                rel, err := filepath.Rel(root, path)
+                if err != nil {
+                        return "", err
+                }
+                rel = filepath.ToSlash(rel)
+                info, err := os.Stat(path)
+                if err != nil {
+                        return "", err
+                }
+                if info.IsDir() {
+                        hash.Write([]byte("D " + rel + "\n"))
+                        continue
+                }
+                if info.Mode().IsRegular() {
+                        data, err := os.ReadFile(path)
+                        if err != nil {
+                                return "", err
+                        }
+                        hash.Write([]byte("F " + rel + "\x00"))
+                        hash.Write(data)
+                        hash.Write([]byte("\n"))
+                }
+        }
+        return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func Groups(root string) ([][]string, error) {
+        byIdentity := map[[2]uint64][]string{}
+        if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+                if err != nil {
+                        return err
+                }
+                if !entry.Type().IsRegular() {
+                        return nil
+                }
+                info, err := os.Stat(path)
+                if err != nil {
+                        return err
+                }
+                st := info.Sys().(*syscall.Stat_t)
+                rel, err := filepath.Rel(root, path)
+                if err != nil {
+                        return err
+                }
+                key := [2]uint64{uint64(st.Dev), uint64(st.Ino)}
+                byIdentity[key] = append(byIdentity[key], filepath.ToSlash(rel))
+                return nil
+        }); err != nil {
+                return nil, err
+        }
+        groups := [][]string{}
+        for _, group := range byIdentity {
+                if len(group) > 1 {
+                        sort.Strings(group)
+                        groups = append(groups, group)
+                }
+        }
+        sort.Slice(groups, func(i, j int) bool { return groups[i][0] < groups[j][0] })
+        return groups, nil
+}
+root@1465729b6301:/app#

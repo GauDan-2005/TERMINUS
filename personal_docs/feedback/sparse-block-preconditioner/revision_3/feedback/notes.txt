@@ -1,0 +1,59 @@
+Feedback for Submission: 64f78238-acf5-4cce-ba2a-100ea9b5a20f
+Assignment ID: 961990f5-3736-4942-bc08-2fd732041f9b
+Project ID: bfe79c33-8ab0-4061-9849-08d3207c9927
+Project: Terminus-2nd-Edition
+
+================================================================================
+
+Revision Notes
+--------------------------------------------------------------------------------
+AutoEval Execution Summary: AutoEval execution failed. Build status: FAILED. Build ID: CodeExecutionEnvironment:74b978d6-2ad6-452f-98de-5b4b38f33330.
+
+Summary (difficulty check)
+--------------------------------------------------------------------------------
+Difficulty: ❌ TRIVIAL - Requires at least MEDIUM
+
+Status: ✅ Solvable (all tests passed by at least one agent run)
+
+Agent Performance:
+  • terminus-claude-opus-4-6: 100.0% (5/5 runs)
+  • terminus-gpt5-2: 100.0% (5/5 runs)
+
+Reference Agents:
+  • nop: 0.0% (0/1 runs)
+  • oracle: 100.0% (3/3 runs)
+
+Failure Breakdown:
+  • nop: 1 other
+
+Unit Tests Results:
+  • test_a0_matrix_cases_present: 10 passed / 10 runs
+  • test_b1_run_one_basalt_matches_matrix: 10 passed / 10 runs
+  • test_c2_basalt_converges_quickly: 10 passed / 10 runs
+  • test_d3_flint_off_diagonal_converges: 10 passed / 10 runs
+  • test_e4_shale_reordered_converges: 10 passed / 10 runs
+  • test_f5_garnet_reordered_converges: 10 passed / 10 runs
+  • test_g6_mica_low_final_residual: 10 passed / 10 runs
+  • test_h7_opal_mixed_reordered_residuals: 10 passed / 10 runs
+  • test_i8_reported_matches_true_residual: 10 passed / 10 runs
+  • test_j9_two_matrix_runs_equivalent: 10 passed / 10 runs
+  • test_k0_convergent_cases_below_cap: 10 passed / 10 runs
+  • test_l1_run_one_shale_matches_matrix: 10 passed / 10 runs
+  • test_z9_row_status_flags: 10 passed / 10 runs
+
+Analysis on Agent Failures:
+  • Task Instruction Sufficiency: ➖ NOT_APPLICABLE, debug output not available
+
+Quality check summary
+--------------------------------------------------------------------------------
+## Quality Check Results
+✅ pass - behavior_in_task_description: instruction.md explicitly names the two output files (solver-audit.json, <name>-audit.json), the exact commands (run-matrix.sh, run-one.sh <name>), the JSON schema (by listing all 7 fields and pointing to /app/docs/layout.md), the determinism requirement (two runs must produce equivalent JSON), and the correctness definition (every case ok=true, residual columns agree, values match an independent reference). These directly map to what every test asserts.
+✅ pass - behavior_in_tests: All specified behaviors have test coverage: run-matrix.sh producing solver-audit.json (read in fixture), run-one.sh producing <name>-audit.json (test_b1, test_l1), two-run equivalence (test_j9), all 6 named cases present (test_a0), every case matching the independent Python reference (test_i8, test_z9, per-case tests), and convergence below the iteration cap (test_k0). The CMake rebuild requirement is exercised in the run_matrix() fixture.
+✅ pass - informative_test_structure: Each test function has a clear alphabetically-prefixed name and a one-line docstring describing what is being checked (e.g. "Matrix command covers basalt through opal.", "Direct basalt audit matches the matrix slice."). Helper functions (reference_row, load_case, assert_row_matches, pcg_solve, etc.) are well-named and separated from the assertion logic. The structure is readable and easy to maintain.
+✅ pass - anti_cheating_measures: The Dockerfile copies only the environment source tree; neither tests/ nor solution/ are included in the image. The bugs are subtle (wrong column permutation index, ignored permutation in map_p, spurious +1e-4 in norm_q, wrong preconditioner source block index) and require genuine code understanding to locate and fix. The test reference is reimplemented independently in Python using the same .case files, so no pre-computed answers exist in files visible to the agent.
+✅ pass - structured_data_schema: instruction.md lists all 7 JSON fields by name and references /app/docs/layout.md, which defines each field with a semantic description (scenario token, boolean ok status, PCG iteration count, measured L2 residual, metric-helper value, agreement flag, iteration-cap flag). Types are clear from field names and descriptions. Per-case shape (one-element cases array in <name>-audit.json) is also documented in layout.md.
+✅ pass - pinned_dependencies: The base image is pinned by SHA256 digest. All apt packages are version-pinned (cmake=3.31.6-2, g++=4:14.2.0-1, make=4.4.1-2, tmux=3.5a-3, asciinema=2.4.0-1, libc6-dev=2.41-12+deb13u3). Verifier-only pip packages are pinned (pytest==8.4.1, pytest-json-ctrf==0.3.5) and vendored offline so allow_internet=false is respected.
+✅ pass - typos: No typos found in filenames, paths, commands, or variable names. Script paths in test_outputs.py (run-matrix.sh, run-one.sh, clean-room.sh) match the actual files under environment/scripts/. JSON field names in tests match those written by flow_t/report.cpp and defined in solver_report.h and layout.md.
+✅ pass - tests_or_solution_in_image: The Dockerfile contains no COPY instruction for tests/ or solution/. Only source-tree directories (include, config, docs, data, scripts, and each module subdirectory) are copied. Verifier wheel files are downloaded to /opt/verifier-wheels but the test scripts themselves are injected at verification time, not baked in.
+✅ pass - hardcoded_solution: solution/solve.sh patches four buggy source files with corrected implementations (fixing layout.cpp column-permutation logic, restoring map_p permutation in order.cpp, removing the spurious +1e-4 offset in metric.cpp, and correcting the preconditioner index in apply.cpp), then runs cmake, builds the binary, and executes run-matrix.sh. The answer is derived by compiling and running the fixed code, not by printing a pre-computed result.
+✅ pass - file_reference_mentioned: instruction.md explicitly states both output filenames: "/app/output/solver-audit.json" (produced by run-matrix.sh) and "/app/output/<name>-audit.json" (produced by run-one.sh). These match exactly what the tests read and assert against.

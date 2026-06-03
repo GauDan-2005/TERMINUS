@@ -1,0 +1,51 @@
+{
+  "analysis": "Docs specify that run-matrix.sh must write /app/output/solver-audit.json with a top-level cases array containing specific fields, and run-one.sh must write /app/output/<name>-audit.json with the same shape but one case. Currently both scripts just call /app/bin/solverctl (matrix/one) and do not write any JSON, and /app/output doesn’t exist yet. Next we need to inspect solverctl behavior/output, inspect build outputs, rebuild with CMake, and implement JSON generation (likely by parsing solverctl output or adding a mode to emit JSON).",
+  "plan": "1) Inspect CMakeLists and source to find solverctl, its output format, and where residual/iterations are computed/emitted. 2) Check if /app/bin/solverctl exists; if not, configure and build under /app/build. 3) Run solverctl matrix/one to capture stdout/stderr to understand what to parse for iterations and residuals. 4) Decide implementation: (a) enhance solverctl to emit JSON deterministically, then scripts just invoke it and tee to output files; or (b) keep solverctl as-is and implement robust parsing in bash/awk. Prefer (a) for determinism. 5) After changes, rebuild with CMake, run run-matrix.sh and run-one.sh, and verify output JSON matches schema and that two runs diff cleanly (stable ordering/format).",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/CMakeLists.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app/src -type f -maxdepth 2 -print\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn --line-number 'solverctl' /app/src /app/include | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/bin || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "mkdir -p /app/build\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake -S /app -B /app/build\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "ls -la /app/bin /app/build || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/bin/solverctl --help || true\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "/app/bin/solverctl matrix | sed -n '1,200p'\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "/app/bin/solverctl one basalt | sed -n '1,200p'\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}

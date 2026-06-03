@@ -1,0 +1,35 @@
+{
+  "analysis": "Fixes to split conservation + reflux enqueue + topology linking worked for storm/canyon: drift ~0, base_match true, balanced true, adjacency nonzero. Remaining drift is in plume/spire, which are the collapse-only and restart scenarios. Their drift matches original values, implying phase_fold (collapse/merge) is non-conservative. phase_fold uses fold_q(&children,...), so bug is likely inside agg_q/blend.cpp (fold_q implementation) or related averaging. Next we must inspect agg_q/blend.cpp and make fold_q conserve integrated quantities: parent.vol should equal sum child vol, and parent.q[v] should be sum(child.vol*child.q[v]) / parent.vol. Then rerun. After that, verify replay determinism; we may still need to update snapshot serialization/load to include non-grid fields, but the report’s drift currently measured as base vs after totals; restart equivalence will be checked after collapse fix.",
+  "plan": "1) Inspect agg_q/blend.cpp for fold_q implementation and any other blending that might change totals. 2) Patch fold_q to be strictly conservative (volume-weighted average) and ensure no extra scaling. 3) Rebuild and rerun matrix; confirm plume/spire drift goes to ~0 and base_match true. 4) Then run run-replay for a restart case to ensure snapshot round-trip produces equivalent result (resumed_total moment should match clean run) and run matrix twice to check deterministic reports.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' /app/agg_q/blend.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/include/cell_view.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -R \"fold_q\" -n /app | head\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat > /app/agg_q/blend.cpp <<'EOF'\n#include \"../include/cell_view.h\"\n\n#include <string.h>\n\n// Conservative merge (collapse): fold fine leaves into a parent.\n// The invariant is that integrated quantities are preserved:\n//   parent.vol = sum(child.vol)\n//   parent.vol * parent.q[v] = sum(child.vol * child.q[v])\nvoid fold_q(const CellPatch *a, int n, CellPatch *out) {\n    if (!a || !out) return;\n    if (n < 1) {\n        memset(out, 0, sizeof(*out));\n        return;\n    }\n\n    double vtot = 0.0;\n    double mass[NVAR];\n    for (int v = 0; v < NVAR; v++) mass[v] = 0.0;\n\n    for (int i = 0; i < n && i < MAX_LEAVES; i++) {\n        double vol = a->vol[i];\n        if (vol <= 0.0) continue;\n        vtot += vol;\n        for (int v = 0; v < NVAR; v++) {\n            mass[v] += vol * a->q[i * NVAR + v];\n        }\n    }\n\n    memset(out, 0, sizeof(*out));\n    out->n = 1;\n    out->vol[0] = vtot;\n    for (int v = 0; v < NVAR; v++) {\n        out->q[v] = (vtot > 0.0) ? (mass[v] / vtot) : 0.0;\n    }\n}\n\n// A simple ghost-band sampler used by the audit (not a conservation-critical operation).\nvoid op_b(CellPatch *dst, const CellPatch *src, int n, int side) {\n    if (!dst || !src) return;\n    (void)side;\n    memset(dst, 0, sizeof(*dst));\n    if (n < 1) return;\n\n    // Sample the first entry.\n    dst->n = 1;\n    dst->vol[0] = src->vol[0];\n    for (int v = 0; v < NVAR; v++) dst->q[v] = src->q[v];\n}\nEOF\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/conservation_audit.json'))\nfor c in obj['cases']:\n    print(c['name'], 'drift', c['drift_ratio'], 'balanced', c['balanced'], 'base_match', c['base_match'], 'adj', c['adjacency'])\nPY\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

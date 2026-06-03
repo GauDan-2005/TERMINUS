@@ -1,0 +1,301 @@
+New Terminal Output:
+
+root@24eb2121bd3c:/app# sed -n '1,200p' /app/src/lib.rs
+pub mod io;
+pub mod model;
+pub mod report;
+pub mod runner;
+
+#[path = "../k0/a.rs"]
+pub mod k0_a;
+#[path = "../k1/b.rs"]
+pub mod k1_b;
+#[path = "../k2/c.rs"]
+pub mod k2_c;
+#[path = "../k3/d.rs"]
+pub mod k3_d;
+#[path = "../k4/e.rs"]
+pub mod k4_e;
+#[path = "../k5/f.rs"]
+pub mod k5_f;
+#[path = "../k6/g.rs"]
+pub mod k6_g;
+#[path = "../k7/h.rs"]
+pub mod k7_h;
+#[path = "../k8/i.rs"]
+pub mod k8_i;
+root@24eb2121bd3c:/app# for d in /app/k0 /app/k1 /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8; do echo "=== $d"; ls -la $d; done
+=== /app/k0
+total 4
+drwxr-xr-x  2 root root   18 May 25 11:26 .
+drwxr-xr-x 18 root root  245 May 25 11:30 ..
+-rw-r--r--  1 root root 2479 May 25 11:26 a.rs
+=== /app/k1
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 231 May 25 11:26 b.rs
+=== /app/k2
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 169 May 25 11:26 c.rs
+=== /app/k3
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 821 May 25 11:26 d.rs
+=== /app/k4
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 711 May 25 11:26 e.rs
+=== /app/k5
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 563 May 25 11:26 f.rs
+=== /app/k6
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 107 May 25 11:26 g.rs
+=== /app/k7
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root  72 May 25 11:26 h.rs
+=== /app/k8
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root  86 May 25 11:26 i.rs
+root@24eb2121bd3c:/app# for f in /app/k0/*.rs /app/k1/*.rs /app/k2/*.rs /app/k3/*.rs /app/k4/*.rs /app/k5/*.rs /app/k6/*.rs /app/k7/*.rs /app/k8/*.rs; do echo "
+\n##### $f"; sed -n '1,220p' $f; done
+\n##### /app/k0/a.rs
+use crate::io::split_subject_object_mode;
+use crate::k1_b::fold_b;
+use crate::k3_d::lift_d;
+use crate::k5_f::cast_f;
+use crate::model::{CaseReport, Decision, Event, State};
+
+pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+    match b.kind.as_str() {
+        "grant" => {
+            let (object, mode) = b
+                .right
+                .split_once('/')
+                .ok_or_else(|| format!("bad grant row {}", b.right))?;
+            a.direct
+                .insert((b.left.clone(), object.to_string(), mode.to_string()));
+            a.clock += 1;
+            Ok(())
+        }
+        "delegate" => {
+            a.chain.insert(b.right.clone(), b.left.clone());
+            a.clock += 1;
+            Ok(())
+        }
+        "revoke" => fold_b(a, &b.left),
+        "batch" => {
+            a.group_active = b.left.clone();
+            a.group_slot.clear();
+            Ok(())
+        }
+        "end" => {
+            a.group_active.clear();
+            a.group_slot.clear();
+            Ok(())
+        }
+        "check" => {
+            let (subject, object, mode) = split_subject_object_mode(&b.right)?;
+            let row = if a.group_active.is_empty() {
+                wrap_g(a, &b.left, &subject, &object, &mode)
+            } else {
+                lift_d(a, &b.left, &subject, &object, &mode)
+            };
+            let (row, note) = cast_f(a, row, true);
+            c.decisions.push(row);
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+            Ok(())
+        }
+        other => Err(format!("unknown trace row {other}")),
+    }
+}
+
+fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+    use crate::k2_c::emit_c;
+    use crate::k4_e::mote_e;
+
+    let tick = a.tick_for(subject);
+    if let Some(outcome) = emit_c(a, subject, object, mode) {
+        let via = if outcome == "allow" {
+            mote_e(a, subject, object, mode).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(label, subject, object, mode, tick);
+        row.outcome = outcome;
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, subject, object, mode);
+    a.store.insert(
+        crate::model::State::slot_key(object, mode),
+        outcome.clone(),
+    );
+    let mut row = Decision::blank(label, subject, object, mode, tick);
+    row.outcome = outcome;
+    row.via = via;
+    row
+}
+\n##### /app/k1/b.rs
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str) -> Result<(), String> {
+    let next = a.tick_for(b) + 1;
+    a.ticks.insert(b.to_string(), next);
+    a.blocked.insert(b.to_string());
+    a.clock += 1;
+    Ok(())
+}
+\n##### /app/k2/c.rs
+use crate::model::State;
+
+pub fn emit_c(a: &State, _b: &str, c: &str, d: &str) -> Option<String> {
+    let key = State::slot_key(c, d);
+    a.store.get(&key).cloned()
+}
+\n##### /app/k3/d.rs
+use crate::k4_e::mote_e;
+use crate::model::{Decision, State};
+
+pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+    let slot = State::slot_key(d, e);
+    let tick = a.tick_for(c);
+  if let Some(outcome) = a.group_slot.get(&slot) {
+        let via = if outcome == "allow" {
+            mote_e(a, c, d, e).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(b, c, d, e, tick);
+        row.outcome = outcome.clone();
+        row.group = a.group_active.clone();
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, c, d, e);
+    a.group_slot.insert(slot, outcome.clone());
+    let mut row = Decision::blank(b, c, d, e, tick);
+    row.outcome = outcome;
+    row.group = a.group_active.clone();
+    row.via = via;
+    row
+}
+\n##### /app/k4/e.rs
+use crate::model::State;
+
+pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+    let mut current = b.to_string();
+    loop {
+        if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+            if a.blocked.contains(b) {
+                return ("deny".to_string(), String::new());
+            }
+            let via = if current == b {
+                String::new()
+            } else {
+                current.clone()
+            };
+            return ("allow".to_string(), via);
+        }
+        match a.chain.get(&current) {
+            Some(parent) => current = parent.clone(),
+            None => return ("deny".to_string(), String::new()),
+        }
+    }
+}
+\n##### /app/k5/f.rs
+use crate::model::{Decision, State};
+
+pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+    let track = State::track_key(&b.subject, &b.object, &b.mode);
+    let reused = a
+        .seen
+        .get(&track)
+        .map(|old| old == &b.outcome)
+        .unwrap_or(false);
+    b.reused = reused;
+    a.seen.insert(track, b.outcome.clone());
+    if b.outcome == "allow" && a.blocked.contains(&b.subject) && !b.via.is_empty() {
+        let note = b.label.clone();
+        (b, Some(note))
+    } else {
+        (b, None)
+    }
+}
+\n##### /app/k6/g.rs
+use crate::model::State;
+
+pub fn tally_g(_a: &State, rows: usize) -> String {
+    format!("rows={rows}")
+}
+\n##### /app/k7/h.rs
+pub fn hint_h(label: &str) -> String {
+    label.to_ascii_lowercase()
+}
+\n##### /app/k8/i.rs
+pub fn order_i(left: &str, right: &str) -> std::cmp::Ordering {
+    left.cmp(right)
+}
+root@24eb2121bd3c:/app# for t in /app/traces/*.trace; do echo "\n==== $(basename $t)"; nl -ba $t; done
+\n==== alpha.trace
+     1  grant boss vault/read
+     2  delegate boss clerk
+     3  check before clerk:vault/read
+     4  revoke clerk -
+     5  batch b1 -
+     6  check batch clerk:vault/read
+     7  end - -
+     8  check after clerk:vault/read
+\n==== beta.trace
+     1  check miss intern:vault/read
+     2  grant intern vault/read
+     3  check solo intern:vault/read
+\n==== delta.trace
+     1  grant alice logs/read
+     2  check first alice:logs/read
+     3  revoke bob -
+     4  check second alice:logs/read
+\n==== epsilon.trace
+     1  grant root api/invoke
+     2  delegate root mid
+     3  delegate mid leaf
+     4  revoke mid -
+     5  check check leaf:api/invoke
+\n==== gamma.trace
+     1  grant boss vault/write
+     2  delegate boss clerk
+     3  delegate clerk intern
+     4  revoke boss -
+     5  batch b1 -
+     6  check batch intern:vault/write
+     7  end - -
+\n==== zeta.trace
+     1  grant alpha secret/read
+     2  grant beta secret/read
+     3  revoke alpha -
+     4  batch mix -
+     5  check a alpha:secret/read
+     6  check b beta:secret/read
+     7  end - -
+root@24eb2121bd3c:/app# sed -n '1,120p' /app/scripts/run-one.sh
+#!/bin/bash
+cd /app
+mkdir -p /app/output
+case_name="${1:-alpha}"
+cargo run --offline --quiet -- "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+root@24eb2121bd3c:/app#

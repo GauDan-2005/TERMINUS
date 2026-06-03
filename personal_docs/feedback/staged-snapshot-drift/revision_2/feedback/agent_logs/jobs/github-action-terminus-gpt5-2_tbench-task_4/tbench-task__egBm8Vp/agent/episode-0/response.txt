@@ -1,0 +1,35 @@
+{
+  "analysis": "We are at a root shell in /app with no prior commands run in this session. The task indicates the restore audits currently fail for all six matrix cases, and we must fix the pipeline so `bash /app/scripts/run-matrix.sh` produces `/app/output/restore-audit.json` with all cases clean. Next step is to inspect the repo layout, run the matrix to see current failures/logs, and then inspect the Go restore/staging service, native helper, and audit generation to locate where restored directories diverge from sources, including hardlink grouping and accounting/period rules.",
+  "plan": "1) Inspect /app structure and existing scripts/services. 2) Run the matrix script to reproduce failures and confirm whether output JSON is missing/incorrect. 3) Inspect generated artifacts/logs under /app/output (and any temp dirs) to see per-case diffs. 4) Run targeted commands (diff, find, stat) on at least one failing case to understand divergence type (content, layout, hardlinks, accounting). Based on findings, we will patch the responsible component(s) in subsequent iterations and rerun the matrix until clean.",
+  "commands": [
+    {
+      "keystrokes": "cd /app\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find . -maxdepth 3 -type f -name '*.sh' -o -name 'go.mod' -o -name 'Makefile' -o -name '*.go' | sed 's|^./||' | head -n 200\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la scripts output || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -lc 'bash /app/scripts/run-matrix.sh'\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -lc 'jq . /app/output/restore-audit.json 2>/dev/null | head -n 80 || (echo \"restore-audit.json missing or invalid\"; ls -la /app/output)'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

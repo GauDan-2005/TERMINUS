@@ -1,0 +1,26 @@
+{
+  "analysis": "All 6 cases show ok:true. The byte_total values have changed from the original (e.g., cedar was 264, now 240) - this makes sense because we fixed the +8 bug in accounting. Let me verify determinism and check the slate case (coalescing).",
+  "plan": "Run determinism check and verify the slate case (which tests coalescing most heavily).",
+  "commands": [
+    {
+      "keystrokes": "cp /app/output/alloc-audit.json /tmp/run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh 2>&1\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "diff /tmp/run1.json /app/output/alloc-audit.json && echo 'DETERMINISTIC'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh cedar 2>&1\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "python3 -c \"\nimport json\nmatrix = json.load(open('/app/output/alloc-audit.json'))\nsingle = json.load(open('/app/output/cedar-audit.json'))\nassert matrix['cases'][0] == single['cases'][0], 'MISMATCH'\nprint('cedar single matches matrix')\n\"\n",
+      "duration": 0.5
+    }
+  ]
+}

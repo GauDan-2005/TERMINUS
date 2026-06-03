@@ -1,0 +1,197 @@
+New Terminal Output:
+
+root@85b121dde67e:/app# grep -n "^func runLoaded" -n /app/internal/f5/run.go
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+root@85b121dde67e:/app# grep -n "^func RunRow" -n /app/internal/f5/run.go
+229:func RunRow(root, name string) (CaseResult, error) {
+root@85b121dde67e:/app# awk 'NR==1{start=0}
+> /^func runLoaded\(/{start=NR}
+> /^func RunRow\(/{end=NR}
+> {print NR":"$0}' /app/internal/f5/run.go | sed -n '150,260p'
+150:    w.Turn = item.Turn
+151:    w.Lit = append([]bool(nil), item.Lit...)
+152:    w.Seen = append([]bool(nil), item.Seen...)
+153:    w.Hostile = make([]Hostile, len(item.Hostiles))
+154:    for i, h := range item.Hostiles {
+155:            w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+156:    }
+157:    w.Effects = make([]EffectState, len(item.Effects))
+158:    for i, e := range item.Effects {
+159:            w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+160:    }
+161:}
+162:
+163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+164:    visStale := map[string]bool{}
+165:    var blob a0.ItemY
+166:    for _, step := range steps {
+167:            w.Turn = step.Turn
+168:            if step.Action == "save" {
+169:                    vis := buildObs(w, nil)
+170:                    for k, v := range visStale {
+171:                            vis[k] = v
+172:                    }
+173:                    blob = packWorld(w, vis)
+174:                    break
+175:            }
+176:            if step.Actor == "P" {
+177:                    applyPlayer(w, step.Arg)
+178:                    e4.ApplyLit(w, radius, blindActive(w))
+179:                    visStale = buildObs(w, nil)
+180:            }
+181:    }
+182:    return blob, visStale
+183:}
+184:
+185:func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+186:    moves := []MoveRow{}
+187:    pastSave := false
+188:    for _, step := range steps {
+189:            if step.Action == "save" {
+190:                    pastSave = true
+191:                    continue
+192:            }
+193:            if !pastSave {
+194:                    continue
+195:            }
+196:            w.Turn = step.Turn
+197:            if step.Actor == "P" {
+198:                    applyPlayer(w, step.Arg)
+199:                    e4.ApplyLit(w, radius, blindActive(w))
+200:            }
+201:            if step.Actor == "H" {
+202:                    moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+203:            }
+204:    }
+205:    return moves
+206:}
+207:
+208:func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+209:    applyWorld(w, blob)
+210:    cache := &b1.CacheX{Obs: map[string]bool{}}
+211:    b1.Merge(cache, blob)
+212:    merged := b1.Snapshot(cache)
+213:    for k, v := range stale {
+214:            merged[k] = v
+215:    }
+216:    w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+217:    moves := []MoveRow{}
+218:    for _, step := range steps {
+219:            if step.Action != "save" {
+220:                    continue
+221:            }
+222:            w.Turn = step.Turn
+223:            e4.ApplyLit(w, radius, blindActive(w))
+224:            moves = append(moves, advanceAll(w, merged)...)
+225:    }
+226:    return moves
+227:}
+228:
+229:func RunRow(root, name string) (CaseResult, error) {
+230:    profile := ProfileFor(name)
+231:    radius, _ := LoadRadius(root, name)
+232:    if radius == 0 {
+233:            radius = profile.Radius
+234:    }
+235:    base, err := LoadLayout(root, name)
+236:    if err != nil {
+237:            return CaseResult{}, err
+238:    }
+239:    steps, err := LoadScript(root, name)
+240:    if err != nil {
+241:            return CaseResult{}, err
+242:    }
+243:
+244:    wFresh := cloneWorld(base)
+245:    wFresh.Effects = snapFromC2(c2.Seed(profileToC2(profile), wFresh.Turn))
+246:    blob, stale := playUntilSave(wFresh, steps, profile, radius)
+247:    freshMoves := runDirect(wFresh, steps, profile, radius)
+248:
+249:    wResume := cloneWorld(base)
+250:    wResume.Effects = snapFromC2(c2.Seed(profileToC2(profile), wResume.Turn))
+251:    playUntilSave(wResume, steps, profile, radius)
+252:    resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+253:
+254:    freshIllegal, resumeIllegal := 0, 0
+255:    for _, m := range freshMoves {
+256:            if !m.Legal {
+257:                    freshIllegal++
+258:            }
+259:    }
+260:    for _, m := range resumeMoves {
+root@85b121dde67e:/app# awk 'BEGIN{infunc=0}
+> /^func runLoaded\(/{infunc=1; next}
+> /^func RunRow\(/{infunc=0}
+> { if(!infunc) print }' /app/internal/f5/run.go > /tmp/run.go.noloaded
+root@85b121dde67e:/app# awk 'BEGIN{printed=0}
+> {print}
+> /^func runDirect\(/{printed=0}
+> /^func RunRow\(/{ if(!printed){ printed=1 } }
+> ' /tmp/run.go.noloaded > /dev/null
+root@85b121dde67e:/app# python3 - <<'PY'
+> import re, pathlib
+> p=pathlib.Path('/app/internal/f5/run.go')
+> s=p.read_text()
+> # Replace the entire runLoaded function body (from its signature to the closing brace before func RunRow)
+> pat=re.compile(r"func runLoaded\(w \*World, steps \[\]ScriptStep, blob a0\.ItemY, stale map\[string\]bool, profile Profile, radius int\) \[\]MoveRow \{.*?\n\}
+\n\nfunc RunRow\(", re.S)
+> m=pat.search(s)
+> if not m:
+>     raise SystemExit('runLoaded block not found')
+> replacement = """func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+>         applyWorld(w, blob)
+>
+>         cache := &b1.CacheX{Obs: map[string]bool{}}
+>         b1.Merge(cache, blob)
+>         merged := b1.Snapshot(cache)
+>         for k, v := range stale {
+>                 merged[k] = v
+>         }
+>
+>         // Effects were restored from the saved blob; keep them stable across resume.
+>         w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+>
+>         moves := []MoveRow{}
+>         pastSave := false
+>         for _, step := range steps {
+>                 if step.Action == "save" {
+>                         pastSave = true
+>                         continue
+>                 }
+>                 if !pastSave {
+>                         continue
+>                 }
+>                 w.Turn = step.Turn
+>                 if step.Actor == "P" {
+>                         applyPlayer(w, step.Arg)
+>                         e4.ApplyLit(w, radius, blindActive(w))
+>                 }
+>                 if step.Actor == "H" {
+>                         moves = append(moves, advanceAll(w, merged)...)
+>                 }
+>         }
+>         return moves
+> }
+>
+> func RunRow("""
+> out = s[:m.start()] + replacement + s[m.end():]
+> p.write_text(out)
+> print('patched runLoaded')
+> PY
+patched runLoaded
+root@85b121dde67e:/app# make -s -C /app build
+root@85b121dde67e:/app# bash /app/scripts/run-matrix.sh
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     print(c['name'], 'ok=', c['ok'], 'fresh.sig=', c['fresh']['sig'], 'resume.sig=', c['resume']['sig'])
+> PY
+bishop ok= True fresh.sig= 811c9dc5 resume.sig= 811c9dc5
+knight ok= True fresh.sig= 811c9dc5 resume.sig= 811c9dc5
+lancer ok= True fresh.sig= 811c9dc5 resume.sig= 811c9dc5
+rook ok= True fresh.sig= 7d3f56fa resume.sig= 7d3f56fa
+sentinel ok= True fresh.sig= 9a98d68 resume.sig= 9a98d68
+warden ok= True fresh.sig= 811c9dc5 resume.sig= 811c9dc5
+root@85b121dde67e:/app#

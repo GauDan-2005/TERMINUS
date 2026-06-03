@@ -1,0 +1,1111 @@
+[?2004hroot@e746dc20c356:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@e746dc20c356:/app# clear
+[?2004l[H[J[3J[?2004hroot@e746dc20c356:/app# cd /app
+[?2004l[?2004hroot@e746dc20c356:/app# ls -la
+[?2004ltotal 12
+drwxr-xr-x  9 root root 159 May 29 06:46 .
+drwxr-xr-x 19 root root 265 May 29 06:47 ..
+-rw-r--r--  1 root root 122 May 29 06:44 Cargo.lock
+-rw-r--r--  1 root root  90 May 29 06:44 Cargo.toml
+drwxr-xr-x  3 root root  19 May 29 06:44 cmd
+drwxr-xr-x  2 root root  41 May 29 06:44 config
+drwxr-xr-x  2 root root  73 May 29 06:44 data
+drwxr-xr-x  2 root root  50 May 29 06:44 docs
+-rw-r--r--  1 root root  30 May 29 06:44 go.mod
+-rw-r--r--  1 root root   0 May 29 06:44 go.sum
+drwxr-xr-x  3 root root  21 May 29 06:44 internal
+drwxr-xr-x  9 root root  91 May 29 06:44 src
+drwxr-xr-x  2 root root  26 May 29 06:46 tools
+[?2004hroot@e746dc20c356:/app# sed -n '1,200p' /app/tools/run_local.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+[?2004hroot@e746dc20c356:/app# ls -la /app/config && echo '---' && sed -n '1,200p' /app/config/sets.txt
+[?2004ltotal 8
+drwxr-xr-x 2 root root  41 May 29 06:44 .
+drwxr-xr-x 9 root root 159 May 29 06:46 ..
+-rw-r--r-- 1 root root  33 May 29 06:44 runtime.txt
+-rw-r--r-- 1 root root  36 May 29 06:44 sets.txt
+---
+alpha
+beta
+gamma
+delta
+epsilon
+zeta
+[?2004hroot@e746dc20c356:/app# rm -f /app/output/raw.json /app/output/report.json
+[?2004l[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004l/app/tools/run_local.sh: line 3: cargo: command not found
+[?2004hroot@e746dc20c356:/app# ls -la /app/output && echo '--- raw head' && (test -f /app/output/raw.json && head -c 2000 /app/output/raw.json; echo) && echo '--- report head' && (test -f /app/output/report.json && head -c 2000 /app/output/report.json; echo)
+[?2004lls: cannot access '/app/output': No such file or directory
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,sys,os
+[?2004l[?2004h> for p in ['/app/output/raw.json','/app/output/report.json']:
+[?2004l[?2004h>     if not os.path.exists(p):
+[?2004l[?2004h>         print(p,'MISSING')
+[?2004l[?2004h>         continue
+[?2004l[?2004h>     with open(p) as f:
+[?2004l[?2004h>         obj=json.load(f)
+[?2004l[?2004h>     print('\n',p)
+[?2004l[?2004h>     if 'raw' in obj: print(' keys',obj.keys(),' raw_len',len(obj['raw']))
+[?2004l[?2004h>     if 'rows' in obj: print(' keys',obj.keys(),' rows_len',len(obj['rows']),' summary',obj.get('summary'))
+[?2004l[?2004h> PY
+[?2004l/app/output/raw.json MISSING
+/app/output/report.json MISSING
+[?2004hroot@e746dc20c356:/app# echo "$PATH"
+[?2004l/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[?2004hroot@e746dc20c356:/app# command -v cargo || true
+[?2004l[?2004hroot@e746dc20c356:/app# ls -la /root/.cargo/bin 2>/dev/null || true
+[?2004l[?2004hroot@e746dc20c356:/app# find / -maxdepth 4 -type f -name cargo 2>/dev/null | head
+[?2004l[?2004hroot@e746dc20c356:/app# find / -maxdepth 4 -type f -name rustc 2>/dev/null | head
+[?2004l[?2004hroot@e746dc20c356:/app# if [ -f /root/.cargo/env ]; then sed -n '1,120p' /root/.cargo/env; fi
+[?2004l[?2004hroot@e746dc20c356:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: tools/run_local.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  #!/bin/bash
+[?2004l[?2004h>  set -euo pipefail
+[?2004l[?2004h> +
+[?2004l[?2004h> +# Ensure Rust toolchain is available in non-interactive environments.
+[?2004l[?2004h> +if ! command -v cargo >/dev/null 2>&1; then
+[?2004l[?2004h> +  if [ -f "$HOME/.cargo/env" ]; then
+[?2004l[?2004h> +    # shellcheck disable=SC1090
+[?2004l[?2004h> +    source "$HOME/.cargo/env"
+[?2004l[?2004h> +  fi
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +
+[?2004l[?2004h> +# Common fallback locations for cargo.
+[?2004l[?2004h> +if ! command -v cargo >/dev/null 2>&1; then
+[?2004l[?2004h> +  for d in /root/.cargo/bin /usr/local/cargo/bin /opt/rust/bin; do
+[?2004l[?2004h> +    if [ -x "$d/cargo" ]; then
+[?2004l[?2004h> +      export PATH="$d:$PATH"
+[?2004l[?2004h> +      break
+[?2004l[?2004h> +    fi
+[?2004l[?2004h> +  done
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +
+[?2004l[?2004h>  cargo --version
+[?2004l[?2004h>  mkdir -p /app/output /app/bin
+[?2004l[?2004h>  cargo build --release --quiet --manifest-path /app/Cargo.toml
+[?2004l[?2004h>  /app/target/release/local-infer-sandbox /app/output/raw.json
+[?2004l[?2004h>  go build -o /app/bin/align /app/cmd/align/main.go
+[?2004l[?2004h>  /app/bin/align /app/output/raw.json /app/output/report.json
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004l/app/tools/run_local.sh: line 3: cargo: command not found
+[?2004hroot@e746dc20c356:/app# ls -la /app/output && echo '---' && python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print('raw keys:',raw.keys(),'raw_len',len(raw.get('raw',[])))
+[?2004l[?2004h> print('report keys:',rep.keys(),'rows_len',len(rep.get('rows',[])),'summary',rep.get('summary'))
+[?2004l[?2004h> PY
+[?2004lls: cannot access '/app/output': No such file or directory
+[?2004hroot@e746dc20c356:/app# cat /etc/os-release
+[?2004lPRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+[?2004hroot@e746dc20c356:/app# apt-get update
+[?2004l0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Reading package lists... 0%Reading package lists... 0%Reading package lists... 61%Reading package lists... Done
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+[?2004hroot@e746dc20c356:/app# apt-get install -y cargo rustc
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 61%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+E: Unable to locate package cargo
+E: Unable to locate package rustc
+[?2004hroot@e746dc20c356:/app# cargo --version && rustc --version
+[?2004lbash: cargo: command not found
+[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004l/app/tools/run_local.sh: line 3: cargo: command not found
+[?2004hroot@e746dc20c356:/app# ls -la /app/output
+[?2004lls: cannot access '/app/output': No such file or directory
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,os
+[?2004l[?2004h> for p in ['/app/output/raw.json','/app/output/report.json']:
+[?2004l[?2004h>     print('\n',p)
+[?2004l[?2004h>     if not os.path.exists(p):
+[?2004l[?2004h>         print('MISSING')
+[?2004l[?2004h>         continue
+[?2004l[?2004h>     obj=json.load(open(p))
+[?2004l[?2004h>     print('keys',list(obj.keys()))
+[?2004l[?2004h>     if 'raw' in obj:
+[?2004l[?2004h>         print('raw_len',len(obj['raw']))
+[?2004l[?2004h>         print('first_row_keys',list(obj['raw'][0].keys()) if obj['raw'] else None)
+[?2004l[?2004h>     if 'rows' in obj:
+[?2004l[?2004h>         print('rows_len',len(obj['rows']))
+[?2004l[?2004h>         print('summary',obj.get('summary'))
+[?2004l[?2004h>         print('first_row_keys',list(obj['rows'][0].keys()) if obj['rows'] else None)
+[?2004l[?2004h> PY
+[?2004l
+ /app/output/raw.json
+MISSING
+
+ /app/output/report.json
+MISSING
+[?2004hroot@e746dc20c356:/app# ls -la /app/tools && find /app -maxdepth 3 -type f -name '*env*' -o -name '*.sh'
+[?2004ltotal 4
+drwxr-xr-x 2 root root  26 May 29 06:46 .
+drwxr-xr-x 9 root root 159 May 29 06:46 ..
+-rwxr-xr-x 1 root root 309 May 29 06:44 run_local.sh
+/app/tools/run_local.sh
+[?2004hroot@e746dc20c356:/app# grep -RIn --exclude-dir=target --exclude-dir=.git -e 'cargo ' -e 'rustup' -e '.cargo' -e 'RUST' /app | head -n 50
+[?2004l/app/tools/run_local.sh:3:cargo --version
+/app/tools/run_local.sh:5:cargo build --release --quiet --manifest-path /app/Cargo.toml
+[?2004hroot@e746dc20c356:/app# for d in /usr/local /opt /app /root /usr; do echo "--- $d"; find "$d" -maxdepth 5 -type f \( -name cargo -o -name rustc -o -name rustup \) 2>/dev/null | head; done
+[?2004l--- /usr/local
+/usr/local/cargo/bin/rustup
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc
+--- /opt
+--- /app
+--- /root
+--- /usr
+/usr/local/cargo/bin/rustup
+[?2004hroot@e746dc20c356:/app# find / -type f \( -name cargo -o -name rustc \) 2>/dev/null | head -n 50
+[?2004l/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/etc/bash_completion.d/cargo
+[?2004hroot@e746dc20c356:/app# sed -n '1,120p' /app/tools/run_local.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+[?2004hroot@e746dc20c356:/app# cat > /app/tools/run_local.sh <<'SH'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> 
+[?2004l[?2004h> # Ensure Rust toolchain is on PATH in this sandbox.
+[?2004l[?2004h> # rustup is installed under /usr/local; cargo/rustc live under the toolchain bin.
+[?2004l[?2004h> export PATH="/usr/local/cargo/bin:$PATH"
+[?2004l[?2004h> if ! command -v cargo >/dev/null 2>&1; then
+[?2004l[?2004h>   tc_bin="$(ls -d /usr/local/rustup/toolchains/*/bin 2>/dev/null | head -n1 || true)"
+[?2004l[?2004h>   if [ -n "${tc_bin}" ]; then
+[?2004l[?2004h>     export PATH="${tc_bin}:$PATH"
+[?2004l[?2004h>   fi
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> cargo --version
+[?2004l[?2004h> mkdir -p /app/output /app/bin
+[?2004l[?2004h> cargo build --release --quiet --manifest-path /app/Cargo.toml
+[?2004l[?2004h> /app/target/release/local-infer-sandbox /app/output/raw.json
+[?2004l[?2004h> 
+[?2004l[?2004h> go build -o /app/bin/align /app/cmd/align/main.go
+[?2004l[?2004h> /app/bin/align /app/output/raw.json /app/output/report.json
+[?2004l[?2004h> SH
+[?2004l[?2004hroot@e746dc20c356:/app# chmod +x /app/tools/run_local.sh
+[?2004l[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
+
+[?2004hroot@e746dc20c356:/app# ls -la /app/output && echo '---' && python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print('raw_len',len(raw.get('raw',[])))
+[?2004l[?2004h> print('raw_first_keys',list(raw['raw'][0].keys()) if raw.get('raw') else None)
+[?2004l[?2004h> print('rows_len',len(rep.get('rows',[])))
+[?2004l[?2004h> print('report_first_keys',list(rep['rows'][0].keys()) if rep.get('rows') else None)
+[?2004l[?2004h> print('summary',rep.get('summary'))
+[?2004l[?2004h> PY
+[?2004ltotal 8
+drwxr-xr-x  2 root root   41 May 29 06:50 .
+drwxr-xr-x 12 root root  198 May 29 06:50 ..
+-rw-r--r--  1 root root  824 May 29 06:50 raw.json
+-rw-r--r--  1 root root 1656 May 29 06:50 report.json
+---
+raw_len 6
+raw_first_keys ['case', 'produced', 'slot_trace', 'order_used', 'packed', 'grouped', 'reuse', 'selected']
+rows_len 6
+report_first_keys ['case', 'produced', 'slot_trace', 'order_used', 'packed', 'grouped', 'reuse']
+summary {'agree': True, 'total': 6}
+[?2004hroot@e746dc20c356:/app# sed -n '1,200p' /app/cmd/align/main.go
+[?2004lpackage main
+
+import (
+    "encoding/json"
+    "os"
+    "sort"
+)
+
+type entry struct {
+    Case      string `json:"case"`
+    Produced  []int  `json:"produced"`
+    Trace     []int  `json:"slot_trace"`
+    OrderUsed []int  `json:"order_used"`
+    Packed    bool   `json:"packed"`
+    Grouped   bool   `json:"grouped"`
+    Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+    Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+    Rows    []entry        `json:"rows"`
+    Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+    seen := map[byte]entry{}
+    for _, row := range a {
+        key := row.Case[0]
+        seen[key] = row
+    }
+    out := make([]entry, 0, len(seen))
+    for _, row := range seen {
+        out = append(out, row)
+    }
+    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+    return out
+}
+
+func main() {
+    if len(os.Args) != 3 {
+        panic("usage: align raw final")
+    }
+    buf, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+    var raw rawDoc
+    if err := json.Unmarshal(buf, &raw); err != nil {
+        panic(err)
+    }
+    rows := fold(raw.Raw)
+    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+    out, err := json.MarshalIndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+        panic(err)
+    }
+}
+[?2004hroot@e746dc20c356:/app# find /app/internal -type f -maxdepth 5 -name '*.go' -print -exec sed -n '1,200p' {} \;
+[?2004lfind: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests specified before it as well as those specified after it.  Please specify global options before other arguments.
+/app/internal/collate/table.go
+package collate
+
+import "strings"
+
+func Mix(a string) string {
+    return strings.TrimSpace(a)
+}
+
+func Keep(a []string) []string {
+    out := append([]string{}, a...)
+    return out
+}
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,copy
+[?2004l[?2004h> p='/app/output/report.json'
+[?2004l[?2004h> obj=json.load(open(p))
+[?2004l[?2004h> # induce mismatch: change produced on alpha
+[?2004l[?2004h> for r in obj['rows']:
+[?2004l[?2004h>     if r['case']=='alpha':
+[?2004l[?2004h>         r['produced']=r['produced']+[999]
+[?2004l[?2004h>         break
+[?2004l[?2004h> json.dump(obj,open(p,'w'))
+[?2004l[?2004h> print('modified report.json to force mismatch')
+[?2004l[?2004h> PY
+[?2004lmodified report.json to force mismatch
+[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
+
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print(rep.get('summary'))
+[?2004l[?2004h> PY
+[?2004l{'agree': True, 'total': 6}
+[?2004hroot@e746dc20c356:/app# cat > /app/cmd/align/main.go <<'GO'
+[?2004l[?2004h> package main
+[?2004l[?2004h> 
+[?2004l[?2004h> import (
+[?2004l[?2004h> "encoding/json"
+[?2004l[?2004h> "errors"
+[?2004l[?2004h> "os"
+[?2004l[?2004h> "sort"
+[?2004l[?2004h> )
+[?2004l[?2004h> 
+[?2004l[?2004h> type entry struct {
+[?2004l[?2004h> Case      string `json:"case"`
+[?2004l[?2004h> Produced  []int  `json:"produced"`
+[?2004l[?2004h> Trace     []int  `json:"slot_trace"`
+[?2004l[?2004h> OrderUsed []int  `json:"order_used"`
+[?2004l[?2004h> Packed    bool   `json:"packed"`
+[?2004l[?2004h> Grouped   bool   `json:"grouped"`
+[?2004l[?2004h> Reuse     bool   `json:"reuse"`
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> type rawDoc struct {
+[?2004l[?2004h> Raw []entry `json:"raw"`
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> type finalDoc struct {
+[?2004l[?2004h> Rows    []entry        `json:"rows"`
+[?2004l[?2004h> Summary map[string]any `json:"summary"`
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> // keep one row per case name (full string). If duplicates exist, last wins.
+[?2004l[?2004h> func byCase(rows []entry) map[string]entry {
+[?2004l[?2004h> m := make(map[string]entry, len(rows))
+[?2004l[?2004h> for _, r := range rows {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> m[r.Case] = r
+[?2004l[?2004h> }
+[?2004l[?2004h> return m
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> func sortedRows(m map[string]entry) []entry {
+[?2004l[?2004h> out := make([]entry, 0, len(m))
+[?2004l[?2004h> for _, r := range m {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> out = append(out, r)
+[?2004l[?2004h> }
+[?2004l[?2004h> sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+[?2004l[?2004h> return out
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> func sameFields(a, b entry) bool {
+[?2004l[?2004h> if a.Case != b.Case || a.Packed != b.Packed || a.Grouped != b.Grouped || a.Reuse != b.Reuse {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return false
+[?2004l[?2004h> }
+[?2004l[?2004h> if len(a.Produced) != len(b.Produced) || len(a.Trace) != len(b.Trace) || len(a.OrderUsed) != len(b.OrderUsed) {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return false
+[?2004l[?2004h> }
+[?2004l[?2004h> for i := range a.Produced {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if a.Produced[i] != b.Produced[i] {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> }
+[?2004l[?2004h> for i := range a.Trace {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if a.Trace[i] != b.Trace[i] {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> }
+[?2004l[?2004h> for i := range a.OrderUsed {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if a.OrderUsed[i] != b.OrderUsed[i] {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> }
+[?2004l[?2004h> return true
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> func loadPrior(path string) (map[string]entry, bool, error) {
+[?2004l[?2004h> buf, err := os.ReadFile(path)
+[?2004l[?2004h> if err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if errors.Is(err, os.ErrNotExist) {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return nil, false, nil
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return nil, false, err
+[?2004l[?2004h> }
+[?2004l[?2004h> var doc finalDoc
+[?2004l[?2004h> if err := json.Unmarshal(buf, &doc); err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> return nil, true, err
+[?2004l[?2004h> }
+[?2004l[?2004h> return byCase(doc.Rows), true, nil
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> func main() {
+[?2004l[?2004h> if len(os.Args) != 3 {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> panic("usage: align raw final")
+[?2004l[?2004h> }
+[?2004l[?2004h> rawPath := os.Args[1]
+[?2004l[?2004h> finalPath := os.Args[2]
+[?2004l[?2004h> 
+[?2004l[?2004h> buf, err := os.ReadFile(rawPath)
+[?2004l[?2004h> if err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> panic(err)
+[?2004l[?2004h> }
+[?2004l[?2004h> var raw rawDoc
+[?2004l[?2004h> if err := json.Unmarshal(buf, &raw); err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> panic(err)
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> // new report rows derived from raw, one per case name.
+[?2004l[?2004h> rawMap := byCase(raw.Raw)
+[?2004l[?2004h> newRows := sortedRows(rawMap)
+[?2004l[?2004h> 
+[?2004l[?2004h> agree := true
+[?2004l[?2004h> 
+[?2004l[?2004h> // (1) New report rows must match incoming raw for each case on the required fields.
+[?2004l[?2004h> // Since we derive from raw, this is structurally true; still enforce and also enforce no missing/extra.
+[?2004l[?2004h> if len(newRows) != len(rawMap) {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> agree = false
+[?2004l[?2004h> }
+[?2004l[?2004h> for c, r := range rawMap {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if !sameFields(r, rawMap[c]) { // self-check; placeholder to keep logic obvious
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> agree = false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> break
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> // (2) When replacing an existing report.json, compare prior rows vs new rows.
+[?2004l[?2004h> priorMap, priorExists, err := loadPrior(finalPath)
+[?2004l[?2004h> if err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> // If prior exists but is unreadable, treat as disagreement.
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> agree = false
+[?2004l[?2004h> } else if priorExists {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> // Any mismatch across case-level entries or missing/extra cases => disagree.
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if len(priorMap) != len(rawMap) {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> agree = false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> for c, newRow := range rawMap {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> oldRow, ok := priorMap[c]
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if !ok || !sameFields(oldRow, newRow) {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> agree = false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> break
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if agree {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> for c := range priorMap {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> if _, ok := rawMap[c]; !ok {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> agree = false
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> break
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> doc := finalDoc{Rows: newRows, Summary: map[string]any{"total": len(newRows), "agree": agree}}
+[?2004l[?2004h> out, err := json.MarshalIndent(doc, "", "  ")
+[?2004l[?2004h> if err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> panic(err)
+[?2004l[?2004h> }
+[?2004l[?2004h> if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+[?2004l[?2004h> 
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/     
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/      
+> panic(err)
+[?2004l[?2004h> }
+[?2004l[?2004h> }
+[?2004l[?2004h> GO
+[?2004l[?2004hroot@e746dc20c356:/app# go fmt /app/cmd/align/main.go
+[?2004lcmd/align/main.go
+[?2004hroot@e746dc20c356:/app# go build -o /app/bin/align /app/cmd/align/main.go
+[?2004l[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
+
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print('summary',rep.get('summary'))
+[?2004l[?2004h> PY
+[?2004lsummary {'agree': True, 'total': 6}
+[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
+
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print('summary',rep.get('summary'))
+[?2004l[?2004h> PY
+[?2004lsummary {'agree': True, 'total': 6}
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> rawm={r['case']:{k:r[k] for k in ['produced','slot_trace','order_used','packed','grouped','reuse']} for r in raw['raw']}
+[?2004l[?2004h> repm={r['case']:{k:r[k] for k in ['produced','slot_trace','order_used','packed','grouped','reuse']} for r in rep['rows']}
+[?2004l[?2004h> ok=True
+[?2004l[?2004h> if set(rawm)!=set(repm):
+[?2004l[?2004h>     ok=False
+[?2004l[?2004h> for c in sorted(rawm):
+[?2004l[?2004h>     if rawm[c]!=repm.get(c):
+[?2004l[?2004h>         ok=False
+[?2004l[?2004h>         print('mismatch',c)
+[?2004l[?2004h> print('raw_vs_report_match',ok)
+[?2004l[?2004h> PY
+[?2004lraw_vs_report_match True
+[?2004hroot@e746dc20c356:/app# sed -n '1,220p' /app/cmd/align/main.go
+[?2004lpackage main
+
+import (
+	"encoding/json"
+	"errors"
+	"os"
+	"sort"
+)
+
+type entry struct {
+	Case      string `json:"case"`
+	Produced  []int  `json:"produced"`
+	Trace     []int  `json:"slot_trace"`
+	OrderUsed []int  `json:"order_used"`
+	Packed    bool   `json:"packed"`
+	Grouped   bool   `json:"grouped"`
+	Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+	Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+	Rows    []entry        `json:"rows"`
+	Summary map[string]any `json:"summary"`
+}
+
+// keep one row per case name (full string). If duplicates exist, last wins.
+func byCase(rows []entry) map[string]entry {
+	m := make(map[string]entry, len(rows))
+	for _, r := range rows {
+		m[r.Case] = r
+	}
+	return m
+}
+
+func sortedRows(m map[string]entry) []entry {
+	out := make([]entry, 0, len(m))
+	for _, r := range m {
+		out = append(out, r)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+	return out
+}
+
+func sameFields(a, b entry) bool {
+	if a.Case != b.Case || a.Packed != b.Packed || a.Grouped != b.Grouped || a.Reuse != b.Reuse {
+		return false
+	}
+	if len(a.Produced) != len(b.Produced) || len(a.Trace) != len(b.Trace) || len(a.OrderUsed) != len(b.OrderUsed) {
+		return false
+	}
+	for i := range a.Produced {
+		if a.Produced[i] != b.Produced[i] {
+			return false
+		}
+	}
+	for i := range a.Trace {
+		if a.Trace[i] != b.Trace[i] {
+			return false
+		}
+	}
+	for i := range a.OrderUsed {
+		if a.OrderUsed[i] != b.OrderUsed[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func loadPrior(path string) (map[string]entry, bool, error) {
+	buf, err := os.ReadFile(path)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	var doc finalDoc
+	if err := json.Unmarshal(buf, &doc); err != nil {
+		return nil, true, err
+	}
+	return byCase(doc.Rows), true, nil
+}
+
+func main() {
+	if len(os.Args) != 3 {
+		panic("usage: align raw final")
+	}
+	rawPath := os.Args[1]
+	finalPath := os.Args[2]
+
+	buf, err := os.ReadFile(rawPath)
+	if err != nil {
+		panic(err)
+	}
+	var raw rawDoc
+	if err := json.Unmarshal(buf, &raw); err != nil {
+		panic(err)
+	}
+
+	// new report rows derived from raw, one per case name.
+	rawMap := byCase(raw.Raw)
+	newRows := sortedRows(rawMap)
+
+	agree := true
+
+	// (1) New report rows must match incoming raw for each case on the required fields.
+	// Since we derive from raw, this is structurally true; still enforce and also enforce no missing/extra.
+	if len(newRows) != len(rawMap) {
+		agree = false
+	}
+	for c, r := range rawMap {
+		if !sameFields(r, rawMap[c]) { // self-check; placeholder to keep logic obvious
+			agree = false
+			break
+		}
+	}
+
+	// (2) When replacing an existing report.json, compare prior rows vs new rows.
+	priorMap, priorExists, err := loadPrior(finalPath)
+	if err != nil {
+		// If prior exists but is unreadable, treat as disagreement.
+		agree = false
+	} else if priorExists {
+		// Any mismatch across case-level entries or missing/extra cases => disagree.
+		if len(priorMap) != len(rawMap) {
+			agree = false
+		}
+		for c, newRow := range rawMap {
+			oldRow, ok := priorMap[c]
+			if !ok || !sameFields(oldRow, newRow) {
+				agree = false
+				break
+			}
+		}
+		if agree {
+			for c := range priorMap {
+				if _, ok := rawMap[c]; !ok {
+					agree = false
+					break
+				}
+			}
+		}
+	}
+
+	doc := finalDoc{Rows: newRows, Summary: map[string]any{"total": len(newRows), "agree": agree}}
+	out, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+		panic(err)
+	}
+}
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/report.json'
+[?2004l[?2004h> obj=json.load(open(p))
+[?2004l[?2004h> for r in obj['rows']:
+[?2004l[?2004h>     if r['case']=='alpha':
+[?2004l[?2004h>         r['produced']=r['produced']+[123456]
+[?2004l[?2004h>         break
+[?2004l[?2004h> json.dump(obj,open(p,'w'))
+[?2004l[?2004h> print('corrupted existing report.json')
+[?2004l[?2004h> PY
+[?2004lcorrupted existing report.json
+[?2004hroot@e746dc20c356:/app# /app/bin/align /app/output/raw.json /app/output/report.json
+[?2004l[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> print(json.load(open('/app/output/report.json'))['summary'])
+[?2004l[?2004h> PY
+[?2004l{'agree': False, 'total': 6}
+[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
+
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print('summary',rep.get('summary'))
+[?2004l[?2004h> rawm={r['case']:{k:r[k] for k in ['produced','slot_trace','order_used','packed','grouped','reuse']} for r in raw['raw']}
+[?2004l[?2004h> repm={r['case']:{k:r[k] for k in ['produced','slot_trace','order_used','packed','grouped','reuse']} for r in rep['rows']}
+[?2004l[?2004h> print('case_counts',len(rawm),len(repm))
+[?2004l[?2004h> print('case_set_match',set(rawm)==set(repm))
+[?2004l[?2004h> bad=[]
+[?2004l[?2004h> for c in sorted(rawm):
+[?2004l[?2004h>     if rawm[c]!=repm.get(c):
+[?2004l[?2004h>         bad.append(c)
+[?2004l[?2004h> print('mismatches',bad)
+[?2004l[?2004h> PY
+[?2004lsummary {'agree': True, 'total': 6}
+case_counts 6 6
+case_set_match True
+mismatches []
+[?2004hroot@e746dc20c356:/app# /app/tools/run_local.sh
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
+[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
+[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
+[0m   [0m[0m[1m[38;5;12m|[0m
+[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
+
+[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
+[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
+[0m  [0m[0m[1m[38;5;12m|[0m
+[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
+[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
+
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
+[?2004l[?2004h> print('summary',rep.get('summary'))
+[?2004l[?2004h> PY
+[?2004lsummary {'agree': True, 'total': 6}
+[?2004hroot@e746dc20c356:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> cases=[l.strip() for l in open('/app/config/sets.txt') if l.strip()]
+[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
+[?2004l[?2004h> raw_cases=[r['case'] for r in raw['raw']]
+[?2004l[?2004h> print('config_cases',cases)
+[?2004l[?2004h> print('raw_cases',raw_cases)
+[?2004l[?2004h> print('match',cases==raw_cases)
+[?2004l[?2004h> PY
+[?2004lconfig_cases ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']
+raw_cases ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']
+match True
+[?2004hroot@e746dc20c356:/app# 

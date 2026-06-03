@@ -1,0 +1,123 @@
+New Terminal Output:
+
+root@448fd82dff43:/app# cat /app/csr_m/assemble.cpp
+#include "../include/matrix_view.h"
+
+#include <string.h>
+
+void matrix_from_case(const CaseSpec *spec, MatrixView *view) {
+    int dim = spec->nblocks * spec->bs;
+    int i;
+    memset(view, 0, sizeof(*view));
+    view->n = dim;
+    view->bs = spec->bs;
+    view->nblocks = spec->nblocks;
+    view->reorder = spec->reorder;
+    for (i = 0; i < spec->nblocks; i++) {
+        view->perm[i] = spec->perm[i];
+    }
+    for (i = 0; i < dim * dim; i++) {
+        view->a[i] = 0.0;
+    }
+    for (i = 0; i < spec->block_count; i++) {
+        const BlockEntry *be = &spec->blocks[i];
+        int rb = be->rb;
+        int cb = be->cb;
+        int r;
+        int c;
+        for (r = 0; r < spec->bs; r++) {
+            for (c = 0; c < spec->bs; c++) {
+                int gr = rb * spec->bs + r;
+                int gc = cb * spec->bs + c;
+                view->a[gr * dim + gc] = be->vals[r * spec->bs + c];
+            }
+        }
+    }
+    for (i = 0; i < dim; i++) {
+        view->b[i] = spec->rhs[i];
+    }
+}
+root@448fd82dff43:/app# cat /app/config/limits.toml
+max_iterations = 200
+residual_tol = 1.0e-9
+agreement_tol = 1.0e-6
+root@448fd82dff43:/app# cat /app/data/cases/basalt.case
+# basalt — identity layout, diagonal blocks
+name basalt
+nblocks 2
+bs 2
+reorder 0
+perm 0 1
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+rhs 1 0 1 0
+root@448fd82dff43:/app# cat /app/data/cases/flint.case
+# flint — identity layout with off-diagonal coupling
+name flint
+nblocks 2
+bs 2
+reorder 0
+perm 0 1
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+block 0 1 0 0.5 0 0
+block 1 0 0 0.5 0 0
+rhs 1 0 1 0
+root@448fd82dff43:/app# cat /app/data/cases/shale.case
+# shale — reordered flint-equivalent system
+name shale
+nblocks 2
+bs 2
+reorder 1
+perm 1 0
+block 0 0 4 0 0 4
+block 1 1 4 0 0 4
+block 0 1 0 0.5 0 0
+block 1 0 0 0.5 0 0
+rhs 1 0 1 0
+root@448fd82dff43:/app# cat /app/data/cases/garnet.case
+# garnet — three blocks with reorder
+name garnet
+nblocks 3
+bs 2
+reorder 1
+perm 2 0 1
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+root@448fd82dff43:/app# cat /app/data/cases/mica.case
+# mica — three blocks with reorder (garnet-class conditioning)
+name mica
+nblocks 3
+bs 2
+reorder 1
+perm 1 2 0
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+root@448fd82dff43:/app# cat /app/data/cases/opal.case
+# opal — three blocks with reorder (garnet-class conditioning)
+name opal
+nblocks 3
+bs 2
+reorder 1
+perm 1 2 0
+block 0 0 5 0 0 5
+block 1 1 5 0 0 5
+block 2 2 5 0 0 5
+block 0 1 0 0.4 0 0
+block 1 0 0 0.4 0 0
+block 1 2 0 0.4 0 0
+block 2 1 0 0.4 0 0
+rhs 1 0 1 0 1 0
+root@448fd82dff43:/app#

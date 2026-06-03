@@ -1,0 +1,107 @@
+New Terminal Output:
+
+root@97c3eded53e7:/app# /app/tools/run_local.sh
+/app/tools/run_local.sh: line 3: cargo: command not found
+root@97c3eded53e7:/app# ls -la /app/output
+ls: cannot access '/app/output': No such file or directory
+root@97c3eded53e7:/app# python3 - <<'PY'
+> import json
+> for p in ['/app/output/raw.json','/app/output/report.json']:
+>   with open(p) as f: obj=json.load(f)
+>   print(p, obj.keys())
+>   if 'raw' in obj: print(' raw len', len(obj['raw']))
+>   if 'rows' in obj: print(' rows len', len(obj['rows']))
+>   if 'summary' in obj: print(' summary', obj['summary'])
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/raw.json'
+root@97c3eded53e7:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))['raw']
+> rep=json.load(open('/app/output/report.json'))
+> print('first raw row:', raw[0])
+> print('first report row:', rep['rows'][0])
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/raw.json'
+root@97c3eded53e7:/app# grep -RIn --line-number "packed" /app/src /app/internal /app/cmd | head
+/app/src/main.rs:14:    packed: bool,
+/app/src/main.rs:23:        Case { name: "alpha", packed: false, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![21, 10, 4], vec![15, 8, 6]] },
+/app/src/main.rs:24:        Case { name: "beta", packed: true, group: false, reuse: false, seq: vec![0], rows: vec![vec![10, 4, 1]] },
+/app/src/main.rs:25:        Case { name: "gamma", packed: true, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![8, 3, 2], vec![6, 5, 1]] },
+/app/src/main.rs:26:        Case { name: "delta", packed: true, group: true, reuse: false, seq: vec![1, 0], rows: vec![vec![7, 4, 2], vec![5, 6, 3]] },
+/app/src/main.rs:27:        Case { name: "epsilon", packed: true, group: true, reuse: true, seq: vec![1, 0, 2], rows: vec![vec![4, 7, 2], vec![9, 2, 3], vec![3,
+ 8, 1]] },
+/app/src/main.rs:28:        Case { name: "zeta", packed: false, group: true, reuse: true, seq: vec![2, 0, 1], rows: vec![vec![12, 9, 5], vec![18, 4, 7], vec![10
+, 6, 8]] },
+/app/src/main.rs:32:fn token(sum: i32, slot: usize, packed: bool, group: bool, reuse: bool) -> i32 {
+/app/src/main.rs:34:    if packed { v += 3; }
+/app/src/main.rs:54:        if c.packed { a0::ax(&meta, row, i) } else { row.clone() }
+root@97c3eded53e7:/app# grep -RIn --line-number -E "scale|bias|compressed" /app/src /app/internal /app/cmd | head -n 50
+root@97c3eded53e7:/app# sed -n '1,200p' /app/cmd/align/main.go
+package main
+
+import (
+    "encoding/json"
+    "os"
+    "sort"
+)
+
+type entry struct {
+    Case      string `json:"case"`
+    Produced  []int  `json:"produced"`
+    Trace     []int  `json:"slot_trace"`
+    OrderUsed []int  `json:"order_used"`
+    Packed    bool   `json:"packed"`
+    Grouped   bool   `json:"grouped"`
+    Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+    Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+    Rows    []entry        `json:"rows"`
+    Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+    seen := map[byte]entry{}
+    for _, row := range a {
+        key := row.Case[0]
+        seen[key] = row
+    }
+    out := make([]entry, 0, len(seen))
+    for _, row := range seen {
+        out = append(out, row)
+    }
+    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+    return out
+}
+
+func main() {
+    if len(os.Args) != 3 {
+        panic("usage: align raw final")
+    }
+    buf, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+    var raw rawDoc
+    if err := json.Unmarshal(buf, &raw); err != nil {
+        panic(err)
+    }
+    rows := fold(raw.Raw)
+    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+    out, err := json.MarshalIndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+        panic(err)
+    }
+}
+root@97c3eded53e7:/app#

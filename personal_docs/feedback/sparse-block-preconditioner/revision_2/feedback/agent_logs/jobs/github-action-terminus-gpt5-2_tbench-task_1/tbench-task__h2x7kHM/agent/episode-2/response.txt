@@ -1,0 +1,19 @@
+{
+  "analysis": "The binary path issue is fixed via symlink and run-matrix.sh now runs without error, producing /app/output/solver-audit.json. However jq is not installed, so we couldn't inspect JSON via jq. The diff between the first and second run showed no differences (good determinism at file level, at least for that quick check). Next we must inspect the JSON contents to see whether all cases have ok=true and residual_agrees=true; and ensure run-one.sh produces per-case JSON matching the matrix slice. If failures exist (likely in reordered layouts), we need to debug and patch solver code.",
+  "plan": "1) View solver-audit.json using python (available) to summarize cases, highlight failures, and print per-case metrics. 2) For any failing case, run run-one.sh <name> and compare its JSON case object to the corresponding one in the matrix output. 3) If ok/residual_agrees failures exist, trace into code paths that compute residuals / ordering (perm_p/order.cpp, bsr_n/layout.cpp, scale_q/metric.cpp, solve_s/driver.cpp, flow_t/report.cpp) and fix. For now, start by extracting failure list and basic stats.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/output && wc -c /app/output/solver-audit.json && head -n 40 /app/output/solver-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/solver-audit.json'\nwith open(p) as f: data=json.load(f)\ncases=data.get('cases',[])\nprint('cases',len(cases))\nfail=[c for c in cases if not c.get('ok',False)]\nra=[c for c in cases if not c.get('residual_agrees',False)]\nhl=[c for c in cases if c.get('hit_limit',False)]\nprint('ok_false',len(fail))\nprint('residual_disagree',len(ra))\nprint('hit_limit',len(hl))\nfor title,arr in [('OK_FALSE',fail),('RESIDUAL_DISAGREE',ra),('HIT_LIMIT',hl)]:\n    if arr:\n        print('\\n'+title)\n        for c in arr:\n            print(c.get('name'), 'it',c.get('iterations'), 'final',c.get('final_residual'), 'reported',c.get('reported_residual'), 'agree',c.get('residual_agrees'), 'hit',c.get('hit_limit'))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))['cases']\n# print compact table for all cases\nfor c in m:\n    print(f\"{c['name']:10s} ok={c['ok']} it={c['iterations']:4d} final={c['final_residual']:.6g} reported={c['reported_residual']:.6g} agree={c['residual_agrees']} hit={c['hit_limit']}\")\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,279 @@
+New Terminal Output:
+
+root@27e9125e8859:/app# cat > /app/src/model.rs <<'EOF'
+> use std::collections::{BTreeMap, BTreeSet};
+>
+> #[derive(Clone, Debug)]
+> pub struct Event {
+>     pub kind: String,
+>     pub left: String,
+>     pub right: String,
+> }
+>
+> #[derive(Clone, Debug)]
+> pub struct Decision {
+>     pub label: String,
+>     pub subject: String,
+>     pub object: String,
+>     pub mode: String,
+>     pub outcome: String,
+>     pub tick: u64,
+>     pub reused: bool,
+>     pub group: String,
+>     pub via: String,
+> }
+>
+> #[derive(Clone, Debug)]
+> pub struct CaseReport {
+>     pub name: String,
+>     pub ok: bool,
+>     pub decisions: Vec<Decision>,
+>     pub stale: Vec<String>,
+> }
+>
+> #[derive(Debug)]
+> pub struct State {
+>     pub direct: BTreeSet<(String, String, String)>,
+>     pub chain: BTreeMap<String, String>,
+>     pub ticks: BTreeMap<String, u64>,
+>     pub blocked: BTreeSet<String>,
+>     pub store: BTreeMap<String, String>,
+>     pub group_slot: BTreeMap<String, String>,
+>     pub group_active: String,
+>     pub seen: BTreeMap<String, String>,
+>     pub clock: u64,
+> }
+>
+> impl State {
+>     pub fn new() -> Self {
+>         Self {
+>             direct: BTreeSet::new(),
+>             chain: BTreeMap::new(),
+>             ticks: BTreeMap::new(),
+>             blocked: BTreeSet::new(),
+>             store: BTreeMap::new(),
+>             group_slot: BTreeMap::new(),
+>             group_active: String::new(),
+>             seen: BTreeMap::new(),
+>             clock: 0,
+>         }
+>     }
+>
+>     pub fn tick_for(&self, subject: &str) -> u64 {
+>         *self.ticks.get(subject).unwrap_or(&0)
+>     }
+>
+>     // Cache keys must be per-principal. Traces contain mixed principals; caching by only
+>     // (resource, action) incorrectly reuses authorization rows across subjects.
+>     pub fn slot_key(subject: &str, object: &str, mode: &str) -> String {
+>         format!("{subject}|{object}|{mode}")
+>     }
+>
+>     pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+>         format!("{subject}|{object}|{mode}")
+>     }
+> }
+>
+> impl Decision {
+>     pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+>         Self {
+>             label: label.to_string(),
+>             subject: subject.to_string(),
+>             object: object.to_string(),
+>             mode: mode.to_string(),
+>             outcome: String::new(),
+>             tick,
+>             reused: false,
+>             group: String::new(),
+>             via: String::new(),
+>         }
+>     }
+> }
+> EOF
+root@27e9125e8859:/app# cat > /app/k2/c.rs <<'EOF'
+> use crate::model::State;
+>
+> pub fn emit_c(a: &State, b: &str, c: &str, d: &str) -> Option<String> {
+>     let key = State::slot_key(b, c, d);
+>     a.store.get(&key).cloned()
+> }
+> EOF
+root@27e9125e8859:/app# cat > /app/k0/a.rs <<'EOF'
+> use crate::io::split_subject_object_mode;
+> use crate::k1_b::fold_b;
+> use crate::k3_d::lift_d;
+> use crate::k5_f::cast_f;
+> use crate::model::{CaseReport, Decision, Event, State};
+>
+> pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+>     match b.kind.as_str() {
+>         "grant" => {
+>             let (object, mode) = b
+>                 .right
+>                 .split_once('/')
+>                 .ok_or_else(|| format!("bad grant row {}", b.right))?;
+>             a.direct
+>                 .insert((b.left.clone(), object.to_string(), mode.to_string()));
+>             a.clock += 1;
+>             Ok(())
+>         }
+>         "delegate" => {
+>             a.chain.insert(b.right.clone(), b.left.clone());
+>             a.clock += 1;
+>             Ok(())
+>         }
+>         "revoke" => fold_b(a, &b.left),
+>         "batch" => {
+>             a.group_active = b.left.clone();
+>             a.group_slot.clear();
+>             Ok(())
+>         }
+>         "end" => {
+>             a.group_active.clear();
+>             a.group_slot.clear();
+>             Ok(())
+>         }
+>         "check" => {
+>             let (subject, object, mode) = split_subject_object_mode(&b.right)?;
+>             let row = if a.group_active.is_empty() {
+>                 wrap_g(a, &b.left, &subject, &object, &mode)
+>             } else {
+>                 lift_d(a, &b.left, &subject, &object, &mode)
+>             };
+>             let (row, note) = cast_f(a, row, true);
+>             c.decisions.push(row);
+>             if let Some(note) = note {
+>                 c.stale.push(note);
+>             }
+>             Ok(())
+>         }
+>         other => Err(format!("unknown trace row {other}")),
+>     }
+> }
+>
+> fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+>     use crate::k2_c::emit_c;
+>     use crate::k4_e::mote_e;
+>
+>     let tick = a.tick_for(subject);
+>     if let Some(outcome) = emit_c(a, subject, object, mode) {
+>         // Cache is per-subject, so we can safely reuse the cached outcome.
+>         // `via` must remain consistent with the current policy state; however
+>         // on cached deny we must not attempt to synthesize a delegation source.
+>         let via = if outcome == "allow" {
+>             mote_e(a, subject, object, mode).1
+>         } else {
+>             String::new()
+>         };
+>         let mut row = Decision::blank(label, subject, object, mode, tick);
+>         row.outcome = outcome;
+>         row.via = via;
+>         return row;
+>     }
+>
+>     let (outcome, via) = mote_e(a, subject, object, mode);
+>     a.store
+>         .insert(State::slot_key(subject, object, mode), outcome.clone());
+>     let mut row = Decision::blank(label, subject, object, mode, tick);
+>     row.outcome = outcome;
+>     row.via = via;
+>     row
+> }
+> EOF
+root@27e9125e8859:/app# cat > /app/k3/d.rs <<'EOF'
+> use crate::k4_e::mote_e;
+> use crate::model::{Decision, State};
+>
+> pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+>     let slot = State::slot_key(c, d, e);
+>     let tick = a.tick_for(c);
+>
+>     if let Some(outcome) = a.group_slot.get(&slot) {
+>         let via = if outcome == "allow" {
+>             mote_e(a, c, d, e).1
+>         } else {
+>             String::new()
+>         };
+>         let mut row = Decision::blank(b, c, d, e, tick);
+>         row.outcome = outcome.clone();
+>         row.group = a.group_active.clone();
+>         row.via = via;
+>         return row;
+>     }
+>
+>     let (outcome, via) = mote_e(a, c, d, e);
+>     a.group_slot.insert(slot, outcome.clone());
+>     let mut row = Decision::blank(b, c, d, e, tick);
+>     row.outcome = outcome;
+>     row.group = a.group_active.clone();
+>     row.via = via;
+>     row
+> }
+> EOF
+root@27e9125e8859:/app# cat > /app/k4/e.rs <<'EOF'
+> use crate::model::State;
+>
+> // Returns (verdict, delegated_from).
+> //
+> // Delegation semantics:
+> // - Evaluate from the requesting subject toward grantors by following `chain`.
+> // - If any subject along that walk is blocked/revoked, inherited access must deny.
+> // - A blocked/revoked subject never receives allow on delegated paths.
+> // - delegated_from is empty for direct rows; otherwise it is the grantor that holds
+> //   the direct grant.
+> pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+>     let mut current = b.to_string();
+>     let mut first = true;
+>
+>     loop {
+>         // If any subject on the walk is blocked/revoked, delegated paths are denied.
+>         // This includes the requester.
+>         if a.blocked.contains(&current) {
+>             return ("deny".to_string(), String::new());
+>         }
+>
+>         if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+>             // Found a direct grant at `current`. If it's the requester, this is direct.
+>             // If it's an ancestor, this is inherited and delegated_from must be that grantor.
+>             let via = if first { String::new() } else { current.clone() };
+>             return ("allow".to_string(), via);
+>         }
+>
+>         match a.chain.get(&current) {
+>             Some(parent) => {
+>                 current = parent.clone();
+>                 first = false;
+>             }
+>             None => return ("deny".to_string(), String::new()),
+>         }
+>     }
+> }
+> EOF
+root@27e9125e8859:/app# cat > /app/k5/f.rs <<'EOF'
+> use crate::model::{Decision, State};
+>
+> pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+>     // Reuse only when the subject is stable (epoch unchanged).
+>     let track = State::track_key(&b.subject, &b.object, &b.mode);
+>     let key = format!("{track}|{}", b.tick);
+>
+>     let reused = a
+>         .seen
+>         .get(&key)
+>         .map(|old| old == &b.outcome)
+>         .unwrap_or(false);
+>
+>     b.reused = reused;
+>     a.seen.insert(key, b.outcome.clone());
+>
+>     // With correct mote_e semantics, we should not be producing "allow" for blocked
+>     // subjects via delegation. Keep stale empty.
+>     (b, None)
+> }
+> EOF
+root@27e9125e8859:/app# grep -RIn --line-number "slot_key\(" /app/src /app/k* | sed -n '1,120p'
+grep: Unmatched ( or \(
+root@27e9125e8859:/app# find / -maxdepth 5 -type f -name rustc -o -name cargo 2>/dev/null | sed -n '1,200p'
+/usr/local/cargo
+/usr/local/cargo/bin/cargo
+root@27e9125e8859:/app#

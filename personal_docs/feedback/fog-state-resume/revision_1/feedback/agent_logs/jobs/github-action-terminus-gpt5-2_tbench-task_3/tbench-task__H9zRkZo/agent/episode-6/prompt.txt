@@ -1,0 +1,53 @@
+New Terminal Output:
+
+root@ddf480d0dc66:/app# perl -0777 -i -pe 's@func runDirect\(w \*World, steps \[\]ScriptStep, profile Profile, radius int\) \[\]MoveRow \{.*?\n\}\n\nfunc runLoa
+ded@func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {\n        moves := []MoveRow{}\n        for _, step := range steps {\n
+               if step.Action != "save" {\n                        continue\n                }\n                w.Turn = step.Turn\n                e4.ApplyLit(
+w, radius, blindActive(w))\n                moves = append(moves, advanceAll(w, buildObs(w, nil))...)\n        }\n        return moves\n}\n\nfunc runLoaded@sms'
+ /app/internal/f5/run.go
+root@ddf480d0dc66:/app# perl -0777 -i -pe 's@allMoves := append\(append\(\[\]MoveRow\{\}, freshMoves\.\.\.\), resumeMoves\.\.\.\)@allMoves := freshMoves@' /app/
+internal/f5/run.go
+root@ddf480d0dc66:/app# gofmt -w /app/internal/f5/run.go
+root@ddf480d0dc66:/app# bash /app/scripts/run-matrix.sh
+root@ddf480d0dc66:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> a=json.load(open(p))
+> for c in a['cases']:
+>     print(c['name'], 'ok=', c['ok'], 'fresh', c['fresh'], 'resume', c['resume'], 'moves', len(c['moves']))
+> PY
+bishop ok= True fresh {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} resume {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} moves 0
+knight ok= True fresh {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} resume {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} moves 0
+lancer ok= True fresh {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} resume {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} moves 0
+rook ok= True fresh {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1} resume {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1} moves 1
+sentinel ok= True fresh {'sig': '691e8e87', 'illegal': 0, 'steps': 1} resume {'sig': '691e8e87', 'illegal': 0, 'steps': 1} moves 1
+warden ok= True fresh {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} resume {'sig': '811c9dc5', 'illegal': 0, 'steps': 0} moves 0
+root@ddf480d0dc66:/app# python3 - <<'PY'
+> import json
+> A=json.load(open('/app/output/resume-audit.json'))
+> for name in ['rook','sentinel']:
+>     c=next(x for x in A['cases'] if x['name']==name)
+>     print('\n##',name)
+>     for i,m in enumerate(c['moves']):
+>         print(i,m)
+> PY
+
+## rook
+0 {'turn': 2, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}
+
+## sentinel
+0 {'turn': 4, 'actor': '1', 'from_x': 3, 'from_y': 3, 'to_x': 3, 'to_y': 2, 'kind': 'step', 'legal': True}
+root@ddf480d0dc66:/app# for c in rook sentinel; do bash /app/scripts/one-case.sh $c; done
+root@ddf480d0dc66:/app# python3 - <<'PY'
+> import json
+> for name in ['rook','sentinel']:
+>     p=f'/app/output/single-{name}.json'
+>     a=json.load(open(p))
+>     c=a['cases'][0]
+>     print('\nSINGLE',name,'ok',c['ok'],'fresh',c['fresh'],'resume',c['resume'],'moves',len(c['moves']))
+> PY
+
+SINGLE rook ok True fresh {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1} resume {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1} moves 1
+
+SINGLE sentinel ok True fresh {'sig': '691e8e87', 'illegal': 0, 'steps': 1} resume {'sig': '691e8e87', 'illegal': 0, 'steps': 1} moves 1
+root@ddf480d0dc66:/app#

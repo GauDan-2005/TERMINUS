@@ -1,0 +1,26 @@
+{
+  "analysis": "Now I have a complete picture. I've identified the bugs causing resume/fresh disagreements:\n\n1. **store/pack.go - PackItem**: `out.Seen = append([]bool(nil), st.Lit...)` replaces Seen with Lit. After restore, the world's Seen field is wrong (it's what Lit was at save time, not what Seen was). Fix: use `st.Seen` instead of `st.Lit`.\n\n2. **mod/effect.go - SyncBoundary**: `ExpiryTurn: currentTurn + rem - 1` is off by one. For bishop: blind expires at turn 4, saved at turn 2, rem=2. On resume at turn 2, new expiry = 2+2-1=3. At turn 3, `blindNow` checks `3 < 3` = false but should be true. Fix: remove the `- 1`.\n\n3. **vis/sight.go - PlayerSees**: Special-case for bottom row checks wrong lit cell. Fix: remove the special case.\n\nThese three bugs cause the resumed runs to diverge from fresh runs.",
+  "plan": "Apply the three fixes to the source code, rebuild, and run the matrix to verify all cases pass.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/out.Seen = append(\\[\\]bool(nil), st.Lit...)/out.Seen = append([]bool(nil), st.Seen...)/' /app/internal/store/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/internal/store/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -i 's/ExpiryTurn: currentTurn + rem - 1/ExpiryTurn: currentTurn + rem/' /app/internal/mod/effect.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/internal/mod/effect.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/internal/vis/sight.go\n",
+      "duration": 0.1
+    }
+  ]
+}

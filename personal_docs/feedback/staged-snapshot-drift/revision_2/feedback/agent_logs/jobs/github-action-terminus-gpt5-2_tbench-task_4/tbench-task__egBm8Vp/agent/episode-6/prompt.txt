@@ -1,0 +1,62 @@
+New Terminal Output:
+
+root@1465729b6301:/app# grep -n "Seq%5" -n internal/a0/core.go; grep -n "Nlink = 1" internal/a0/core.go
+29:     if b.Op == "write" && b.Seq%5 == 0 {
+33:             b.Nlink = 1
+root@1465729b6301:/app# perl -0777 -i -pe 's/\n\s*if b\.Op == "write" && b\.Seq%5 == 0 \{\n\s*b\.Data = strings\.TrimSuffix\(b\.Data, "\\n"\)\n\s*\}\n//s; s/\n\
+s*if b\.Op == "write" && b\.Nlink > 1 \{\n\s*b\.Nlink = 1\n\s*\}\n//s' internal/a0/core.go
+root@1465729b6301:/app# grep -n "Seq%5" internal/a0/core.go || echo "ok: no Seq%5 trimming"; grep -n "Nlink = 1" internal/a0/core.go || echo "ok: no Nlink overr
+ide"
+ok: no Seq%5 trimming
+29:             b.Nlink = 1
+root@1465729b6301:/app# go test ./...
+# staged.local/snapshot/internal/a0
+internal/a0/core.go:28:4: syntax error: unexpected keyword if at end of statement
+?       staged.local/snapshot/cmd/apex  [no test files]
+FAIL    staged.local/snapshot/cmd/ctl [build failed]
+FAIL    staged.local/snapshot/internal/a0 [build failed]
+?       staged.local/snapshot/internal/b1       [no test files]
+?       staged.local/snapshot/internal/c2       [no test files]
+?       staged.local/snapshot/internal/d3       [no test files]
+?       staged.local/snapshot/internal/e4       [no test files]
+?       staged.local/snapshot/internal/f5       [no test files]
+?       staged.local/snapshot/internal/g6       [no test files]
+?       staged.local/snapshot/internal/h7       [no test files]
+FAIL
+root@1465729b6301:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# staged.local/snapshot/internal/a0
+internal/a0/core.go:28:4: syntax error: unexpected keyword if at end of statement
+make: *** [Makefile:6: build] Error 1
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     d=c.get('digest',{})
+>     print(f"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={
+len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}")
+> PY
+alpha: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=3
+beta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=7
+delta: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=3
+epsilon: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+gamma: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+zeta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=9
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> alpha=next(c for c in data['cases'] if c['name']=='alpha')
+> print(alpha)
+> PY
+{'name': 'alpha', 'source': '/tmp/staged-snapshot-886607168/alpha/source', 'restored': '/tmp/staged-snapshot-886607168/alpha/restored', 'ok': False, 'digest': {
+'source': '5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1', 'restored': 'e66330bda2806efad3c28401a2f7a52d71d320decb95bf328a16be60f6ce924a'}, '
+groups': {'source': [], 'restored': []}, 'accounting': [{'path': 'a/one.txt', 'bytes': 10, 'period': 'p0'}, {'path': 'b/two.txt', 'bytes': 10, 'period': 'p0'},
+{'path': 'c/three.txt', 'bytes': 13, 'period': 'p0'}]}
+root@1465729b6301:/app#

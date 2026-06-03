@@ -1,0 +1,23 @@
+{
+  "analysis": "Resume-audit.json marks all cases ok=true, but multiple cases have fresh_seen != resume_seen and repeated moves. The duplicates are present not only in JSON but also in the sidecar records.jsonl and trace.tsv, meaning the engine is recording the same resolved move twice. This would also explain visibility deltas (resume path likely replays/records fewer/extra events). The audit script currently isn't treating these as failures; however the task definition requires the JSON plus records and log sidecars list the same resolved moves in order (implying no duplication between fresh and resumed summaries). We need to find why a single run is emitting duplicate records (likely both during live step and during replay/commit, or appending on both 'apply' and 'persist' paths). Next step: inspect internal sim/recording code and how resume works; identify where records are written and ensure each move is recorded exactly once per resolved move, and visibility counts are computed consistently for fresh vs resume.",
+  "plan": "1) Search code for writing records.jsonl and trace.tsv, and for the move recording function. 2) Inspect resume/replay logic to see if it re-emits records while also running the simulation, causing duplication. 3) Fix by ensuring replay during resume is silent (no re-record) or by truncating/overwriting sidecars before writing, or by gating record emission behind a flag (e.g., only on fresh path, or only when not replaying history). 4) Rebuild (make) and rerun run-matrix.sh to confirm duplicates and visibility mismatches are gone, and audit still clean.",
+  "commands": [
+    {
+      "keystrokes": "rg -n \"records\\.jsonl|trace\\.tsv|jsonl\" /app/internal /app/cmd /app/scripts\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rg -n \"New.*Recorder|Record\\(|Append\\(|Write\\(\" /app/internal/sim /app/internal\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/internal/sim\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rg -n \"resume|replay|restore|checkpoint|snapshot\" /app/internal/sim /app/internal\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

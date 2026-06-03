@@ -1,0 +1,181 @@
+New Terminal Output:
+
+root@122b6c87f7b9:/app# /app/build/bin/solverctl 2>&1 | sed -n '1,200p'
+usage: solverctl matrix | solverctl one <case>
+root@122b6c87f7b9:/app# /app/build/bin/solverctl --help 2>&1 | sed -n '1,200p'
+usage: solverctl matrix | solverctl one <case>
+root@122b6c87f7b9:/app# /app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'
+root@122b6c87f7b9:/app# /app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'
+root@122b6c87f7b9:/app# sed -n '1,200p' /app/src/main.cpp
+#include "../include/case_spec.h"
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
+
+static const char *CASES[] = {"basalt", "flint", "shale", "garnet", "mica", "opal", NULL};
+
+static int run_named(const char *name, const char *out_dir, SolveResult *res) {
+    char path[512];
+    CaseSpec spec;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.case", name);
+    if (case_load(path, &spec) != 0) {
+        return -1;
+    }
+    return run_u(&spec, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        SolveResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/solver-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        SolveResult res;
+        char audit[512];
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_t(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
+    return 1;
+}
+root@122b6c87f7b9:/app# sed -n '1,200p' /app/drive_u/run.cpp
+#include "../include/case_spec.h"
+#include "../include/matrix_view.h"
+#include "../include/solver_report.h"
+
+#include <math.h>
+#include <string.h>
+
+void fn_n(const MatrixView *a, int reorder, BsrPack *c);
+void map_p(const double *a, const int *b, int c, int d, double *e);
+double norm_q(const double *a, int b);
+void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res);
+
+static double l2_norm(const double *v, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += v[i] * v[i];
+    }
+    return sqrt(s);
+}
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
+    MatrixView view;
+    BsrPack pack;
+    double rhs[MAX_DIM];
+    double x[MAX_DIM];
+    double r[MAX_DIM];
+    double true_res;
+    double rep_res;
+    int hit;
+    int iters;
+
+    (void)out_dir;
+    matrix_from_case(spec, &view);
+    fn_n(&view, view.reorder, &pack);
+    map_p(view.b, view.perm, view.n, view.bs, rhs);
+    hit = pcg_solve(&pack, rhs, x, &iters, &true_res);
+    bsr_matvec(&pack, x, r);
+    for (int i = 0; i < view.n; i++) {
+        r[i] = rhs[i] - r[i];
+    }
+    true_res = l2_norm(r, view.n);
+    rep_res = norm_q(r, view.n);
+    strncpy(out->name, spec->name, sizeof(out->name) - 1);
+    out->iterations = iters;
+    out->final_residual = true_res;
+    out->reported_residual = rep_res;
+    out->hit_limit = hit;
+    out->residual_agrees = fabs(rep_res - true_res) <= 1e-6 * (1.0 + true_res);
+    out->ok = (!hit) && (true_res < 1e-8) && out->residual_agrees;
+    return 0;
+}
+root@122b6c87f7b9:/app# sed -n '1,240p' /app/flow_t/report.cpp
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const SolveResult *res, int last) {
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
+    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
+    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
+    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
+    fprintf(fp, "      \"hit_limit\": %s\n    }", res->hit_limit ? "true" : "false");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+}
+
+int emit_t(const SolveResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const SolveResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (int i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+root@122b6c87f7b9:/app# sed -n '1,240p' /app/scale_q/metric.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s) + 1.0e-4;
+}
+root@122b6c87f7b9:/app#

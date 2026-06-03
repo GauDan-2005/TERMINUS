@@ -1,0 +1,83 @@
+New Terminal Output:
+root@e3b61ed64090:/app# find /app -type f | head -80
+/app/Makefile
+/app/README.md
+/app/bin/rogctl
+/app/cmd/rogctl/main.go
+/app/config/profiles.toml
+/app/config/sight.tsv
+/app/config/weights.tsv
+/app/data/layouts/bishop.map
+/app/data/layouts/knight.map
+/app/data/layouts/lancer.map
+/app/data/layouts/ranger.map
+/app/data/layouts/rook.map
+/app/data/layouts/sentinel.map
+/app/data/layouts/warden.map
+/app/data/scenarios.tsv
+/app/data/scripts/bishop.tsv
+/app/data/scripts/knight.tsv
+/app/data/scripts/lancer.tsv
+/app/data/scripts/ranger.tsv
+/app/data/scripts/rook.tsv
+/app/data/scripts/sentinel.tsv
+/app/data/scripts/warden.tsv
+/app/docs/architecture.md
+/app/docs/audit-format.md
+/app/docs/operations.md
+/app/go.mod
+/app/internal/exec/run.go
+/app/internal/exec/types.go
+/app/internal/g6/render.go
+/app/internal/h7/stats.go
+/app/internal/mem/cache.go
+/app/internal/mod/effect.go
+/app/internal/sim/layout.go
+/app/internal/sim/profile.go
+/app/internal/sim/types.go
+/app/internal/sim/world.go
+/app/internal/slot/plan.go
+/app/internal/store/pack.go
+/app/internal/vis/native.go
+/app/internal/vis/sight.go
+/app/probe/legality.c
+/app/probe/legality.h
+/app/probe/list.c
+/app/scripts/clean-room.sh
+/app/scripts/one-case.sh
+/app/scripts/run-matrix.sh
+root@e3b61ed64090:/app# cat /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+out="/app/output/resume-audit.json"
+work=""
+one_case=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --out) out="$2"; shift 2 ;;
+    --work) work="$2"; shift 2 ;;
+    --case) one_case="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$(dirname "$out")"
+make -s -C /app build
+args=("--out" "$out")
+if [ -n "$work" ]; then
+  args+=("--root" "$work")
+fi
+if [ -n "$one_case" ]; then
+  args+=("--case" "$one_case")
+fi
+/app/bin/rogctl "${args[@]}"
+root@e3b61ed64090:/app# cat /app/scripts/one-case.sh
+#!/bin/bash
+set -euo pipefail
+if [ "$#" -lt 1 ]; then
+  echo "usage: one-case.sh <name>" >&2
+  exit 2
+fi
+name="$1"
+out="/app/output/single-${name}.json"
+bash /app/scripts/run-matrix.sh --out "$out" --case "$name"
+root@e3b61ed64090:/app#

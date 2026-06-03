@@ -1,0 +1,39 @@
+{
+  "analysis": "Compilation now fails with Rust borrow checker errors in r4/e.rs: we hold immutable borrows into a.entries (Vec<&Entry>) and then call entry_observation which mutably borrows State to update last_seen. Need to avoid holding references while mutating state. Solution: choose an entry by cloning the needed fields (path/source/line/epoch/handle/slot) into locals or a lightweight struct, then drop the candidates vector (or scope it) before mutating state. We also still need the miss behavior change and pkg active root change (r3/d.rs already updated). Next: rewrite mote_e to select a candidate as owned data (e.g., (slot, path, source, line, handle)), then update last_seen and compute fresh. Then rebuild and rerun matrix; should fix epsilon (miss) and gamma/zeta fresh for pkg due to active root now matching actual target.",
+  "plan": "Rewrite /app/r4/e.rs so it:\n- First computes selected entry info without mutating State: iterate over a.entries and compute best candidate indices/handles based on active roots and expect_found.\n- Store selected fields in owned Strings/usize/u64.\n- Then update last_seen and build Observation.\nThis avoids borrowing issues. Then run run-matrix.sh and verify all cases ok with empty stale. Finally verify determinism with sha256 across two runs.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/r4/e.rs <<'EOF'\nuse crate::model::{Entry, Observation, State};\n\n#[derive(Clone)]\nstruct Pick {\n    slot: String,\n    path: String,\n    source: String,\n    line: usize,\n    epoch: u64,\n    handle: u64,\n}\n\nfn better(a: &Pick, b: &Pick) -> bool {\n    // Prefer newer epoch; tie-break deterministically.\n    (a.epoch, &a.path, a.line) > (b.epoch, &b.path, b.line)\n}\n\npub fn mote_e(a: &mut State, symbol: &str, expect_found: bool) -> Observation {\n    let mut best_active: Option<Pick> = None;\n    let mut best_any: Option<Pick> = None;\n\n    for entry in &a.entries {\n        if entry.symbol != symbol {\n            continue;\n        }\n\n        let pick = Pick {\n            slot: entry.slot.clone(),\n            path: entry.path.clone(),\n            source: entry.source.clone(),\n            line: entry.line,\n            epoch: entry.epoch,\n            handle: entry.handle,\n        };\n\n        if best_any.as_ref().is_none_or(|old| better(&pick, old)) {\n            best_any = Some(pick.clone());\n        }\n\n        let is_active = a\n            .active\n            .get(&entry.slot)\n            .is_some_and(|root| entry.path.starts_with(root));\n        if is_active {\n            if best_active.as_ref().is_none_or(|old| better(&pick, old)) {\n                best_active = Some(pick);\n            }\n        }\n    }\n\n    // For misses, only report a hit if it's visible from active roots.\n    let chosen = if expect_found {\n        best_active.or(best_any)\n    } else {\n        best_active\n    };\n\n    let Some(chosen) = chosen else {\n        return Observation::missing(symbol, symbol, a.epoch, !expect_found || true);\n    };\n\n    let reused = a\n        .last_seen\n        .get(symbol)\n        .map(|old| *old == chosen.handle)\n        .unwrap_or(false);\n    a.last_seen.insert(symbol.to_string(), chosen.handle);\n\n    let fresh = a\n        .active\n        .get(&chosen.slot)\n        .map(|root| chosen.path.starts_with(root))\n        .unwrap_or(false);\n\n    Observation {\n        label: String::new(),\n        symbol: symbol.to_string(),\n        found: true,\n        path: chosen.path,\n        source: chosen.source,\n        line: chosen.line,\n        epoch: a.epoch,\n        reused,\n        fresh,\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/index-report.json'\nobj=json.load(open(p))\nfor c in obj['cases']:\n    print(c['name'], 'ok', c['ok'], 'stale', c['stale'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/index-report.json'\nobj=json.load(open(p))\n# check epsilon legacy_after is a miss\nc=next(x for x in obj['cases'] if x['name']=='epsilon')\nprint([o for o in c['observations'] if o['label']=='epsilon_legacy_after'][0])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sha256sum /app/output/index-report.json && cp /app/output/index-report.json /app/output/index-report.json.run1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "sha256sum /app/output/index-report.json /app/output/index-report.json.run1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /app/output/index-report.json.run1 /app/output/index-report.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

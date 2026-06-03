@@ -1,0 +1,27 @@
+{
+  "analysis": "Found deliberate corruption in a0/core.go phase_a: it trims trailing newline from write rows when Seq%5==0, and it forces Nlink>1 down to 1 (destroying hardlink metadata). That explains missing newlines/byte-size mismatches and why restored groups are empty (no rows indicate nlink>1 / shared identity). Fix: remove these mutations so data remains byte-for-byte and Nlink preserved. Then hardlink restoration should work via Materialize’s groups map (d3.KeyFor). After patch, rerun matrix; then address any remaining issues (gamma restart ordering via b1.FoldRows reversing rows may still break final content unless fold logic is corrected).",
+  "plan": "1) Edit /app/internal/a0/core.go to stop trimming newline and stop overriding Nlink. 2) Rerun `bash /app/scripts/run-matrix.sh` to regenerate audit and check ok flags. 3) If gamma still fails, adjust b1.FoldRows logic (reversal on restart+ordered seems intentionally wrong) so replay rows reflect proper order and final content matches source.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/a0/core.go\n@@\n func phase_a(a *stateX, b itemY) error {\n@@\n \tif b.Path == \"\" {\n \t\treturn nil\n \t}\n-\tif b.Op == \"write\" && b.Seq%5 == 0 {\n-\t\tb.Data = strings.TrimSuffix(b.Data, \"\\n\")\n-\t}\n-\tif b.Op == \"write\" && b.Nlink > 1 {\n-\t\tb.Nlink = 1\n-\t}\n+\t// Preserve file bytes exactly as observed on disk. In particular, do not\n+\t// strip trailing newlines; audits require restored content to match source\n+\t// byte-for-byte.\n+\t//\n+\t// Also preserve hardlink metadata (Dev/Ino/Nlink) so materialization can\n+\t// recreate hardlink groups.\n \tif b.Op == \"remove\" {\n \t\ta.Rows = append(a.Rows, b)\n \t\treturn nil\n \t}\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/a0/core.go\n@@\n \t\"os\"\n \t\"path/filepath\"\n \t\"sort\"\n-\t\"strings\"\n \t\"syscall\"\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash -lc 'go test ./...'\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash -lc 'bash /app/scripts/run-matrix.sh'\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/restore-audit.json'))\nfor c in obj['cases']:\n    print(c['name'], 'ok=',c['ok'], 'groups', len(c['groups']['source']), len(c['groups']['restored']), 'digestMatch', c['digest']['source']==c['digest']['restored'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

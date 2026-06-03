@@ -1,0 +1,18 @@
+{
+  "analysis": "Now I have a complete picture of the codebase. I've identified these bugs:\n\n1. **`pool_a/tag.c`** - Footer written at `a->off + (b / 2)` instead of `a->off + b - FTR_SIZE`. This places the footer in the middle of blocks, making backward coalescing impossible.\n\n2. **`list_b/list.c`** - `list_coalesce` only merges with the right neighbor. Missing backward (left) coalescing using the footer of the previous block.\n\n3. **`move_d/move.c`** - `xc2` copies only `c/2` bytes instead of all `c` bytes during realloc data migration.\n\n4. **`acct_e/acct.c`** - `xd3` adds `b + 8` on alloc but subtracts just `b` on free, creating cumulative accounting drift.\n\nThese combine to cause the \"combined audit drift\" described in the task - accounting is asymmetric, coalescing is incomplete (visible in slate where fl_count stays at 2 after freeing all 3 blocks), and data is corrupted during moves.",
+  "plan": "Fix all four bugs and rebuild:\n1. Fix footer placement in tag.c to use `b - FTR_SIZE`\n2. Add backward coalescing in list.c \n3. Fix xc2 in move.c to copy full payload\n4. Fix xd3 in acct.c to not add spurious +8",
+  "commands": [
+    {
+      "keystrokes": "cat /app/data/cases/jade.plan\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/data/cases/coral.plan\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/config/limits.toml\n",
+      "duration": 0.1
+    }
+  ]
+}

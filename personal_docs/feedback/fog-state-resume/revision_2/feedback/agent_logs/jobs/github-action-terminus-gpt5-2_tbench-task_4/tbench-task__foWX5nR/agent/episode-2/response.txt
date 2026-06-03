@@ -1,0 +1,23 @@
+{
+  "analysis": "The resume audit currently reports fail_count 0: all cases have ok=true in /app/output/resume-audit.json, meaning the matrix is already clean. However, we accidentally ran one-case with an empty case name, producing /app/output/single-.json, which is a stray artifact. To finish cleanly, we should verify that the audit JSON indicates all rows clean (sanity check fields across cases) and remove the accidental single-.json file.",
+  "plan": "1) Use python3 to assert all cases have ok=true and also print a brief per-case check of illegal counts and signature equality for extra confidence. 2) Remove the accidental /app/output/single-.json file. 3) Re-run the matrix once to ensure repeatability and confirm still clean.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\ncases=d.get('cases',[])\nprint('case_count',len(cases))\nnot_ok=[c.get('case') for c in cases if not c.get('ok',False)]\nprint('not_ok_count',len(not_ok))\n# extra sanity: signature match and illegal==0 for both paths\nbad=[]\nfor c in cases:\n    fresh=c.get('fresh',{}).get('summary',{})\n    resume=c.get('resume',{}).get('summary',{})\n    if fresh.get('illegal')!=0 or resume.get('illegal')!=0 or fresh.get('signature')!=resume.get('signature'):\n        bad.append((c.get('case'), fresh.get('illegal'), resume.get('illegal'), fresh.get('signature')==resume.get('signature')))\nprint('sanity_bad_count',len(bad))\nfor row in bad[:20]:\n    print(*row)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rm -f /app/output/single-.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/resume-audit.json') as f:\n    d=json.load(f)\nprint('not_ok_count', sum(1 for c in d.get('cases',[]) if not c.get('ok',False)))\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": true
+}

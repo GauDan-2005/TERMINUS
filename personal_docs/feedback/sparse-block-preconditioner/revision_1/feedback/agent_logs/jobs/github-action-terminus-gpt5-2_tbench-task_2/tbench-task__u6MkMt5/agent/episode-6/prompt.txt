@@ -1,0 +1,36 @@
+Current terminal state:
+New Terminal Output:
+
+root@f0090f19629f:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root   31 May 25 16:07 .
+drwxr-xr-x 20 root root  278 May 25 16:07 ..
+-rw-r--r--  1 root root 1202 May 25 16:07 solver-audit.json
+root@f0090f19629f:/app# sed -n '1,120p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+root@f0090f19629f:/app# bash /app/scripts/run-matrix.sh
+root@f0090f19629f:/app# cp /app/output/solver-audit.json /tmp/solver-audit.run1.json
+root@f0090f19629f:/app# bash /app/scripts/run-matrix.sh
+root@f0090f19629f:/app# cp /app/output/solver-audit.json /tmp/solver-audit.run2.json
+root@f0090f19629f:/app# diff -u /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json || true
+root@f0090f19629f:/app# cp /app/output/solver-audit.json /tmp/solver-audit.matrix.json
+root@f0090f19629f:/app# bash /app/scripts/run-one.sh basalt
+root@f0090f19629f:/app# python3 - <<'PY'
+> import json
+> matrix=json.load(open('/tmp/solver-audit.matrix.json'))
+> one=json.load(open('/app/output/basalt-audit.json'))
+> b=[c for c in matrix['cases'] if c['name']=='basalt']
+> assert len(b)==1, len(b)
+> print(json.dumps({'matches': one['cases']==b}, indent=2))
+> PY
+{
+  "matches": true
+}
+root@f0090f19629f:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

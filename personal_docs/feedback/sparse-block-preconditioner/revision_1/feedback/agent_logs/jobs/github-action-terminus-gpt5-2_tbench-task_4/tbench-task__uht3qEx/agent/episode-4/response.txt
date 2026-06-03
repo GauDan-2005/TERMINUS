@@ -1,0 +1,51 @@
+{
+  "analysis": "run-matrix.sh is now correctly invoking /app/build/bin/solverctl and clean-room.sh. With tracing, solverctl matrix successfully produced /app/output/solver-audit.json. The earlier missing file was due to our rm step followed by an unverified run; now matrix output exists. Next we must: run run-one.sh for basalt again (clean-room wipes output each time, so ordering matters), then compare per-case JSON with matrix slice. Also verify two matrix runs from unchanged inputs are equivalent JSON. Because clean-room removes output, we should copy solver-audit.json aside before running run-one, or run matrix, copy, then run one, then rerun matrix for determinism checks.",
+  "plan": "1) Run run-matrix.sh to generate solver-audit.json, then copy it to a saved file. 2) Run run-one.sh basalt (this will wipe output) and save basalt-audit.json. 3) Regenerate matrix and compare basalt slice with the saved basalt audit. 4) Run matrix twice and compare JSON equality (semantic and exact). If mismatch, inspect emit ordering/formatting; otherwise task is complete.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "cp /app/output/basalt-audit.json /app/output/basalt-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\nM=json.loads(Path('/app/output/solver-audit.json').read_text())\nO=json.loads(Path('/app/output/basalt-audit.run1.json').read_text())\nmc={c['name']:c for c in M['cases']}\noc={c['name']:c for c in O['cases']}\nprint('matrix cases:', len(mc))\nprint('per-case cases:', len(oc))\nprint('slice equals per-case:', mc.get('basalt')==oc.get('basalt'))\nif mc.get('basalt')!=oc.get('basalt'):\n  print('matrix basalt:', mc.get('basalt'))\n  print('one basalt  :', oc.get('basalt'))\nPY\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\np1=Path('/app/output/solver-audit.run2.json')\np2=Path('/app/output/solver-audit.json')\na=json.loads(p1.read_text())\nb=json.loads(p2.read_text())\nprint('exact json equal:', a==b)\nimport json as _j\nna=_j.dumps(a, sort_keys=True, separators=(',',':'))\nnb=_j.dumps(b, sort_keys=True, separators=(',',':'))\nprint('normalized equal:', na==nb)\nPY\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/scripts/run-matrix.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,140p' /app/scripts/run-one.sh\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

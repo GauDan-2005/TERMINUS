@@ -1,0 +1,93 @@
+New Terminal Output:
+
+root@1dff0ae3ab5d:/app# export PATH=/usr/local/cargo/bin:$PATH
+root@1dff0ae3ab5d:/app# sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@1dff0ae3ab5d:/app# bash /app/scripts/run-matrix.sh
+root@1dff0ae3ab5d:/app# sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@1dff0ae3ab5d:/app# diff -u <(jq -S . /app/output/policy-audit.json) <(jq -S . /app/output/policy-audit.json) >/dev/null || true
+bash: jq: command not found
+bash: jq: command not found
+root@1dff0ae3ab5d:/app# jq '.cases[] | {name, ok, stale_len:(.stale|length), decisions_len:(.decisions|length)}' /app/output/policy-audit.json
+bash: jq: command not found
+root@1dff0ae3ab5d:/app# jq '.cases[] | select(.stale|length>0) | {name, stale}' /app/output/policy-audit.json
+bash: jq: command not found
+root@1dff0ae3ab5d:/app# jq '.cases[] | {name, epochs:(.decisions|map(.epoch))} | .epochs as $e | {name, nondecreasing: ([$e[0]] + ($e[1:]//[]) | true)}' /app/ou
+tput/policy-audit.json 2>/dev/null || true
+root@1dff0ae3ab5d:/app# for f in /app/traces/*.trace; do echo "--- $f"; sed -n '1,200p' "$f"; done
+--- /app/traces/alpha.trace
+grant boss vault/read
+delegate boss clerk
+check before clerk:vault/read
+revoke clerk -
+batch b1 -
+check batch clerk:vault/read
+end - -
+check after clerk:vault/read
+--- /app/traces/beta.trace
+check miss intern:vault/read
+grant intern vault/read
+check solo intern:vault/read
+--- /app/traces/delta.trace
+grant alice logs/read
+check first alice:logs/read
+revoke bob -
+check second alice:logs/read
+--- /app/traces/epsilon.trace
+grant root api/invoke
+delegate root mid
+delegate mid leaf
+revoke mid -
+check check leaf:api/invoke
+--- /app/traces/gamma.trace
+grant boss vault/write
+delegate boss clerk
+delegate clerk intern
+revoke boss -
+batch b1 -
+check batch intern:vault/write
+end - -
+--- /app/traces/zeta.trace
+grant alpha secret/read
+grant beta secret/read
+revoke alpha -
+batch mix -
+check a alpha:secret/read
+check b beta:secret/read
+end - -
+root@1dff0ae3ab5d:/app# grep -RIn --line-number --exclude-dir=target -e 'batch_id' -e 'delegated_from' -e 'policy-audit' -e 'stale' -e 'decisions' /app/src /app
+/k0 /app/k1 /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8 | head -n 200
+/app/src/model.rs:27:    pub decisions: Vec<Decision>,
+/app/src/model.rs:28:    pub stale: Vec<String>,
+/app/src/report.rs:15:    batch_id: String,
+/app/src/report.rs:16:    delegated_from: String,
+/app/src/report.rs:23:    decisions: Vec<RowOut>,
+/app/src/report.rs:24:    stale: Vec<String>,
+/app/src/report.rs:42:                stale: case.stale.clone(),
+/app/src/report.rs:43:                decisions: case
+/app/src/report.rs:44:                    .decisions
+/app/src/report.rs:54:                        batch_id: row.group.clone(),
+/app/src/report.rs:55:                        delegated_from: row.via.clone(),
+/app/src/runner.rs:26:        decisions: Vec::new(),
+/app/src/runner.rs:27:        stale: Vec::new(),
+/app/src/runner.rs:32:    case.ok = case.stale.is_empty();
+/app/k0/a.rs:43:            c.decisions.push(row);
+/app/k0/a.rs:45:                c.stale.push(note);
+root@1dff0ae3ab5d:/app# cargo test --quiet
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+root@1dff0ae3ab5d:/app#

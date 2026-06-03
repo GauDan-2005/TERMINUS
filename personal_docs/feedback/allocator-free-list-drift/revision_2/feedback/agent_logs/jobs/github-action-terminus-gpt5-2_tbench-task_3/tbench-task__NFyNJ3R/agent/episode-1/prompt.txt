@@ -1,0 +1,99 @@
+New Terminal Output:
+root@ae6ae9e1ef3c:/app# cd /app
+root@ae6ae9e1ef3c:/app# ls -la
+total 4
+drwxr-xr-x 19 root root 257 May 28 10:54 .
+drwxr-xr-x 19 root root 265 May 28 10:55 ..
+-rw-r--r--  1 root root 576 May 28 10:54 Makefile
+drwxr-xr-x  2 root root  48 May 28 10:54 acct_e
+drwxr-xr-x  2 root root  22 May 28 10:54 bin
+drwxr-xr-x  2 root root  25 May 28 10:54 config
+drwxr-xr-x  3 root root  19 May 28 10:54 data
+drwxr-xr-x  2 root root  44 May 28 10:54 docs
+drwxr-xr-x  2 root root  32 May 28 10:54 drive_h
+drwxr-xr-x  2 root root  38 May 28 10:54 flow_g
+drwxr-xr-x  2 root root  81 May 28 10:54 include
+drwxr-xr-x  2 root root  48 May 28 10:54 list_b
+drwxr-xr-x  2 root root  38 May 28 10:54 mirror_j
+drwxr-xr-x  2 root root  48 May 28 10:54 move_d
+drwxr-xr-x  2 root root  45 May 28 10:54 pool_a
+drwxr-xr-x  2 root root  36 May 28 10:54 read_f
+drwxr-xr-x  2 root root  66 May 28 10:54 scripts
+drwxr-xr-x  2 root root  36 May 28 10:54 spill_i
+drwxr-xr-x  2 root root  51 May 28 10:54 split_c
+drwxr-xr-x  2 root root 302 May 28 10:54 src
+root@ae6ae9e1ef3c:/app# find . -maxdepth 3 -type f -name 'run-matrix.sh' -o -name 'run-one.sh' -o -name '*.c' -o -name '*.h' | sed 's|^./||' | head
+acct_e/acct.c
+acct_e/acct.h
+drive_h/run.c
+flow_g/report.c
+include/arena.h
+include/block.h
+include/plan.h
+include/report.h
+include/stats.h
+list_b/list.c
+root@ae6ae9e1ef3c:/app# sed -n '1,200p' scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/allocctl" matrix
+root@ae6ae9e1ef3c:/app# sed -n '1,200p' scripts/run-one.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+CASE="${1:?case name required}"
+mkdir -p "${APP_ROOT}/output"
+"${APP_ROOT}/bin/allocctl" one "${CASE}"
+root@ae6ae9e1ef3c:/app# sed -n '1,200p' include/report.h
+#ifndef REPORT_H
+#define REPORT_H
+
+#include "arena.h"
+#include "plan.h"
+
+#include <stddef.h>
+
+#define MAX_STEPS 128
+
+typedef struct StepRec {
+    int seq;
+    char op[16];
+    int index;
+    size_t size;
+    int result_index;
+    size_t heap_sig;
+    int fl_count;
+    size_t fl_sig;
+    size_t byte_total;
+} StepRec;
+
+typedef struct CaseResult {
+    char name[32];
+    int ok;
+    StepRec steps[MAX_STEPS];
+    int step_count;
+    size_t heap_sig;
+    int fl_count;
+    size_t fl_sig;
+    size_t byte_total;
+    char ledger_path[256];
+} CaseResult;
+
+int run_case(const Plan *plan, const char *out_dir, CaseResult *res);
+int emit_e(const CaseResult *res, const char *audit_path);
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path);
+
+#endif
+root@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output
+root@ae6ae9e1ef3c:/app# bash -x /app/scripts/run-matrix.sh
++ set -euo pipefail
++ APP_ROOT=/app
++ OUT=/app/output
++ mkdir -p /app/output
++ bash /app/scripts/clean-room.sh
++ /app/bin/allocctl matrix
+root@ae6ae9e1ef3c:/app#

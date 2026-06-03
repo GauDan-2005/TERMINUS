@@ -1,0 +1,56 @@
+New Terminal Output:
+
+root@85b121dde67e:/app# sed -n '1,120p' /app/data/scripts/rook.tsv
+turn    actor   action  arg
+0       P       n       0,0
+1       P       e       1,0
+2       P       e       1,0
+2       *       save    0
+3       H       go      0
+root@85b121dde67e:/app# sed -n '1,140p' /app/data/scripts/sentinel.tsv
+turn    actor   action  arg
+0       P       n       0,0
+1       P       e       1,0
+2       P       e       1,0
+3       P       e       1,0
+4       *       save    0
+5       H       go      0
+root@85b121dde67e:/app# sed -n '1,120p' /app/data/scripts/bishop.tsv
+turn    actor   action  arg
+0       P       n       0,0
+1       P       e       1,0
+2       P       e       1,0
+2       *       save    0
+3       H       go      0
+root@85b121dde67e:/app# cat /app/data/scenarios.tsv
+name    profile
+rook    basic
+bishop  blind
+knight  dense
+lancer  dense
+sentinel        epoch
+warden  mixed
+root@85b121dde67e:/app# perl -0777 -i -pe 's/func runLoaded\(w \*World, steps \[\]ScriptStep, blob a0\.ItemY, stale map\[string\]bool, profile Profile, radius i
+nt\) \[\]MoveRow \{[\s\S]*?\n\}/func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {\n
+     applyWorld(w, blob)\n\n        cache := &b1.CacheX{Obs: map[string]bool{}}\n        b1.Merge(cache, blob)\n        merged := b1.Snapshot(cache)\n        fo
+r k, v := range stale {\n                merged[k] = v\n        }\n\n        // Effects were restored from the saved blob; keep them stable across resume.\n
+    w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\n\n        moves := []MoveRow{}\n        pastSave := false\n        for _, s
+tep := range steps {\n                if step.Action == "save" {\n                        pastSave = true\n                        continue\n                }\n
+                if !pastSave {\n                        continue\n                }\n                w.Turn = step.Turn\n                if step.Actor == "P" {\
+n                        applyPlayer(w, step.Arg)\n                        e4.ApplyLit(w, radius, blindActive(w))\n                }\n                if step.Ac
+tor == "H" {\n                        moves = append(moves, advanceAll(w, merged)... )\n                }\n        }\n        return moves\n}\n/smg' /app/intern
+al/f5/run.go
+Backslash found where operator expected (Missing operator before "\"?) at -e line 1, near ")\"
+syntax error at -e line 1, near ")\"
+Execution of -e aborted due to compilation errors.
+root@85b121dde67e:/app# make -s -C /app build
+root@85b121dde67e:/app# bash /app/scripts/run-matrix.sh
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> print([(c['name'], c['ok'], c['fresh']['sig'], c['resume']['sig']) for c in data['cases']])
+> PY
+[('bishop', True, '811c9dc5', '811c9dc5'), ('knight', True, '811c9dc5', '811c9dc5'), ('lancer', True, '811c9dc5', '811c9dc5'), ('rook', False, '7d3f56fa', '24eb
+c3c9'), ('sentinel', False, '9a98d68', '691e8e87'), ('warden', True, '811c9dc5', '811c9dc5')]
+root@85b121dde67e:/app#

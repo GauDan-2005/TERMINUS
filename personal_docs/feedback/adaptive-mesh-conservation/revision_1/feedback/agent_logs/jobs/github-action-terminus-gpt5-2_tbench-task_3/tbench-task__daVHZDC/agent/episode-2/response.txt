@@ -1,0 +1,43 @@
+{
+  "analysis": "The drift is explained by a clear conservation bug in merge/collapse aggregation: agg_q/blend.cpp fold_q sums q values without volume-weighting, and then averages by n. Since totals are based on sum(vol*q), this will generally change totals when collapsing cells with unequal volumes (which happens after split weights). That also explains why plume/spire (do_collapse=1) drift while being marked balanced=true. For storm/canyon (do_flux=1, no collapse) drift likely comes from the refine/split itself: run_refine.cpp phase_grow applies a per-leaf multiplier f to q without renormalizing to preserve the coarse cell’s volume-weighted mean. That will change sum(vol*q) immediately upon splitting. Additionally, adjacency is always 0 because step_n just mirrors parent pointers and nothing counts links, but that’s secondary to conservation totals. Snapshot/resume drift is not yet isolated, but resume.cpp zeroes topo and bank, so if flux corrections bank/topo must persist for equivalence, that could cause divergence in restart scenarios; however basin/dune currently have zero drift, suggesting restart path may not affect totals in these schedules.\nNext actions: fix phase_grow to distribute q to leaves conserving coarse totals (ensure sum_j vol_j*q_j equals coarse.vol*coarse.q for each var, while still applying a shape perturbation). Fix fold_q to compute volume-weighted average q = sum(vol*q)/sum(vol). Rebuild and rerun matrix and replay checks.",
+  "plan": "1) Patch drv_u/run_refine.cpp: after computing per-leaf f multipliers, renormalize per variable so that the volume-weighted sum across leaves matches the parent coarse cell’s mass for that variable. Implementation: compute s[v]=sum_j (vol_j*f_j); set leaf q[v]=coarse.q[v]*f_j*(coarse.vol/s[v]) when s[v]>0, else coarse.q[v]. This preserves totals exactly (up to FP). 2) Patch agg_q/blend.cpp fold_q: compute sum_qv = sum_i(vol_i*q_i) and set q[v]=sum_qv/sum_vol. 3) Rebuild, rerun run-matrix.sh, and confirm drift_ratio ~ 0 and base_match true for all cases, plus run-replay for storm and at least one collapse case to ensure equivalence.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: drv_u/run_refine.cpp\n@@\n void phase_grow(SimState *st, const ScenarioSpec *spec) {\n     CellGrid coarse = st->grid;\n     CellGrid leaves;\n     leaves.n = 0;\n@@\n-        double vj[MAX_LEAVES];\n-        double vtot = 0.0;\n-        double jw = 0.0;\n+        double vj[MAX_LEAVES];\n+        double fj[MAX_LEAVES];\n+        double vtot = 0.0;\n+        double jw = 0.0;\n         for (int j = 0; j < k; j++) {\n             vj[j] = coarse.cells[c].vol * (double)spec->leaf_weight[c][j] / (double)sumw;\n             vtot += vj[j];\n             jw += vj[j] * (double)j;\n         }\n         double jbar = (vtot > 0.0) ? jw / vtot : 0.0;\n+\n+        // Compute shape factors and renormalize so that splitting preserves\n+        // volume-weighted totals: sum_j vj * qj == coarse.vol * coarse.q.\n+        double denom[NVAR] = {0.0, 0.0, 0.0};\n+        for (int j = 0; j < k; j++) {\n+            fj[j] = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;\n+            for (int v = 0; v < NVAR; v++) denom[v] += vj[j] * fj[j];\n+        }\n+        double scale[NVAR];\n+        for (int v = 0; v < NVAR; v++) {\n+            scale[v] = (denom[v] != 0.0) ? (coarse.cells[c].vol / denom[v]) : 1.0;\n+        }\n+\n         for (int j = 0; j < k; j++) {\n             int gi = leaves.n++;\n             leaves.cells[gi].idx = gi;\n             leaves.cells[gi].vol = vj[j];\n-            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;\n             for (int v = 0; v < NVAR; v++) {\n-                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;\n+                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * fj[j] * scale[v];\n             }\n             leaves.cells[gi].tier = (k > 1) ? 1 : 0;\n             leaves.cells[gi].parent = (k > 1) ? c : -1;\n         }\n     }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: agg_q/blend.cpp\n@@\n void fold_q(const CellPatch *a, int b, CellPatch *c) {\n     if (!a || !c) return;\n     int n = (a->n < b) ? a->n : b;\n@@\n-    double sum_vol = 0.0;\n-    double sum_q[NVAR] = {0.0, 0.0, 0.0};\n+    double sum_vol = 0.0;\n+    double sum_vq[NVAR] = {0.0, 0.0, 0.0};\n     for (int i = 0; i < n; i++) {\n         sum_vol += a->vol[i];\n         for (int v = 0; v < NVAR; v++) {\n-            sum_q[v] += a->q[i * NVAR + v];\n+            sum_vq[v] += a->vol[i] * a->q[i * NVAR + v];\n         }\n     }\n     c->n = 1;\n     c->vol[0] = sum_vol;\n-    double inv_n = 1.0 / (double)n;\n     for (int v = 0; v < NVAR; v++) {\n-        c->q[v] = sum_q[v] * inv_n;\n+        c->q[v] = (sum_vol > 0.0) ? (sum_vq[v] / sum_vol) : 0.0;\n     }\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-replay.sh storm\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cat /app/output/storm-replay.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-replay.sh plume\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cat /app/output/plume-replay.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,35 @@
+{
+  "analysis": "Repo contains a compiled binary /app/bin/allocctl and C sources under /app/src plus modules. StepRec fields are defined (seq, op, index, size, result_index, heap_sig, fl_count, fl_sig, byte_total). Scripts just call allocctl. Running run-matrix.sh produced no terminal output and returned immediately; we need to check whether it actually generated /app/output/alloc-audit.json and per-case artifacts, and whether JSON structure/content matches requirements. Next: inspect /app/output and, if files exist, validate top-level envelope and field ordering, plus determinism; if missing, run allocctl with verbose? also check exit status by inspecting outputs.",
+  "plan": "1) List /app/output contents and inspect alloc-audit.json if present. 2) Validate that alloc-audit.json has a top-level cases array with the required case order, and each case includes required fields and ledger path, and that ledger file exists. 3) Inspect a per-case run via run-one.sh and confirm it writes /app/output/<name>-audit.json with a cases array envelope. 4) If outputs are missing or malformed, inspect allocctl source entrypoints (src/main.c and flow_g/report.c) to fix emit_e/emit_matrix and signature calculations.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "test -f /app/output/alloc-audit.json && (wc -c /app/output/alloc-audit.json && head -n 40 /app/output/alloc-audit.json) || echo \"missing alloc-audit.json\"\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,sys,os\np='/app/output/alloc-audit.json'\nif not os.path.exists(p):\n    print('NOFILE')\n    sys.exit(0)\nobj=json.load(open(p))\nprint('top_keys',list(obj.keys()))\nprint('cases_len',len(obj.get('cases',[])))\nprint('case_names',[c.get('name') for c in obj.get('cases',[])])\nfor i,c in enumerate(obj.get('cases',[])):\n    missing=[k for k in ['name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'] if k not in c]\n    if missing:\n        print('case',i,'missing',missing)\nPY\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "ls -ლა /app/output | sed -n '1,200p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -lc 'bash /app/scripts/run-one.sh cedar'\n",
+      "duration": 2
+    },
+    {
+      "keystrokes": "ls -la /app/output | sed -n '1,200p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "test -f /app/output/cedar-audit.json && (head -n 60 /app/output/cedar-audit.json) || echo \"missing cedar-audit.json\"\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

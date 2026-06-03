@@ -1,0 +1,109 @@
+New Terminal Output:
+
+root@4961d4698246:/app# python3 -m py_compile /app/scripts/executor_ctl.py
+root@4961d4698246:/app# nl -ba /app/scripts/executor_ctl.py | sed -n '40,110p'
+    40                  except ValueError:
+    41                      cap = 1
+    42                  continue
+    43              if parts[:1] == ["ROOT"] and len(parts) == 4:
+    44                  ident, lane, at = parts[1], parts[2], int(parts[3])
+    45                  entries.append(Entry("ROOT", ident=ident, lane=lane, at=at, parent="-", seq=len(entries)))
+    46                  continue
+    47              if parts[:1] == ["CHILD"] and len(parts) == 5:
+    48                  parent, ident, lane, at = parts[1], parts[2], parts[3], int(parts[4])
+    49                  entries.append(Entry("CHILD", ident=ident, lane=lane, at=at, parent=parent, seq=len(entries)))
+    50                  continue
+    51              if parts[:1] == ["DROP"] and len(parts) == 2:
+    52                  entries.append(Entry("DROP", ident=parts[1], seq=len(entries)))
+    53                  continue
+    54      return name, max(1, cap), entries
+    55
+    56
+    57  def compute_dropped(entries: List[Entry]) -> Set[str]:
+    58      # Build parent map from all ROOT/CHILD entries, preserving the declared parent
+    59      parent_of: Dict[str, str] = {}
+    60      children_of: Dict[str, Set[str]] = {}
+    61      drops: List[str] = []
+    62      for e in entries:
+    63          if e.kind in ("ROOT", "CHILD"):
+    64              parent_of.setdefault(e.ident, e.parent)
+    65              children_of.setdefault(e.parent, set()).add(e.ident)
+    66          elif e.kind == "DROP":
+    67              drops.append(e.ident)
+    68
+    69      dropped: Set[str] = set()
+    70      stack: List[str] = list(drops)
+    71      while stack:
+    72          x = stack.pop()
+    73          if x in dropped:
+    74              continue
+    75          dropped.add(x)
+    76          for ch in children_of.get(x, ()):  # descendants by chain links
+    77              if ch not in dropped:
+    78                  stack.append(ch)
+    79      return dropped
+    80
+    81
+    82  def build_items(entries: List[Entry], dropped: Set[str]) -> List[Item]:
+    83      # Deduplicate: repeated logical child entries should appear once in accepted trace.
+    84      # We'll keep the earliest seq for a given ident.
+    85      seen: Set[str] = set()
+    86      items: List[Item] = []
+    87
+    88      # For depth, compute by following parent chain as declared; if missing parent, depth=0
+    89      declared_parent: Dict[str, str] = {}
+    90      for e in entries:
+    91          if e.kind in ("ROOT", "CHILD"):
+    92              declared_parent.setdefault(e.ident, e.parent)
+    93
+    94      def depth_of(ident: str) -> int:
+    95          d = 0
+    96          cur = ident
+    97          visited = set()
+    98          while True:
+    99              p = declared_parent.get(cur, "-")
+   100              if p == "-" or p == "" or p is None:
+   101                  return d
+   102              if p in visited:
+   103                  return d
+   104              visited.add(p)
+   105              d += 1
+   106              cur = p
+   107
+   108      for e in entries:
+   109          if e.kind not in ("ROOT", "CHILD"):
+   110              continue
+root@4961d4698246:/app# python3 - <<'PY'
+> import json,os
+> p='/app/output/executor-audit.json'
+> d=json.load(open(p))
+> for c in d['cases']:
+>     led=c['ledger']; jrn=c['journal']
+>     lt=sum(1 for _ in open(led))
+>     jt=sum(1 for _ in open(jrn))
+>     tt=len(c['trace'])
+>     print(c['name'], 'trace',tt,'ledger',lt,'journal',jt)
+> PY
+amber trace 4 ledger 4 journal 4
+cobalt trace 5 ledger 5 journal 5
+drake trace 3 ledger 3 journal 3
+ember trace 2 ledger 2 journal 2
+flint trace 3 ledger 3 journal 3
+graphite trace 5 ledger 5 journal 5
+root@4961d4698246:/app# python3 - <<'PY'
+> import json
+> p='/app/output/executor-audit.json'
+> d=json.load(open(p))
+> for nm in ['drake','ember','graphite']:
+>     c=next(x for x in d['cases'] if x['name']==nm)
+>     tasks=[r['task'] for r in c['trace']]
+>     print(nm, tasks)
+> PY
+drake ['drake-root', 'drake-keep', 'drake-late']
+ember ['ember-root', 'ember-after']
+graphite ['graphite-root', 'graphite-b', 'graphite-a', 'graphite-c', 'graphite-tail']
+root@4961d4698246:/app# bash -lc 'bash /app/scripts/run-one.sh drake /app/output/one-drake.json /app/output/one-runtime'
+root@4961d4698246:/app# python3 -c 'import json;print(json.load(open("/app/output/one-drake.json"))["cases"][0]["name"], len(json.load(open("/app/output/one-dra
+ke.json"))["cases"][0]["trace"]))'
+drake 3
+root@4961d4698246:/app#

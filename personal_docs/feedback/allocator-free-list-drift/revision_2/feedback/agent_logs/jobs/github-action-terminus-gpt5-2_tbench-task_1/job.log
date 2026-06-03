@@ -1,0 +1,38 @@
+Both tmux and asciinema are already installed
+Starting recording.
+Sending keys: ['asciinema rec --stdin /logs/agent/recording.cast', 'Enter'] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Sending keys: ['clear', 'Enter'] min_timeout_sec: 0.0 max_timeout_sec: 180.0
+Failed to retrieve model info for 'openai/@openai/gpt-5.2': This model isn't mapped yet. model=openai/@openai/gpt-5.2, custom_llm_provider=openai. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.. Using fallback context limit: 1000000
+Sending keys: ['cd /app\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['ls -la\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['find . -maxdepth 3 -type f -print\n'] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Sending keys: ["sed -n '1,200p' /app/include/report.h\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['ls -la /app/scripts\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["sed -n '1,200p' /app/scripts/run-one.sh\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["sed -n '1,260p' /app/scripts/run-matrix.sh\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['rm -rf /app/output && mkdir -p /app/output\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["bash -lc 'bash /app/scripts/run-matrix.sh'\n"] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/github-action-terminus-gpt5-2_tbench-task_1/tbench-task__eKkYeh7/agent/trajectory.json
+Failed to retrieve model info for 'openai/@openai/gpt-5.2': This model isn't mapped yet. model=openai/@openai/gpt-5.2, custom_llm_provider=openai. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.. Using fallback context limit: 1000000
+Sending keys: ['ls -la /app/output\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['test -f /app/output/alloc-audit.json && (wc -c /app/output/alloc-audit.json && head -n 40 /app/output/alloc-audit.json) || echo "missing alloc-audit.json"\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["python3 - <<'PY'\nimport json,sys,os\np='/app/output/alloc-audit.json'\nif not os.path.exists(p):\n    print('NOFILE')\n    sys.exit(0)\nobj=json.load(open(p))\nprint('top_keys',list(obj.keys()))\nprint('cases_len',len(obj.get('cases',[])))\nprint('case_names',[c.get('name') for c in obj.get('cases',[])])\nfor i,c in enumerate(obj.get('cases',[])):\n    missing=[k for k in ['name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'] if k not in c]\n    if missing:\n        print('case',i,'missing',missing)\nPY\n"] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Sending keys: ["ls -ლა /app/output | sed -n '1,200p'\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["bash -lc 'bash /app/scripts/run-one.sh cedar'\n"] min_timeout_sec: 2.0 max_timeout_sec: 180.0
+Sending keys: ["ls -la /app/output | sed -n '1,200p'\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ['test -f /app/output/cedar-audit.json && (head -n 60 /app/output/cedar-audit.json) || echo "missing cedar-audit.json"\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Trajectory dumped to jobs/github-action-terminus-gpt5-2_tbench-task_1/tbench-task__eKkYeh7/agent/trajectory.json
+Failed to retrieve model info for 'openai/@openai/gpt-5.2': This model isn't mapped yet. model=openai/@openai/gpt-5.2, custom_llm_provider=openai. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.. Using fallback context limit: 1000000
+Sending keys: ["echo '--- cedar ledger sample ---'\nhead -n 20 /app/output/cedar.ledger.jsonl\n"] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["python3 - <<'PY'\nimport json,glob,os\nfrom pathlib import Path\n\naudit='/app/output/alloc-audit.json'\nobj=json.load(open(audit))\nreq_step=['seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total']\nreq_case=['name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger']\n\nok=True\nfor case in obj['cases']:\n    for k in req_case:\n        if k not in case:\n            print('MISSING case field',case.get('name'),k); ok=False\n    steps=case['steps']\n    for s in steps:\n        for k in req_step:\n            if k not in s:\n                print('MISSING step field',case['name'],s.get('seq'),k); ok=False\n    if steps:\n        last=steps[-1]\n        for k in ['heap_sig','fl_count','fl_sig','byte_total']:\n            if case[k]!=last[k]:\n                print('TALLY MISMATCH',case['name'],k,case[k],last[k]); ok=False\n    led=case['ledger']\n    if not os.path.exists(led):\n        print('MISSING ledger file',case['name'],led); ok=False\n    else:\n        with open(led) as f:\n            for i,line in enumerate(f):\n                rec=json.loads(line)\n                for k in req_step:\n                    if k not in rec:\n                        print('MISSING ledger field',case['name'],'line',i,k); ok=False\n                if i>200: break\n\nprint('VALID' if ok else 'INVALID')\nPY\n"] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Sending keys: ['rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json\n'] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Sending keys: ['rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json\n'] min_timeout_sec: 10.0 max_timeout_sec: 180.0
+Sending keys: ['diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json || true\n'] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/github-action-terminus-gpt5-2_tbench-task_1/tbench-task__eKkYeh7/agent/trajectory.json
+Failed to retrieve model info for 'openai/@openai/gpt-5.2': This model isn't mapped yet. model=openai/@openai/gpt-5.2, custom_llm_provider=openai. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.. Using fallback context limit: 1000000
+Sending keys: ['ls -la /app/output\n'] min_timeout_sec: 0.1 max_timeout_sec: 180.0
+Sending keys: ["python3 - <<'PY'\nimport json\np='/app/output/alloc-audit.json'\nobj=json.load(open(p))\nprint([c['name'] for c in obj['cases']])\nprint('all_ok', all(c['ok'] for c in obj['cases']))\nPY\n"] min_timeout_sec: 1.0 max_timeout_sec: 180.0
+Trajectory dumped to jobs/github-action-terminus-gpt5-2_tbench-task_1/tbench-task__eKkYeh7/agent/trajectory.json
+Failed to retrieve model info for 'openai/@openai/gpt-5.2': This model isn't mapped yet. model=openai/@openai/gpt-5.2, custom_llm_provider=openai. Add it here - https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json.. Using fallback context limit: 1000000
+Trajectory dumped to jobs/github-action-terminus-gpt5-2_tbench-task_1/tbench-task__eKkYeh7/agent/trajectory.json
+Trajectory dumped to jobs/github-action-terminus-gpt5-2_tbench-task_1/tbench-task__eKkYeh7/agent/trajectory.json

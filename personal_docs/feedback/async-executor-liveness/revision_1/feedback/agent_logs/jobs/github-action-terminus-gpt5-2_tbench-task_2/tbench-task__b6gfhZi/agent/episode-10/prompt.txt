@@ -1,0 +1,88 @@
+Current terminal state:
+New Terminal Output:
+
+root@36b1c5fd8ba3:/app# python3 - <<'PY'
+> import json, pathlib
+>
+> audit_path=pathlib.Path('/app/output/executor-audit.json')
+> data=json.loads(audit_path.read_text())
+>
+> def row_tuple(r):
+>     return (r['case'], r['task'], r['parent'], int(r['depth']), r['lane'], int(r['turn']))
+>
+> ok=True
+> for c in data['cases']:
+>     trace=c['trace']
+>     led_path=pathlib.Path(c['ledger'])
+>     jour_path=pathlib.Path(c['journal'])
+>
+>     led=[json.loads(line) for line in led_path.read_text().splitlines() if line.strip()]
+>     jour=[line.split() for line in jour_path.read_text().splitlines() if line.strip()]
+>
+>     if len(led)!=len(trace):
+>         print('LEN mismatch ledger', c['name']); ok=False
+>     if len(jour)!=len(trace):
+>         print('LEN mismatch journal', c['name']); ok=False
+>
+>     for i,r in enumerate(trace):
+>         if i < len(led) and led[i]!=r:
+>             print('ledger row mismatch', c['name'], i, led[i], r); ok=False; break
+>         if i < len(jour):
+>             exp=[r['case'], r['task'], r['parent'], str(r['depth']), r['lane'], str(r['turn'])]
+>             if jour[i]!=exp:
+>                 print('journal row mismatch', c['name'], i, jour[i], exp); ok=False; break
+>
+>     # ordering check: nondecreasing by (turn, lane) and stable within lane by acceptance order
+>     tuples=[(int(r['turn']), r['lane'], i) for i,r in enumerate(trace)]
+>     if tuples!=sorted(tuples, key=lambda x:(x[0], x[1], x[2])):
+>         print('ordering violation', c['name']); ok=False
+>
+> print('VALID', ok)
+> PY
+VALID True
+root@36b1c5fd8ba3:/app# python3 - <<'PY'
+> import json, pathlib
+>
+> data=json.loads(pathlib.Path('/app/output/executor-audit.json').read_text())
+> trace={c['name']:[r['task'] for r in c['trace']] for c in data['cases']}
+> checks={
+>  'drake': ['drake-cut','drake-shadow'],
+>  'ember': ['ember-left','ember-deep','ember-side'],
+>  'graphite': ['graphite-d','graphite-e'],
+>  'flint': ['flint-c'],
+> }
+> for case, banned in checks.items():
+>     present=set(trace[case])
+>     for b in banned:
+>         print(case, b, 'present' if b in present else 'absent')
+> print('flint flint-a count', trace['flint'].count('flint-a'))
+> PY
+drake drake-cut absent
+drake drake-shadow absent
+ember ember-left absent
+ember ember-deep absent
+ember ember-side absent
+graphite graphite-d absent
+graphite graphite-e absent
+flint flint-c absent
+flint flint-a count 1
+root@36b1c5fd8ba3:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
+root@36b1c5fd8ba3:/app# python3 - <<'PY'
+> import json, hashlib, pathlib
+> p=pathlib.Path('/app/output/executor-audit.json')
+> b=p.read_bytes()
+> print('sha256', hashlib.sha256(b).hexdigest(), 'bytes', len(b))
+> # normalize to ignore absolute paths ordering should be stable
+> obj=json.loads(b)
+> for c in obj['cases']:
+>     c['ledger']=pathlib.Path(c['ledger']).name
+>     c['journal']=pathlib.Path(c['journal']).name
+> norm=json.dumps(obj, sort_keys=True, separators=(',',':')).encode()
+> print('norm sha256', hashlib.sha256(norm).hexdigest(), 'norm bytes', len(norm))
+> PY
+sha256 1e93c04328c94a0907bd2d07a44f1b9931e519dc5dfeaac68ee53d0d27ba9864 bytes 3034
+norm sha256 3888af404a83f566b769d530d9a714334265fb382a65297e4686474d01517aab norm bytes 2691
+root@36b1c5fd8ba3:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

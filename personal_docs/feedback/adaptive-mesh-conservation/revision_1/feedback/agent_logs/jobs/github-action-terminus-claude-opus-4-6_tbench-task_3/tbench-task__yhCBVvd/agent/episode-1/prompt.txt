@@ -1,0 +1,93 @@
+New Terminal Output:
+root@023236bee917:/app# find /app -type f | head -80
+/app/CMakeLists.txt
+/app/acc_m/edge_corr.cpp
+/app/agg_q/blend.cpp
+/app/cch_z/ring.cpp
+/app/config/cases.toml
+/app/config/limits.toml
+/app/data/init/profile_a.dat
+/app/data/init/profile_b.dat
+/app/data/init/profile_c.dat
+/app/docs/layout.md
+/app/docs/operations.md
+/app/drv_u/phases.h
+/app/drv_u/run.cpp
+/app/drv_u/run_blend.cpp
+/app/drv_u/run_refine.cpp
+/app/drv_u/run_sync.cpp
+/app/emt_e/report.cpp
+/app/include/audit_emit.h
+/app/include/case_spec.h
+/app/include/cell_view.h
+/app/include/flow_record.h
+/app/include/ic_loader.h
+/app/include/topo_link.h
+/app/include/vault_layout.h
+/app/lnk_n/relate.cpp
+/app/prb_v/hist.cpp
+/app/rsm_k/resume.cpp
+/app/scripts/clean-room.sh
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+/app/scripts/run-replay.sh
+/app/src/audit_emit.cpp
+/app/src/case_io.cpp
+/app/src/main.cpp
+/app/src/vault_io.cpp
+/app/srl_p/serial.cpp
+/app/swp_t/sweep.cpp
+/app/sync_b/halo.cpp
+/app/tap_w/trace.cpp
+root@023236bee917:/app# cat /app/docs/layout.md
+# Audit output layout
+
+`/app/output/conservation_audit.json` holds a single object with a `cases`
+array. The per-case helpers emit the same object shape with one entry.
+
+Each entry has these fields:
+
+- `name` — scenario identifier.
+- `base_total` — three running sums of the starting state, one per tracked
+  quantity.
+- `after_total` — the same three sums measured once the structural phases of
+  the run have completed.
+- `resumed_total` — a position-weighted moment of the final state (each cell's
+  contribution scaled by its ordinal position). Two runs of the same scenario
+  that reach the same end arrangement report the same moment.
+- `drift_ratio` — the largest relative gap between `after_total` and
+  `base_total` across the three quantities.
+- `balanced` — true when the seam accounting over every coarse-fine interface
+  closed out.
+- `base_match` — true when `after_total` matches `base_total` within the
+  numerical floor.
+- `adjacency` — count of parent/child links resolved at the structural peak of
+  the run.
+- `halo_q` — three sampled ghost-band values taken at the first refined seam.
+
+`/app/output/persistence_audit.log` records one line per snapshot load attempt
+during the runs that round-trip through `/app/work/vault.bin`. A line begins
+with `ACCEPTED` or `REJECTED`; rejected lines name the reason.
+root@023236bee917:/app# cat /app/docs/operations.md
+# Operations
+
+Build the driver with CMake:
+
+```
+cmake -S /app -B /app/build
+cmake --build /app/build -j2
+```
+
+The driver lands at `/app/build/bin/sim_run`. The wrappers under
+`/app/scripts` invoke it:
+
+- `bash /app/scripts/run-matrix.sh` runs every bundled scenario and writes
+  `/app/output/conservation_audit.json`.
+- `bash /app/scripts/run-one.sh <name>` writes `/app/output/<name>-audit.json`.
+- `bash /app/scripts/run-replay.sh <name>` writes
+  `/app/output/<name>-replay.json`.
+
+Scenario schedules live in `/app/config/cases.toml`. Starting states live in
+`/app/data/init`. Snapshots are written under `/app/work` during scenarios
+that round-trip through a saved checkpoint.
+root@023236bee917:/app#

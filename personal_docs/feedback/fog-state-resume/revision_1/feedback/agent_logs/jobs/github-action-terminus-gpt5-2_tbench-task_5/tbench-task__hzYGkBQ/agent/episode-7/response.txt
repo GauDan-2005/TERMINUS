@@ -1,0 +1,31 @@
+{
+  "analysis": "We can see runDirect appends moves only after the save step and only on steps where Actor==\"H\" (hostiles act), using buildObs(w,nil). runLoaded instead appliesWorld from blob, merges obs cache with stale, then for each step where Action==\"save\" it advances hostiles once at that save turn using merged obs. This means freshMoves are actions after save, whereas resumeMoves are actions at save. Hence they differ in turn numbers/order for rook/sentinel. The earlier attempted patch failed because the exact string pattern didn't match (file likely has different whitespace/newlines; also the earlier output truncation suggests we didn't capture the exact segment). We need to patch the logic mismatch itself: runLoaded should simulate the same post-save hostile turns as runDirect, not trigger on \"save\". Easiest: make runLoaded iterate steps past the save marker (like runDirect) but starting from loaded world state (applyWorld) and with obs merged appropriately; also apply player actions and lit updates identically. Specifically: in runLoaded, introduce pastSave bool; on encountering step.Action==\"save\" set pastSave=true and continue; if !pastSave continue; then set w.Turn=step.Turn; if step.Actor==\"P\" applyPlayer and ApplyLit; if step.Actor==\"H\" moves append advanceAll(w, buildObs(w, merged)) maybe where merged is used as extra visibility for pack boundary. That should align move list and signatures, and likely seen counts too. We will patch only runLoaded accordingly (no need to change audit schema). We'll edit using python rewrite with substring matching on the function body.",
+  "plan": "1) Extract the current runLoaded function text and replace it entirely with a corrected implementation mirroring runDirect but using loaded state and merged obs at/after save. 2) Rebuild rogctl and rerun run-matrix.sh. 3) Verify all cases ok=true, rook/sentinel signatures match, and visibility fresh_seen==resume_seen. 4) Run one-case.sh rook and sentinel to ensure single-case matches matrix row.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nimport re\np=Path('/app/internal/f5/run.go')\ns=p.read_text()\npat=re.compile(r\"func runLoaded\\(w \\*World, steps \\[\\]ScriptStep, blob a0\\.ItemY, stale map\\[string\\]bool, profile Profile, radius int\\) \\[\\]MoveRow \\{.*?\\n\\}\\n\", re.S)\nm=pat.search(s)\nif not m:\n    raise SystemExit('runLoaded not found')\nnew_func=\"\"\"func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {\n        // Resume path should reproduce the same post-save simulation as the fresh path,\n        // but starting from the loaded snapshot and merged observation cache.\n        applyWorld(w, blob)\n        cache := &b1.CacheX{Obs: map[string]bool{}}\n        b1.Merge(cache, blob)\n        merged := b1.Snapshot(cache)\n        for k, v := range stale {\n                merged[k] = v\n        }\n        w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\n\n        moves := []MoveRow{}\n        pastSave := false\n        for _, step := range steps {\n                if step.Action == \"save\" {\n                        pastSave = true\n                        continue\n                }\n                if !pastSave {\n                        continue\n                }\n                w.Turn = step.Turn\n                if step.Actor == \"P\" {\n                        applyPlayer(w, step.Arg)\n                        e4.ApplyLit(w, radius, blindActive(w))\n                }\n                if step.Actor == \"H\" {\n                        // Use merged boundary observations as extra visibility hints.\n                        moves = append(moves, advanceAll(w, buildObs(w, merged))...)\n                }\n        }\n        return moves\n}\n\"\"\"\ns2=s[:m.start()]+new_func+s[m.end():]\np.write_text(s2)\nprint('patched runLoaded in', p)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go build -o /app/bin/rogctl /app/cmd/rogctl/main.go\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/resume-audit.json') as f: data=json.load(f)\nfor c in data['cases']:\n    name=c['name']\n    ok=c['ok']\n    fi=c['fresh']['illegal']; ri=c['resume']['illegal']\n    fs=c['fresh']['sig']; rs=c['resume']['sig']\n    vis=c['visibility']\n    print(f\"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh rook\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh sentinel\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,224 @@
+============================= test session starts ==============================
+platform linux -- Python 3.11.2, pytest-8.4.1, pluggy-1.6.0
+cachedir: /tmp/pytest_cache
+rootdir: /tests
+plugins: json-ctrf-0.3.5
+collected 12 items
+
+../tests/test_outputs.py FFFFFFFF.F.F                                    [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_matrix_all_six_cases_clean ________________________
+
+    def test_matrix_all_six_cases_clean():
+        """The matrix command emits the six clean case reports in the requested order."""
+        data = run_matrix()
+        assert [case["name"] for case in data["cases"]] == CASES
+        for case in data["cases"]:
+>           assert_clean(case)
+
+/tests/test_outputs.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': True, 'journal': '/app/output/runtime/journals/amber.txt', 'ledger': '/app/output/runtime/ledgers/amber.jsonl', 'name': 'amber', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+        assert case["ok"] is True
+        assert case["finished"] is True
+        assert case["pending"] == []
+>       assert case["trace"] == expected_trace(case["name"])
+E       AssertionError: assert [{'case': 'am...t': '-', ...}] == [{'case': 'am...t': '-', ...}]
+E         
+E         At index 0 diff: {'case': 'amber', 'task': 'amber-left', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} != {'case': 'amber', 'task': 'amber-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0}
+E         Use -v to get more diff
+
+/tests/test_outputs.py:253: AssertionError
+____________________ test_single_case_helper_matches_matrix ____________________
+
+    def test_single_case_helper_matches_matrix():
+        """The direct helper produces the same reports as the matrix run."""
+        for name in CASES:
+            direct = run_direct(name)
+>           assert_clean(direct)
+
+/tests/test_outputs.py:269: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': True, 'journal': '/app/output/direct-work-amber/journals/amber.txt', 'ledger': '/app/output/direct-work-amber/ledgers/amber.jsonl', 'name': 'amber', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+        assert case["ok"] is True
+        assert case["finished"] is True
+        assert case["pending"] == []
+>       assert case["trace"] == expected_trace(case["name"])
+E       AssertionError: assert [{'case': 'am...t': '-', ...}] == [{'case': 'am...t': '-', ...}]
+E         
+E         At index 0 diff: {'case': 'amber', 'task': 'amber-left', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} != {'case': 'amber', 'task': 'amber-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0}
+E         Use -v to get more diff
+
+/tests/test_outputs.py:253: AssertionError
+___________________ test_amber_nested_parent_depth_preserved ___________________
+
+    def test_amber_nested_parent_depth_preserved():
+        """Amber keeps nested parent and depth fields stable."""
+        case = case_from_matrix("amber")
+>       assert_clean(case)
+
+/tests/test_outputs.py:276: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': True, 'journal': '/app/output/runtime/journals/amber.txt', 'ledger': '/app/output/runtime/ledgers/amber.jsonl', 'name': 'amber', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+        assert case["ok"] is True
+        assert case["finished"] is True
+        assert case["pending"] == []
+>       assert case["trace"] == expected_trace(case["name"])
+E       AssertionError: assert [{'case': 'am...t': '-', ...}] == [{'case': 'am...t': '-', ...}]
+E         
+E         At index 0 diff: {'case': 'amber', 'task': 'amber-left', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} != {'case': 'amber', 'task': 'amber-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0}
+E         Use -v to get more diff
+
+/tests/test_outputs.py:253: AssertionError
+_________________ test_cobalt_overflow_carried_to_later_turns __________________
+
+    def test_cobalt_overflow_carried_to_later_turns():
+        """Cobalt pressure carries overflow rows into later turns."""
+        case = case_from_matrix("cobalt")
+>       assert_clean(case)
+
+/tests/test_outputs.py:283: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': False, 'journal': '/app/output/runtime/journals/cobalt.txt', 'ledger': '/app/output/runtime/ledgers/cobalt.jsonl', 'name': 'cobalt', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+>       assert case["ok"] is True
+E       assert False is True
+
+/tests/test_outputs.py:250: AssertionError
+______________ test_drake_dropped_branch_and_descendants_excluded ______________
+
+    def test_drake_dropped_branch_and_descendants_excluded():
+        """Drake excludes the named removed row and its descendant."""
+        case = case_from_matrix("drake")
+>       assert_clean(case)
+
+/tests/test_outputs.py:290: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': True, 'journal': '/app/output/runtime/journals/drake.txt', 'ledger': '/app/output/runtime/ledgers/drake.jsonl', 'name': 'drake', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+        assert case["ok"] is True
+        assert case["finished"] is True
+        assert case["pending"] == []
+>       assert case["trace"] == expected_trace(case["name"])
+E       AssertionError: assert [{'case': 'dr...t': '-', ...}] == [{'case': 'dr...t': '-', ...}]
+E         
+E         At index 1 diff: {'case': 'drake', 'task': 'drake-late', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 2} != {'case': 'drake', 'task': 'drake-keep', 'parent': 'drake-root', 'depth': 1, 'lane': 'lane-b', 'turn': 0}
+E         Left contains one more item: {'case': 'drake', 'depth': 0, 'lane': 'lane-b', 'parent': '-', ...}
+E         Use -v to get more diff
+
+/tests/test_outputs.py:253: AssertionError
+__________________ test_ember_branch_removal_with_nested_rows __________________
+
+    def test_ember_branch_removal_with_nested_rows():
+        """Ember combines nested rows with branch removal."""
+        case = case_from_matrix("ember")
+>       assert_clean(case)
+
+/tests/test_outputs.py:299: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': False, 'journal': '/app/output/runtime/journals/ember.txt', 'ledger': '/app/output/runtime/ledgers/ember.jsonl', 'name': 'ember', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+>       assert case["ok"] is True
+E       assert False is True
+
+/tests/test_outputs.py:250: AssertionError
+__________________ test_flint_duplicate_logical_rows_deduped ___________________
+
+    def test_flint_duplicate_logical_rows_deduped():
+        """Flint accepts duplicate logical rows only once."""
+        case = case_from_matrix("flint")
+>       assert_clean(case)
+
+/tests/test_outputs.py:307: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': True, 'journal': '/app/output/runtime/journals/flint.txt', 'ledger': '/app/output/runtime/ledgers/flint.jsonl', 'name': 'flint', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+        assert case["ok"] is True
+        assert case["finished"] is True
+        assert case["pending"] == []
+>       assert case["trace"] == expected_trace(case["name"])
+E       AssertionError: assert [{'case': 'fl...t': '-', ...}] == [{'case': 'fl...t-root', ...}]
+E         
+E         At index 0 diff: {'case': 'flint', 'task': 'flint-a', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} != {'case': 'flint', 'task': 'flint-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0}
+E         Use -v to get more diff
+
+/tests/test_outputs.py:253: AssertionError
+_____________ test_graphite_mixed_pressure_and_removed_descendants _____________
+
+    def test_graphite_mixed_pressure_and_removed_descendants():
+        """Graphite keeps mixed pressure and removed descendants consistent."""
+        case = case_from_matrix("graphite")
+>       assert_clean(case)
+
+/tests/test_outputs.py:315: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'finished': False, 'journal': '/app/output/runtime/journals/graphite.txt', 'ledger': '/app/output/runtime/ledgers/graphite.jsonl', 'name': 'graphite', ...}
+
+    def assert_clean(case: dict) -> None:
+        assert set(case) == {"name", "ok", "finished", "pending", "trace", "ledger", "journal"}
+>       assert case["ok"] is True
+E       assert False is True
+
+/tests/test_outputs.py:250: AssertionError
+_______________________ test_text_journal_matches_trace ________________________
+
+    def test_text_journal_matches_trace():
+        """Every text journal mirrors its JSON trace exactly."""
+        for case in run_matrix()["cases"]:
+>           assert journal_rows(case) == case["trace"]
+E           AssertionError: assert [{'case': 'am...t': '-', ...}] == [{'case': 'am...t': '-', ...}]
+E             
+E             At index 0 diff: {'case': 'amber', 'task': 'amber-side', 'parent': '-', 'depth': 0, 'lane': 'lane-b', 'turn': 1} != {'case': 'amber', 'task': 'amber-left', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0}
+E             Use -v to get more diff
+
+/tests/test_outputs.py:331: AssertionError
+_________________ test_cobalt_capacity_delays_acceptance_turns _________________
+
+    def test_cobalt_capacity_delays_acceptance_turns():
+        """At least one bounded case shows delayed acceptance derived from capacity."""
+        delayed = [row for row in case_from_matrix("cobalt")["trace"] if row["task"] in {"cobalt-b", "cobalt-c"}]
+>       assert delayed
+E       assert []
+
+/tests/test_outputs.py:344: AssertionError
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED ../tests/test_outputs.py::test_ledger_jsonl_matches_trace
+PASSED ../tests/test_outputs.py::test_matrix_output_deterministic_across_runs
+FAILED ../tests/test_outputs.py::test_matrix_all_six_cases_clean - AssertionE...
+FAILED ../tests/test_outputs.py::test_single_case_helper_matches_matrix - Ass...
+FAILED ../tests/test_outputs.py::test_amber_nested_parent_depth_preserved - A...
+FAILED ../tests/test_outputs.py::test_cobalt_overflow_carried_to_later_turns
+FAILED ../tests/test_outputs.py::test_drake_dropped_branch_and_descendants_excluded
+FAILED ../tests/test_outputs.py::test_ember_branch_removal_with_nested_rows
+FAILED ../tests/test_outputs.py::test_flint_duplicate_logical_rows_deduped - ...
+FAILED ../tests/test_outputs.py::test_graphite_mixed_pressure_and_removed_descendants
+FAILED ../tests/test_outputs.py::test_text_journal_matches_trace - AssertionE...
+FAILED ../tests/test_outputs.py::test_cobalt_capacity_delays_acceptance_turns
+========================= 10 failed, 2 passed in 1.79s =========================

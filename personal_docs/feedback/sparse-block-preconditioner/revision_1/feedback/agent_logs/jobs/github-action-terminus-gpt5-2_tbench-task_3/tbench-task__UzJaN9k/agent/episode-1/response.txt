@@ -1,0 +1,43 @@
+{
+  "analysis": "Scripts currently just call /app/bin/solverctl and do not write the required /app/output/*-audit.json files. There is no /app/output yet and no /app/bin or build dir present. Need to build with CMake to produce solverctl, then determine how solverctl reports iterations/residuals, and update run-matrix.sh and run-one.sh to emit deterministic JSON in the documented shape (top-level cases array; per-case is one-element array).",
+  "plan": "1) Inspect clean-room.sh and CMakeLists to learn build outputs and runtime expectations. 2) Configure and build in /app/build with CMake to create /app/bin/solverctl (or equivalent). 3) Run solverctl in matrix/one mode to see its output and/or any files it writes; locate case list and solver logs. 4) Implement JSON emission in scripts by capturing solverctl output per case and parsing required fields; ensure stable ordering and deterministic formatting. 5) Validate by running matrix twice and comparing JSON, and by running run-one.sh for a case and comparing to matrix slice.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/CMakeLists.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app/src -type f -maxdepth 2 -print | sort\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release\n",
+      "duration": 3.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "find /app -maxdepth 3 -type f -name 'solverctl' -o -name 'solverctl*' | sort\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "/app/bin/solverctl --help 2>&1 | sed -n '1,200p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "/app/bin/solverctl matrix 2>&1 | sed -n '1,200p'\n",
+      "duration": 1.5
+    },
+    {
+      "keystrokes": "find /app -maxdepth 2 -type f -path '/app/output/*' -o -path '/app/data/*' | sort | sed -n '1,200p'\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

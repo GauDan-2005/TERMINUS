@@ -1,0 +1,112 @@
+New Terminal Output:
+
+root@24f176b92b01:/app# cat > /app/internal/d3/pair.go <<'GO'
+> package d3
+>
+> import (
+>         "fmt"
+>
+>         "staged.local/snapshot/internal/f5"
+> )
+>
+> type tokenX string
+>
+> type nodeX struct {
+>         Seen map[tokenX]bool
+> }
+>
+> func bind_d(a *nodeX, b tokenX) bool {
+>         if a.Seen == nil {
+>                 a.Seen = map[tokenX]bool{}
+>         }
+>         if b == "" {
+>                 return false
+>         }
+>         if a.Seen[b] {
+>                 return true
+>         }
+>         a.Seen[b] = true
+>         return true
+> }
+>
+> // KeyFor returns a stable identity key for grouping hardlinked files.
+> // It must be derived from the backing object (dev+inode), not from the path,
+> // so that restores can recreate hardlink groups.
+> func KeyFor(row f5.Row, profile f5.Profile) string {
+>         _ = profile
+>         return fmt.Sprintf("%d:%d", row.Dev, row.Ino)
+> }
+> GO
+root@24f176b92b01:/app# go fmt /app/internal/d3/pair.go
+internal/d3/pair.go
+root@24f176b92b01:/app# perl -0777 -i -pe 's/\s*if b&1 == 1 && item\.Period == "p1" \{\s*item\.Period = "p0"\s*\}\s*//s' /app/internal/c2/roll.go
+root@24f176b92b01:/app# grep -n "func mark_c" -A30 /app/internal/c2/roll.go
+21:func mark_c(a *mapX, b uint64, c []entryX) error {
+22-     if a.Items == nil {
+23-             a.Items = map[string]entryX{}
+24-     }
+25-     for _, item := range c {a.Items[item.Path] = item
+26-     }
+27-     return nil
+28-}
+29-
+30-func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
+31-     bytesByPath, err := e4.NativeBytes(root)
+32-     if err != nil {
+33-             return nil, err
+34-     }
+35-     entries := []entryX{}
+36-     for path, size := range bytesByPath {
+37-             period := "p0"
+38-             if profile.Roll && strings.HasPrefix(path, "d/") {
+39-                     period = "p1"
+40-             }
+41-             entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
+42-     }
+43-     sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+44-     store := &mapX{}
+45-     var flags uint64
+46-     if profile.Restart && profile.Roll {
+47-             flags |= 1
+48-     }
+49-     if err := mark_c(store, flags, entries); err != nil {
+50-             return nil, err
+51-     }
+root@24f176b92b01:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f:
+>   d=json.load(f)
+> for c in d['cases']:
+>   print(c['name'], 'ok='+str(c['ok']), 'groups',len(c['groups']['source']),len(c['groups']['restored']))
+> PY
+alpha ok=False groups 0 0
+beta ok=False groups 1 1
+delta ok=False groups 0 0
+epsilon ok=False groups 0 0
+gamma ok=False groups 0 0
+zeta ok=False groups 1 1
+root@24f176b92b01:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f:
+>   d=json.load(f)
+> bad=[c['name'] for c in d['cases'] if not c['ok']]
+> print('failing:', bad)
+> PY
+failing: ['alpha', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']
+root@24f176b92b01:/app#

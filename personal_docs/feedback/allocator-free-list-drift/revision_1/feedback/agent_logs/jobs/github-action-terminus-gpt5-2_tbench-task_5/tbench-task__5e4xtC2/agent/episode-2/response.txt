@@ -1,0 +1,31 @@
+{
+  "analysis": "alloc-audit.json contains exactly 6 cases with all required keys; case summaries match last step tallies; ledger files exist and align 1:1 with steps including tally fields. A second run of run-matrix.sh produced identical alloc-audit.json and identical ledgers (no diff output). So the harness appears correct and deterministic in the current environment. The remaining requirement is that run-one.sh for each case writes /app/output/<name>-audit.json under the same rules. We have not verified per-case audit files are produced, nor that they are deterministic. Next: run allocctl one <name> for all cases, confirm outputs exist and follow schema, and ensure they match the corresponding case section from alloc-audit.json (or at least are consistent).",
+  "plan": "1) Remove prior per-case audit files (if any) and run run-one.sh for each required case. 2) Verify that /app/output/<name>-audit.json exists for each. 3) Validate their JSON schema: top-level object with name/ok/steps/... and ledger path; ensure ledger exists and aligns with steps. 4) Ensure determinism by running run-one twice for one case and diffing outputs.",
+  "commands": [
+    {
+      "keystrokes": "rm -f /app/output/*-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for n in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh \"$n\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/output | sed -n '1,200p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,glob,os\nreq_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}\nreq_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}\nfor p in sorted(glob.glob('/app/output/*-audit.json')):\n    data=json.load(open(p))\n    missing=sorted(req_case_keys-set(data.keys()))\n    if missing:\n        print('BAD',p,'missing',missing); continue\n    for s in data['steps']:\n        m=sorted(req_step_keys-set(s.keys()))\n        if m:\n            print('BAD',p,'step',s.get('seq'),'missing',m)\n            break\n    else:\n        print('OK',os.path.basename(p),'steps',len(data['steps']),'ledger',data['ledger'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,glob\nfrom pathlib import Path\nfor p in sorted(glob.glob('/app/output/*-audit.json')):\n    data=json.load(open(p))\n    ledger=Path(data['ledger'])\n    steps=data['steps']\n    if not ledger.exists():\n        print('MISSING LEDGER',p,ledger); continue\n    rows=[json.loads(l) for l in ledger.read_text().splitlines() if l.strip()]\n    if len(rows)!=len(steps):\n        print('LEN MISMATCH',p,len(steps),len(rows)); continue\n    for s,r in zip(steps,rows):\n        if s['seq']!=r.get('seq'):\n            print('SEQ MISMATCH',p,s['seq'],r.get('seq'))\n            break\n        for k in ['heap_sig','fl_count','fl_sig','byte_total']:\n            if s[k]!=r.get(k):\n                print('TALLY MISMATCH',p,'seq',s['seq'],k,s[k],r.get(k))\n                raise SystemExit\n    else:\n        pass\nprint('per-case ledgers align')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh cedar\ncp -a /app/output/cedar-audit.json /tmp/cedar-audit.1.json\nbash /app/scripts/run-one.sh cedar\ncp -a /app/output/cedar-audit.json /tmp/cedar-audit.2.json\ndiff -u /tmp/cedar-audit.1.json /tmp/cedar-audit.2.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

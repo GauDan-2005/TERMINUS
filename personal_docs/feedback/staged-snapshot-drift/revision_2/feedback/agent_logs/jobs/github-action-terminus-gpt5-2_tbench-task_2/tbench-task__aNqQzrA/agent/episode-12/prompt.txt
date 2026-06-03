@@ -1,0 +1,46 @@
+New Terminal Output:
+
+root@07f74449b762:/app# perl -0777 -pi -e 's/\s*if \(strncmp\(rel, "d\/", 2\) == 0\) \{\n\s*size = 0UL;\n\s*\}\n\s*if \(strstr\(rel, "shared"\) != NULL\) \{\n\s
+*size = size \/ 2UL;\n\s*\}\n\s*if \(strncmp\(rel, "c\/", 2\) == 0\) \{\n\s*size \+= 1UL;\n\s*\}\n/\n/s' /app/probe/measure.c
+root@07f74449b762:/app# grep -n "shared\|c/\|d/\|size = 0\|size /" /app/probe/measure.c || true
+root@07f74449b762:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:47:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:47:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@07f74449b762:/app# tmp=$(mktemp -d); printf "alpha:three\n" > "$tmp/three.txt"; /app/bin/fsmeasure "$tmp"; stat -c "%n\t%s" "$tmp/three.txt"; rm -rf "$tmp"
+three.txt       12
+/tmp/tmp.nfkch31a5X/three.txt\t12
+root@07f74449b762:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:47:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:47:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@07f74449b762:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: d=json.load(f)
+> for c in d['cases']:
+>     print(f"{c['name']}: ok={c['ok']}")
+> PY
+alpha: ok=True
+beta: ok=True
+delta: ok=True
+epsilon: ok=True
+gamma: ok=True
+zeta: ok=True
+root@07f74449b762:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: d=json.load(f)
+> z=next(c for c in d['cases'] if c['name']=='zeta')
+> for it in z['accounting']:
+>     if it['path'].startswith('d/'):
+>         print('zeta', it)
+> PY
+zeta {'path': 'd/roll.txt', 'bytes': 16, 'period': 'p0'}
+root@07f74449b762:/app#

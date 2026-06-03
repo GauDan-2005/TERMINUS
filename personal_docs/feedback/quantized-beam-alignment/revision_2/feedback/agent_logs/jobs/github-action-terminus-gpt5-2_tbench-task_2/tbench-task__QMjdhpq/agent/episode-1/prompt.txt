@@ -1,0 +1,88 @@
+New Terminal Output:
+root@0a0216085fbe:/app# cd /app
+root@0a0216085fbe:/app# ls -la
+total 12
+drwxr-xr-x  9 root root 159 May 28 16:26 .
+drwxr-xr-x 19 root root 265 May 28 16:27 ..
+-rw-r--r--  1 root root 122 May 28 16:24 Cargo.lock
+-rw-r--r--  1 root root  90 May 28 16:24 Cargo.toml
+drwxr-xr-x  3 root root  19 May 28 16:24 cmd
+drwxr-xr-x  2 root root  41 May 28 16:24 config
+drwxr-xr-x  2 root root  73 May 28 16:24 data
+drwxr-xr-x  2 root root  50 May 28 16:24 docs
+-rw-r--r--  1 root root  30 May 28 16:24 go.mod
+-rw-r--r--  1 root root   0 May 28 16:24 go.sum
+drwxr-xr-x  3 root root  21 May 28 16:24 internal
+drwxr-xr-x  9 root root  91 May 28 16:24 src
+drwxr-xr-x  2 root root  26 May 28 16:26 tools
+root@0a0216085fbe:/app# find /app -maxdepth 3 -type f -name 'run_local.sh' -o -name '*.rs' -o -name '*.go' -o -name 'Cargo.toml' -o -name 'go.mod' -o -name 'set
+s.txt'
+/app/Cargo.toml
+/app/cmd/align/main.go
+/app/config/sets.txt
+/app/go.mod
+/app/internal/collate/table.go
+/app/src/a0/mod.rs
+/app/src/b1/mod.rs
+/app/src/c2/mod.rs
+/app/src/d3/mod.rs
+/app/src/e4/mod.rs
+/app/src/f5/mod.rs
+/app/src/g6/mod.rs
+/app/src/main.rs
+/app/tools/run_local.sh
+root@0a0216085fbe:/app# sed -n '1,200p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@0a0216085fbe:/app# ls -la /app/config && echo '---' && sed -n '1,200p' /app/config/sets.txt
+total 8
+drwxr-xr-x 2 root root  41 May 28 16:24 .
+drwxr-xr-x 9 root root 159 May 28 16:26 ..
+-rw-r--r-- 1 root root  33 May 28 16:24 runtime.txt
+-rw-r--r-- 1 root root  36 May 28 16:24 sets.txt
+---
+alpha
+beta
+gamma
+delta
+epsilon
+zeta
+root@0a0216085fbe:/app# ls -la /app/output || true
+ls: cannot access '/app/output': No such file or directory
+root@0a0216085fbe:/app# test -f /app/output/raw.json && (echo '--- raw.json head' && head -c 2000 /app/output/raw.json && echo) || echo 'no raw.json'
+no raw.json
+root@0a0216085fbe:/app# test -f /app/output/report.json && (echo '--- report.json head' && head -c 2000 /app/output/report.json && echo) || echo 'no report.json
+'
+no report.json
+root@0a0216085fbe:/app# bash -lc '/app/tools/run_local.sh'
+/app/tools/run_local.sh: line 3: cargo: command not found
+root@0a0216085fbe:/app# ls -la /app/output && echo '---' && wc -c /app/output/raw.json /app/output/report.json 2>/dev/null || true
+ls: cannot access '/app/output': No such file or directory
+root@0a0216085fbe:/app# python3 - <<'PY'
+> import json,sys
+> from pathlib import Path
+> for p in [Path('/app/output/raw.json'),Path('/app/output/report.json')]:
+>     if not p.exists():
+>         print(p,'MISSING')
+>         continue
+>     try:
+>         j=json.loads(p.read_text())
+>     except Exception as e:
+>         print(p,'INVALID',e)
+>         continue
+>     print(p,'OK',type(j), 'keys', (list(j.keys()) if isinstance(j,dict) else None))
+>     if isinstance(j,dict):
+>         for k in ['raw','rows','summary']:
+>             if k in j:
+>                 v=j[k]
+>                 print(' ',k,'len' if isinstance(v,list) else 'type', (len(v) if isinstance(v,list) else type(v)))
+> PY
+/app/output/raw.json MISSING
+/app/output/report.json MISSING
+root@0a0216085fbe:/app#

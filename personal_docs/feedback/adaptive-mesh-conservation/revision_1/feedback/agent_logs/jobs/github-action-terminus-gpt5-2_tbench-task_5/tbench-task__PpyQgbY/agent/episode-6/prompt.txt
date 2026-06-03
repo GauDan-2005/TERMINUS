@@ -1,0 +1,133 @@
+New Terminal Output:
+
+root@94d12f079014:/app# cat /app/acc_m/edge_corr.cpp
+#include "../include/flow_record.h"
+
+void op_m(const EdgePulse *a, FluxBank *b) {
+    if (!a || !b) return;
+    if (b->n_pending >= MAX_FACES) return;
+    int slot = b->n_pending++;
+    b->leaf[slot] = a->base_idx;
+    for (int v = 0; v < NVAR; v++) {
+        b->flux[slot * NVAR + v] = a->flux_vals[v];
+    }
+}
+root@94d12f079014:/app# perl -0777 -i -pe 's/void op_m\(const EdgePulse \*a, FluxBank \*b\) \{\n    if \(!a \|\| !b\) return;\n    if \(b->n_pending >= MAX_FACE
+S\) return;\n    int slot = b->n_pending\+\+;\n    b->leaf\[slot\] = a->base_idx;\n    for \(int v = 0; v < NVAR; v\+\+\) \{\n        b->flux\[slot \* NVAR \+ v
+\] = a->flux_vals\[v\];\n    \}\n\}/void op_m(const EdgePulse *a, FluxBank *b) {\n    if (!a || !b) return;\n    if (a->subfaces <= 0) return;\n\n    // Record
+one reflux entry per refined subface. EdgePulse::flux_vals is laid out\n    // as [subface0 vars..., subface1 vars..., ...].\n    for (int j = 0; j < a->subface
+s; j++) {\n        if (b->n_pending >= MAX_FACES) return;\n        int slot = b->n_pending++;\n        b->leaf[slot] = a->base_idx + j;\n        for (int v = 0;
+ v < NVAR; v++) {\n            b->flux[slot * NVAR + v] = a->flux_vals[j * NVAR + v];\n        }\n    }\n}/s' /app/acc_m/edge_corr.cpp
+syntax error at -e line 1, near "as ["
+Execution of -e aborted due to compilation errors.
+root@94d12f079014:/app# cat /app/acc_m/edge_corr.cpp
+#include "../include/flow_record.h"
+
+void op_m(const EdgePulse *a, FluxBank *b) {
+    if (!a || !b) return;
+    if (b->n_pending >= MAX_FACES) return;
+    int slot = b->n_pending++;
+    b->leaf[slot] = a->base_idx;
+    for (int v = 0; v < NVAR; v++) {
+        b->flux[slot * NVAR + v] = a->flux_vals[v];
+    }
+}
+root@94d12f079014:/app# cmake --build /app/build -j"$(nproc)"
+[100%] Built target sim_run
+root@94d12f079014:/app# bash /app/scripts/run-matrix.sh
+root@94d12f079014:/app# cat /app/output/conservation_audit.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [5.7809999999999997, 3.9449999999999998, 4.5250000000000004],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.98, 1.75, 1.7429999999999999],
+      "resumed_total": [5.3010000000000002, 3.9290000000000003, 4.5380000000000003],
+      "drift_ratio": 0,
+      "balanced": true,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.44290000000000007, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+root@94d12f079014:/app# cp /app/output/conservation_audit.json /tmp/conservation_audit.run1.json
+root@94d12f079014:/app# bash /app/scripts/run-matrix.sh
+root@94d12f079014:/app# cp /app/output/conservation_audit.json /tmp/conservation_audit.run2.json
+root@94d12f079014:/app# sha256sum /tmp/conservation_audit.run1.json /tmp/conservation_audit.run2.json
+455cf08ede78428f19362fc44ab59fe86647f8a94140ddca9ebbb6072ad8c240  /tmp/conservation_audit.run1.json
+455cf08ede78428f19362fc44ab59fe86647f8a94140ddca9ebbb6072ad8c240  /tmp/conservation_audit.run2.json
+root@94d12f079014:/app# diff -u /tmp/conservation_audit.run1.json /tmp/conservation_audit.run2.json || true
+root@94d12f079014:/app# bash /app/scripts/run-replay.sh basin
+root@94d12f079014:/app# cat /app/output/basin-replay.json
+{
+  "cases": [
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    }
+  ]
+}
+root@94d12f079014:/app#

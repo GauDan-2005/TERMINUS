@@ -1,0 +1,39 @@
+{
+  "analysis": "We are in /app with no prior commands executed. The task is to restore the audit scripts so they generate deterministic JSON reports for matrix and per-case runs, and ensure the project is rebuilt with CMake before rerunning. Next step is to inspect repository structure, existing scripts, docs spec, and current outputs to understand what is broken and implement/fix accordingly.",
+  "plan": "1) Inspect /app contents, scripts, docs, and any existing output to see current behavior and expectations. 2) Read /app/docs/layout.md for the exact JSON schema/field meanings. 3) Inspect /app/scripts/run-matrix.sh and run-one.sh to see what's missing/broken and how they currently invoke the solver. 4) Inspect build system (CMakeLists) and the solver binary and how residual/iterations are produced. 5) Rebuild with CMake, then run run-one.sh for a sample case to see current output or failure. 6) Modify scripts (and possibly solver output parsing) to produce /app/output/solver-audit.json and per-case <name>-audit.json with deterministic ordering and stable numeric formatting. 7) Verify two consecutive matrix runs produce equivalent JSON (diff).",
+  "commands": [
+    {
+      "keystrokes": "cd /app\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -maxdepth 3 -type f -name 'run-matrix.sh' -o -name 'run-one.sh' -o -name 'layout.md' -o -name '*.cmake' -o -name 'CMakeLists.txt'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/docs/layout.md\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/run-matrix.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/run-one.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/output || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -maxdepth 3 -type f -name '*.json' -o -name '*.txt' -o -name '*.log' | sed -n '1,200p'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

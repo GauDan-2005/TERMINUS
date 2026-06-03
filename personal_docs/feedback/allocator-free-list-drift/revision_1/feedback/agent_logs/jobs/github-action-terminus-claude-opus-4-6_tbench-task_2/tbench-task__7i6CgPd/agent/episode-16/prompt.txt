@@ -1,0 +1,16 @@
+New Terminal Output:
+
+root@9147ef5e1606:/app# cp /app/output/alloc-audit.json /tmp/run1.json
+root@9147ef5e1606:/app# bash /app/scripts/run-matrix.sh 2>&1
+root@9147ef5e1606:/app# diff /tmp/run1.json /app/output/alloc-audit.json && echo 'DETERMINISTIC'
+DETERMINISTIC
+root@9147ef5e1606:/app# bash /app/scripts/run-one.sh cedar 2>&1
+root@9147ef5e1606:/app# python3 -c "
+> import json
+> matrix = json.load(open('/app/output/alloc-audit.json'))
+> single = json.load(open('/app/output/cedar-audit.json'))
+> assert matrix['cases'][0] == single['cases'][0], 'MISMATCH'
+> print('cedar single matches matrix')
+> "
+cedar single matches matrix
+root@9147ef5e1606:/app#

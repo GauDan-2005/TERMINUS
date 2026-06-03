@@ -1,0 +1,60 @@
+New Terminal Output:
+root@97d4c5b2e7fd:/app# cd /app
+root@97d4c5b2e7fd:/app# ls -la
+total 12
+drwxr-xr-x  9 root root 159 May 28 16:26 .
+drwxr-xr-x 19 root root 265 May 28 16:27 ..
+-rw-r--r--  1 root root 122 May 28 16:24 Cargo.lock
+-rw-r--r--  1 root root  90 May 28 16:24 Cargo.toml
+drwxr-xr-x  3 root root  19 May 28 16:24 cmd
+drwxr-xr-x  2 root root  41 May 28 16:24 config
+drwxr-xr-x  2 root root  73 May 28 16:24 data
+drwxr-xr-x  2 root root  50 May 28 16:24 docs
+-rw-r--r--  1 root root  30 May 28 16:24 go.mod
+-rw-r--r--  1 root root   0 May 28 16:24 go.sum
+drwxr-xr-x  3 root root  21 May 28 16:24 internal
+drwxr-xr-x  9 root root  91 May 28 16:24 src
+drwxr-xr-x  2 root root  26 May 28 16:26 tools
+root@97d4c5b2e7fd:/app# find /app -maxdepth 3 -type f -name 'run_local.sh' -o -name '*.rs' -o -name '*.go' -o -name 'sets.txt' | sed 's|^|FILE: |'
+FILE: /app/cmd/align/main.go
+FILE: /app/config/sets.txt
+FILE: /app/internal/collate/table.go
+FILE: /app/src/a0/mod.rs
+FILE: /app/src/b1/mod.rs
+FILE: /app/src/c2/mod.rs
+FILE: /app/src/d3/mod.rs
+FILE: /app/src/e4/mod.rs
+FILE: /app/src/f5/mod.rs
+FILE: /app/src/g6/mod.rs
+FILE: /app/src/main.rs
+FILE: /app/tools/run_local.sh
+root@97d4c5b2e7fd:/app# sed -n '1,200p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@97d4c5b2e7fd:/app# sed -n '1,200p' /app/config/sets.txt
+alpha
+beta
+gamma
+delta
+epsilon
+zeta
+root@97d4c5b2e7fd:/app# ls -la /app/output || true
+ls: cannot access '/app/output': No such file or directory
+root@97d4c5b2e7fd:/app# ls -la /app/tools
+total 4
+drwxr-xr-x 2 root root  26 May 28 16:26 .
+drwxr-xr-x 9 root root 159 May 28 16:26 ..
+-rwxr-xr-x 1 root root 309 May 28 16:24 run_local.sh
+root@97d4c5b2e7fd:/app# rg -n "raw\.json|report\.json|agree|packed|grouped|reuse|slot_trace|order_used|scale|bias" /app || true
+bash: rg: command not found
+root@97d4c5b2e7fd:/app# bash -lc '/app/tools/run_local.sh'
+/app/tools/run_local.sh: line 3: cargo: command not found
+root@97d4c5b2e7fd:/app# ls -la /app/output && (head -c 4000 /app/output/raw.json; echo; echo '---'; head -c 4000 /app/output/report.json) 2>/dev/null || true
+ls: cannot access '/app/output': No such file or directory
+root@97d4c5b2e7fd:/app#

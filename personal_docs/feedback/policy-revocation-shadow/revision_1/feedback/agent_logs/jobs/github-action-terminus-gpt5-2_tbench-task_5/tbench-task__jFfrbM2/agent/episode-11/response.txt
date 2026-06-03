@@ -1,0 +1,39 @@
+{
+  "analysis": "We successfully rebuilt and produced new deterministic output (new sha, stable on rerun). However, beta case is now wrong: after granting intern vault/read, the second check 'solo' should allow, but it denies and is marked reused=true. This indicates caching logic still incorrectly reuses a deny from the first check. The cause: store caching uses slot_key(subject,object,mode) now, but wrap_g first calls emit_c(a, subject, object, mode) before recomputing; and we never clear store on grant/delegate/revoke, so the earlier deny is cached and reused after a grant. Need to tie cache validity to epoch/clock or simply remove store caching and rely on reused via `seen` (k5/f.rs). Easiest: disable store/emit_c caching entirely for non-batch checks (always compute mote_e), ensuring correct semantics. Group caching is still fine because batch is explicitly delimited and should reuse within a batch only.\nAlso delegation-chain revocation semantics: epsilon denies (good: mid revoked), alpha before shows delegated_from boss (good). Need to fix non-batch caching.",
+  "plan": "1) Modify k0/a.rs wrap_g to stop using emit_c/store caching (remove emit_c calls and store insert), or ensure store is cleared on any state mutation (grant/delegate/revoke/end/batch). Simpler: remove store usage from wrap_g and keep store map unused. 2) Rebuild and rerun matrix; confirm beta solo now allows and reused should be false (since verdict changed). 3) Verify determinism remains and other cases still satisfy fields.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\n\\s*let row = if a\\.group_active\\.is_empty\\(\\) \\{\\n\\s*wrap_g\\(a, &b\\.left, &subject, &object, &mode\\)\\n\\s*\\} else \\{\\n\\s*lift_d\\(a, &b\\.left, &subject, &object, &mode\\)\\n\\s*\\};/\\n            let row = if a.group_active.is_empty() {\\n                wrap_g(a, &b.left, &subject, &object, &mode)\\n            } else {\\n                lift_d(a, &b.left, &subject, &object, &mode)\\n            };\\n/s' /app/k0/a.rs\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/use crate::k5_f::cast_f;\\n/use crate::k5_f::cast_f;\\n/; s/use crate::k2_c::emit_c;\\n//g' /app/k0/a.rs\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\n\\s*let tick = a\\.tick_for\\(subject\\);\\n\\s*if let Some\\(outcome\\) = emit_c\\(a, subject, object, mode\\) \\{[\\s\\S]*?return row;\\n\\s*\\}\\n\\s*let \\(outcome, via\\) = mote_e\\(a, subject, object, mode\\);\\n\\s*a\\.store\\.insert\\([\\s\\S]*?\\);/\\n    let tick = a.tick_for(subject);\\n    let (outcome, via) = mote_e(a, subject, object, mode);/s' /app/k0/a.rs\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "grep -n \"fn wrap_g\" -A80 /app/k0/a.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cargo build -q\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "rm -f /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/policy-audit.json') as f: d=json.load(f)\nfor c in d['cases']:\n    if c['name']=='beta':\n        for r in c['decisions']:\n            print(r)\nPY\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "sha256sum /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json\n",
+      "duration": 2.0
+    }
+  ],
+  "task_complete": false
+}

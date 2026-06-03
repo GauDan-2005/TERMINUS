@@ -1,0 +1,19 @@
+{
+  "analysis": "Now all cases have digestMatch and groupsMatch true, including gamma and zeta, so restore content and hardlinks are correct. However ok is still false for all cases, meaning the ok flag logic in cmd/ctl considers additional criteria (accounting match and/or accountingMatchesDisk) and those are failing. Next we must inspect cmd/ctl/main.go to see how ok is computed and why it remains false despite digest/groups agreement. Likely accountingEqual or diskMatch is failing due to accounting period rules (p1 for generated files under d/ when moved into later quota period) or bytes counting rules (per path including hardlink names). We need to compare source accounting vs restored accounting, and ensure accounting generator c2.ItemsC or equality logic is correct and ok reflects full contract (should be true now).",
+  "plan": "1) Open /app/cmd/ctl/main.go and locate ok computation plus accountingEqual/accountingMatchesDisk implementations. 2) Dump per-case comparisons: whether accountingMatch is false or diskMatch false, by running a small Go or Python snippet to recompute/print those booleans if they’re not in JSON. 3) Patch logic: ensure accounting comparison is correct per spec (flat array; bytes match file sizes for each path; period p1 only for generated files under d/ when case is in later period). Also ensure ok is set to conjunction of digest, groups, accounting equality, and disk match (and not accidentally always false).",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' /app/cmd/ctl/main.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -n \"func accountingEqual\\|func accountingMatchesDisk\\|OK\\s*:=\" -n /app/cmd/ctl/main.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/restore-audit.json'))\nfor c in obj['cases']:\n    # quick heuristic: compare accounting arrays between cases' source/restored by re-running script? not possible here.\n    # Instead, just show if any path under d/ has period p1.\n    d=[x for x in c['accounting'] if x['path'].startswith('d/')]\n    if d:\n        print(c['name'], 'd-items:', d)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

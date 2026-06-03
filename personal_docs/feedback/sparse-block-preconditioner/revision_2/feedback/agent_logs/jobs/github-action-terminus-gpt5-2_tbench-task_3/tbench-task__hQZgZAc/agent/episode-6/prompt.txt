@@ -1,0 +1,56 @@
+New Terminal Output:
+
+root@dcbc4436cd95:/app# cat > /app/scale_q/metric.cpp <<'EOF'
+> #include "../include/matrix_view.h"
+>
+> #include <math.h>
+>
+> double norm_q(const double *a, int b) {
+>     double s = 0.0;
+>     for (int i = 0; i < b; i++) {
+>         s += a[i] * a[i];
+>     }
+>     return sqrt(s);
+> }
+> EOF
+root@dcbc4436cd95:/app# cmake --build /app/build -j "$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 15%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@dcbc4436cd95:/app# rm -rf /app/output && mkdir -p /app/output
+root@dcbc4436cd95:/app# /app/build/bin/solverctl one basalt
+root@dcbc4436cd95:/app# cat /app/output/basalt-audit.json
+{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    }
+  ]
+}
+root@dcbc4436cd95:/app# rm -rf /app/output && mkdir -p /app/output
+root@dcbc4436cd95:/app# /app/build/bin/solverctl matrix
+root@dcbc4436cd95:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> data=json.load(open(p))
+> for c in data['cases']:
+>     print(c['name'], 'ok='+str(c['ok']), 'iters='+str(c['iterations']), 'final='+str(c['final_residual']), 'reported='+str(c['reported_residual']), 'agree='+s
+tr(c['residual_agrees']), 'hit='+str(c['hit_limit']))
+> PY
+basalt ok=True iters=1 final=0 reported=0 agree=True hit=False
+flint ok=True iters=1 final=0 reported=0 agree=True hit=False
+shale ok=True iters=1 final=0 reported=0 agree=True hit=False
+garnet ok=True iters=1 final=0 reported=0 agree=True hit=False
+mica ok=True iters=1 final=0 reported=0 agree=True hit=False
+opal ok=True iters=1 final=0 reported=0 agree=True hit=False
+root@dcbc4436cd95:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+root@dcbc4436cd95:/app# rm -rf /app/output && mkdir -p /app/output && /app/build/bin/solverctl matrix
+root@dcbc4436cd95:/app# cmp -s /app/output/solver-audit.json /app/output/solver-audit.run1.json; echo CMP_EXIT:$?
+CMP_EXIT:2
+root@dcbc4436cd95:/app#

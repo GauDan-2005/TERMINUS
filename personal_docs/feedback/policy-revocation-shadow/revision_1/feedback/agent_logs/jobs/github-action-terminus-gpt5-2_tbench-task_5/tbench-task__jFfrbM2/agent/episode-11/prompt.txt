@@ -1,0 +1,276 @@
+New Terminal Output:
+
+root@ddaff815948e:/app# nl -ba /app/src/model.rs | sed -n '1,140p'
+     1  use std::collections::{BTreeMap, BTreeSet};
+     2
+     3  #[derive(Clone, Debug)]
+     4  pub struct Event {
+     5      pub kind: String,
+     6      pub left: String,
+     7      pub right: String,
+     8  }
+     9
+    10  #[derive(Clone, Debug)]
+    11  pub struct Decision {
+    12      pub label: String,
+    13      pub subject: String,
+    14      pub object: String,
+    15      pub mode: String,
+    16      pub outcome: String,
+    17      pub tick: u64,
+    18      pub reused: bool,
+    19      pub group: String,
+    20      pub via: String,
+    21  }
+    22
+    23  #[derive(Clone, Debug)]
+    24  pub struct CaseReport {
+    25      pub name: String,
+    26      pub ok: bool,
+    27      pub decisions: Vec<Decision>,
+    28      pub stale: Vec<String>,
+    29  }
+    30
+    31  #[derive(Debug)]
+    32  pub struct State {
+    33      pub direct: BTreeSet<(String, String, String)>,
+    34      pub chain: BTreeMap<String, String>,
+    35      pub ticks: BTreeMap<String, u64>,
+    36      pub blocked: BTreeSet<String>,
+    37      pub store: BTreeMap<String, String>,
+    38      pub group_slot: BTreeMap<String, String>,
+    39      pub group_active: String,
+    40      pub seen: BTreeMap<String, String>,
+    41      pub clock: u64,
+    42  }
+    43
+    44  impl State {
+    45      pub fn new() -> Self {
+    46          Self {
+    47              direct: BTreeSet::new(),
+    48              chain: BTreeMap::new(),
+    49              ticks: BTreeMap::new(),
+    50              blocked: BTreeSet::new(),
+    51              store: BTreeMap::new(),
+    52              group_slot: BTreeMap::new(),
+    53              group_active: String::new(),
+    54              seen: BTreeMap::new(),
+    55              clock: 0,
+    56          }
+    57      }
+    58
+    59      pub fn tick_for(&self, subject: &str) -> u64 {
+    60          *self.ticks.get(subject).unwrap_or(&0)
+    61      }
+    62
+    63      pub fn slot_key(object: &str, mode: &str) -> String {
+    64          format!("{object}|pub fn slot_key(subject: &str, object: &str, mode: &str) -> String {
+    65          format!("{subject}|{object}|{mode}")
+    66      }
+    67
+    68      pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+    69          format!("{subject}|{object}|{mode}")
+    70      }
+    71  }
+    72
+    73  impl Decision {
+    74      pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+    75          Self {
+    76              label: label.to_string(),
+    77              subject: subject.to_string(),
+    78              object: object.to_string(),
+    79              mode: mode.to_string(),
+    80              outcome: String::new(),
+    81              tick,
+    82              reused: false,
+    83              group: String::new(),
+    84              via: String::new(),
+    85          }
+    86      }
+    87  }
+root@ddaff815948e:/app# nl -ba /app/k4/e.rs | sed -n '1,220p'
+     1  use crate::model::State;
+     2
+     3  pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+     4      // Walk from requesting subject toward grantors following the delegation chain.
+     5      // If any subject along this walk is blocked/revoked, delegated access denies.
+     6      let mut current = b.to_string();
+     7      let mut path: Vec<String> = vec![current.clone()];
+     8
+     9      loop {
+    10          if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+    11              let delegated = current != b;
+    12              if delegated {
+    13                  if path.iter().any(|s| a.blocked.contains(s)) {
+    14                      return ("deny".to_string(), String::new());
+    15                  }
+    16                  if a.blocked.contains(b) {
+    17                      return ("deny".to_string(), String::new());
+    18                  }
+    19                  // delegated_from = grantor
+    20                  return ("allow".to_string(), current.clone());
+    21              }
+    22              // Direct grant
+    23              return ("allow".to_string(), String::new());
+    24          }
+    25
+    26          match a.chain.get(&current) {
+    27              Some(parent) => {
+    28                  current = parent.clone();
+    29                  path.push(current.clone());
+    30              }
+    31              None => return ("deny".to_string(), String::new()),
+    32          }
+    33      }
+    34  }
+root@ddaff815948e:/app# cat > /app/src/model.rs <<'RS'
+el.to_string(),
+            subject: subject.to_string(),
+            object: object.to_string(),
+            mode: mode.to_string(),
+            outcome: String::new(),
+            tick,
+            reused: false,
+            group: String::new(),
+            via: String::new(),
+        }
+    }
+}
+RS
+> use std::collections::{BTreeMap, BTreeSet};
+>
+> #[derive(Clone, D
+[... output limited to 10000 bytes; 69 interior bytes omitted ...]
+
+>     // Memoized outcomes for non-batch checks, keyed by full principal+resource+action.
+>     pub store: BTreeMap<String, String>,
+>     // Memoized outcomes for batch checks, keyed by full principal+resource+action.
+>     pub group_slot: BTreeMap<String, String>,
+>
+>     pub group_active: String,
+>     pub seen: BTreeMap<String, String>,
+>     pub clock: u64,
+> }
+>
+> impl State {
+>     pub fn new() -> Self {
+>         Self {
+>             direct: BTreeSet::new(),
+>             chain: BTreeMap::new(),
+>             ticks: BTreeMap::new(),
+>             blocked: BTreeSet::new(),
+>             store: BTreeMap::new(),
+>             group_slot: BTreeMap::new(),
+>             group_active: String::new(),
+>             seen: BTreeMap::new(),
+>             clock: 0,
+>         }
+>     }
+>
+>     pub fn tick_for(&self, subject: &str) -> u64 {
+>         *self.ticks.get(subject).unwrap_or(&0)
+>     }
+>
+>     pub fn slot_key(subject: &str, object: &str, mode: &str) -> String {
+>         format!("{subject}|{object}|{mode}")
+>     }
+>
+>     pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+>         format!("{subject}|{object}|{mode}")
+>     }
+> }
+>
+> impl Decision {
+>     pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+>         Self {
+>             label: label.to_string(),
+>             subject: subject.to_string(),
+>             object: object.to_string(),
+>             mode: mode.to_string(),
+>             outcome: String::new(),
+>             tick,
+>             reused: false,
+>             group: String::new(),
+>             via: String::new(),
+>         }
+>     }
+> }
+> RS
+root@ddaff815948e:/app# cat > /app/k4/e.rs <<'RS'
+> use crate::model::State;
+>
+> pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+>     // Walk from requesting subject toward grantors following the delegation chain.
+>     // If any subject along this walk is blocked/revoked, delegated access denies.
+>     let mut current = b.to_string();
+>     let mut path: Vec<String> = vec![current.clone()];
+>
+>     loop {
+>         if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+>             let delegated = current != b;
+>             if delegated {
+>                 // Deny if any subject along the delegation chain is blocked/revoked.
+>                 if path.iter().any(|s| a.blocked.contains(s)) {
+>                     return ("deny".to_string(), String::new());
+>                 }
+>                 // blocked/revoked subjects never receive allow on delegated paths.
+>                 if a.blocked.contains(b) {
+>                     return ("deny".to_string(), String::new());
+>                 }
+>                 // delegated_from = grantor (the subject holding the direct grant)
+>                 return ("allow".to_string(), current);
+>             }
+>
+>             // Direct grant.
+>             return ("allow".to_string(), String::new());
+>         }
+>
+>         match a.chain.get(&current) {
+>             Some(parent) => {
+>                 current = parent.clone();
+>                 path.push(current.clone());
+>             }
+>             None => return ("deny".to_string(), String::new()),
+>         }
+>     }
+> }
+> RS
+root@ddaff815948e:/app# cargo build -q
+root@ddaff815948e:/app# rm -f /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh
+root@ddaff815948e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/policy-audit.json'
+> with open(p) as f: d=json.load(f)
+> for c in d['cases']:
+>     print('\n==',c['name'],'ok',c['ok'],'stale',c['stale'])
+>     for r in c['decisions']:
+>         print(r['label'], r['principal'], r['resource'], r['action'], r['verdict'], 'epoch', r['epoch'], 'reused', r['reused'], 'batch', r['batch_id'], 'via',
+ r['delegated_from'])
+> PY
+
+== alpha ok True stale []
+before clerk vault read allow epoch 0 reused False batch  via boss
+batch clerk vault read deny epoch 1 reused False batch b1 via
+after clerk vault read allow epoch 1 reused False batch  via
+
+== beta ok True stale []
+miss intern vault read deny epoch 0 reused False batch  via
+solo intern vault read deny epoch 0 reused True batch  via
+
+== gamma ok True stale []
+batch intern vault write deny epoch 0 reused False batch b1 via
+
+== delta ok True stale []
+first alice logs read allow epoch 0 reused False batch  via
+second alice logs read allow epoch 0 reused True batch  via
+
+== epsilon ok True stale []
+check leaf api invoke deny epoch 0 reused False batch  via
+
+== zeta ok True stale []
+a alpha secret read allow epoch 1 reused False batch mix via
+b beta secret read allow epoch 0 reused False batch mix via
+root@ddaff815948e:/app# sha256sum /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json
+448cb0c5e26b029679cb71362ecc95e7988ca44adfad0e405c253b978f7050e1  /app/output/policy-audit.json
+448cb0c5e26b029679cb71362ecc95e7988ca44adfad0e405c253b978f7050e1  /app/output/policy-audit.json
+root@ddaff815948e:/app#

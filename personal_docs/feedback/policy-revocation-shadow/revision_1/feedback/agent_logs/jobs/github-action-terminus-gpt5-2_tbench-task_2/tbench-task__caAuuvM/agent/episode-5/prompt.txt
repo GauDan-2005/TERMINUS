@@ -1,0 +1,346 @@
+New Terminal Output:
+
+root@1dff0ae3ab5d:/app# python3 - <<'PY'
+> import json
+> p='/app/output/policy-audit.json'
+> with open(p) as f: data=json.load(f)
+> print('cases', len(data.get('cases',[])))
+> for c in data['cases']:
+>     print(c['name'], 'ok=',c['ok'], 'decisions=',len(c['decisions']), 'stale=',c.get('stale'))
+> PY
+cases 6
+alpha ok= True decisions= 3 stale= []
+beta ok= True decisions= 2 stale= []
+gamma ok= True decisions= 1 stale= []
+delta ok= True decisions= 2 stale= []
+epsilon ok= True decisions= 1 stale= []
+zeta ok= True decisions= 2 stale= []
+root@1dff0ae3ab5d:/app# python3 - <<'PY'
+> import json
+> from pprint import pprint
+> with open('/app/output/policy-audit.json') as f: data=json.load(f)
+> for c in data['cases']:
+>     if c['name']=='alpha':
+>         pprint(c)
+> PY
+{'decisions': [{'action': 'read',
+                'batch_id': '',
+                'delegated_from': 'boss',
+                'epoch': 0,
+                'label': 'before',
+                'principal': 'clerk',
+                'resource': 'vault',
+                'reused': False,
+                'verdict': 'allow'},
+               {'action': 'read',
+                'batch_id': 'b1',
+                'delegated_from': '',
+                'epoch': 1,
+                'label': 'batch',
+                'principal': 'clerk',
+                'resource': 'vault',
+                'reused': False,
+                'verdict': 'deny'},
+               {'action': 'read',
+                'batch_id': '',
+                'delegated_from': '',
+                'epoch': 1,
+                'label': 'after',
+                'principal': 'clerk',
+                'resource': 'vault',
+                'reused': False,
+                'verdict': 'allow'}],
+ 'name': 'alpha',
+ 'ok': True,
+ 'stale': []}
+root@1dff0ae3ab5d:/app# sed -n '1,220p' /app/src/model.rs
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub kind: String,
+    pub left: String,
+    pub right: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Decision {
+    pub label: String,
+    pub subject: String,
+    pub object: String,
+    pub mode: String,
+    pub outcome: String,
+    pub tick: u64,
+    pub reused: bool,
+    pub group: String,
+    pub via: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub decisions: Vec<Decision>,
+    pub stale: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub direct: BTreeSet<(String, String, String)>,
+    pub chain: BTreeMap<String, String>,
+    pub ticks: BTreeMap<String, u64>,
+    pub blocked: BTreeSet<String>,
+    pub store: BTreeMap<String, String>,
+    pub group_slot: BTreeMap<String, String>,
+    pub group_active: String,
+    pub seen: BTreeMap<String, String>,
+    pub clock: u64,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            direct: BTreeSet::new(),
+            chain: BTreeMap::new(),
+            ticks: BTreeMap::new(),
+            blocked: BTreeSet::new(),
+            store: BTreeMap::new(),
+            group_slot: BTreeMap::new(),
+            group_active: String::new(),
+            seen: BTreeMap::new(),
+            clock: 0,
+        }
+    }
+
+    pub fn tick_for(&self, subject: &str) -> u64 {
+        *self.ticks.get(subject).unwrap_or(&0)
+    }
+
+    pub fn slot_key(object: &str, mode: &str) -> String {
+        format!("{object}|{mode}")
+    }
+
+    pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+        format!("{subject}|{object}|{mode}")
+    }
+}
+
+impl Decision {
+    pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+        Self {
+            label: label.to_string(),
+            subject: subject.to_string(),
+            object: object.to_string(),
+            mode: mode.to_string(),
+            outcome: String::new(),
+            tick,
+            reused: false,
+            group: String::new(),
+            via: String::new(),
+        }
+    }
+}
+root@1dff0ae3ab5d:/app# sed -n '1,240p' /app/src/runner.rs
+use crate::io::read_trace;
+use crate::k0_a::phase_a;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        decisions: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+root@1dff0ae3ab5d:/app# sed -n '1,220p' /app/src/report.rs
+use crate::
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+25 11:30 ..
+-rw-r--r--  1 root root 231 May 25 11:26 b.rs
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str) -> Result<(), String> {
+    let next = a.tick_for(b) + 1;
+    a.ticks.insert(b.to_string(), next);
+    a.blocked.insert(b.to_string());
+    a.clock += 1;
+    Ok(())
+}
+=== /app/k2
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 169 May 25 11:26 c.rs
+use crate::model::State;
+
+pub fn emit_c(a: &State, _b: &str, c: &str, d: &str) -> Option<String> {
+    let key = State::slot_key(c, d);
+    a.store.get(&key).cloned()
+}
+=== /app/k3
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 821 May 25 11:26 d.rs
+use crate::k4_e::mote_e;
+use crate::model::{Decision, State};
+
+pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+    let slot = State::slot_key(d, e);
+    let tick = a.tick_for(c);
+  if let Some(outcome) = a.group_slot.get(&slot) {
+        let via = if outcome == "allow" {
+            mote_e(a, c, d, e).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(b, c, d, e, tick);
+        row.outcome = outcome.clone();
+        row.group = a.group_active.clone();
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, c, d, e);
+    a.group_slot.insert(slot, outcome.clone());
+    let mut row = Decision::blank(b, c, d, e, tick);
+    row.outcome = outcome;
+    row.group = a.group_active.clone();
+    row.via = via;
+    row
+}
+=== /app/k4
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 711 May 25 11:26 e.rs
+use crate::model::State;
+
+pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+    let mut current = b.to_string();
+    loop {
+        if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+            if a.blocked.contains(b) {
+                return ("deny".to_string(), String::new());
+            }
+            let via = if current == b {
+                String::new()
+            } else {
+                current.clone()
+            };
+            return ("allow".to_string(), via);
+        }
+        match a.chain.get(&current) {
+            Some(parent) => current = parent.clone(),
+            None => return ("deny".to_string(), String::new()),
+        }
+    }
+}
+=== /app/k5
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 563 May 25 11:26 f.rs
+use crate::model::{Decision, State};
+
+pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+    let track = State::track_key(&b.subject, &b.object, &b.mode);
+    let reused = a
+        .seen
+        .get(&track)
+        .map(|old| old == &b.outcome)
+        .unwrap_or(false);
+    b.reused = reused;
+    a.seen.insert(track, b.outcome.clone());
+    if b.outcome == "allow" && a.blocked.contains(&b.subject) && !b.via.is_empty() {
+        let note = b.label.clone();
+        (b, Some(note))
+    } else {
+        (b, None)
+    }
+}
+=== /app/k6
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 107 May 25 11:26 g.rs
+use crate::model::State;
+
+pub fn tally_g(_a: &State, rows: usize) -> String {
+    format!("rows={rows}")
+}
+=== /app/k7
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root  72 May 25 11:26 h.rs
+pub fn hint_h(label: &str) -> String {
+    label.to_ascii_lowercase()
+}
+=== /app/k8
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root  86 May 25 11:26 i.rs
+pub fn order_i(left: &str, right: &str) -> std::cmp::Ordering {
+    left.cmp(right)
+}
+root@1dff0ae3ab5d:/app# cp /app/traces/beta.trace /tmp/beta2.trace
+root@1dff0ae3ab5d:/app# printf '\ncheck extra intern:vault/read\n' >> /tmp/beta2.trace
+root@1dff0ae3ab5d:/app# cargo run --offline --quiet -- /tmp/out.json /tmp/beta2.trace
+root@1dff0ae3ab5d:/app# sha256sum /tmp/out.json
+d00f62174e8952c8652571b15e0b1ff8b51759d652d93ddb10803c3d8396eed5  /tmp/out.json
+root@1dff0ae3ab5d:/app# head -n 30 /tmp/out.json
+{
+  "cases": [
+    {
+      "name": "beta2",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "miss",
+          "principal": "intern",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": ""
+        },
+        {
+          "label": "solo",
+          "principal": "intern",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 0,
+          "reused": true,
+          "batch_id": "",
+          "delegated_from": ""
+        },
+        {
+          "label": "extra",
+root@1dff0ae3ab5d:/app#

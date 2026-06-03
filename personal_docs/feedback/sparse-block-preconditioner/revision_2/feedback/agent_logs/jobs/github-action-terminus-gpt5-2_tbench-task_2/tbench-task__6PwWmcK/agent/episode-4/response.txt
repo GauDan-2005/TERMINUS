@@ -1,0 +1,39 @@
+{
+  "analysis": "We confirmed JSON output shape is correct and run-one matches matrix slice logically, but a Python comparison failed because solver-audit.json disappeared between commands (likely clean-room.sh wipes /app/output except the just-written file, and run-one.sh re-cleaned after matrix). Main issue: metric norm_q artificially adds 1e-4, explaining reported_residual always 0.0001 when the vector is zero. final_residual is 0, so residual_agrees is false and ok false. This indicates the shipped metric helper is wrong per docs (should be a true L2 norm), and/or the solver is producing a zero residual incorrectly. First fix: remove +1e-4 in norm_q. Then rebuild and rerun audits. If cases still fail, we’ll dig into assembly/permutation/reordered layout handling.",
+  "plan": "1) Edit scale_q/metric.cpp to compute pure L2 norm without bias. 2) Rebuild with CMake. 3) Run matrix audit and check if residual_agrees becomes true and ok becomes true. 4) Also verify determinism by running matrix twice and diffing the JSON.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/scale_q/metric.cpp <<'EOF'\n#include \"../include/matrix_view.h\"\n\n#include <math.h>\n\ndouble norm_q(const double *a, int b) {\n    double s = 0.0;\n    for (int i = 0; i < b; i++) {\n        s += a[i] * a[i];\n    }\n    return sqrt(s);\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "rm -f /app/output/*audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/solver-audit.json'\nwith open(p) as f: j=json.load(f)\nfail=[c for c in j.get('cases',[]) if (not c.get('ok',False)) or (not c.get('residual_agrees',False)) or c.get('hit_limit',False)]\nprint('cases:',len(j.get('cases',[])))\nprint('problem_cases:',len(fail))\nfor c in j['cases']:\n    print(c['name'], 'ok=',c['ok'], 'agree=',c['residual_agrees'], 'it=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.r1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, math\nr1=json.load(open('/app/output/solver-audit.r1.json'))\nr2=json.load(open('/app/output/solver-audit.json'))\nprint('json_equal:', r1==r2)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

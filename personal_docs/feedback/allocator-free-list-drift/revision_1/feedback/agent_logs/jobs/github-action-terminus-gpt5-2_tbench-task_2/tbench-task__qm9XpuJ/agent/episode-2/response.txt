@@ -1,0 +1,35 @@
+{
+  "analysis": "run-matrix.sh and run-one.sh succeed (exit 0) and outputs are being written: /app/output/alloc-audit.json plus per-case ledgers and cedar-audit.json. Despite success, the task says the combined audit drifts once fragmentation/merge/growth scripts run together, and two matrix runs from unchanged inputs must be equivalent. So the current failure is likely nondeterminism or internal inconsistency in the produced JSON surfaces (ok flags/signatures/tallies) across steps or across runs, even if exit code is 0. Next we should validate JSON structure/consistency and check determinism by running matrix twice and diffing. Then inspect any cases with ok=false or signature drift, and locate code responsible for signatures/ordering.",
+  "plan": "1) Inspect alloc-audit.json summary (cases names, ok flags). 2) Validate required fields exist. 3) Run matrix twice with clean-room in between and diff results to detect drift/nondeterminism. 4) If drift exists, pinpoint which case/field differs using jq diff-style comparisons. 5) Once we find the differing surfaces (heap_sig, fl_sig, ledger paths, steps fields), we will locate the implementation in src/ that computes signatures and writes JSON, then patch for determinism (stable ordering, consistent hashing, consistent float/int formatting, reset state between cases, etc.).",
+  "commands": [
+    {
+      "keystrokes": "jq '.cases | map({name, ok, steps: (.steps|length), heap_sig, fl_count, fl_sig, byte_total, ledger})' output/alloc-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq -e '(.cases|type==\"array\") and (all(.cases[]; has(\"name\") and has(\"ok\") and has(\"steps\") and has(\"heap_sig\") and has(\"fl_count\") and has(\"fl_sig\") and has(\"byte_total\") and has(\"ledger\")))' output/alloc-audit.json && echo OK\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp -f output/alloc-audit.json /tmp/alloc-audit.1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash scripts/run-matrix.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp -f output/alloc-audit.json /tmp/alloc-audit.2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json | sed -n '1,200p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq -n --slurpfile a /tmp/alloc-audit.1.json --slurpfile b /tmp/alloc-audit.2.json 'def idx(x): x|INDEX(.name); ($a[0].cases|idx(.)) as $ia | ($b[0].cases|idx(.)) as $ib | [\"cedar\",\"jade\",\"slate\",\"coral\",\"onyx\",\"pearl\"] as $names | $names|map({name:., same: ($a[0].cases[$ia[.]]==$b[0].cases[$ib[.]])})'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

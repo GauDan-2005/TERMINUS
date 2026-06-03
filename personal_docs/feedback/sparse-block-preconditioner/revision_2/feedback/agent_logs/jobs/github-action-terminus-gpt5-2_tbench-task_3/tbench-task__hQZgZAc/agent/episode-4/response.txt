@@ -1,0 +1,47 @@
+{
+  "analysis": "Scripts are now updated, but they redundantly redirect stdout even though solverctl already writes JSON directly to /app/output/*.json. Current solver results are wrong for all cases: ok=false, iterations=1, final_residual=0 while reported_residual=0.0001 and residual_agrees=false. This indicates the solver/metric pipeline is broken (likely not actually solving / residual computed from uninitialized/empty vectors, or final residual not measured). We need to inspect SolveResult population (drive_u/run.cpp, solve_s/driver.cpp, scale_q/metric.cpp, flow_t/report hookup) and fix residual computation and convergence for reordered layouts. Also ensure per-case output matches matrix slice by not double-writing/redirecting incorrectly (we can later remove redirections once solverctl writes correctly).",
+  "plan": "1) Inspect include/solver_report.h and drive_u/run.cpp to see how ok/iterations/residual fields are set, and how metric is computed. 2) Inspect solve_s/driver.cpp and scale_q/metric.cpp for ordering-dependent bugs or always-zero final residual. 3) Run solverctl one basalt and examine any trace/log files under /app/output produced by clean-room/trace modules to see dirty rows etc. 4) Patch solver so reported_residual matches independently measured final residual and ok=true for all cases; then rebuild and rerun audits twice, comparing JSON equivalence via python.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/include/solver_report.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/solve_s/driver.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/mirror_w/trace.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/output/basalt-audit.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

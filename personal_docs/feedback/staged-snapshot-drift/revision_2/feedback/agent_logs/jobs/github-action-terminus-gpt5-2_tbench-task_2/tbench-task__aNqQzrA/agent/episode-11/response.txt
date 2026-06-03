@@ -1,0 +1,35 @@
+{
+  "analysis": "fsmeasure deliberately distorts sizes: sets d/* to 0, halves files with 'shared' in name, and adds +1 to c/* paths. That breaks accountingMatchesDisk and accountingEqual. We must fix probe/measure.c emit_file to always report exact st_size with no path-based adjustments. Period logic in c2 was partially fixed by removing p1->p0 flip, but ok is still false due to fsmeasure distortion. Next: patch measure.c, rebuild, rerun matrix, and confirm ok=true. Also ensure zeta period for d/roll.txt is p1 and bytes equals actual size.",
+  "plan": "1) Edit /app/probe/measure.c: remove all conditional modifications to size; just print rel and st.st_size for regular files. 2) Rebuild via make build to regenerate /app/bin/fsmeasure and snapctl. 3) Rerun run-matrix.sh. 4) Verify summary: all cases ok=true; spot-check zeta accounting includes d/roll.txt with correct bytes and period p1.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -pi -e 's/\\s*if \\(strncmp\\(rel, \"d\\/\", 2\\) == 0\\) \\{\\n\\s*size = 0UL;\\n\\s*\\}\\n\\s*if \\(strstr\\(rel, \"shared\"\\) != NULL\\) \\{\\n\\s*size = size \\/ 2UL;\\n\\s*\\}\\n\\s*if \\(strncmp\\(rel, \"c\\/\", 2\\) == 0\\) \\{\\n\\s*size \\+= 1UL;\\n\\s*\\}\\n/\\n/s' /app/probe/measure.c\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"shared\\|c/\\|d/\\|size = 0\\|size /\" /app/probe/measure.c || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "tmp=$(mktemp -d); printf \"alpha:three\\n\" > \"$tmp/three.txt\"; /app/bin/fsmeasure \"$tmp\"; stat -c \"%n\\t%s\" \"$tmp/three.txt\"; rm -rf \"$tmp\"\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nfor c in d['cases']:\n    print(f\"{c['name']}: ok={c['ok']}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f: d=json.load(f)\nz=next(c for c in d['cases'] if c['name']=='zeta')\nfor it in z['accounting']:\n    if it['path'].startswith('d/'):\n        print('zeta', it)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

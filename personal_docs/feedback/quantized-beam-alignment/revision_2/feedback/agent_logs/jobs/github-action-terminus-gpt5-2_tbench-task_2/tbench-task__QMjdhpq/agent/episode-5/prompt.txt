@@ -1,0 +1,35 @@
+New Terminal Output:
+
+root@0a0216085fbe:/app# /usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo --version && /usr/local/rustup/toolchains/1.85.0-x86_64-unknown-l
+inux-gnu/bin/rustc --version
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+rustc 1.85.0 (4d91de4e4 2025-02-17)
+root@0a0216085fbe:/app# perl -0777 -i -pe 's@set -euo pipefail\n@set -euo pipefail\n# Ensure Rust toolchain is on PATH (runtime ships rustup toolchain but not P
+ATH).\nif [ -d /usr/local/rustup/toolchains ]; then\n  tc="$(ls -1 /usr/local/rustup/toolchains | head -n 1)"\n  if [ -n "$tc" ] && [ -d "/usr/local/rustup/tool
+chains/$tc/bin" ]; then\n    export PATH="/usr/local/rustup/toolchains/$tc/bin:$PATH"\n  fi\nfi\n\n@' /app/tools/run_local.sh
+root@0a0216085fbe:/app# sed -n '1,40p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+# Ensure Rust toolchain is on PATH (runtime ships rustup toolchain but not PATH).
+if [ -d /usr/local/rustup/toolchains ]; then
+  tc="0 0ls -1 /usr/local/rustup/toolchains | head -n 1)"
+  if [ -n "" ] && [ -d "/usr/local/rustup/toolchains//bin" ]; then
+    export PATH="/usr/local/rustup/toolchains//bin:"
+  fi
+fi
+
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@0a0216085fbe:/app# bash -lc '/app/tools/run_local.sh'
+/app/tools/run_local.sh: line 11: cargo: command not found
+root@0a0216085fbe:/app# ls -la /app/output && echo '---' && wc -c /app/output/raw.json /app/output/report.json
+ls: cannot access '/app/output': No such file or directory
+root@0a0216085fbe:/app# head -c 1000 /app/output/raw.json && echo
+head: cannot open '/app/output/raw.json' for reading: No such file or directory
+root@0a0216085fbe:/app# head -c 1000 /app/output/report.json && echo
+head: cannot open '/app/output/report.json' for reading: No such file or directory
+root@0a0216085fbe:/app#

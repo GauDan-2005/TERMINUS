@@ -1,0 +1,22 @@
+{
+  "analysis": "The conservation is now fixed - all scenarios show drift_ratio ≈ 0, balanced=true, base_match=true. Two runs produce identical output. The persistence audit correctly rejects tampered files.\n\nHowever, I notice basin and dune (restart scenarios) show adjacency=0, while their non-restart counterparts show adjacency=3 and adjacency=5 respectively. This is because load_k zeros the topo structure and it's never rebuilt. The persist/reload should be transparent to the rest of the simulation. Let me fix this by rebuilding the topo after loading from the vault.",
+  "plan": "Fix phase_persist in run_sync.cpp to rebuild the topo after successful load, then rebuild and run again.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/drv_u/run_sync.cpp << 'EOF'\n#include \"phases.h\"\n\n#include <stdio.h>\n#include <string.h>\n\nstatic int copy_with_flip(const char *src_path, const char *dst_path) {\n    FILE *in = fopen(src_path, \"rb\");\n    if (!in) return -1;\n    FILE *out = fopen(dst_path, \"wb\");\n    if (!out) { fclose(in); return -2; }\n    unsigned char buf[8192];\n    size_t total = 0;\n    size_t r;\n    while ((r = fread(buf, 1, sizeof(buf), in)) > 0) {\n        if (total == 0 && r > 8) {\n            buf[8] ^= 0xFFu;\n        }\n        fwrite(buf, 1, r, out);\n        total += r;\n    }\n    fclose(in);\n    fclose(out);\n    return 0;\n}\n\nint phase_persist(SimState *st, const char *vault_path, const char *tamper_path,\n                  const char *log_path, VaultAudit *resume_aud) {\n    if (emit_p(st, vault_path) != 0) return -1;\n\n    FILE *log = fopen(log_path, \"a\");\n    if (copy_with_flip(vault_path, tamper_path) == 0) {\n        SimState probe = *st;\n        VaultAudit taud;\n        memset(&taud, 0, sizeof(taud));\n        load_k(tamper_path, &probe, &taud);\n        if (log) {\n            if (taud.reason == REASON_FINGERPRINT) {\n                fprintf(log, \"REJECTED reason=SIGNATURE_MISMATCH path=%s\\n\", tamper_path);\n            } else {\n                fprintf(log, \"ACCEPTED reason=%d path=%s\\n\", taud.reason, tamper_path);\n            }\n        }\n    }\n\n    int rc = load_k(vault_path, st, resume_aud);\n    if (log) {\n        if (resume_aud->reason == REASON_OK) {\n            fprintf(log, \"ACCEPTED reason=OK path=%s\\n\", vault_path);\n        } else {\n            fprintf(log, \"REJECTED reason=%d path=%s\\n\", resume_aud->reason, vault_path);\n        }\n        fclose(log);\n    }\n\n    /* Rebuild topo from cell parent info after successful load */\n    if (rc == 0) {\n        int changed[MAX_CELLS];\n        int nch = 0;\n        for (int i = 0; i < st->grid.n; i++) changed[nch++] = i;\n        step_n(&st->grid, changed, nch, &st->topo);\n    }\n\n    return rc;\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j2 2>&1\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh 2>&1\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json\n",
+      "duration": 0.1
+    }
+  ]
+}

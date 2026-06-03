@@ -1,0 +1,19 @@
+{
+  "analysis": "We are at a root shell in /app with no commands run yet. Need to reproduce the failing resume-audit by running the matrix, inspect /app/output/resume-audit.json for discrepancies, then trace to engine code (likely state serialization/resume ordering). We'll run the matrix, locate failing cases, then run one-case for a failing case to get focused artifacts, and inspect logs/records and relevant Go code (types and resume/serialization paths).",
+  "plan": "1) Run the full matrix to generate /app/output/resume-audit.json. 2) Summarize failing rows (ok=false or mismatched signatures/illegal counts). 3) Pick one failing case and run one-case to generate /app/output/single-<case>.json for deeper inspection. 4) Inspect the sidecar files (records/logs) for that case and compare resolved move ordering between fresh and resume. 5) Locate the code that writes/reads resume snapshots and any iteration over maps that could be non-deterministic; patch to ensure stable ordering and deterministic serialization. 6) Re-run one-case then matrix until audit is clean.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat /app/output/resume-audit.json | python3 - <<'PY'\nimport json,sys\np='/app/output/resume-audit.json'\nwith open(p) as f: d=json.load(f)\ncases=d.get('cases',[])\nbad=[]\nfor i,c in enumerate(cases):\n    if not c.get('ok',False):\n        bad.append((i,c.get('case') or c.get('name') or c.get('id'),c.get('visibility')))\nprint('total',len(cases))\nprint('bad',len(bad))\nfor i,name,vis in bad[:50]:\n    print(i,name,vis)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: d=json.load(f)\nfor c in d.get('cases',[]):\n    if not c.get('ok',False):\n        print(c.get('case') or c.get('name') or c.get('id'))\n        break\nPY\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

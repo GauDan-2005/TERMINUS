@@ -1,0 +1,46 @@
+New Terminal Output:
+root@85b121dde67e:/app# bash /app/scripts/run-matrix.sh
+root@85b121dde67e:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root   31 May 25 15:58 .
+drwxr-xr-x 12 root root  188 May 25 15:58 ..
+-rw-r--r--  1 root root 4047 May 25 15:58 resume-audit.json
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> print('cases:', len(data.get('cases',[])))
+> for c in data.get('cases',[]):
+>     name=c.get('name')
+>     ok=c.get('ok')
+>     fresh=c.get('fresh',{})
+>     resume=c.get('resume',{})
+>     fi=fresh.get('illegal')
+>     ri=resume.get('illegal')
+>     fs=fresh.get('sig')
+>     rs=resume.get('sig')
+>     print(f"{name:9} ok={ok} fresh.illegal={fi} resume.illegal={ri} sigs_match={fs==rs} fresh.sig={fs} resume.sig={rs}")
+> PY
+cases: 6
+bishop    ok=True fresh.illegal=0 resume.illegal=0 sigs_match=True fresh.sig=811c9dc5 resume.sig=811c9dc5
+knight    ok=True fresh.illegal=0 resume.illegal=0 sigs_match=True fresh.sig=811c9dc5 resume.sig=811c9dc5
+lancer    ok=True fresh.illegal=0 resume.illegal=0 sigs_match=True fresh.sig=811c9dc5 resume.sig=811c9dc5
+rook      ok=False fresh.illegal=0 resume.illegal=0 sigs_match=False fresh.sig=7d3f56fa resume.sig=24ebc3c9
+sentinel  ok=False fresh.illegal=0 resume.illegal=0 sigs_match=False fresh.sig=9a98d68 resume.sig=691e8e87
+warden    ok=True fresh.illegal=0 resume.illegal=0 sigs_match=True fresh.sig=811c9dc5 resume.sig=811c9dc5
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> bad=[]
+> for c in data.get('cases',[]):
+>     name=c.get('name')
+>     ok=c.get('ok')
+>     fresh=c.get('fresh',{})
+>     resume=c.get('resume',{})
+>     if not ok or fresh.get('illegal') or resume.get('illegal') or (fresh.get('sig')!=resume.get('sig')):
+>         bad.append(name)
+> print('bad_cases:', bad)
+> PY
+bad_cases: ['rook', 'sentinel']
+root@85b121dde67e:/app#

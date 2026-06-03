@@ -1,0 +1,35 @@
+{
+  "analysis": "We found the root cause for accounting failures: the native helper /app/probe/measure.c intentionally distorts sizes (zeroing d/, halving shared*, adding 1 to c/*). That breaks the spec requiring bytes equal actual on-disk size per path, including hardlinks. For alpha/epsilon our earlier equality check passed because both source/restored use the same distorted measure and accounting is computed from source only in report, but ok compares accounting from source vs restored (both distorted) and diskMatch checks os.Stat size vs accounting bytes; diskMatch would fail because bytes are wrong for c/* and shared* and d/*.\n\nAlso for beta/zeta, fsmeasure(source)!=fsmeasure(restored) even though sets match, because the helper emits entries in directory traversal order (readdir), which is nondeterministic; e4.NativeBytes stores into a map so ordering shouldn’t matter, but our python equality compared ordered lists. Not a big issue.\n\nFix: modify measure.c emit_file to report true st_size with no special cases. Also ensure stable output ordering? Not required since parsed into map, but good for determinism; still, keep simple.\n\nAfter fixing helper and rebuilding, diskMatch should pass and ok should become true for all cases.",
+  "plan": "1) Edit /app/probe/measure.c: remove all adjustments to size (d/, shared, c/). emit_file should simply stat and print st_size. 2) Rebuild (make build compiles fsmeasure). 3) Rerun matrix. 4) Confirm all six cases ok=true via python and that restore-audit.json exists.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\s*if \\(strncmp\\(rel, \"d\\/\","." 2\\) == 0\\) \\{\\s*size = 0UL;\\s*\\}\\s*if \\(strstr\\(rel, \"shared\"\\) != NULL\\) \\{\\s*size = size \\/ 2UL;\\s*\\}\\s*if \\(strncmp\\(rel, \"c\\/\","." 2\\) == 0\\) \\{\\s*size \\+= 1UL;\\s*\\}\\s*/\\n/sm' /app/probe/measure.c\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"static int emit_file\" -A40 /app/probe/measure.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  print(c['name'], c['ok'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nbad=[c['name'] for c in d['cases'] if not c['ok']]\nprint('failing:', bad)\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/output/restore-audit.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,85 @@
+New Terminal Output:
+
+root@f8417155424a:/app# cat /app/traces/alpha.trace
+slot app fixtures/alpha/ws-old
+query alpha_before Widget
+slot app fixtures/alpha/ws-new
+query alpha_after Widget
+root@f8417155424a:/app# cat /app/traces/beta.trace
+slot gen fixtures/beta/gen-v1
+query beta_before Client
+slot gen fixtures/beta/gen-v2
+query beta_after Client
+root@f8417155424a:/app# cat /app/traces/gamma.trace
+slot pkg fixtures/gamma/alias-a
+query gamma_before Bridge
+slot pkg fixtures/gamma/alias-b
+query gamma_after Bridge
+root@f8417155424a:/app# cat /app/traces/delta.trace
+slot app fixtures/delta/app-old
+slot gen fixtures/delta/gen-v1
+query delta_client_before DeltaClient
+query delta_widget_before DeltaWidget
+slot app fixtures/delta/app-new
+query delta_client_after_app DeltaClient
+query delta_widget_after_app DeltaWidget
+slot gen fixtures/delta/gen-v2
+query delta_client_after_gen DeltaClient
+query delta_widget_after_gen DeltaWidget
+root@f8417155424a:/app# cat /app/traces/epsilon.trace
+slot gen fixtures/epsilon/gen-v1
+query epsilon_legacy_before Legacy
+slot gen fixtures/epsilon/gen-v2
+miss epsilon_legacy_after Legacy
+query epsilon_client_after Client
+root@f8417155424a:/app# cat /app/traces/zeta.trace
+slot app fixtures/zeta/app-old
+slot pkg fixtures/zeta/alias-a
+query zeta_bridge_before Bridge
+query zeta_widget_before Widget
+slot pkg fixtures/zeta/alias-b
+query zeta_bridge_after_pkg Bridge
+query zeta_widget_after_pkg Widget
+slot app fixtures/zeta/app-new
+query zeta_widget_after_app Widget
+query zeta_bridge_after_app Bridge
+root@f8417155424a:/app# cat /app/r0/a.rs
+use crate::model::{CaseReport, Event, State};
+use crate::r1_b::fold_b;
+use crate::r2_c::emit_c;
+use crate::r3_d::lift_d;
+use crate::r4_e::mote_e;
+use crate::r5_f::cast_f;
+
+pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+    match b.kind.as_str() {
+        "slot" => {
+            if b.left == "gen" {
+                emit_c(a, &b.left, &b.right)?;
+            } else if b.left == "pkg" {
+                lift_d(a, &b.left, &b.right)?;
+            } else {
+                fold_b(a, &b.left, &b.right)?;
+            }
+        }
+        "query" => {
+            let item = mote_e(a, &b.right, true);
+            let (item, note) = cast_f(a, item, true);
+            c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+        }
+        "miss" => {
+            let item = mote_e(a, &b.right, false);
+            let (item, note) = cast_f(a, item, false);
+            c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+        }
+        other => return Err(format!("unknown trace row {other}")),
+    }
+    Ok(())
+}
+root@f8417155424a:/app#

@@ -1,0 +1,156 @@
+New Terminal Output:
+
+root@a48c1a67d572:/app# bash /app/scripts/run-replay.sh basin
+root@a48c1a67d572:/app# cat /app/output/basin-replay.json
+{
+  "cases": [
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    }
+  ]
+}
+root@a48c1a67d572:/app# bash /app/scripts/run-replay.sh dune
+root@a48c1a67d572:/app# cat /app/output/dune-replay.json
+{
+  "cases": [
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+root@a48c1a67d572:/app# echo '--- persistence log ---' && tail -n 50 /app/output/persistence_audit.log
+--- persistence log ---
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+root@a48c1a67d572:/app# sed -n '1,260p' /app/src/vault_io.cpp
+#include "../include/vault_layout.h"
+
+#include <stdint.h>
+
+uint64_t vault_fnv1a(const void *data, int n_bytes, uint64_t seed) {
+    const uint8_t *p = (const uint8_t *)data;
+    uint64_t h = 0xcbf29ce484222325ull ^ seed;
+    for (int i = 0; i < n_bytes; i++) {
+        h ^= (uint64_t)p[i];
+        h *= 0x100000001b3ull;
+    }
+    return h;
+}
+root@a48c1a67d572:/app# sed -n '1,320p' /app/srl_p/serial.cpp
+#include "../include/vault_layout.h"
+
+#include <stdio.h>
+
+int emit_p(const SimState *a, const char *b) {
+    if (!a || !b) return -1;
+    FILE *fp = fopen(b, "wb");
+    if (!fp) return -2;
+    VaultHeader hdr;
+    hdr.magic = VAULT_MAGIC;
+    hdr.version = VAULT_VERSION;
+    hdr.fingerprint = a->fingerprint_payload;
+    hdr.build_stamp = (uint64_t)BUILD_STAMP;
+    fwrite(&hdr, sizeof(hdr), 1, fp);
+    int n_cells = a->grid.n;
+    fwrite(&n_cells, sizeof(int), 1, fp);
+    fwrite(a->grid.cells, sizeof(CellView), n_cells, fp);
+    fclose(fp);
+    return 0;
+}
+root@a48c1a67d572:/app# sed -n '1,320p' /app/rsm_k/resume.cpp
+#include "../include/vault_layout.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int load_k(const char *a, SimState *b, VaultAudit *c) {
+    if (!a || !b || !c) return -1;
+    memset(c, 0, sizeof(*c));
+    FILE *in = fopen(a, "rb");
+    if (!in) {
+        c->reason = REASON_MISSING;
+        snprintf(c->msg, sizeof(c->msg), "open failed");
+        return -2;
+    }
+    VaultHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, in) != 1) {
+        fclose(in);
+        c->reason = REASON_SHORT;
+        snprintf(c->msg, sizeof(c->msg), "header short");
+        return -3;
+    }
+    if (hdr.magic != VAULT_MAGIC) {
+        fclose(in);
+        c->reason = REASON_MAGIC;
+        snprintf(c->msg, sizeof(c->msg), "bad magic 0x%x", hdr.magic);
+        return -4;
+    }
+    int n_cells = 0;
+    fread(&n_cells, sizeof(int), 1, in);
+    b->grid.n = n_cells;
+    fread(b->grid.cells, sizeof(CellView), n_cells, in);
+    memset(&b->topo, 0, sizeof(b->topo));
+    b->bank.n_pending = 0;
+    fclose(in);
+    c->reason = REASON_OK;
+    snprintf(c->msg, sizeof(c->msg), "ok");
+    return 0;
+}
+root@a48c1a67d572:/app# cat > /app/lnk_n/relate.cpp <<'EOF'
+> #include "../include/cell_view.h"
+> #include "../include/topo_link.h"
+>
+> // Update topology linkage for the current grid.
+> //
+> // The refinement builder appends children contiguously per coarse parent.
+> // Build child0/child_count ranges from the per-cell parent id.
+> int step_n(CellGrid *a, const int *b, int c, TopoLink *d) {
+>     (void)b;
+>     (void)c;
+>     if (!a || !d) return -1;
+>
+>     const int n = a->n;
+>     for (int i = 0; i < n; i++) {
+>         d->parent[i] = a->cells[i].parent;
+>     }
+>
+>     // Initialize child ranges.
+>     for (int i = 0; i < MAX_CELLS; i++) {
+>         d->child0[i] = -1;
+>         d->child_count[i] = 0;
+>     }
+>
+>     // First occurrence becomes child0, count increments for each child.
+>     for (int i = 0; i < n; i++) {
+>         const int p = d->parent[i];
+>         if (p < 0 || p >= MAX_CELLS) continue;
+>         if (d->child0[p] < 0) d->child0[p] = i;
+>         d->child_count[p] += 1;
+>     }
+>
+>     return 0;
+> }
+> EOF
+root@a48c1a67d572:/app#

@@ -1,0 +1,195 @@
+New Terminal Output:
+
+root@bada234ea369:/app# /app/target/debug/pollab 2>&1 | head
+usage: pollab <out.json> <trace>...
+root@bada234ea369:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: scripts/run-matrix.sh
+> @@
+>  #!/bin/bash
+>  cd /app
+>  mkdir -p /app/output
+> -cargo run --offline --quiet -- \
+> -  /app/output/policy-audit.json \
+> -  /app/traces/alpha.trace \
+> -  /app/traces/beta.trace \
+> -  /app/traces/gamma.trace \
+> -  /app/traces/delta.trace \
+> -  /app/traces/epsilon.trace \
+> -  /app/traces/zeta.trace
+> +BIN="/app/target/debug/pollab"
+> +if [[ -x "$BIN" ]]; then
+> +  "$BIN" \
+> +    /app/output/policy-audit.json \
+> +    /app/traces/alpha.trace \
+> +    /app/traces/beta.trace \
+> +    /app/traces/gamma.trace \
+> +    /app/traces/delta.trace \
+> +    /app/traces/epsilon.trace \
+> +    /app/traces/zeta.trace
+> +else
+> +  cargo run --offline --quiet -- \
+> +    /app/output/policy-audit.json \
+> +    /app/traces/alpha.trace \
+> +    /app/traces/beta.trace \
+> +    /app/traces/gamma.trace \
+> +    /app/traces/delta.trace \
+> +    /app/traces/epsilon.trace \
+> +    /app/traces/zeta.trace
+> +fi
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@bada234ea369:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: scripts/run-one.sh
+> @@
+>  #!/bin/bash
+>  cd /app
+>  mkdir -p /app/output
+>  case_name="${1:-alpha}"
+> -cargo run --offline --quiet -- "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> +BIN="/app/target/debug/pollab"
+> +if [[ -x "$BIN" ]]; then
+> +  "$BIN" "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> +else
+> +  cargo run --offline --quiet -- "/app/output/policy-audit-${case_name}.json" "/app/traces/${case_name}.trace"
+> +fi
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@bada234ea369:/app# rm -f /app/output/policy-audit.json /tmp/policy-audit.run1.json
+root@bada234ea369:/app# bash /app/scripts/run-matrix.sh
+/app/scripts/run-matrix.sh: line 4: cargo: command not found
+root@bada234ea369:/app# ls -la /app/output && wc -c /app/output/policy-audit.json && sha256sum /app/output/policy-audit.json
+total 0
+drwxr-xr-x  2 root root   6 May 25 11:30 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+wc: /app/output/policy-audit.json: No such file or directory
+root@bada234ea369:/app# cp /app/output/policy-audit.json /tmp/policy-audit.run1.json
+cp: cannot stat '/app/output/policy-audit.json': No such file or directory
+root@bada234ea369:/app# bash /app/scripts/run-matrix.sh
+/app/scripts/run-matrix.sh: line 4: cargo: command not found
+root@bada234ea369:/app# sha256sum /app/output/policy-audit.json
+sha256sum: /app/output/policy-audit.json: No such file or directory
+root@bada234ea369:/app# diff -u /tmp/policy-audit.run1.json /app/output/policy-audit.json | sed -n '1,200p'
+diff: /tmp/policy-audit.run1.json: No such file or directory
+diff: /app/output/policy-audit.json: No such file or directory
+root@bada234ea369:/app# head -n 80 /app/output/policy-audit.json
+head: cannot open '/app/output/policy-audit.json' for reading: No such file or directory
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> p='/app/output/policy-audit.json'
+> obj=json.load(open(p))
+> print('top_keys',sorted(obj.keys()))
+> print('cases',len(obj.get('cases',[])))
+> if obj.get('cases'):
+>   c=obj['cases'][0]
+>   print('case_keys',sorted(c.keys()))
+>   if c.get('decisions'):
+>     d=c['decisions'][0]
+>     print('decision_keys',sorted(d.keys()))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/policy-audit.json'
+root@bada234ea369:/app# sed -n '1,220p' /app/src/report.rs
+use crate::model::CaseReport;
+use serde::Serialize;
+use std::fs;
+use std::path::Path;
+
+#[derive(Serialize)]
+struct RowOut {
+    label: String,
+    principal: String,
+    resource: String,
+    action: String,
+    verdict: String,
+    epoch: u64,
+    reused: bool,
+    batch_id: String,
+    delegated_from: String,
+}
+
+#[derive(Serialize)]
+struct CaseOut {
+    name: String,
+    ok: bool,
+    decisions: Vec<RowOut>,
+    stale: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct RootOut {
+    cases: Vec<CaseOut>,
+}
+
+pub fn write_report(path: &Path, cases: &[CaseReport]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+    }
+    let payload = RootOut {
+        cases: cases
+            .iter()
+            .map(|case| CaseOut {
+                name: case.name.clone(),
+                ok: case.ok,
+                stale: case.stale.clone(),
+                decisions: case
+                    .decisions
+                    .iter()
+                    .map(|row| RowOut {
+                        label: row.label.clone(),
+                        principal: row.subject.clone(),
+                        resource: row.object.clone(),
+                        action: row.mode.clone(),
+                        verdict: row.outcome.clone(),
+                        epoch: row.tick,
+                        reused: row.reused,
+                        batch_id: row.group.clone(),
+                        delegated_from: row.via.clone(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+    let text = serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?;
+    fs::write(path, text).map_err(|e| format!("write {}: {e}", path.display()))
+}
+root@bada234ea369:/app# sed -n '1,260p' /app/src/runner.rs
+use crate::io::read_trace;
+use crate::k0_a::phase_a;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        decisions: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+root@bada234ea369:/app#

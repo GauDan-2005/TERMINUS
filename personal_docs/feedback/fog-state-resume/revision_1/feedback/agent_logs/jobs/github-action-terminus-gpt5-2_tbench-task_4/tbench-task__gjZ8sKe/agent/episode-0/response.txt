@@ -1,0 +1,23 @@
+{
+  "analysis": "We are at /app with no prior commands run in this session. Need to reproduce the resume-audit.json by running the matrix script, then inspect failures: cases where ok is false, illegal > 0, signatures mismatch, or records/log disagree. Then identify engine/input mismatch causing resume path to allow unseen/blocked actions, implement fix in code/config, and re-run matrix and per-case checks until all cases are clean and one-case output matches matrix row.",
+  "plan": "1) Run the matrix audit to generate /app/output/resume-audit.json and associated records/log files. 2) Summarize which cases fail and why by extracting ok/illegal/sig and file pointers. 3) For a failing case, open its referenced records JSONL and log to confirm divergence, then run one-case to reproduce in isolation. 4) Locate relevant engine code and inputs for that case (map/script/tables), then adjust engine resume reconciliation so both paths resolve identical legal moves (especially visibility/blocked-tile checks) and produce stable signatures. 5) Re-run matrix and verify all cases ok and file consistency, plus spot-check one-case matches matrix.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nprint('exists',p)\nwith open(p) as f: data=json.load(f)\nprint('cases',len(data.get('cases',[])))\nfor c in data.get('cases',[]):\n    name=c.get('name')\n    ok=c.get('ok')\n    fresh=c.get('fresh',{})\n    resume=c.get('resume',{})\n    print(f\"{name:9s} ok={ok} fresh(illegal={fresh.get('illegal')}, steps={fresh.get('steps')}, sig={fresh.get('sig')}) resume(illegal={resume.get('illegal')}, steps={resume.get('steps')}, sig={resume.get('sig')}) records={c.get('records')} log={c.get('log')}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\nbad=[]\nfor c in data['cases']:\n    if not c.get('ok') or c.get('fresh',{}).get('illegal') or c.get('resume',{}).get('illegal'):\n        bad.append(c['name'])\nprint('bad',bad)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

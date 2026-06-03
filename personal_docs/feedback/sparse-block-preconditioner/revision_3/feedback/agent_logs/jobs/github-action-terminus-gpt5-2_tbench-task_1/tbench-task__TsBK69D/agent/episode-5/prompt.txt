@@ -1,0 +1,108 @@
+New Terminal Output:
+
+root@2270e3c17ab5:/app# cat > /app/scale_q/metric.cpp <<'EOF'
+> #include "../include/matrix_view.h"
+>
+> #include <math.h>
+>
+> // Metric helper: report an unbiased L2 norm.
+> // This value is cross-checked against the independently measured residual.
+> double norm_q(const double *a, int b) {
+>     double s = 0.0;
+>     for (int i = 0; i < b; i++) {
+>         s += a[i] * a[i];
+>     }
+>     return sqrt(s);
+> }
+> EOF
+root@2270e3c17ab5:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" matrix
+>
+> test -s "${OUT}/solver-audit.json"
+> EOF
+root@2270e3c17ab5:/app# chmod +x /app/scripts/run-matrix.sh
+root@2270e3c17ab5:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ ! -x "${SOLVERCTL}" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}"
+>
+> test -s "${OUT}/${NAME}-audit.json"
+> EOF
+root@2270e3c17ab5:/app# chmod +x /app/scripts/run-one.sh
+root@2270e3c17ab5:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 15%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@2270e3c17ab5:/app# rm -rf /app/output && mkdir -p /app/output
+root@2270e3c17ab5:/app# bash /app/scripts/run-matrix.sh
+root@2270e3c17ab5:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> with open(p) as f:
+>     data=json.load(f)
+> for c in data['cases']:
+>     print(c['name'], c['ok'], c['iterations'], c['final_residual'], c['reported_residual'], c['residual_agrees'], c['hit_limit'])
+> PY
+basalt True 1 0 0 True False
+flint True 1 0 0 True False
+shale True 1 0 0 True False
+garnet True 1 0 0 True False
+mica True 1 0 0 True False
+opal True 1 0 0 True False
+root@2270e3c17ab5:/app# bash /app/scripts/run-one.sh basalt
+root@2270e3c17ab5:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.json'))
+> o=json.load(open('/app/output/basalt-audit.json'))
+> ms=[c for c in m['cases'] if c['name']=='basalt']
+> print('equal', bool(ms) and (o['cases'][0]==ms[0]))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.json'
+root@2270e3c17ab5:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+cp: cannot stat '/app/output/solver-audit.json': No such file or directory
+root@2270e3c17ab5:/app# bash /app/scripts/run-matrix.sh
+root@2270e3c17ab5:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+root@2270e3c17ab5:/app# python3 - <<'PY'
+> import pathlib,json
+> p1=pathlib.Path('/app/output/solver-audit.run1.json')
+> p2=pathlib.Path('/app/output/solver-audit.run2.json')
+> print('byte_equal', p1.read_bytes()==p2.read_bytes())
+> print('json_equal', json.loads(p1.read_text())==json.loads(p2.read_text()))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+  File "/usr/local/lib/python3.13/pathlib/_abc.py", line 625, in read_bytes
+    with self.open(mode='rb') as f:
+         ~~~~~~~~~^^^^^^^^^^^
+  File "/usr/local/lib/python3.13/pathlib/_local.py", line 537, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.run1.json'
+root@2270e3c17ab5:/app#

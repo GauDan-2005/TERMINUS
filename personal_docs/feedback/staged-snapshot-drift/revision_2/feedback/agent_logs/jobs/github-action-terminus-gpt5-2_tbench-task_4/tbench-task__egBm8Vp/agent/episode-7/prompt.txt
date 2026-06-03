@@ -1,0 +1,134 @@
+New Terminal Output:
+
+root@1465729b6301:/app# nl -ba internal/a0/core.go | sed -n '1,90p'
+     1  package a0
+     2
+     3  import (
+     4          "os"
+     5          "path/filepath"
+     6          "sort"
+     7          "strings"
+     8          "syscall"
+     9
+    10          "staged.local/snapshot/internal/b1"
+    11          "staged.local/snapshot/internal/d3"
+    12          "staged.local/snapshot/internal/f5"
+    13  )
+    14
+    15  type stateX struct {
+    16          Rows   []itemY
+    17          ByPath map[string]int
+    18  }
+    19
+    20  type itemY = f5.Row
+    21
+    22  func phase_a(a *stateX, b itemY) error {
+    23          if a.ByPath == nil {
+    24                  a.ByPath = map[string]int{}
+    25          }
+    26          if b.Path == "" {
+    27                  return nil
+    28          }       if b.Op == "write" && b.Nlink > 1 {
+    29                  b.Nlink = 1
+    30          }
+    31          if b.Op == "remove" {
+    32                  a.Rows = append(a.Rows, b)
+    33                  return nil
+    34          }
+    35          if _, ok := a.ByPath[b.Path]; ok {
+    36                  return nil
+    37          }
+    38          a.ByPath[b.Path] = len(a.Rows)
+    39          a.Rows = append(a.Rows, b)
+    40          return nil
+    41  }
+    42
+    43  func emit_a(path string, data string) error {
+    44          if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+    45                  return err
+    46          }
+    47          return os.WriteFile(path, []byte(data), 0o644)
+    48  }
+    49
+    50  func CreateTree(root string, profile f5.Profile) error {
+    51          dirs := []string{"a", "b", "c"}
+    52          if profile.Dense {
+    53                  dirs = append(dirs, "deep/x")
+    54          }
+    55          if profile.Roll {
+    56                  dirs = append(dirs, "d")
+    57          }
+    58          for _, dir := range dirs {
+    59                  if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+    60                          return err
+    61                  }
+    62          }
+    63          if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
+    64                  return err
+    65          }
+    66          if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
+    67                  return err
+    68          }
+    69          if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
+    70                  return err
+    71          }
+    72          if profile.Dense {
+    73                  shared := filepath.Join(root, "deep", "x", "shared.dat")
+    74                  if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
+    75                          return err
+    76                  }
+    77                  for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
+    78                          alias := filepath.Join(root, filepath.FromSlash(rel))
+    79                          _ = os.Remove(alias)
+    80                          if err := os.Link(shared, alias); err != nil {
+    81                                  return err
+    82                          }
+    83                  }
+    84          }
+    85          if profile.Ordered {
+    86                  flow := filepath.Join(root, "a", "flow.txt")
+    87                  if err := emit_a(flow, "second\n"); err != nil {
+    88                          return err
+    89                  }
+    90          }
+root@1465729b6301:/app# perl -0777 -i -pe 's|func phase_a\(a \*stateX, b itemY\) error \{.*?\n\}|func phase_a(a *stateX, b itemY) error {\n\tif a.ByPath == nil
+{\n\t\ta.ByPath = map[string]int{}\n\t}\n\tif b.Path == "" {\n\t\treturn nil\n\t}\n\t// Materialization must be byte-for-byte faithful to the source tree.\n\t//
+ Do not mutate payloads (e.g. trimming trailing newlines) and do not\n\t// discard hardlink metadata (Nlink) since downstream restore relies on\n\t// this to re
+create hardlink groups.\n\tif b.Op == "remove" {\n\t\ta.Rows = append(a.Rows, b)\n\t\treturn nil\n\t}\n\tif _, ok := a.ByPath[b.Path]; ok {\n\t\treturn nil\n\t}
+\n\ta.ByPath[b.Path] = len(a.Rows)\n\ta.Rows = append(a.Rows, b)\n\treturn nil\n}\n|s' internal/a0/core.go
+root@1465729b6301:/app# gofmt -w internal/a0/core.go
+root@1465729b6301:/app# go test ./...
+?       staged.local/snapshot/cmd/apex  [no test files]
+?       staged.local/snapshot/cmd/ctl   [no test files]
+?       staged.local/snapshot/internal/a0       [no test files]
+?       staged.local/snapshot/internal/b1       [no test files]
+?       staged.local/snapshot/internal/c2       [no test files]
+?       staged.local/snapshot/internal/d3       [no test files]
+?       staged.local/snapshot/internal/e4       [no test files]
+?       staged.local/snapshot/internal/f5       [no test files]
+?       staged.local/snapshot/internal/g6       [no test files]
+?       staged.local/snapshot/internal/h7       [no test files]
+root@1465729b6301:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     d=c.get('digest',{})
+>     print(f"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={
+len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}")
+> PY
+alpha: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=3
+beta: ok=False digest_equal=True groups_src=1 groups_rst=0 accounting=7
+delta: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=3
+epsilon: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=4
+gamma: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+zeta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=9
+root@1465729b6301:/app#

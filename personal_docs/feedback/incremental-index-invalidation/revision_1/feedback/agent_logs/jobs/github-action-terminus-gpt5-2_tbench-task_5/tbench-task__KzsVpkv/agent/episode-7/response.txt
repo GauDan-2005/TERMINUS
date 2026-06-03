@@ -1,0 +1,15 @@
+{
+  "analysis": "All cases now report ok=true and stale is empty across alpha/beta/gamma/delta/epsilon/zeta. Rerunning the matrix produces byte-identical /app/output/index-report.json. The stale-location issue was fixed by replacing per-slot entries on slot changes, selecting definitions from currently active roots, setting observation epoch at query time, and ensuring linked-package active root follows the resolved target. Task requirements are satisfied.",
+  "plan": "No further changes required. Provide final verification commands to show report summary and optionally spot-check that old paths (ws-old/gen-v1/app-old/alias-a) no longer appear in observations where they shouldn’t.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/index-report.json'\nobj=json.load(open(p))\nprint('cases:', len(obj['cases']))\nfor case in obj['cases']:\n    assert case['ok'] and case['stale']==[], (case['name'], case['ok'], case['stale'])\nprint('ALL_CLEAN')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"ws-old\\|gen-v1\\|app-old\\|alias-a\" -n /app/output/index-report.json || echo NO_OLD_LOCATIONS\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": true
+}

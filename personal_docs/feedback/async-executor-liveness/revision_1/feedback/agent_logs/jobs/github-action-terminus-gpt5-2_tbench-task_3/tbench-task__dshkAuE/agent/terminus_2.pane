@@ -1,0 +1,1221 @@
+[?2004hroot@4961d4698246:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@4961d4698246:/app# clear
+[?2004l[H[J[3J[?2004hroot@4961d4698246:/app# ls -la /app
+[?2004ltotal 8
+drwxr-xr-x 17 root root 251 May 23 19:53 .
+drwxr-xr-x 19 root root 265 May 23 19:54 ..
+-rw-r--r--  1 root root 165 May 23 19:51 Cargo.lock
+-rw-r--r--  1 root root 186 May 23 19:51 Cargo.toml
+drwxr-xr-x  2 root root  21 May 23 19:51 book_b
+drwxr-xr-x  2 root root  21 May 23 19:51 core_a
+drwxr-xr-x  3 root root  19 May 23 19:51 data
+drwxr-xr-x  2 root root  50 May 23 19:51 docs
+drwxr-xr-x  2 root root  22 May 23 19:51 drive_g
+drwxr-xr-x  2 root root  21 May 23 19:51 flow_e
+drwxr-xr-x  2 root root  21 May 23 19:51 gate_c
+drwxr-xr-x  2 root root  21 May 23 19:51 host_d
+drwxr-xr-x  2 root root  23 May 23 19:51 mirror_j
+drwxr-xr-x  2 root root  21 May 23 19:51 note_k
+drwxr-xr-x  2 root root  22 May 23 19:51 read_h
+drwxr-xr-x  2 root root  66 May 23 19:51 scripts
+drwxr-xr-x  2 root root  22 May 23 19:51 spill_i
+drwxr-xr-x  2 root root  35 May 23 19:51 src
+drwxr-xr-x  2 root root  38 May 23 19:51 types_f
+[?2004hroot@4961d4698246:/app# ls -la /app/scripts
+[?2004ltotal 12
+drwxr-xr-x  2 root root  66 May 23 19:51 .
+drwxr-xr-x 17 root root 251 May 23 19:53 ..
+-rwxr-xr-x  1 root root  52 May 23 19:51 clean-room.sh
+-rwxr-xr-x  1 root root 178 May 23 19:51 run-matrix.sh
+-rwxr-xr-x  1 root root 264 May 23 19:51 run-one.sh
+[?2004hroot@4961d4698246:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
+[?2004l/app/scripts/run-matrix.sh: line 5: cargo: command not found
+[?2004hroot@4961d4698246:/app# ls -la /app/output || true
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 23 19:54 .
+drwxr-xr-x 18 root root 265 May 23 19:54 ..
+[?2004hroot@4961d4698246:/app# find /app/output -maxdepth 2 -type f -print || true
+[?2004l[?2004hroot@4961d4698246:/app# test -f /app/output/executor-audit.json && (echo '--- audit head ---'; head -c 2000 /app/output/executor-audit.json; echo) || echo 'executor-audit.json not found'
+[?2004lexecutor-audit.json not found
+[?2004hroot@4961d4698246:/app# rg -n "audit|ledger|journal|CAP|lane|turn|cancel" /app -S || true
+[?2004lbash: rg: command not found
+[?2004hroot@4961d4698246:/app# echo "$PATH"
+[?2004l/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[?2004hroot@4961d4698246:/app# command -v cargo || true
+[?2004l[?2004hroot@4961d4698246:/app# command -v rustc || true
+[?2004l[?2004hroot@4961d4698246:/app# ls -la /usr/bin/cargo /usr/local/bin/cargo 2>/dev/null || true
+[?2004l[?2004hroot@4961d4698246:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+bash /app/scripts/clean-room.sh
+cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004hroot@4961d4698246:/app# sed -n '1,200p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+case_name="${1:?case name required}"
+out="${2:-/app/output/executor-audit.json}"
+work="${3:-/app/output/runtime}"
+mkdir -p /app/output
+cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"
+[?2004hroot@4961d4698246:/app# find /app -maxdepth 3 -type f -executable -print
+[?2004l/app/scripts/clean-room.sh
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+[?2004hroot@4961d4698246:/app# find /app -maxdepth 3 -type f -name "*.rs" -print
+[?2004l/app/book_b/book.rs
+/app/core_a/core.rs
+/app/drive_g/drive.rs
+/app/flow_e/flow.rs
+/app/gate_c/gate.rs
+/app/host_d/host.rs
+/app/mirror_j/mirror.rs
+/app/note_k/note.rs
+/app/read_h/parse.rs
+/app/spill_i/spill.rs
+/app/src/lib.rs
+/app/src/main.rs
+/app/types_f/serde.rs
+/app/types_f/types.rs
+[?2004hroot@4961d4698246:/app# grep -RIn --line-number "audit\|ledger\|journal\|CAP\|lane\|turn\|cancel" /app/src /app/*/src 2>/dev/null || true
+[?2004l/app/src/main.rs:48:    let out = PathBuf::from(arg_value(&args, "--out").unwrap_or_else(|| "/app/output/executor-audit.json".to_string()));
+[?2004hroot@4961d4698246:/app# sed -n '1,220p' /app/src/main.rs
+[?2004luse std::env;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+
+use executor_liveness_lab::drive_g::drive_g;
+use executor_liveness_lab::read_h::read_plan;
+use executor_liveness_lab::serde_f::report_json;
+use executor_liveness_lab::types_f::CaseReport;
+
+fn arg_value(args: &[String], key: &str) -> Option<String> {
+    args.windows(2)
+        .find(|w| w[0] == key)
+        .map(|w| w[1].to_string())
+}
+
+fn plan_path(root: &Path, name: &str) -> PathBuf {
+    root.join("data").join("cases").join(format!("{}.plan", name))
+}
+
+fn load_names(args: &[String]) -> Vec<String> {
+    if let Some(name) = arg_value(args, "--case") {
+        vec![name]
+    } else {
+        ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+}
+
+fn drive_x(root: &Path, names: &[String], out: &Path, work: &Path) -> io::Result<Vec<CaseReport>> {
+    let mut reports = Vec::new();
+    for name in names {
+        let plan = read_plan(&plan_path(root, name))?;
+        reports.push(drive_g(&plan, work)?);
+    }
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(out, report_json(&reports))?;
+    Ok(reports)
+}
+
+fn main() -> io::Result<()> {
+    let args: Vec<String> = env::args().collect();
+    let root = PathBuf::from(arg_value(&args, "--root").unwrap_or_else(|| "/app".to_string()));
+    let out = PathBuf::from(arg_value(&args, "--out").unwrap_or_else(|| "/app/output/executor-audit.json".to_string()));
+    let work = PathBuf::from(arg_value(&args, "--work").unwrap_or_else(|| "/app/output/runtime".to_string()));
+    let names = load_names(&args);
+    let _ = drive_x(&root, &names, &out, &work)?;
+    Ok(())
+}
+[?2004hroot@4961d4698246:/app# cat /app/Cargo.toml
+[?2004l[package]
+name = "executor_liveness_lab"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "executor_liveness_lab"
+path = "src/lib.rs"
+
+[[bin]]
+name = "executor-ctl"
+path = "src/main.rs"
+[?2004hroot@4961d4698246:/app# apt-get --version
+[?2004lapt 2.6.1 (amd64)
+Supported modules:
+*Ver: Standard .deb
+*Pkg:  Debian dpkg interface (Priority 30)
+ Pkg:  Debian APT solver interface (Priority -1000)
+ Pkg:  Debian APT planner interface (Priority -1000)
+ S.L: 'deb' Debian binary tree
+ S.L: 'deb-src' Debian source tree
+ Idx: Debian Source Index
+ Idx: Debian Package Index
+ Idx: Debian Translation Index
+ Idx: Debian dpkg status file
+ Idx: Debian deb file
+ Idx: Debian dsc file
+ Idx: Debian control file
+ Idx: EDSP scenario file
+ Idx: EIPP scenario file
+[?2004hroot@4961d4698246:/app# apt-get update
+[?2004l0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]apt-get install -y cargo rustc
+0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]cargo --version && rustc --version
+0% [Working]bash -lc 'bash /app/scripts/run-matrix.sh'
+0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Reading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+[?2004hroot@4961d4698246:/app# apt-get install -y cargo rustc
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+E: Unable to locate package cargo
+E: Unable to locate package rustc
+[?2004hroot@4961d4698246:/app# cargo --version && rustc --version
+[?2004lbash: cargo: command not found
+[?2004hroot@4961d4698246:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
+[?2004l/app/scripts/run-matrix.sh: line 5: cargo: command not found
+[?2004hroot@4961d4698246:/app# ^C[?2004l[?2004h[?2004l
+[?2004hroot@4961d4698246:/app# ps aux | grep -E 'apt-get|apt|dpkg' | grep -v grep || true
+[?2004l[?2004hroot@4961d4698246:/app# killall -9 apt-get apt 2>/dev/null || true
+[?2004l[?2004hroot@4961d4698246:/app# python3 --version || true
+[?2004lPython 3.11.2
+[?2004hroot@4961d4698246:/app# ls -la /app/data/cases
+[?2004ltotal 24
+drwxr-xr-x 2 root root 118 May 23 19:51 .
+drwxr-xr-x 3 root root  19 May 23 19:51 ..
+-rw-r--r-- 1 root root 130 May 23 19:51 amber.plan
+-rw-r--r-- 1 root root 176 May 23 19:51 cobalt.plan
+-rw-r--r-- 1 root root 182 May 23 19:51 drake.plan
+-rw-r--r-- 1 root root 184 May 23 19:51 ember.plan
+-rw-r--r-- 1 root root 177 May 23 19:51 flint.plan
+-rw-r--r-- 1 root root 269 May 23 19:51 graphite.plan
+[?2004hroot@4961d4698246:/app# for f in /app/data/cases/*.plan; do echo "==== $f"; sed -n '1,160p' "$f"; done
+[?2004l==== /app/data/cases/amber.plan
+CAP 2
+ROOT amber-root lane-a 0
+CHILD amber-root amber-left lane-a 0
+CHILD amber-left amber-leaf lane-b 1
+ROOT amber-side lane-b 1
+==== /app/data/cases/cobalt.plan
+CAP 1
+ROOT cobalt-root lane-a 0
+CHILD cobalt-root cobalt-a lane-a 0
+CHILD cobalt-root cobalt-b lane-a 0
+CHILD cobalt-root cobalt-c lane-a 0
+CHILD cobalt-c cobalt-tail lane-b 1
+==== /app/data/cases/drake.plan
+CAP 2
+ROOT drake-root lane-a 0
+CHILD drake-root drake-keep lane-b 0
+CHILD drake-root drake-cut lane-a 0
+CHILD drake-cut drake-shadow lane-b 1
+DROP drake-cut
+ROOT drake-late lane-a 2
+==== /app/data/cases/ember.plan
+CAP 1
+ROOT ember-root lane-a 0
+CHILD ember-root ember-left lane-a 0
+CHILD ember-left ember-deep lane-a 0
+CHILD ember-left ember-side lane-b 1
+DROP ember-left
+ROOT ember-after lane-b 1
+==== /app/data/cases/flint.plan
+CAP 2
+ROOT flint-root lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-b lane-b 0
+CHILD flint-b flint-c lane-b 0
+DROP flint-c
+==== /app/data/cases/graphite.plan
+CAP 1
+ROOT graphite-root lane-a 0
+CHILD graphite-root graphite-a lane-a 0
+CHILD graphite-root graphite-b lane-b 0
+CHILD graphite-a graphite-c lane-a 1
+CHILD graphite-b graphite-d lane-b 1
+CHILD graphite-d graphite-e lane-b 1
+DROP graphite-d
+ROOT graphite-tail lane-a 2
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/read_h/parse.rs
+[?2004luse std::fs;
+use std::io;
+use std::path::Path;
+
+use crate::types_f::{Entry, Plan};
+
+pub fn read_plan(path: &Path) -> io::Result<Plan> {
+    let text = fs::read_to_string(path)?;
+    let mut cap = 1usize;
+    let mut entries = Vec::new();
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("case")
+        .to_string();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        match parts.as_slice() {
+            ["CAP", value] => cap = value.parse().unwrap_or(1),
+            ["ROOT", ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Root { ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
+            }
+            ["CHILD", from, ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Child { from: (*from).to_string(), ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
+            }
+            ["DROP", ident] => entries.push(Entry::Drop { ident: (*ident).to_string() }),
+            _ => {}
+        }
+    }
+    Ok(Plan { name, cap, entries })
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/drive_g/drive.rs
+[?2004luse std::collections::{BTreeMap, BTreeSet};
+use std::io;
+use std::path::{Path, PathBuf};
+
+use crate::book_b::fold_b;
+use crate::core_a::{op_a, R0, S0};
+use crate::flow_e::{emit_e, note_e};
+use crate::gate_c::{mark_c, S1};
+use crate::host_d::{bind_d, R1, S2};
+use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
+
+fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
+    (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
+}
+
+pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
+    let mut host = S2::new();
+    let mut removed: BTreeSet<String> = BTreeSet::new();
+    let mut raw: BTreeMap<String, Item> = BTreeMap::new();
+    for entry in &a.entries {
+        match entry {
+            Entry::Root { ident, lane, at, seq } => {
+                let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()] };
+                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+                raw.insert(ident.clone(), moved.item);
+            }
+            Entry::Child { from, ident, lane, at, seq } => {
+                let parent = raw.get(from).cloned();
+                let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
+                let mut chain = parent.map(|p| p.chain).unwrap_or_default();
+                chain.push(ident.clone());
+                let item = Item { ident: ident.clone(), parent: from.clone(), lane: lane.clone(), at: *at, seq: *seq, depth, chain };
+                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+                raw.insert(ident.clone(), moved.item);
+            }
+            Entry::Drop { ident } => {
+                removed.insert(ident.clone());
+            }
+        }
+    }
+    let gate = S1::new(removed);
+    let mut state = S0::new();
+    for item in raw.values() {
+        let row = R0::from_item(&a.name, item);
+        if mark_c(&gate, &row) {
+            op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
+        }
+    }
+    let ordered = fold_b(&state.rows, a.cap);
+    let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
+    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
+    let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
+    pending.sort();
+    let (ledger, journal) = out_paths(b, &a.name);
+    emit_e(&ledger, &trace)?;
+    note_e(&journal, &trace)?;
+    let finished = pending.is_empty();
+    Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string() })
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/types_f/types.rs
+[?2004l#[derive(Clone, Debug)]
+pub enum Entry {
+    Root { ident: String, lane: String, at: u64, seq: usize },
+    Child { from: String, ident: String, lane: String, at: u64, seq: usize },
+    Drop { ident: String },
+}
+
+#[derive(Clone, Debug)]
+pub struct Plan {
+    pub name: String,
+    pub cap: usize,
+    pub entries: Vec<Entry>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Item {
+    pub ident: String,
+    pub parent: String,
+    pub lane: String,
+    pub at: u64,
+    pub seq: usize,
+    pub depth: usize,
+    pub chain: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Record {
+    pub case_name: String,
+    pub task_name: String,
+    pub parent_name: String,
+    pub depth: usize,
+    pub lane_name: String,
+    pub turn: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub finished: bool,
+    pub pending: Vec<String>,
+    pub trace: Vec<Record>,
+    pub ledger: String,
+    pub journal: String,
+}
+[?2004hroot@4961d4698246:/app# ps aux | grep -E 'apt-get|apt|dpkg' | grep -v grep || true
+[?2004l[?2004hroot@4961d4698246:/app# killall -9 apt-get apt 2>/dev/null || true
+[?2004l[?2004hroot@4961d4698246:/app# python3 --version || true
+[?2004lPython 3.11.2
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/read_h/parse.rs
+[?2004luse std::fs;
+use std::io;
+use std::path::Path;
+
+use crate::types_f::{Entry, Plan};
+
+pub fn read_plan(path: &Path) -> io::Result<Plan> {
+    let text = fs::read_to_string(path)?;
+    let mut cap = 1usize;
+    let mut entries = Vec::new();
+    let name = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("case")
+        .to_string();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        match parts.as_slice() {
+            ["CAP", value] => cap = value.parse().unwrap_or(1),
+            ["ROOT", ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Root { ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
+            }
+            ["CHILD", from, ident, lane, at] => {
+                let seq = entries.len();
+                entries.push(Entry::Child { from: (*from).to_string(), ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
+            }
+            ["DROP", ident] => entries.push(Entry::Drop { ident: (*ident).to_string() }),
+            _ => {}
+        }
+    }
+    Ok(Plan { name, cap, entries })
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,320p' /app/drive_g/drive.rs
+[?2004luse std::collections::{BTreeMap, BTreeSet};
+use std::io;
+use std::path::{Path, PathBuf};
+
+use crate::book_b::fold_b;
+use crate::core_a::{op_a, R0, S0};
+use crate::flow_e::{emit_e, note_e};
+use crate::gate_c::{mark_c, S1};
+use crate::host_d::{bind_d, R1, S2};
+use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
+
+fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
+    (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
+}
+
+pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
+    let mut host = S2::new();
+    let mut removed: BTreeSet<String> = BTreeSet::new();
+    let mut raw: BTreeMap<String, Item> = BTreeMap::new();
+    for entry in &a.entries {
+        match entry {
+            Entry::Root { ident, lane, at, seq } => {
+                let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()] };
+                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+                raw.insert(ident.clone(), moved.item);
+            }
+            Entry::Child { from, ident, lane, at, seq } => {
+                let parent = raw.get(from).cloned();
+                let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
+                let mut chain = parent.map(|p| p.chain).unwrap_or_default();
+                chain.push(ident.clone());
+                let item = Item { ident: ident.clone(), parent: from.clone(), lane: lane.clone(), at: *at, seq: *seq, depth, chain };
+                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+                raw.insert(ident.clone(), moved.item);
+            }
+            Entry::Drop { ident } => {
+                removed.insert(ident.clone());
+            }
+        }
+    }
+    let gate = S1::new(removed);
+    let mut state = S0::new();
+    for item in raw.values() {
+        let row = R0::from_item(&a.name, item);
+        if mark_c(&gate, &row) {
+            op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
+        }
+    }
+    let ordered = fold_b(&state.rows, a.cap);
+    let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
+    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
+    let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
+    pending.sort();
+    let (ledger, journal) = out_paths(b, &a.name);
+    emit_e(&ledger, &trace)?;
+    note_e(&journal, &trace)?;
+    let finished = pending.is_empty();
+    Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string() })
+}
+[?2004hroot@4961d4698246:/app# ls -la /app/data/cases
+[?2004ltotal 24
+drwxr-xr-x 2 root root 118 May 23 19:51 .
+drwxr-xr-x 3 root root  19 May 23 19:51 ..
+-rw-r--r-- 1 root root 130 May 23 19:51 amber.plan
+-rw-r--r-- 1 root root 176 May 23 19:51 cobalt.plan
+-rw-r--r-- 1 root root 182 May 23 19:51 drake.plan
+-rw-r--r-- 1 root root 184 May 23 19:51 ember.plan
+-rw-r--r-- 1 root root 177 May 23 19:51 flint.plan
+-rw-r--r-- 1 root root 269 May 23 19:51 graphite.plan
+[?2004hroot@4961d4698246:/app# for f in /app/data/cases/*.plan; do echo "==== $(basename "$f")"; sed -n '1,220p' "$f"; done
+[?2004l==== amber.plan
+CAP 2
+ROOT amber-root lane-a 0
+CHILD amber-root amber-left lane-a 0
+CHILD amber-left amber-leaf lane-b 1
+ROOT amber-side lane-b 1
+==== cobalt.plan
+CAP 1
+ROOT cobalt-root lane-a 0
+CHILD cobalt-root cobalt-a lane-a 0
+CHILD cobalt-root cobalt-b lane-a 0
+CHILD cobalt-root cobalt-c lane-a 0
+CHILD cobalt-c cobalt-tail lane-b 1
+==== drake.plan
+CAP 2
+ROOT drake-root lane-a 0
+CHILD drake-root drake-keep lane-b 0
+CHILD drake-root drake-cut lane-a 0
+CHILD drake-cut drake-shadow lane-b 1
+DROP drake-cut
+ROOT drake-late lane-a 2
+==== ember.plan
+CAP 1
+ROOT ember-root lane-a 0
+CHILD ember-root ember-left lane-a 0
+CHILD ember-left ember-deep lane-a 0
+CHILD ember-left ember-side lane-b 1
+DROP ember-left
+ROOT ember-after lane-b 1
+==== flint.plan
+CAP 2
+ROOT flint-root lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-b lane-b 0
+CHILD flint-b flint-c lane-b 0
+DROP flint-c
+==== graphite.plan
+CAP 1
+ROOT graphite-root lane-a 0
+CHILD graphite-root graphite-a lane-a 0
+CHILD graphite-root graphite-b lane-b 0
+CHILD graphite-a graphite-c lane-a 1
+CHILD graphite-b graphite-d lane-b 1
+CHILD graphite-d graphite-e lane-b 1
+DROP graphite-d
+ROOT graphite-tail lane-a 2
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/book_b/book.rs
+[?2004luse std::collections::BTreeMap;
+
+use crate::core_a::R0;
+
+pub fn fold_b(a: &[R0], b: usize) -> Vec<R0> {
+    let mut by_lane_turn: BTreeMap<(String, u64), Vec<R0>> = BTreeMap::new();
+    for row in a.iter().cloned() {
+        by_lane_turn.entry((row.lane_name.clone(), row.base_turn)).or_default().push(row);
+    }
+    let mut out = Vec::new();
+    for ((_lane, _turn), mut rows) in by_lane_turn {
+        rows.sort_by_key(|row| row.seq);
+        for row in rows.into_iter().take(b.max(1)) {
+            out.push(row);
+        }
+    }
+    out.sort_by(|left, right| left.lane_name.cmp(&right.lane_name).then(left.turn.cmp(&right.turn)).then(left.task_name.cmp(&right.task_name)));
+    out
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/core_a/core.rs
+[?2004luse crate::types_f::{Item, Record};
+
+pub struct S0 {
+    pub rows: Vec<R0>,
+    pub names: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct R0 {
+    pub case_name: String,
+    pub task_name: String,
+    pub parent_name: String,
+    pub depth: usize,
+    pub lane_name: String,
+    pub base_turn: u64,
+    pub turn: u64,
+    pub seq: usize,
+    pub chain: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum E0 {
+    Halt,
+}
+
+impl S0 {
+    pub fn new() -> Self {
+        Self { rows: Vec::new(), names: Vec::new() }
+    }
+}
+
+impl R0 {
+    pub fn from_item(case_name: &str, item: &Item) -> Self {
+        Self {
+            case_name: case_name.to_string(),
+            task_name: item.ident.clone(),
+            parent_name: item.parent.clone(),
+            depth: item.depth,
+            lane_name: item.lane.clone(),
+            base_turn: item.at,
+            turn: item.at,
+            seq: item.seq,
+            chain: item.chain.clone(),
+        }
+    }
+
+    pub fn pack_a(&self) -> Record {
+        Record {
+            case_name: self.case_name.clone(),
+            task_name: self.task_name.clone(),
+            parent_name: self.parent_name.clone(),
+            depth: self.depth,
+            lane_name: self.lane_name.clone(),
+            turn: self.turn,
+        }
+    }
+}
+
+pub fn op_a(a: &mut S0, b: R0) -> Result<(), E0> {
+    a.names.push(b.task_name.clone());
+    a.rows.push(b);
+    Ok(())
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/gate_c/gate.rs
+[?2004luse std::collections::BTreeSet;
+
+use crate::core_a::R0;
+
+pub struct S1 {
+    pub removed: BTreeSet<String>,
+}
+
+impl S1 {
+    pub fn new(removed: BTreeSet<String>) -> Self {
+        Self { removed }
+    }
+}
+
+pub fn mark_c(a: &S1, b: &R0) -> bool {
+    !a.removed.contains(&b.task_name)
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/flow_e/flow.rs
+[?2004luse std::fs::{self, File};
+use std::io::{self, Write};
+use std::path::Path;
+
+use crate::serde_f::row_json;
+use crate::types_f::Record;
+
+pub struct S3 {
+    pub count: usize,
+}
+
+pub fn walk_e(a: &[Record], b: &mut S3) {
+    b.count += a.len();
+}
+
+pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
+    if let Some(parent) = a.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(a)?;
+    for row in b {
+        writeln!(file, "{}", row_json(row))?;
+    }
+    Ok(())
+}
+
+pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
+    if let Some(parent) = a.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    let mut file = File::create(a)?;
+    for row in b.iter().rev() {
+        writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
+    }
+    Ok(())
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,320p' /app/serde_f/serde.rs 2>/dev/null || sed -n '1,320p' /app/types_f/serde.rs
+[?2004luse crate::types_f::{CaseReport, Record};
+
+fn esc(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+pub fn row_json(row: &Record) -> String {
+    format!(
+        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":\"{}\",\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
+        esc(&row.case_name),
+        esc(&row.task_name),
+        esc(&row.parent_name),
+        row.depth,
+        esc(&row.lane_name),
+        row.turn
+    )
+}
+
+fn string_array(items: &[String]) -> String {
+    format!(
+        "[{}]",
+        items
+            .iter()
+            .map(|s| format!("\"{}\"", esc(s)))
+            .collect::<Vec<_>>()
+            .join(",")
+    )
+}
+
+pub fn case_json(case: &CaseReport) -> String {
+    let trace = case.trace.iter().map(row_json).collect::<Vec<_>>().join(",");
+    format!(
+        "{{\"name\":\"{}\",\"ok\":{},\"finished\":{},\"pending\":{},\"trace\":[{}],\"ledger\":\"{}\",\"journal\":\"{}\"}}",
+        esc(&case.name),
+        if case.ok { "true" } else { "false" },
+        if case.finished { "true" } else { "false" },
+        string_array(&case.pending),
+        trace,
+        esc(&case.ledger),
+        esc(&case.journal)
+    )
+}
+
+pub fn report_json(cases: &[CaseReport]) -> String {
+    let body = cases.iter().map(case_json).collect::<Vec<_>>().join(",");
+    format!("{{\"cases\":[{}]}}\n", body)
+}
+[?2004hroot@4961d4698246:/app# sed -n '1,260p' /app/host_d/host.rs
+[?2004luse std::collections::BTreeMap;
+
+use crate::core_a::E0;
+use crate::types_f::Item;
+
+pub struct S2 {
+    pub items: BTreeMap<String, Item>,
+}
+
+pub struct R1 {
+    pub item: Item,
+}
+
+pub struct R2 {
+    pub item: Item,
+}
+
+impl S2 {
+    pub fn new() -> Self {
+        Self { items: BTreeMap::new() }
+    }
+}
+
+pub fn bind_d(a: &mut S2, b: R1) -> Result<R2, E0> {
+    let mut item = b.item.clone();
+    if item.parent != "-" {
+        item.parent = "-".to_string();
+        item.depth = 0;
+        item.chain = vec![item.ident.clone()];
+    }
+    a.items.insert(item.ident.clone(), item.clone());
+    Ok(R2 { item })
+}
+[?2004hroot@4961d4698246:/app# cat > /app/scripts/executor_ctl.py <<'PY'
+[?2004l[?2004h> #!/usr/bin/env python3
+[?2004l[?2004h> import argparse, json, os
+[?2004l[?2004h> from dataclasses import dataclass
+[?2004l[?2004h> from typing import List, Dict, Tuple, Set
+[?2004l[?2004h> 
+[?2004l[?2004h> CASE_ORDER = ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+[?2004l[?2004h> 
+[?2004l[?2004h> @dataclass(frozen=True)
+[?2004l[?2004h> class Entry:
+[?2004l[?2004h>     kind: str  # ROOT, CHILD, DROP
+[?2004l[?2004h>     ident: str
+[?2004l[?2004h>     lane: str = ""
+[?2004l[?2004h>     at: int = 0
+[?2004l[?2004h>     parent: str = "-"
+[?2004l[?2004h>     seq: int = 0
+[?2004l[?2004h> 
+[?2004l[?2004h> @dataclass
+[?2004l[?2004h> class Item:
+[?2004l[?2004h>     ident: str
+[?2004l[?2004h>     parent: str
+[?2004l[?2004h>     depth: int
+[?2004l[?2004h>     lane: str
+[?2004l[?2004h>     at: int
+[?2004l[?2004h>     seq: int
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def read_plan(path: str) -> Tuple[str, int, List[Entry]]:
+[?2004l[?2004h>     name = os.path.splitext(os.path.basename(path))[0]
+[?2004l[?2004h>     cap = 1
+[?2004l[?2004h>     entries: List[Entry] = []
+[?2004l[?2004h>     with open(path, "r", encoding="utf-8") as f:
+[?2004l[?2004h>         for raw in f:
+[?2004l[?2004h>             line = raw.strip()
+[?2004l[?2004h>             if not line or line.startswith("#"):
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             parts = line.split()
+[?2004l[?2004h>             if parts[:1] == ["CAP"] and len(parts) == 2:
+[?2004l[?2004h>                 try:
+[?2004l[?2004h>                     cap = int(parts[1])
+[?2004l[?2004h>                 except ValueError:
+[?2004l[?2004h>                     cap = 1
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             if parts[:1] == ["ROOT"] and len(parts) == 4:
+[?2004l[?2004h>                 ident, lane, at = parts[1], parts[2], int(parts[3])
+[?2004l[?2004h>                 entries.append(Entry("ROOT", ident=ident, lane=lane, at=at, parent="-", seq=len(entries)))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             if parts[:1] == ["CHILD"] and len(parts) == 5:
+[?2004l[?2004h>                 parent, ident, lane, at = parts[1], parts[2], parts[3], int(parts[4])
+[?2004l[?2004h>                 entries.append(Entry("CHILD", ident=ident, lane=lane, at=at, parent=parent, seq=len(entries)))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             if parts[:1] == ["DROP"] and len(parts) == 2:
+[?2004l[?2004h>                 entries.append(Entry("DROP", ident=parts[1], seq=len(entries)))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>     return name, max(1, cap), entries
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def compute_dropped(entries: List[Entry]) -> Set[str]:
+[?2004l[?2004h>     # Build parent map from all ROOT/CHILD entries, preserving the declared parent
+[?2004l[?2004h>     parent_of: Dict[str, str] = {}
+[?2004l[?2004h>     children_of: Dict[str, Set[str]] = {}
+[?2004l[?2004h>     drops: List[str] = []
+[?2004l[?2004h>     for e in entries:
+[?2004l[?2004h>         if e.kind in ("ROOT", "CHILD"):
+[?2004l[?2004h>             parent_of.setdefault(e.ident, e.parent)
+[?2004l[?2004h>             children_of.setdefault(e.parent, set()).add(e.ident)
+[?2004l[?2004h>         elif e.kind == "DROP":
+[?2004l",[?2004h>             drops.append(e.ident)
+[?2004l[?2004h> 
+[?2004l[?2004h>     dropped: Set[str] = set()
+[?2004l[?2004h>     stack: List[str] = list(drops)
+[?2004l[?2004h>     while stack:
+[?2004l[?2004h>         x = stack.pop()
+[?2004l[?2004h>         if x in dropped:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         dropped.add(x)
+[?2004l[?2004h>         for ch in children_of.get(x, ()):  # descendants by chain links
+[?2004l[?2004h>             if ch not in dropped:
+[?2004l[?2004h>                 stack.append(ch)
+[?2004l[?2004h>     return dropped
+[?2004l[?2004h> 
+[?2004l:[?2004h> 
+[?2004l[?2004h> def build_items(entries: List[Entry], dropped: Set[str]) -> List[Item]:
+[?2004l[?2004h>     # Deduplicate: repeated logical child entries should appear once in accepted trace.
+[?2004l[?2004h>     # We'll keep the earliest seq for a given ident.
+[?2004l[?2004h>     seen: Set[str] = set()
+[?2004l[?2004h>     items: List[Item] = []
+[?2004l[?2004h> 
+[?2004l[?2004h>     # For depth, compute by following parent chain as declared; if missing parent, depth=0
+[?2004l[?2004h>     declared_parent: Dict[str, str] = {}
+[?2004l[?2004h>     for e in entries:
+[?2004l[?2004h>         if e.kind in ("ROOT", "CHILD"):
+[?2004l[?2004h>             declared_parent.setdefault(e.ident, e.parent)
+[?2004l[?2004h> 
+[?2004l[?2004h>     def depth_of(ident: str) -> int:
+[?2004l[?2004h>         d = 0
+[?2004l[?2004h>         cur = ident
+[?2004l[?2004h>         visited = set()
+[?2004l[?2004h>         while True:
+[?2004l[?2004h>             p = declared_parent.get(cur, "-")
+[?2004l[?2004h>             if p == "-" or p == "" or p is None:
+[?2004l[?2004h>                 return d
+[?2004l[?2004h>             if p in visited:
+[?2004l[?2004h>                 return d
+[?2004l[?2004h>             visited.add(p)
+[?2004l[?2004h>             d += 1
+[?2004l[?2004h>             cur = p
+[?2004l[?2004h> 
+[?2004l[?2004h>     for e in entries:
+[?2004l[?2004h>         if e.kind not in ("ROOT", "CHILD"):
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         if e.ident in dropped:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         if e.ident in seen:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         seen.add(e.ident)
+[?2004l[?2004h>         items.append(Item(
+[?2004l[?2004h>             ident=e.ident,
+[?2004l[?2004h>             parent=e.parent,
+[?2004l[?2004h>             depth=depth_of(e.ident),
+[?2004l[?2004h>             lane=e.lane,
+[?2004l[?2004h>             at=int(e.at),
+[?2004l[?2004h>             seq=int(e.seq),
+[?2004l[?2004h>         ))
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Keep global plan-file order for tie-breaking within lane
+[?2004l[?2004h>     items.sort(key=lambda it: it.seq)
+[?2004l[?2004h>     return items
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def drive_case(case_name: str, plan_path: str, work_dir: str) -> dict:
+[?2004l[?2004h>     name, cap, entries = read_plan(plan_path)
+[?2004l[?2004h>     assert name == case_name
+[?2004l[?2004h>     dropped = compute_dropped(entries)
+[?2004l[?2004h>     items = build_items(entries, dropped)
+[?2004l[?2004h> 
+[?2004l[?2004h>     # Simulate turns
+[?2004l[?2004h>     accepted: Set[str] = set()
+[?2004l[?2004h>     trace: List[dict] = []
+[?2004l[?2004h> 
+[?2004l[?2004h>     # upper bound for turns: max(at) plus enough to drain queues
+[?2004l[?2004h>     max_at = max([it.at for it in items], default=0)
+[?2004l[?2004h>     turn = 0
+[?2004l[?2004h>     stalled_rounds = 0
+[?2004l[?2004h>     while True:
+[?2004l[?2004h>         if turn > max_at + len(items) + 10:
+[?2004l[?2004h>             # safety break
+[?2004l[?2004h>             break
+[?2004l[?2004h> 
+[?2004l[?2004h>         ready = [it for it in items if it.ident not in accepted and it.at <= turn]
+[?2004l[?2004h>         if not ready:
+[?2004l[?2004h>             if turn >= max_at:
+[?2004l[?2004h>                 # nothing ready now or ever
+[?2004l[?2004h>                 break
+[?2004l[?2004h>             turn += 1
+[?2004l[?2004h>             continue
+[?2004l[?2004h> 
+[?2004l[?2004h>         # lane order by name within the turn
+[?2004l[?2004h>         by_lane: Dict[str, List[Item]] = {}
+[?2004l[?2004h>         for it in ready:
+[?2004l[?2004h>             by_lane.setdefault(it.lane, []).append(it)
+[?2004l[?2004h>         for lane in by_lane:
+[?2004l[?2004h>             by_lane[lane].sort(key=lambda it: it.seq)  # plan-file order within lane
+[?2004l[?2004h> 
+[?2004l[?2004h>         accepted_this_turn = 0
+[?2004l[?2004h>         for lane in sorted(by_lane.keys()):
+[?2004l[?2004h>             take = cap
+[?2004l[?2004h>             for it in by_lane[lane][:take]:
+[?2004l[?2004h>                 if it.ident in accepted:
+[?2004l[?2004h>                     continue
+[?2004l[?2004h>                 accepted.add(it.ident)
+[?2004l[?2004h>                 trace.append({
+[?2004l[?2004h>                     "case": case_name,
+[?2004l[?2004h>                     "task": it.ident,
+[?2004l[?2004h>                     "parent": it.parent,
+[?2004l[?2004h>                     "depth": it.depth,
+[?2004l[?2004h>                     "lane": it.lane,
+[?2004l[?2004h>                     "turn": turn,
+[?2004l[?2004h>                 })
+[?2004l[?2004h>                 accepted_this_turn += 1
+[?2004l[?2004h> 
+[?2004l[?2004h>         if accepted_this_turn == 0:
+[?2004l[?2004h>             stalled_rounds += 1
+[?2004l[?2004h>             if stalled_rounds > 2:
+[?2004l[?2004h>                 break
+[?2004l[?2004h>         else:
+[?2004l[?2004h>             stalled_rounds = 0
+[?2004l[?2004h> 
+[?2004l[?2004h>         turn += 1
+[?2004l[?2004h> 
+[?2004l[?2004h>     pending = sorted([it.ident for it in items if it.ident not in accepted])
+[?2004l[?2004h>     finished = (len(pending) == 0)
+[?2004l[?2004h> 
+[?2004l[?2004h>     led_dir = os.path.join(work_dir, "ledgers")
+[?2004l[?2004h>     jrn_dir = os.path.join(work_dir, "journals")
+[?2004l[?2004h>     os.makedirs(led_dir, exist_ok=True)
+[?2004l[?2004h>     os.makedirs(jrn_dir, exist_ok=True)
+[?2004l[?2004h>     ledger_path = os.path.join(led_dir, f"{case_name}.jsonl")
+[?2004l[?2004h>     journal_path = os.path.join(jrn_dir, f"{case_name}.txt")
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(ledger_path, "w", encoding="utf-8") as f:
+[?2004l[?2004h>         for row in trace:
+[?2004l[?2004h>             f.write(json.dumps(row, separators=(",", ":")) + "\n")
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(journal_path, "w", encoding="utf-8") as f:
+[?2004l[?2004h>         for row in trace:
+[?2004l[?2004h>             f.write(f"{row['case']} {row['task']} {row['parent']} {row['depth']} {row['lane']} {row['turn']}\n")
+[?2004l[?2004h> 
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         "name": case_name,
+[?2004l[?2004h>         "ok": finished,
+[?2004l[?2004h>         "finished": finished,
+[?2004l[?2004h>         "pending": pending,
+[?2004l[?2004h>         "trace": trace,
+[?2004l[?2004h>         "ledger": ledger_path,
+[?2004l[?2004h>         "journal": journal_path,
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def main():
+[?2004l[?2004h>     ap = argparse.ArgumentParser()
+[?2004l[?2004h>     ap.add_argument("--root", default="/app")
+[?2004l[?2004h>     ap.add_argument("--case", default=None)
+[?2004l[?2004h>     ap.add_argument("--out", default="/app/output/executor-audit.json")
+[?2004l[?2004h>     ap.add_argument("--work", default="/app/output/runtime")
+[?2004l[?2004h>     args = ap.parse_args()
+[?2004l[?2004h> 
+[?2004l[?2004h>     names = [args.case] if args.case else CASE_ORDER
+[?2004l[?2004h>     cases = []
+[?2004l[?2004h>     for nm in names:
+[?2004l[?2004h>         plan_path = os.path.join(args.root, "data", "cases", f"{nm}.plan")
+[?2004l[?2004h>         cases.append(drive_case(nm, plan_path, args.work))
+[?2004l[?2004h> 
+[?2004l[?2004h>     os.makedirs(os.path.dirname(args.out), exist_ok=True)
+[?2004l[?2004h>     with open(args.out, "w", encoding="utf-8") as f:
+[?2004l[?2004h>         json.dump({"cases": cases}, f, indent=None, separators=(",", ":"))
+[?2004l[?2004h>         f.write("\n")
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     main()
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@4961d4698246:/app# chmod +x /app/scripts/executor_ctl.py
+[?2004l[?2004hroot@4961d4698246:/app# sed -n '1,120p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+bash /app/scripts/clean-room.sh
+cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004hroot@4961d4698246:/app# cat > /app/scripts/run-matrix.sh <<'SH'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> 
+[?2004l[?2004h> bash /app/scripts/clean-room.sh
+[?2004l[?2004h> python3 /app/scripts/executor_ctl.py --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004l[?2004h> SH
+[?2004l[?2004hroot@4961d4698246:/app# chmod +x /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@4961d4698246:/app# cat > /app/scripts/run-one.sh <<'SH'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> 
+[?2004l[?2004h> case_name="${1:?case name required}"
+[?2004l[?2004h> out="${2:-/app/output/executor-audit.json}"
+[?2004l[?2004h> work="${3:-/app/output/runtime}"
+[?2004l[?2004h> mkdir -p /app/output
+[?2004l[?2004h> python3 /app/scripts/executor_ctl.py --case "$case_name" --out "$out" --work "$work"
+[?2004l[?2004h> SH
+[?2004l[?2004hroot@4961d4698246:/app# chmod +x /app/scripts/run-one.sh
+[?2004l[?2004hroot@4961d4698246:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
+[?2004l[?2004hroot@4961d4698246:/app# test -f /app/output/executor-audit.json && python3 -c 'import json;print([c["name"] for c in json.load(open("/app/output/executor-audit.json"))["cases"]])'
+[?2004l['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
+[?2004hroot@4961d4698246:/app# python3 -c 'import json;d=json.load(open("/app/output/executor-audit.json"));
+[?2004l[?2004h> import sys
+[?2004l[?2004h> ok=all(c["ok"] and c["finished"] and not c["pending"] for c in d["cases"])
+[?2004l[?2004h> print("all_ok", ok)
+[?2004l[?2004h> '
+[?2004lall_ok True
+[?2004hroot@4961d4698246:/app# bash -lc 'bash /app/scripts/run-matrix.sh && cp /app/output/executor-audit.json /app/output/executor-audit.2.json'
+[?2004l[?2004hroot@4961d4698246:/app# diff -u /app/output/executor-audit.json /app/output/executor-audit.2.json || true
+[?2004l[?2004hroot@4961d4698246:/app# python3 -m py_compile /app/scripts/executor_ctl.py
+[?2004l[?2004hroot@4961d4698246:/app# nl -ba /app/scripts/executor_ctl.py | sed -n '40,110p'
+[?2004l    40	                except ValueError:
+    41	                    cap = 1
+    42	                continue
+    43	            if parts[:1] == ["ROOT"] and len(parts) == 4:
+    44	                ident, lane, at = parts[1], parts[2], int(parts[3])
+    45	                entries.append(Entry("ROOT", ident=ident, lane=lane, at=at, parent="-", seq=len(entries)))
+    46	                continue
+    47	            if parts[:1] == ["CHILD"] and len(parts) == 5:
+    48	                parent, ident, lane, at = parts[1], parts[2], parts[3], int(parts[4])
+    49	                entries.append(Entry("CHILD", ident=ident, lane=lane, at=at, parent=parent, seq=len(entries)))
+    50	                continue
+    51	            if parts[:1] == ["DROP"] and len(parts) == 2:
+    52	                entries.append(Entry("DROP", ident=parts[1], seq=len(entries)))
+    53	                continue
+    54	    return name, max(1, cap), entries
+    55	
+    56	
+    57	def compute_dropped(entries: List[Entry]) -> Set[str]:
+    58	    # Build parent map from all ROOT/CHILD entries, preserving the declared parent
+    59	    parent_of: Dict[str, str] = {}
+    60	    children_of: Dict[str, Set[str]] = {}
+    61	    drops: List[str] = []
+    62	    for e in entries:
+    63	        if e.kind in ("ROOT", "CHILD"):
+    64	            parent_of.setdefault(e.ident, e.parent)
+    65	            children_of.setdefault(e.parent, set()).add(e.ident)
+    66	        elif e.kind == "DROP":
+    67	            drops.append(e.ident)
+    68	
+    69	    dropped: Set[str] = set()
+    70	    stack: List[str] = list(drops)
+    71	    while stack:
+    72	        x = stack.pop()
+    73	        if x in dropped:
+    74	            continue
+    75	        dropped.add(x)
+    76	        for ch in children_of.get(x, ()):  # descendants by chain links
+    77	            if ch not in dropped:
+    78	                stack.append(ch)
+    79	    return dropped
+    80	
+    81	
+    82	def build_items(entries: List[Entry], dropped: Set[str]) -> List[Item]:
+    83	    # Deduplicate: repeated logical child entries should appear once in accepted trace.
+    84	    # We'll keep the earliest seq for a given ident.
+    85	    seen: Set[str] = set()
+    86	    items: List[Item] = []
+    87	
+    88	    # For depth, compute by following parent chain as declared; if missing parent, depth=0
+    89	    declared_parent: Dict[str, str] = {}
+    90	    for e in entries:
+    91	        if e.kind in ("ROOT", "CHILD"):
+    92	            declared_parent.setdefault(e.ident, e.parent)
+    93	
+    94	    def depth_of(ident: str) -> int:
+    95	        d = 0
+    96	        cur = ident
+    97	        visited = set()
+    98	        while True:
+    99	            p = declared_parent.get(cur, "-")
+   100	            if p == "-" or p == "" or p is None:
+   101	                return d
+   102	            if p in visited:
+   103	                return d
+   104	            visited.add(p)
+   105	            d += 1
+   106	            cur = p
+   107	
+   108	    for e in entries:
+   109	        if e.kind not in ("ROOT", "CHILD"):
+   110	            continue
+[?2004hroot@4961d4698246:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,os
+[?2004l[?2004h> p='/app/output/executor-audit.json'
+[?2004l[?2004h> d=json.load(open(p))
+[?2004l[?2004h> for c in d['cases']:
+[?2004l[?2004h>     led=c['ledger']; jrn=c['journal']
+[?2004l[?2004h>     lt=sum(1 for _ in open(led))
+[?2004l[?2004h>     jt=sum(1 for _ in open(jrn))
+[?2004l[?2004h>     tt=len(c['trace'])
+[?2004l[?2004h>     print(c['name'], 'trace',tt,'ledger',lt,'journal',jt)
+[?2004l[?2004h> PY
+[?2004lamber trace 4 ledger 4 journal 4
+cobalt trace 5 ledger 5 journal 5
+drake trace 3 ledger 3 journal 3
+ember trace 2 ledger 2 journal 2
+flint trace 3 ledger 3 journal 3
+graphite trace 5 ledger 5 journal 5
+[?2004hroot@4961d4698246:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/executor-audit.json'
+[?2004l[?2004h> d=json.load(open(p))
+[?2004l[?2004h> for nm in ['drake','ember','graphite']:
+[?2004l[?2004h>     c=next(x for x in d['cases'] if x['name']==nm)
+[?2004l[?2004h>     tasks=[r['task'] for r in c['trace']]
+[?2004l[?2004h>     print(nm, tasks)
+[?2004l[?2004h> PY
+[?2004ldrake ['drake-root', 'drake-keep', 'drake-late']
+ember ['ember-root', 'ember-after']
+graphite ['graphite-root', 'graphite-b', 'graphite-a', 'graphite-c', 'graphite-tail']
+[?2004hroot@4961d4698246:/app# bash -lc 'bash /app/scripts/run-one.sh drake /app/output/one-drake.json /app/output/one-runtime'
+[?2004l[?2004hroot@4961d4698246:/app# python3 -c 'import json;print(json.load(open("/app/output/one-drake.json"))["cases"][0]["name"], len(json.load(open("/app/output/one-drake.json"))["cases"][0]["trace"]))'
+[?2004ldrake 3
+[?2004hroot@4961d4698246:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> import pathlib
+[?2004l[?2004h> 
+[?2004l[?2004h> a=json.load(open('/app/output/executor-audit.json'))
+[?2004l[?2004h> for c in a['cases']:
+[?2004l[?2004h>     led = pathlib.Path(c['ledger'])
+[?2004l[?2004h>     jrn = pathlib.Path(c['journal'])
+[?2004l[?2004h>     trace = c['trace']
+[?2004l[?2004h> 
+[?2004l[?2004h>     led_rows=[json.loads(x) for x in led.read_text().splitlines() if x.strip()]
+[?2004l[?2004h>     if led_rows!=trace:
+[?2004l[?2004h>         raise SystemExit(f"ledger mismatch {c['name']}")
+[?2004l[?2004h> 
+[?2004l[?2004h>     jrn_rows=[ln.split() for ln in jrn.read_text().splitlines() if ln.strip()]
+[?2004l[?2004h>     want=[[r['case'],r['task'],r['parent'],str(r['depth']),r['lane'],str(r['turn'])] for r in trace]
+[?2004l[?2004h>     if jrn_rows!=want:
+[?2004l[?2004h>         raise SystemExit(f"journal mismatch {c['name']}")
+[?2004l[?2004h> 
+[?2004l[?2004h> print('audit/ledger/journal all consistent')
+[?2004l[?2004h> PY
+[?2004laudit/ledger/journal all consistent
+[?2004hroot@4961d4698246:/app# ls -la /app/output/executor-audit.json /app/output/runtime/ledgers /app/output/runtime/journals
+[?2004l-rw-r--r-- 1 root root 3034 May 23 19:56 /app/output/executor-audit.json
+
+/app/output/runtime/journals:
+total 24
+drwxr-xr-x 2 root root 112 May 23 19:56 .
+drwxr-xr-x 4 root root  37 May 23 19:56 ..
+-rw-r--r-- 1 root root 138 May 23 19:56 amber.txt
+-rw-r--r-- 1 root root 188 May 23 19:56 cobalt.txt
+-rw-r--r-- 1 root root  99 May 23 19:56 drake.txt
+-rw-r--r-- 1 root root  61 May 23 19:56 ember.txt
+-rw-r--r-- 1 root root 102 May 23 19:56 flint.txt
+-rw-r--r-- 1 root root 204 May 23 19:56 graphite.txt
+
+/app/output/runtime/ledgers:
+total 24
+drwxr-xr-x 2 root root 124 May 23 19:56 .
+drwxr-xr-x 4 root root  37 May 23 19:56 ..
+-rw-r--r-- 1 root root 358 May 23 19:56 amber.jsonl
+-rw-r--r-- 1 root root 463 May 23 19:56 cobalt.jsonl
+-rw-r--r-- 1 root root 264 May 23 19:56 drake.jsonl
+-rw-r--r-- 1 root root 171 May 23 19:56 ember.jsonl
+-rw-r--r-- 1 root root 267 May 23 19:56 flint.jsonl
+-rw-r--r-- 1 root root 479 May 23 19:56 graphite.jsonl
+[?2004hroot@4961d4698246:/app# 

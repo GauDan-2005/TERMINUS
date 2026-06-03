@@ -1,0 +1,116 @@
+Current terminal state:
+New Terminal Output:
+
+root@07f74449b762:/app# cat > /app/internal/c2/roll.go <<'EOF'
+> package c2
+>
+> import (
+> "sort"
+> "strings"
+>
+> "staged.local/snapshot/internal/e4"
+> "staged.local/snapshot/internal/f5"
+> )
+>
+> type mapX struct {
+> Items map[string]entryX
+> }
+>
+> type entryX struct {
+> Path   string
+> Bytes  int
+> Period string
+> }
+>
+> func mark_c(a *mapX, _ uint64, entries []entryX) error {
+> if a.Items == nil {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> a.Items = map[string]entryX{}
+> }
+> for _, item := range entries {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> a.Items[item.Path] = item
+> }
+> return nil
+> }
+>
+> func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
+> bytesByPath, err := e4.NativeBytes(root)
+> if err != nil {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> return nil, err
+> }
+>
+> entries := make([]entryX, 0, len(bytesByPath))
+> for path, size := range bytesByPath {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> period := "p0"
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> // Files under d/ are counted in the later quota period only once the case
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> // has moved into that period (restart+roll profiles).
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> if profile.Roll && profile.Restart && strings.HasPrefix(path, "d/") {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> period = "p1"
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> }
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
+> }
+> sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+>
+> store := &mapX{}
+> if err := mark_c(store, 0, entries); err != nil {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> return nil, err
+> }
+>
+> items := make([]f5.AccountItem, 0, len(store.Items))
+> for _, item := range store.Items {
+>
+Makefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/
+> items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
+> }
+> sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+> return items, nil
+> }
+> EOF
+root@07f74449b762:/app# go build -o /app/bin/snapctl ./cmd/ctl
+root@07f74449b762:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:47:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:47:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@07f74449b762:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: d=json.load(f)
+> for name in ['epsilon','zeta']:
+>     c=next(x for x in d['cases'] if x['name']==name)
+>     ditems=[it for it in c['accounting'] if it['path'].startswith('d/')]
+>     print(name,'ok',c['ok'],'ditems',ditems)
+> print('ALL_OK', all(c['ok'] for c in d['cases']))
+> PY
+epsilon ok True ditems [{'path': 'd/roll.txt', 'bytes': 19, 'period': 'p1'}]
+zeta ok True ditems [{'path': 'd/roll.txt', 'bytes': 16, 'period': 'p1'}]
+ALL_OK True
+root@07f74449b762:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

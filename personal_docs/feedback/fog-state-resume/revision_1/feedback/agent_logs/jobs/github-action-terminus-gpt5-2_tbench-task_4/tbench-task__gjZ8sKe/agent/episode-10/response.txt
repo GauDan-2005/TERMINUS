@@ -1,0 +1,39 @@
+{
+  "analysis": "The warden mismatch is only ordering of effects (same elements, different order). We attempted to patch sorting but introduced a compile error: added sort import unused and replaced Effects field with undefined variable because injection location was wrong (likely inserted outside RunRow or after return). Need to revert the broken patch and apply a correct minimal fix: compute effectsSlice inside RunRow right before return and use it in CaseResult, then sort.Slice it. Ensure sort import is used. Rebuild and rerun matrix + one-case to confirm exact match.",
+  "plan": "1) Open the portion of internal/f5/run.go around the erroneous changes to see where injection landed. 2) Fix manually: in RunRow, create `effects := rowsFromC2(...)`, sort it, then return CaseResult{..., Effects: effects, ...}. 3) Ensure import block includes sort and it is used. 4) Rebuild and rerun run-matrix.sh and one-case.sh warden, then rerun matrix-vs-single comparison for warden effects.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba /app/internal/f5/run.go | sed -n '1,40p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "nl -ba /app/internal/f5/run.go | sed -n '250,330p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\nimport re\np=Path('/app/internal/f5/run.go')\nlines=p.read_text().splitlines()\n# Remove any previously injected block starting with a tab then 'effects :=' (note space) if present\nout=[]\nskip=False\nfor ln in lines:\n    if re.match(r'^\\teffects\\s*:=\\s*rowsFromC2\\(', ln):\n        skip=True\n        continue\n    if skip:\n        # stop skipping at blank line after sort.Slice block\n        if ln.strip()=='' :\n            skip=False\n        continue\n    out.append(ln)\ntext='\\n'.join(out)+\"\\n\"\n# Ensure import sort exists\nif '\"sort\"' not in text:\n    text=text.replace('\"strings\"\\n', '\"strings\"\\n\\n\\t\"sort\"\\n')\n\n# Fix RunRow: create effects variable and use it in return\n# Replace the Effects field line to a placeholder if present\ntext=re.sub(r'\\t\\tEffects:\\s*rowsFromC2\\(c2\\.ItemsFor\\(snapToC2\\(wResume\\.Effects\\), wResume\\.Turn\\)\\),\\n', '\\t\\tEffects:    effects,\\n', text)\n\n# Inject effects computation just before 'return CaseResult{' inside RunRow\nneedle='\\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\\n\\n'\nif needle not in text:\n    raise SystemExit('could not find injection point near ok :=')\nif '\\teffects := rowsFromC2' not in text:\n    inject='\\teffects := rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn))\\n\\tsort.Slice(effects, func(i, j int) bool {\\n\\t\\tif effects[i].ID != effects[j].ID {\\n\\t\\t\\treturn effects[i].ID < effects[j].ID\\n\\t\\t}\\n\\t\\tif effects[i].Epoch != effects[j].Epoch {\\n\\t\\t\\treturn effects[i].Epoch < effects[j].Epoch\\n\\t\\t}\\n\\t\\tif effects[i].Active != effects[j].Active {\\n\\t\\t\\treturn !effects[i].Active && effects[j].Active\\n\\t\\t}\\n\\t\\treturn false\\n\\t})\\n\\n'\n    text=text.replace(needle, needle+inject)\n\np.write_text(text)\nprint('repaired run.go')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "make -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh warden\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\n\ndef load_case(path,name=None):\n    d=json.loads(Path(path).read_text())\n    if name is None:\n        return d['cases'][0]\n    return next(c for c in d['cases'] if c['name']==name)\n\nmc=load_case('/app/output/resume-audit.json','warden')\nsc=load_case('/app/output/single-warden.json')\nprint('matrix effects',mc['effects'])\nprint('single effects',sc['effects'])\nprint('same', mc['effects']==sc['effects'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nfrom pathlib import Path\n\ndef load(path):\n    return json.loads(Path(path).read_text())['cases'][0]\n\nmatrix=json.loads(Path('/app/output/resume-audit.json').read_text())['cases']\nby={c['name']:c for c in matrix}\nname='warden'\nsc=load(f'/app/output/single-{name}.json')\nmc=by[name]\nfor k in ['ok','fresh','resume','moves','visibility','effects']:\n    if mc.get(k)!=sc.get(k):\n        raise SystemExit(f'DIFF {name} field {k}')\nprint('warden single-case matches matrix')\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

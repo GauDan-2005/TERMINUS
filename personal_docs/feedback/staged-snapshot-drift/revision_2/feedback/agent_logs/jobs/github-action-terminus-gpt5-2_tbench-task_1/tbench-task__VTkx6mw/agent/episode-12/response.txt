@@ -1,0 +1,23 @@
+{
+  "analysis": "Hardlink groups now match for dense cases (beta and zeta show restored groups=1), so KeyFor is fixed. However all cases still have ok=false. Since digests previously matched, remaining failures are likely accountingMatch and/or diskMatch. We also accidentally mangled formatting in c2/roll.go: mark_c loop is now on one line but functionally it stores items. The deeper issue: ItemsC sets flags when profile.Restart && profile.Roll but mark_c no longer uses flags; still ok might fail because accounting stored in CaseResult is only the source accounting, but ok compares accountingEqual(sourceAccounting, restoredAccounting). If the accounting results differ between source and restored due to nondeterminism in NativeBytes output ordering or map behavior, or because fsmeasure includes root prefix differences, then accountingMatch fails. Need to inspect e4.NativeBytes and the native helper output format; ensure it emits relative paths consistently and includes all files (including hardlinks) and correct sizes. Also ensure ItemsC returns deterministic and identical for both trees.\n\nNext: compute which component of ok is failing by reproducing the checks from cmd/ctl for one case via a small python snippet: compare digests, groups, accounting arrays, and diskMatch, using the paths in JSON. We'll do it for alpha (no hardlinks/roll) and beta (hardlinks).",
+  "plan": "1) Use python to load restore-audit.json, for each case re-run: compute accounting for source and restored by invoking /app/bin/snapctl? easier: directly call fsmeasure and build accounting the same way (in python) to see mismatch and pinpoint period/bytes. 2) Inspect /app/bin/fsmeasure output for a case (alpha source/restored) to see if it includes absolute paths or inconsistent relative paths. 3) Review /app/probe/measure.c to ensure it prints relative paths, and includes all hardlink names with correct sizes. If it prints paths with leading ./ or inconsistent sorting, fix to normalized relative without leading ./ and ensure stable ordering; though ItemsC sorts, it uses map from NativeBytes so fine. 4) Fix ItemsC/NativeBytes if it incorrectly returns map entries missing files or with wrong sizes.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,subprocess,os\n\ndef fsmeasure(root):\n  out=subprocess.check_output(['/app/bin/fsmeasure', root], text=True)\n  rows=[]\n  for line in out.splitlines():\n    p,b=line.split('\\t')\n    rows.append((p,int(b)))\n  return rows\n\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor name in ['alpha','beta','epsilon','zeta']:\n  c=[x for x in d['cases'] if x['name']==name][0]\n  src=c['source']; res=c['restored']\n  s=fsmeasure(src); r=fsmeasure(res)\n  print('CASE',name,'ok',c['ok'])\n  print(' fsmeasure lens',len(s),len(r),'equal',s==r)\n  if s!=r:\n    # show first diff-ish\n    sm={p:b for p,b in s}; rm={p:b for p,b in r}\n    only_s=sorted(set(sm)-set(rm))\n    only_r=sorted(set(rm)-set(sm))\n    diff=[p for p in sorted(set(sm)&set(rm)) if sm[p]!=rm[p]]\n    print('  only_src',only_s[:5])\n    print('  only_res',only_r[:5])\n    print('  size_diff',diff[:5])\n  # compare reported accounting vs fsmeasure-derived\n  acct={(i['path'],i['bytes'],i['period']) for i in c['accounting']}\n  # build expected periods per spec\n  exp=[]\n  roll=name in ('epsilon','zeta')\n  for p,b in s:\n    period='p1' if roll and p.startswith('d/') else 'p0'\n    exp.append((p,b,period))\n  exp=set(exp)\n  print(' accounting matches fsmeasure(source)?', acct==exp)\nPY\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\n# print alpha accounting for inspection\nalpha=[c for c in d['cases'] if c['name']=='alpha'][0]\nprint(alpha['accounting'])\nPY\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "alpha_src=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nprint([c for c in d['cases'] if c['name']=='alpha'][0]['source'])\nPY\n); alpha_res=$(python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nprint([c for c in d['cases'] if c['name']=='alpha'][0]['restored'])\nPY\n); echo \"alpha_src=$alpha_src\"; echo \"alpha_res=$alpha_res\"; echo '--- fsmeasure source ---'; /app/bin/fsmeasure \"$alpha_src\" | head; echo '--- fsmeasure restored ---'; /app/bin/fsmeasure \"$alpha_res\" | head\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/probe/measure.c\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

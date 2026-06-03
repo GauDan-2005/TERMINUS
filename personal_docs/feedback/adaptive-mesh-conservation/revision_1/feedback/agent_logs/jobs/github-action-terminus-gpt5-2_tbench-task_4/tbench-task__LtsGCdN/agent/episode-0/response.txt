@@ -1,0 +1,51 @@
+{
+  "analysis": "We are at a root shell in /app with no prior command output. The task requires rebuilding the project with CMake, running the scenario matrix script, and fixing conservation drift across grid split/merge operations and snapshot save/resume. Next we need to inspect the repository layout, build configuration, current failing conservation_audit.json, and locate code responsible for remeshing (split/merge) and serialization of state to vault.bin.",
+  "plan": "1) Inspect existing output report to see which scenarios drift and by how much. 2) Review docs describing report layout and operations to understand expected invariants and helper commands. 3) Inspect cases.toml to see scenario definitions and schedules (no edits). 4) Configure and build with CMake to ensure we can reproduce. 5) Run the matrix script to regenerate the report and confirm failure baseline. Then we will dive into code paths for split/merge and snapshot serialization based on what the helper commands indicate.",
+  "commands": [
+    {
+      "keystrokes": "ls -la\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -maxdepth 2 -type f -name 'CMakeLists.txt' -o -type d -name build -o -type d -name src\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/output || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json 2>/dev/null | head -n 80\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/docs && sed -n '1,200p' /app/docs/layout.md\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/docs/operations.md\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/config/cases.toml\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -rf /app/build && cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cat /app/output/conservation_audit.json | head -n 120\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

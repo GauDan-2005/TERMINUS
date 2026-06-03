@@ -1,0 +1,96 @@
+New Terminal Output:
+
+root@e82a056b0afe:/app# cat /app/scale_q/metric.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s) + 1.0e-4;
+}
+root@e82a056b0afe:/app# cat /app/flow_t/report.cpp
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const SolveResult *res, int last) {
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
+    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
+    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
+    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
+    fprintf(fp, "      \"hit_limit\": %s\n    }", res->hit_limit ? "true" : "false");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+}
+
+int emit_t(const SolveResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const SolveResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (int i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+root@e82a056b0afe:/app# cat /app/spill_v/bucket.cpp
+#include "../include/case_spec.h"
+#include "../include/solver_report.h"
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
+
+int spill_bucket(int v) {
+    return (v % 7) + 1;
+}
+root@e82a056b0afe:/app# cat /app/mirror_w/trace.cpp
+#include <stdio.h>
+
+void mirror_trace(const char *msg) {
+    fprintf(stderr, "trace: %s\n", msg);
+}
+root@e82a056b0afe:/app# cat /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+root@e82a056b0afe:/app# cat /app/config/limits.toml
+max_iterations = 200
+residual_tol = 1.0e-9
+agreement_tol = 1.0e-6
+root@e82a056b0afe:/app#

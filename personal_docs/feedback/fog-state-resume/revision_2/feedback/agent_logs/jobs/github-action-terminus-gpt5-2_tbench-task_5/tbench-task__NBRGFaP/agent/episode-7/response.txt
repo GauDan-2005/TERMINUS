@@ -1,0 +1,15 @@
+{
+  "analysis": "vis.ApplyLit updates Seen based on current Lit each step; thus visibility mismatch implies on resume we are not applying the same sequence of ApplyLit calls or we start with different Seen/Lit. packWorld includes Lit and Seen in the stored item, so persistence exists, but perhaps the resume run loads a snapshot then immediately zeroes Lit/Seen via cloneWorld (len mismatch) or ApplyLit (which clears Lit and, if blind, returns without marking Seen). Another glaring issue: exec/run.go constructs allMoves by concatenating freshMoves and resumeMoves into one array, guaranteeing duplicates whenever resume reproduces the same moves. Also ok ignores visibility. To satisfy 'clean' definition, we should: (a) make audit JSON moves list match the resolved moves for the run (likely fresh only, and separately resume only), or include a run tag; simplest: store only fresh moves in moves and rely on sig for equality. (b) include visibility equality in ok calculation and align resume_seen with fresh_seen by fixing Seen restoration or recomputation.\nGiven mismatches are small (e.g., 9 vs 8), likely a specific edge tile is marked seen in fresh but not in resume due to the PlayerSees litIdx hack (y==height-1 uses y-1 for Lit) combined with ApplyLit clearing Lit before use; if resume starts with a loaded Lit that differs, CountSeen should still match though. More likely: when loading snapshot, Seen slice is assigned, but later cloneWorld size check may reset seen to zeros because len(seen)!=size due to size mismatch when Width/Height not yet set at clone time or when packed item uses stale dims. Need to inspect applyWorld and runLoaded/runFresh logic in exec/run.go (rest of file) to see ordering.",
+  "plan": "1) View the remainder of exec/run.go (applyWorld onward, and runFresh/runLoaded) to find where width/height/seen/lit are initialized and whether cloneWorld is called before dimensions are set. 2) Identify why resume_seen differs: likely applyWorld sets w.Seen but later cloneWorld resets it due to len mismatch, or ApplyLit early-returns on blind without preserving loaded Seen. Fix by ensuring World dimensions are set before cloning, and ensure ApplyLit does not wipe Lit/Seen incorrectly on resume (e.g., don’t clear Seen when blind, only skip lighting). 3) Fix audit output: change CaseResult moves to include only fresh moves (and maybe keep resume moves in separate field if schema allows, but simplest per description is that moves/effects collections described by CaseResult should represent resolved moves in order—should be identical for fresh/resume). So store freshMoves only, and compare sidecars against that.\n4) Update ok to require visibility fresh_seen==resume_seen.\n5) Re-run one-case for knight/rook and full matrix.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '220,520p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '520,820p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

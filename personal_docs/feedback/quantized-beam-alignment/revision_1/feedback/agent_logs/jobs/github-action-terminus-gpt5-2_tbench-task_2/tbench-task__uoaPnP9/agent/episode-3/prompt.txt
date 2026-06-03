@@ -1,0 +1,224 @@
+New Terminal Output:
+
+root@0a5f9d5f839a:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+is unreadable, do not claim agreement> *** Update File: cmd/align/main.go
+> @@
+>  package main
+>
+>  import (
+>      "encoding/json"
+> +    "errors"
+>      "os"
+>      "sort"
+>  )
+> @@
+>  type finalDoc struct {
+>      Rows    []entry        `json:"rows"`
+>      Summary map[string]any `json:"summary"`
+>  }
+>
+> -func fold(a []entry) []entry {
+> -    seen := map[byte]entry{}
+> -    for _, row := range a {
+> -        key := row.Case[0]
+> -        seen[key] = row
+> -    }
+> -    out := make([]entry, 0, len(seen))
+> -    for _, row := range seen {
+> -        out = append(out, row)
+> -    }
+> -    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+> -    return out
+> +func toMap(rows []entry) (map[string]entry, error) {
+> +    m := make(map[string]entry, len(rows))
+> +    for _, r := range rows {
+> +        if r.Case == "" {
+> +            return nil, errors.New("row missing case name")
+> +        }
+> +        if _, ok := m[r.Case]; ok {
+> +            return nil, errors.New("duplicate case in rows: " + r.Case)
+> +        }
+> +        m[r.Case] = r
+> +    }
+> +    return m, nil
+> +}
+> +
+> +func equalInts(a, b []int) bool {
+> +    if len(a) != len(b) {
+> +        return false
+> +    }
+> +    for i := range a {
+> +        if a[i] != b[i] {
+> +            return false
+> +        }
+> +    }
+> +    return true
+> +}
+> +
+> +// matchesSpec checks equality across the six required fields.
+> +func matchesSpec(a, b entry) bool {
+> +    return a.Case == b.Case &&
+> +        equalInts(a.Produced, b.Produced) &&
+> +        equalInts(a.Trace, b.Trace) &&
+> +        equalInts(a.OrderUsed, b.OrderUsed) &&
+> +        a.Packed == b.Packed &&
+> +        a.Grouped == b.Grouped &&
+> +        a.Reuse == b.Reuse
+> +}
+> +
+> +func sortedCases(m map[string]entry) []string {
+> +    cases := make([]string, 0, len(m))
+> +    for k := range m {
+> +        cases = append(cases, k)
+> +    }
+> +    sort.Strings(cases)
+> +    return cases
+>  }
+>
+>  func main() {
+>      if len(os.Args) != 3 {
+>          panic("usage: align raw final")
+>      }
+> @@
+>      var raw rawDoc
+>      if err := json.Unmarshal(buf, &raw); err != nil {
+>          panic(err)
+>      }
+> -    rows := fold(raw.Raw)
+> -    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+> +
+> +    // Collation stage: keep one row per built-in case name.
+> +    // Do not drop/merge: require unique case names.
+> +    rawMap, err := toMap(raw.Raw)
+> +    if err != nil {
+> +        panic(err)
+> +    }
+> +
+> +    // For deterministic local behavior, the report rows are a stable ordering of the raw rows.
+> +    // (Collation logic may evolve, but produced/trace/order/flags must match raw per-case.)
+> +    cases := sortedCases(rawMap)
+> +    rows := make([]entry, 0, len(cases))
+> +    for _, c := range cases {
+> +        rows = append(rows, rawMap[c])
+> +    }
+> +
+> +    // agree iff every report row matches its raw counterpart across the six required fields,
+> +    // AND (if overwriting an existing report.json) the prior report rows also match incoming raw.
+> +    agree := true
+> +    // Compare newly generated rows to incoming raw.
+> +    repMap, err := toMap(rows)
+> +    if err != nil {
+> +        panic(err)
+> +    }
+> +    if len(repMap) != len(rawMap) {
+> +        agree = false
+> +    }
+> +    for c, rr := range rawMap {
+> +        fr, ok := repMap[c]
+> +        if !ok || !matchesSpec(rr, fr) {
+> +            agree = false
+> +            break
+> +        }
+> +    }
+> +
+> +    // Compare incoming raw against prior report.json at destination path (if it exists).
+> +    if prevBuf, err := os.ReadFile(os.Args[2]); err == nil {
+> +        var prev finalDoc
+> +        if err := json.Unmarshal(prevBuf, &prev); err == nil {
+> +            prevMap, err := toMap(prev.Rows)
+> +            if err != nil {
+> +                agree = false
+> +            } else {
+> +                if len(prevMap) != len(rawMap) {
+> +                    agree = false
+> +                }
+> +                for c, rr := range rawMap {
+> +                    pr, ok := prevMap[c]
+> +                    if !ok || !matchesSpec(rr, pr) {
+> +                        agree = false
+> +                        break
+> +                    }
+> +                }
+> +            }
+> +        } else {
+> +            // If the existing report.json is unreadable, do not claim agreement.
+> +            agree = false
+> +        }
+> +    }
+> +
+> +    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": agree}}
+>      out, err := json.MarshalIndent(doc, "", "  ")
+>      if err != nil {
+>          panic(err)
+>      }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@0a5f9d5f839a:/app# gofmt -w /app/cmd/align/main.go
+root@0a5f9d5f839a:/app# go build -o /app/bin/align /app/cmd/align/main.go
+root@0a5f9d5f839a:/app# sed -n '1,240p' /app/cmd/align/main.go
+package main
+
+import (
+        "encoding/json"
+        "os"
+        "sort"
+)
+
+type entry struct {
+        Case      string `json:"case"`
+        Produced  []int  `json:"produced"`
+        Trace     []int  `json:"slot_trace"`
+        OrderUsed []int  `json:"order_used"`
+        Packed    bool   `json:"packed"`
+        Grouped   bool   `json:"grouped"`
+        Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+        Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+        Rows    []entry        `json:"rows"`
+        Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+        seen := map[byte]entry{}
+        for _, row := range a {
+                key := row.Case[0]
+                seen[key] = row
+        }
+        out := make([]entry, 0, len(seen))
+        for _, row := range seen {
+                out = append(out, row)
+        }
+        sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+        return out
+}
+
+func main() {
+        if len(os.Args) != 3 {
+                panic("usage: align raw final")
+        }
+        buf, err := os.ReadFile(os.Args[1])
+        if err != nil {
+                panic(err)
+        }
+        var raw rawDoc
+        if err := json.Unmarshal(buf, &raw); err != nil {
+                panic(err)
+        }
+        rows := fold(raw.Raw)
+        doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+        out, err := json.MarshalIndent(doc, "", "  ")
+        if err != nil {
+                panic(err)
+        }
+        if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+                panic(err)
+        }
+}
+root@0a5f9d5f839a:/app#

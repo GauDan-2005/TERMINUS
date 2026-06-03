@@ -1,0 +1,78 @@
+New Terminal Output:
+
+root@bf5a87cba17d:/app# jq -e '.cases and (.cases|type=="array") and (.cases|length==6)' /app/output/alloc-audit.json >/dev/null && echo OK_cases_len
+bash: jq: command not found
+root@bf5a87cba17d:/app# jq -r '.cases[].name' /app/output/alloc-audit.json | sort
+bash: jq: command not found
+asciinema: recording finished
+asciinema: asciicast saved to /logs/agent/recording.cast
+root@bf5a87cba17d:/app# jq -e '.cases[] | has("name") and has("ok") and has("steps") and has("heap_sig") and has("fl_count") and has("fl_sig") and has("byte_tot
+al") and has("ledger")' /app/output/alloc-audit.json >/dev/null && echo OK_case_fields
+bash: jq: command not found
+root@bf5a87cba17d:/app# jq -e '.cases[].steps[] | has("seq") and has("op") and has("index") and has("size") and has("result_index") and has("heap_sig") and has(
+"fl_count") and has("fl_sig") and has("byte_total")' /app/output/alloc-audit.json >/dev/null && echo OK_step_fields
+bash: jq: command not found
+root@bf5a87cba17d:/app# python3 - <<'PY'
+> import json, pathlib
+> p=pathlib.Path('/app/output/alloc-audit.json')
+> data=json.loads(p.read_text())
+> for case in data['cases']:
+>     ledger=pathlib.Path(case['ledger'])
+>     steps=len(case['steps'])
+>     lines=sum(1 for _ in ledger.open())
+>     if lines!=steps:
+>         print('MISMATCH', case['name'], 'steps', steps, 'ledger_lines', lines)
+>     else:
+>         print('OK', case['name'], steps)
+> PY
+OK cedar 5
+OK jade 8
+OK slate 7
+OK coral 3
+OK onyx 7
+OK pearl 9
+root@bf5a87cba17d:/app# grep -RIn --line-number -E 'heap_sig|fl_sig|signature|sig' /app/src /app/flow_g /app/drive_h /app/include | sed -n '1,200p'
+/app/src/alloc_ops.c:57:    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+/app/src/arena_core.c:8:size_t arena_heap_sig(const Arena *a) {
+/app/src/arena_core.c:9:    size_t sig = 0;
+/app/src/arena_core.c:13:        b.base = (unsigned char *)a->mem;
+/app/src/arena_core.c:20:            sig += total * 17;
+/app/src/arena_core.c:24:    return sig;
+/app/src/arena_core.c:27:size_t arena_fl_sig(const Arena *a) {
+/app/src/arena_core.c:28:    size_t sig = 0;
+/app/src/arena_core.c:31:        Block b = {(unsigned char *)a->mem, cur};
+/app/src/arena_core.c:32:        sig += tag_read_size(&b);
+/app/src/arena_core.c:35:    return sig;
+/app/src/free_ops.c:14:    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+/app/src/reloc_ops.c:18:    oldb.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+/app/flow_g/report.c:22:    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
+/app/flow_g/report.c:24:    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
+/app/flow_g/report.c:35:                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+/app/flow_g/report.c:36:                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+/app/flow_g/report.c:37:                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+/app/flow_g/report.c:48:                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+/app/flow_g/report.c:49:                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+/app/flow_g/report.c:50:                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+/app/flow_g/report.c:51:                    st->fl_sig, st->byte_total);
+/app/drive_h/run.c:31:        st->heap_sig = arena_heap_sig(&arena);
+/app/drive_h/run.c:33:        st->fl_sig = arena_fl_sig(&arena);
+/app/drive_h/run.c:36:    res->heap_sig = arena_heap_sig(&arena);
+/app/drive_h/run.c:38:    res->fl_sig = arena_fl_sig(&arena);
+/app/include/arena.h:14:    unsigned char mem[HEAP_BYTES];
+/app/include/arena.h:31:size_t arena_heap_sig(const Arena *a);
+/app/include/arena.h:32:size_t arena_fl_sig(const Arena *a);
+/app/include/block.h:13:    unsigned char *base;
+/app/include/report.h:17:    size_t heap_sig;
+/app/include/report.h:19:    size_t fl_sig;
+/app/include/report.h:28:    size_t heap_sig;
+/app/include/report.h:30:    size_t fl_sig;
+root@bf5a87cba17d:/app# grep -RIn --line-number -E 'ledger|jsonl|alloc-audit|audit\.json' /app/src /app/flow_g /app/drive_h /app/scripts | sed -n '1,200p'
+/app/src/main.c:32:        if (emit_matrix(cases, n, "/app/output/alloc-audit.json") != 0) {
+/app/src/main.c:43:        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+/app/flow_g/report.c:18:    FILE *led = fopen(res->ledger_path, "w");
+/app/flow_g/report.c:26:    fprintf(fp, "      \"ledger\": ");
+/app/flow_g/report.c:27:    esc(fp, res->ledger_path);
+/app/drive_h/run.c:12:    snprintf(res->ledger_path, sizeof(res->ledger_path), "%s/%s.ledger.jsonl", out_dir, plan->name);
+/app/scripts/clean-room.sh:4:rm -f "${APP_ROOT}"/output/alloc-audit.json "${APP_ROOT}"/output/*-audit.json
+/app/scripts/clean-room.sh:5:rm -f "${APP_ROOT}"/output/*.ledger.jsonl
+root@bf5a87cba17d:/app#

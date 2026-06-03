@@ -1,0 +1,72 @@
+New Terminal Output:
+
+root@232ce2a98209:/app# cat /app/k3/d.rs
+use crate::k4_e::mote_e;
+use crate::model::{Decision, State};
+
+pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+    let slot = State::slot_key(d, e);
+    let tick = a.tick_for(c);
+  if let Some(outcome) = a.group_slot.get(&slot) {
+        let via = if outcome == "allow" {
+            mote_e(a, c, d, e).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(b, c, d, e, tick);
+        row.outcome = outcome.clone();
+        row.group = a.group_active.clone();
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, c, d, e);
+    a.group_slot.insert(slot, outcome.clone());
+    let mut row = Decision::blank(b, c, d, e, tick);
+    row.outcome = outcome;
+    row.group = a.group_active.clone();
+    row.via = via;
+    row
+}
+root@232ce2a98209:/app# cat /app/k4/e.rs
+use crate::model::State;
+
+pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+    let mut current = b.to_string();
+    loop {
+        if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+            if a.blocked.contains(b) {
+                return ("deny".to_string(), String::new());
+            }
+            let via = if current == b {
+                String::new()
+            } else {
+                current.clone()
+            };
+            return ("allow".to_string(), via);
+        }
+        match a.chain.get(&current) {
+            Some(parent) => current = parent.clone(),
+            None => return ("deny".to_string(), String::new()),
+        }
+    }
+}
+root@232ce2a98209:/app# cat /app/k5/f.rs
+use crate::model::{Decision, State};
+
+pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+    let track = State::track_key(&b.subject, &b.object, &b.mode);
+    let reused = a
+        .seen
+        .get(&track)
+        .map(|old| old == &b.outcome)
+        .unwrap_or(false);
+    b.reused = reused;
+    a.seen.insert(track, b.outcome.clone());
+    if b.outcome == "allow" && a.blocked.contains(&b.subject) && !b.via.is_empty() {
+        let note = b.label.clone();
+        (b, Some(note))
+    } else {
+        (b, None)
+    }
+}
+root@232ce2a98209:/app#

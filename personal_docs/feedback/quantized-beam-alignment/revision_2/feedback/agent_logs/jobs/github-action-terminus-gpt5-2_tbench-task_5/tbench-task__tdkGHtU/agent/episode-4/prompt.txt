@@ -1,0 +1,270 @@
+New Terminal Output:
+
+root@97c3eded53e7:/app# apt-get update
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+Reading package lists... Done
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+root@97c3eded53e7:/app# apt-get install -y cargo rustc
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+E: Unable to locate package cargo
+E: Unable to locate package rustc
+root@97c3eded53e7:/app# cargo --version && rustc --version
+bash: cargo: command not found
+root@97c3eded53e7:/app# sed -n '1,200p' /app/src/a0/mod.rs
+pub struct A0 {
+    pub s: Vec<i32>,
+    pub z: Vec<i32>,
+}
+
+impl A0 {
+    pub fn new() -> Self {
+        Self { s: vec![2, 3, 5], z: vec![1, -1, 2] }
+    }
+}
+
+pub fn ax(a: &A0, b: &[i32], c: usize) -> Vec<i32> {
+    let k = c % a.s.len();
+    b.iter().map(|v| v * a.s[k] + a.z[k]).collect()
+}
+
+pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+    b.iter().enumerate().map(|(i, v)| v * a.s[i] + a.z[i]).collect()
+}
+root@97c3eded53e7:/app# apply_patch <<'PATCH'
+otal": len(rows), "agree": len(rows) == len(raw.Raw)}}
++
++    // Report rows must be one-per-built-in-case, and produced must match raw.
++    // Keep deterministic ordering by case name.
++    rows := make([]entry, 0, len(raw.Raw))
++    rows = append(rows, raw.Raw...)
++    sort.Slice(rows, func(i, j int) bool { return rows[i].Case < rows[j].Case })
++
++    rawByCase := indexByCase(raw.Raw)
++
++    // Compare against prior report.json if present at destination.
++    agree := true
++    if prior, err := loadFinal(os.Args[2]); err == nil {
++        priorByCase := indexByCase(prior.Rows)
++        for k, r := range rawByCase {
++            p, ok := priorByCase[k]
++            if !ok || !equalRow(r, p) {
++                agree = false
++                break
++            }
++        }
++        if agree {
++            // Also ensure prior didn't have extra/missing cases.
++            if len(priorByCase) != len(rawByCase) {
++                agree = false
++            }
++        }
++    } else if !errors.Is(err, os.ErrNotExi> *** Begin Patch
+> *** Update File: cmd/align/main.go
+> @@
+>  package main
+>
+>  import (
+>      "encoding/json"
+> +    "errors"
+>      "os"
+>      "sort"
+>  )
+> @@
+>  type finalDoc struct {
+>      Rows    []entry        `json:"rows"`
+>      Summary map[string]any `json:"summary"`
+>  }
+>
+> -func fold(a []entry) []entry {
+> -    seen := map[byte]entry{}
+> -    for _, row := range a {
+> -        key := row.Case[0]
+> -        seen[key] = row
+> -    }
+> -    out := make([]entry, 0, len(seen))
+> -    for _, row := range seen {
+> -        out = append(out, row)
+> -    }
+> -    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+> -    return out
+> +func indexByCase(a []entry) map[string]entry {
+> +    m := make(map[string]entry, len(a))
+> +    for _, r := range a {
+> +        m[r.Case] = r
+> +    }
+> +    return m
+> +}
+> +
+> +func equalRow(a, b entry) bool {
+> +    if a.Case != b.Case || a.Packed != b.Packed || a.Grouped != b.Grouped || a.Reuse != b.Reuse {
+> +        return false
+> +    }
+> +    if len(a.Produced) != len(b.Produced) || len(a.Trace) != len(b.Trace) || len(a.OrderUsed) != len(b.OrderUsed) {
+> +        return false
+> +    }
+> +    for i := range a.Produced {
+> +        if a.Produced[i] != b.Produced[i] {
+> +            return false
+> +        }
+> +    }
+> +    for i := range a.Trace {
+> +        if a.Trace[i] != b.Trace[i] {
+> +            return false
+> +        }
+> +    }
+> +    for i := range a.OrderUsed {
+> +        if a.OrderUsed[i] != b.OrderUsed[i] {
+> +            return false
+> +        }
+> +    }
+> +    return true
+> +}
+> +
+> +func loadFinal(path string) (finalDoc, error) {
+> +    var doc finalDoc
+> +    buf, err := os.ReadFile(path)
+> +    if err != nil {
+> +        return doc, err
+> +    }
+> +    if err := json.Unmarshal(buf, &doc); err != nil {
+> +        return doc, err
+> +    }
+> +    return doc, nil
+>  }
+> @@
+>  func main() {
+>      if len(os.Args) != 3 {
+>          panic("usage: align raw final")
+>      }
+> @@
+>      var raw rawDoc
+>      if err := json.Unmarshal(buf, &raw); err != nil {
+>          panic(err)
+>      }
+> -    rows := fold(raw.Raw)
+> -    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+> +
+> +    // Report rows must be one-per-built-in-case, and produced must match raw.
+> +    // Keep deterministic ordering by case name.
+> +    rows := make([]entry, 0, len(raw.Raw))
+> +    rows = append(rows, raw.Raw...)
+> +    sort.Slice(rows, func(i, j int) bool { return rows[i].Case < rows[j].Case })
+> +
+> +    rawByCase := indexByCase(raw.Raw)
+> +
+> +    // Compare against prior report.json if present at destination.
+> +    agree := true
+> +    if prior, err := loadFinal(os.Args[2]); err == nil {
+> +        priorByCase := indexByCase(prior.Rows)
+> +        for k, r := range rawByCase {
+> +            p, ok := priorByCase[k]
+> +            if !ok || !equalRow(r, p) {
+> +                agree = false
+> +                break
+> +            }
+> +        }
+> +        if agree {
+> +            // Also ensure prior didn't have extra/missing cases.
+> +            if len(priorByCase) != len(rawByCase) {
+> +                agree = false
+> +            }
+> +        }
+> +    } else if !errors.Is(err, os.ErrNotExist) {
+> +        panic(err)
+> +    }
+> +
+> +    // Ensure newly written report rows match incoming raw across the six fields.
+> +    for _, rr := range rows {
+> +        r, ok := rawByCase[rr.Case]
+> +        if !ok || !equalRow(r, rr) {
+> +            agree = false
+> +            break
+> +        }
+> +    }
+> +    if len(rows) != len(raw.Raw) {
+> +        agree = false
+> +    }
+> +
+> +    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(raw.Raw), "agree": agree}}
+>      out, err := json.MarshalIndent(doc, "", "  ")
+>      if err != nil {
+>          panic(err)
+>      }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@97c3eded53e7:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: src/a0/mod.rs
+> @@
+>  pub struct A0 {
+>      seed: i32,
+>  }
+> @@
+>  impl A0 {
+>      pub fn new() -> A0 {
+>          A0 { seed: 17 }
+>      }
+>  }
+>
+>  pub fn ax(a: &A0, b: &[i32], c: usize) -> Vec<i32> {
+> -    let scale = 2 + (c as i32);
+> -    let bias = a.seed - (c as i32);
+> -    b.iter().map(|x| x * scale + bias).collect()
+> +    // Packed path: each column position must get its own scale and bias,
+> +    // not one shared pair across the whole row.
+> +    // Deterministic per-request (c) but varies per column (j).
+> +    let mut out = Vec::with_capacity(b.len());
+> +    for (j, x) in b.iter().enumerate() {
+> +        let scale = 2 + (j as i32) + (c as i32);
+> +        let bias = (a.seed - (c as i32)) + (j as i32 - 1);
+> +        out.push(x * scale + bias);
+> +    }
+> +    out
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@97c3eded53e7:/app# go test ./... 2>/dev/null || true
+?       local/aligner/cmd/align [no test files]
+?       local/aligner/internal/collate  [no test files]
+root@97c3eded53e7:/app# /app/tools/run_local.sh
+/app/tools/run_local.sh: line 3: cargo: command not found
+root@97c3eded53e7:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))
+> rep=json.load(open('/app/output/report.json'))
+> print('raw keys', raw.keys(), 'len', len(raw['raw']))
+> print('report keys', rep.keys(), 'rows', len(rep['rows']), 'summary', rep['summary'])
+> # verify produced equality per case
+> rby={e['case']:e for e in raw['raw']}
+> ok=True
+> for e in rep['rows']:
+>   rr=rby.get(e['case'])
+>   if not rr or any(e[k]!=rr[k] for k in ['produced','slot_trace','order_used','packed','grouped','reuse']):
+>     ok=False
+> print('rows_match_raw', ok)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/raw.json'
+root@97c3eded53e7:/app#

@@ -1,0 +1,22 @@
+{
+  "analysis": "All 6 cases pass with correct trace ordering. Let me verify:\n\n- **amber**: CAP 2, turn 0 accepts root+left (lane-a), turn 1 accepts leaf+side (lane-b) ✓\n- **cobalt**: CAP 1, overflow deferred to later turns ✓\n- **drake**: CAP 2, drake-cut+drake-shadow dropped (descendant chain), drake-late at turn 2 ✓\n- **ember**: CAP 1, ember-left+descendants dropped ✓\n- **flint**: CAP 2, duplicate flint-a deduplicated, flint-c dropped ✓\n- **graphite**: CAP 1, graphite-d+graphite-e dropped ✓\n\nNow let me verify ledger/journal consistency and run-one.sh.",
+  "plan": "Verify ledger and journal files match the trace, test run-one.sh, and test idempotency.",
+  "commands": [
+    {
+      "keystrokes": "echo '--- LEDGER amber ---' && cat /app/output/runtime/ledgers/amber.jsonl && echo '--- JOURNAL amber ---' && cat /app/output/runtime/journals/amber.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "echo '--- LEDGER cobalt ---' && cat /app/output/runtime/ledgers/cobalt.jsonl && echo '--- JOURNAL cobalt ---' && cat /app/output/runtime/journals/cobalt.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "echo '--- LEDGER drake ---' && cat /app/output/runtime/ledgers/drake.jsonl && echo '--- JOURNAL drake ---' && cat /app/output/runtime/journals/drake.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh amber /app/output/one-test.json /app/output/one-runtime 2>&1 && cat /app/output/one-test.json | python3 -m json.tool\n",
+      "duration": 10.0
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "analysis": "Our perl edit partially removed code but left the file in a syntactically broken state (Go syntax error near line ~28). Also the Nlink override block remains (grep shows b.Nlink = 1). We need to open internal/a0/core.go around phase_a and manually repair it: restore valid if-block structure while removing both the newline-trim and Nlink override. After compiling, rerun the matrix to regenerate restore-audit.json with corrected behavior.",
+  "plan": "1) Print internal/a0/core.go lines 1-60 with line numbers to see the damage. 2) Replace the entire phase_a function with a clean correct version using a heredoc-driven perl substitution over a range, or reconstruct the file via awk. 3) Re-run gofmt on the file. 4) Run go test ./... and then run-matrix.sh. 5) Summarize the audit results again.",
+  "commands": [
+    {
+      "keystrokes": "nl -ba internal/a0/core.go | sed -n '1,90p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's|func phase_a\\(a \\*stateX, b itemY\\) error \\{.*?\\n\\}|func phase_a(a *stateX, b itemY) error {\\n\\tif a.ByPath == nil {\\n\\t\\ta.ByPath = map[string]int{}\\n\\t}\\n\\tif b.Path == \"\" {\\n\\t\\treturn nil\\n\\t}\\n\\t// Materialization must be byte-for-byte faithful to the source tree.\\n\\t// Do not mutate payloads (e.g. trimming trailing newlines) and do not\\n\\t// discard hardlink metadata (Nlink) since downstream restore relies on\\n\\t// this to recreate hardlink groups.\\n\\tif b.Op == \"remove\" {\\n\\t\\ta.Rows = append(a.Rows, b)\\n\\t\\treturn nil\\n\\t}\\n\\tif _, ok := a.ByPath[b.Path]; ok {\\n\\t\\treturn nil\\n\\t}\\n\\ta.ByPath[b.Path] = len(a.Rows)\\n\\ta.Rows = append(a.Rows, b)\\n\\treturn nil\\n}\\n|s' internal/a0/core.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gofmt -w internal/a0/core.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go test ./...\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/restore-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    d=c.get('digest',{})\n    print(f\"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}\")\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

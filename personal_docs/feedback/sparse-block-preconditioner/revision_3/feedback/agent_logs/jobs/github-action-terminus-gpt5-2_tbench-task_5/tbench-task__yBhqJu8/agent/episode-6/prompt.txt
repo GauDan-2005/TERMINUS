@@ -1,0 +1,43 @@
+New Terminal Output:
+
+root@122b6c87f7b9:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> # Do not wipe the entire output directory: per-case audits should be comparable
+> # against an existing matrix audit.
+> rm -f "${OUT}/${NAME}-audit.json"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [ ! -x "${SOLVERCTL}" ]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}"
+> EOF
+root@122b6c87f7b9:/app# chmod +x /app/scripts/run-one.sh
+root@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+root@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+root@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt
+root@122b6c87f7b9:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.run1.json'))
+> o=json.load(open('/app/output/basalt-audit.json'))
+> mc=[c for c in m['cases'] if c['name']=='basalt'][0]
+> oc=o['cases'][0]
+> print('equal:', mc==oc)
+> print('matrix:', mc)
+> print('one   :', oc)
+> PY
+equal: True
+matrix: {'name': 'basalt', 'ok': True, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0, 'residual_agrees': True, 'hit_limit': False}
+one   : {'name': 'basalt', 'ok': True, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0, 'residual_agrees': True, 'hit_limit': False}
+root@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+root@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+root@122b6c87f7b9:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+diff: /app/output/solver-audit.run1.json: No such file or directory
+root@122b6c87f7b9:/app#

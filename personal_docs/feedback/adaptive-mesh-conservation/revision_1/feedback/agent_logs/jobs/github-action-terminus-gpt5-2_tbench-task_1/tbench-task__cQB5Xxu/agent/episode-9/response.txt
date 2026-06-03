@@ -1,0 +1,27 @@
+{
+  "analysis": "All scenarios now conserve totals: drift_ratio is 0 (or ~1e-16), and base_match true across all six cases. balanced is true everywhere, indicating reflux bookkeeping matches expectation. Persistence tamper detection was previously fixed; we should confirm that snapshot round-trip produces equivalent reports and that two clean runs are equivalent. Next: run the matrix twice and diff conservation_audit.json, and also verify persistence_audit.log remains stable and includes REJECTED for probe.",
+  "plan": "1) Re-run run-matrix.sh twice, saving outputs to two files, and compare them (diff). Expect identical or equivalent numeric output; since JSON prints many decimals, should be identical if deterministic. 2) Re-check persistence_audit.log for correct rejection/acceptance. 3) Leave final conservation_audit.json in /app/output as required.",
+  "commands": [
+    {
+      "keystrokes": "cp /app/output/conservation_audit.json /app/output/conservation_audit_run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cp /app/output/conservation_audit.json /app/output/conservation_audit_run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /app/output/conservation_audit_run1.json /app/output/conservation_audit_run2.json || true\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "tail -n +1 /app/output/persistence_audit.log\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

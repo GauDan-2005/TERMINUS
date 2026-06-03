@@ -1,0 +1,22 @@
+{
+  "analysis": "The script needs RUSTUP_HOME and CARGO_HOME environment variables to be set. Let me update the script to include those.",
+  "plan": "Update run_local.sh to include RUSTUP_HOME and CARGO_HOME.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/tools/run_local.sh << 'EOF'\n#!/bin/bash\nset -euo pipefail\nexport RUSTUP_HOME=\"/usr/local/rustup\"\nexport CARGO_HOME=\"/usr/local/cargo\"\nexport PATH=\"/usr/local/cargo/bin:$PATH\"\nmkdir -p /app/output /app/bin\ncargo build --release --quiet --manifest-path /app/Cargo.toml\n/app/target/release/local-infer-sandbox /app/output/raw.json\ngo build -o /app/bin/align /app/cmd/align/main.go\n/app/bin/align /app/output/raw.json /app/output/report.json\nEOF\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "chmod +x /app/tools/run_local.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -f /app/output/raw.json /app/output/report.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME=/root bash /app/tools/run_local.sh 2>&1\n",
+      "duration": 30.0
+    }
+  ]
+}

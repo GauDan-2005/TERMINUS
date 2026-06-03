@@ -1,0 +1,53 @@
+Current terminal state:
+New Terminal Output:
+
+root@608af32c58d9:/app# rm -rf /app/output && mkdir -p /app/output
+root@608af32c58d9:/app# bash /app/scripts/run-matrix.sh
+root@608af32c58d9:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> d=json.load(open(p))
+> assert 'cases' in d
+> bad=[]
+> for c in d['cases']:
+>     if not c.get('ok') or not c.get('residual_agrees'):
+>         bad.append(c)
+> print('cases', len(d['cases']))
+> print('bad', len(bad))
+> for c in bad:
+>     print(c)
+> PY
+cases 6
+bad 0
+root@608af32c58d9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.json.run1
+root@608af32c58d9:/app# for n in basalt flint shale garnet mica opal; do bash /app/scripts/run-one.sh "$n"; done
+root@608af32c58d9:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root  29 May 28 16:13 .
+drwxr-xr-x 21 root root 289 May 28 16:13 ..
+-rw-r--r--  1 root root 209 May 28 16:13 opal-audit.json
+root@608af32c58d9:/app# python3 - <<'PY'
+> import json,glob
+> m=json.load(open('/app/output/solver-audit.json.run1'))
+> by={c['name']:c for c in m['cases']}
+> all_ok=True
+> for f in sorted(glob.glob('/app/output/*-audit.json')):
+>     name=f.split('/')[-1].replace('-audit.json','')
+>     one=json.load(open(f))['cases'][0]
+>     if one!=by.get(name):
+>         all_ok=False
+>         print('DIFF', name)
+>         print(' one :', one)
+>         print(' mat :', by.get(name))
+> print('per-case match:', all_ok)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.json.run1'
+root@608af32c58d9:/app# bash /app/scripts/run-matrix.sh
+root@608af32c58d9:/app# diff -u /app/output/solver-audit.json.run1 /app/output/solver-audit.json || true
+diff: /app/output/solver-audit.json.run1: No such file or directory
+root@608af32c58d9:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

@@ -1,0 +1,51 @@
+{
+  "analysis": "A Rust toolchain manager exists at /usr/local/cargo/bin/rustup and /usr/local/rustup/toolchains, but cargo/rustc aren’t on PATH. /app/target/release/local-infer-sandbox does not exist yet. So we need to add /usr/local/cargo/bin to PATH and ensure a toolchain is installed (rustc/cargo). Then run cargo build --release and proceed.",
+  "plan": "1) Inspect /usr/local/cargo/bin contents for cargo/rustc or only rustup. 2) Use rustup to list installed toolchains and set a default; confirm cargo/rustc locations. 3) Export PATH to include /usr/local/cargo/bin (and possibly toolchain bin dir). 4) Patch /app/tools/run_local.sh to export that PATH so it works deterministically. 5) Re-run run_local.sh to generate raw.json and report.json, then we can start diagnosing any drift in outputs.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /usr/local/cargo/bin\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/usr/local/cargo/bin/rustup --version\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/usr/local/cargo/bin/rustup toolchain list || true\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "/usr/local/cargo/bin/rustup show || true\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "export PATH=/usr/local/cargo/bin:$PATH\ncommand -v rustup && command -v cargo && command -v rustc || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "export PATH=/usr/local/cargo/bin:$PATH\nrustup toolchain list\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "export PATH=/usr/local/cargo/bin:$PATH\nrustup which cargo && rustup which rustc\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "grep -n 'cargo' -n /app/tools/run_local.sh && sed -n '1,40p' /app/tools/run_local.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cp /app/tools/run_local.sh /app/tools/run_local.sh.bak\nperl -0777 -i -pe 's@#!/bin/bash\\n@#!/bin/bash\\nexport PATH=/usr/local/cargo/bin:$PATH\\n@' /app/tools/run_local.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "head -n 10 /app/tools/run_local.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/tools/run_local.sh\n",
+      "duration": 60
+    }
+  ],
+  "task_complete": false
+}

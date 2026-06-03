@@ -1,0 +1,232 @@
+New Terminal Output:
+
+root@dcbc4436cd95:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" matrix >"${OUT}/solver-audit.json"
+> EOF
+root@dcbc4436cd95:/app# chmod +x /app/scripts/run-matrix.sh
+root@dcbc4436cd95:/app# cat > /app/scripts/run-one.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> APP_ROOT="${APP_ROOT:-/app}"
+> NAME="${1:?case name required}"
+> OUT="${APP_ROOT}/output"
+> mkdir -p "${OUT}"
+>
+> bash "${APP_ROOT}/scripts/clean-room.sh"
+>
+> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+> if [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+> fi
+>
+> "${SOLVERCTL}" one "${NAME}" >"${OUT}/${NAME}-audit.json"
+> EOF
+root@dcbc4436cd95:/app# chmod +x /app/scripts/run-one.sh
+root@dcbc4436cd95:/app# rm -rf /app/output && mkdir -p /app/output
+root@dcbc4436cd95:/app# bash -lc '/app/build/bin/solverctl matrix; echo EXIT:$?'
+EXIT:0
+root@dcbc4436cd95:/app# bash -lc '/app/build/bin/solverctl one basalt; echo EXIT:$?'
+EXIT:0
+root@dcbc4436cd95:/app# bash /app/scripts/run-matrix.sh; echo MATRIX_EXIT:$?
+MATRIX_EXIT:0
+root@dcbc4436cd95:/app# ls -la /app/output && wc -c /app/output/solver-audit.json || true
+total 4
+drwxr-xr-x  2 root root   31 May 28 16:11 .
+drwxr-xr-x 20 root root  278 May 28 16:11 ..
+-rw-r--r--  1 root root 1202 May 28 16:11 solver-audit.json
+1202 /app/output/solver-audit.json
+root@dcbc4436cd95:/app# head -n 50 /app/output/solver-audit.json || true
+{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": false,
+root@dcbc4436cd95:/app# sed -n '1,200p' /app/src/main.cpp
+#include "../include/case_spec.h"
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
+
+static const char *CASES[] = {"basalt", "flint", "shale", "garnet", "mica", "opal", NULL};
+
+static int run_named(const char *name, const char *out_dir, SolveResult *res) {
+    char path[512];
+    CaseSpec spec;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.case", name);
+    if (case_load(path, &spec) != 0) {
+        return -1;
+    }
+    return run_u(&spec, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        SolveResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/solver-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        SolveResult res;
+        char audit[512];
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_t(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
+    return 1;
+}
+root@dcbc4436cd95:/app# sed -n '1,240p' /app/flow_t/report.cpp
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const SolveResult *res, int last) {
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
+    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
+    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
+    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
+    fprintf(fp, "      \"hit_limit\": %s\n    }", res->hit_limit ? "true" : "false");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+}
+
+int emit_t(const SolveResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const SolveResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (int i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+root@dcbc4436cd95:/app# python3 - <<'PY'
+> import json,sys,os
+> p='/app/output/solver-audit.json'
+> if not os.path.exists(p):
+>     print('missing',p); sys.exit(0)
+> try:
+>     data=json.load(open(p))
+> except Exception as e:
+>     print('json parse error',e); sys.exit(0)
+> print('keys',sorted(data.keys()))
+> cases=data.get('cases',[])
+> print('cases',len(cases))
+> for c in cases:
+>     print(c.get('name'),c.get('ok'),c.get('iterations'),c.get('final_residual'),c.get('reported_residual'),c.get('residual_agrees'),c.get('hit_limit'))
+> PY
+keys ['cases']
+cases 6
+basalt False 1 0 0.0001 False False
+flint False 1 0 0.0001 False False
+shale False 1 0 0.0001 False False
+garnet False 1 0 0.0001 False False
+mica False 1 0 0.0001 False False
+opal False 1 0 0.0001 False False
+root@dcbc4436cd95:/app#

@@ -1,0 +1,56 @@
+New Terminal Output:
+
+root@1465729b6301:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: internal/a0/core.go
+> @@
+>  func phase_a(a *stateX, b itemY) error {
+> @@
+> -        if b.Op == "write" && b.Seq%5 == 0 {
+> -                b.Data = strings.TrimSuffix(b.Data, "\n")
+> -        }
+> -        if b.Op == "write" && b.Nlink > 1 {
+> -                b.Nlink = 1
+> -        }
+> +        // Materialization must be byte-for-byte faithful to the source tree.
+> +        // Do not mutate payloads (e.g. trimming trailing newlines) and do not
+> +        // discard hardlink metadata (Nlink) since downstream restore relies on
+> +        // this to recreate hardlink groups.
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@1465729b6301:/app# go test ./...
+?       staged.local/snapshot/cmd/apex  [no test files]
+?       staged.local/snapshot/cmd/ctl   [no test files]
+?       staged.local/snapshot/internal/a0       [no test files]
+?       staged.local/snapshot/internal/b1       [no test files]
+?       staged.local/snapshot/internal/c2       [no test files]
+?       staged.local/snapshot/internal/d3       [no test files]
+?       staged.local/snapshot/internal/e4       [no test files]
+?       staged.local/snapshot/internal/f5       [no test files]
+?       staged.local/snapshot/internal/g6       [no test files]
+?       staged.local/snapshot/internal/h7       [no test files]
+root@1465729b6301:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     d=c.get('digest',{})
+>     print(f"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={
+len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}")
+> PY
+alpha: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=3
+beta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=7
+delta: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=3
+epsilon: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+gamma: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+zeta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=9
+root@1465729b6301:/app#

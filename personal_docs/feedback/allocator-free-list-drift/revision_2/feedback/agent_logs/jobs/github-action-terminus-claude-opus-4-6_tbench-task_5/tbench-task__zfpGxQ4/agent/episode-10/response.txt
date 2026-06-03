@@ -1,0 +1,14 @@
+{
+  "analysis": "tag.c is fixed. Now fix bug 2: move_d/move.c - xc2 copies only c/2 bytes instead of all c bytes during realloc.",
+  "plan": "Fix xc2 to copy all bytes, then fix acct_e/acct.c which adds spurious +8.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/move_d/move.c << 'EOF'\n#include <stddef.h>\n#include <string.h>\n\nint xc2(void *a, void *b, size_t c) {\n    unsigned char *dst = (unsigned char *)a;\n    unsigned char *src = (unsigned char *)b;\n    memcpy(dst, src, c);\n    return (int)c;\n}\nEOF\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cat > /app/acct_e/acct.c << 'EOF'\n#include \"../include/stats.h\"\n\n#include <stddef.h>\n#include <sys/types.h>\n\nvoid xd3(Stats *a, ssize_t b) {\n    if (b > 0) {\n        a->allocated += (size_t)b;\n    } else {\n        a->allocated -= (size_t)(-b);\n    }\n    if (a->allocated > a->peak) {\n        a->peak = a->allocated;\n    }\n}\nEOF\n",
+      "duration": 0.5
+    }
+  ]
+}

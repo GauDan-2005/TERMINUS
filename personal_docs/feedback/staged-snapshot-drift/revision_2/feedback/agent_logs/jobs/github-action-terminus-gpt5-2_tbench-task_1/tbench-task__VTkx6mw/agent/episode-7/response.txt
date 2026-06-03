@@ -1,0 +1,31 @@
+{
+  "analysis": "Materialize attempts to preserve hardlinks via groups[key]=target and os.Link(existing,target). However, phase_a in RowsFromTree is corrupting rows: it trims newline for every 5th write (Seq%5==0), and it forcibly sets Nlink=1 for any write row with Nlink>1. That destroys both content fidelity and hardlink identity information, causing digest mismatches and missing hardlink groups in restored (all nlink=1). Also phase_a deduplicates by path and ignores subsequent rows for same path, which breaks ordered/restart semantics (gamma’s flow updates). These intentional-looking mutations are exactly why all six cases fail. Fix: phase_a must not mutate Data, must preserve Nlink, and must not drop later rows (should keep all rows to replay). ByPath/pack behavior seems wrong for an append-only log.\n\nWe should adjust phase_a to simply append valid rows (maybe still ignore empty Path), without deduplication or destructive normalization. Then Materialize with FoldRows (now correct) should yield identical trees with proper hardlinks and final contents.",
+  "plan": "1) Edit internal/a0/core.go: rewrite phase_a to only append rows (and maintain ByPath only if needed elsewhere; simplest: remove ByPath use, keep it nil). Remove the Seq%5 newline trimming and Nlink clobbering, and remove the \"already seen path -> return nil\" logic so updates/removes replay correctly. 2) Rebuild and rerun matrix. 3) Verify all cases ok=true and restored groups match source (via python parsing).",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's@func phase_a\\(a \\*stateX, b itemY\\) error \\{.*?\\n\\}@func phase_a(a *stateX, b itemY) error {\\n        if b.Path == \"\" {\\n                return nil\\n        }\\n        // Preserve the append-only row stream exactly; materialization/replay\\n        // relies on later rows overwriting earlier ones and on original hardlink\\n        // identity fields (Dev/Ino/Nlink) remaining intact.\\n        a.Rows = append(a.Rows, b)\\n        return nil\\n}\\n@sm' /app/internal/a0/core.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"func phase_a\" -n -B2 -A25 /app/internal/a0/core.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  print(c['name'], 'ok='+str(c['ok']), 'src_groups='+str(len(c['groups']['source'])), 'res_groups='+str(len(c['groups']['restored'])))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nbad=[c['name'] for c in d['cases'] if not c['ok']]\nprint('failing:', bad)\nPY\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

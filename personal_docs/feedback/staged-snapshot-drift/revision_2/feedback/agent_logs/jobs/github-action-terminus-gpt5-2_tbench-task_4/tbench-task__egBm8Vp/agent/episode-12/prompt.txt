@@ -1,0 +1,194 @@
+New Terminal Output:
+
+root@1465729b6301:/app# sed -n '1,80p' internal/a0/core.go
+package a0
+
+import (
+        "os"
+        "path/filepath"
+        "sort"
+        "strings"
+        "syscall"
+
+        "staged.local/snapshot/internal/b1"
+        "staged.local/snapshot/internal/d3"
+        "staged.local/snapshot/internal/f5"
+)
+
+type stateX struct {
+        Rows   []itemY
+        ByPath map[string]int
+}
+
+type itemY = f5.Row
+
+func phase_a(a *stateX, b itemY) error {
+        if a.ByPath == nil {
+                a.ByPath = map[string]int{}
+        }
+        if b.Path == "" {
+                return nil
+        }
+        // Materialization must be byte-for-byte faithful to the source tree.
+        // Do not mutate payloads (e.g. trimming trailing newlines) and do not
+        // discard hardlink metadata (Nlink) since downstream restore relies on
+        // this to recreate hardlink groups.
+        if b.Op == "remove" {
+                a.Rows = append(a.Rows, b)
+                return nil
+        }
+        if _, ok := a.ByPath[b.Path]; ok {
+                return nil
+        }
+        a.ByPath[b.Path] = len(a.Rows)
+        a.Rows = append(a.Rows, b)
+        return nil
+}
+
+func emit_a(path string, data string) error {
+        if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+                return err
+        }
+        return os.WriteFile(path, []byte(data), 0o644)
+}
+
+func CreateTree(root string, profile f5.Profile) error {
+        dirs := []string{"a", "b", "c"}
+        if profile.Dense {
+                dirs = append(dirs, "deep/x")
+        }
+        if profile.Roll {
+                dirs = append(dirs, "d")
+        }
+        for _, dir := range dirs {
+                if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
+                        return err
+                }
+        }
+        if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
+                return err
+        }
+        if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
+                return err
+        }
+        if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
+                return err
+        }
+        if profile.Dense {
+                shared := filepath.Join(root, "deep", "x", "shared.dat")
+                if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
+                        return err
+                }
+                for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
+                        alias := filepath.Join(root, filepath.FromSlash(rel))
+root@1465729b6301:/app# perl -0777 -i -pe 's/func phase_a\(a \*stateX, b itemY\) error \{.*?\n\}/func phase_a(a *stateX, b itemY) error {\n\tif a.ByPath == nil
+{\n\t\ta.ByPath = map[string]int{}\n\t}\n\tif b.Path == "" {\n\t\treturn nil\n\t}\n\t// Keep the full row stream in sequence order; later writes/removes must\n\
+t// be replayed to reach the correct final state (e.g. ordered/restart cases).\n\ta.Rows = append(a.Rows, b)\n\treturn nil\n}\n/s' internal/a0/core.go
+Backslash found where operator expected (Missing operator before "\"?) at -e line 1, near "n\"
+syntax error at -e line 1, near "n\"
+Execution of -e aborted due to compilation errors.
+root@1465729b6301:/app# gofmt -w internal/a0/core.go
+root@1465729b6301:/app# sed -n '1,260p' internal/c2/table.go
+package c2
+
+func newC() *mapX {
+        return &mapX{Items: map[string]entryX{}}
+}
+root@1465729b6301:/app# sed -n '1,260p' internal/c2/roll.go
+package c2
+
+import (
+        "sort"
+        "strings"
+
+        "staged.local/snapshot/internal/e4"
+        "staged.local/snapshot/internal/f5"
+)
+
+type mapX struct {
+        Items map[string]entryX
+}
+
+type entryX struct {
+        Path   string
+        Bytes  int
+        Period string
+}
+
+func mark_c(a *mapX, b uint64, c []entryX) error {
+        if a.Items == nil {
+                a.Items = map[string]entryX{}
+        }
+        for _, item := range c {
+                if b&1 == 1 && item.Period == "p1" {
+                        item.Period = "p0"
+                }
+                a.Items[item.Path] = item
+        }
+        return nil
+}
+
+func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
+        bytesByPath, err := e4.NativeBytes(root)
+        if err != nil {
+                return nil, err
+        }
+        entries := []entryX{}
+        for path, size := range bytesByPath {
+                period := "p0"
+                if profile.Roll && strings.HasPrefix(path, "d/") {
+                        period = "p1"
+                }
+                entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
+        }
+        sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
+        store := &mapX{}
+        var flags uint64
+        if profile.Restart && profile.Roll {
+                flags |= 1
+        }
+        if err := mark_c(store, flags, entries); err != nil {
+                return nil, err
+        }
+        items := make([]f5.AccountItem, 0, len(store.Items))
+        for _, item := range store.Items {
+                items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
+        }
+        sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+        return items, nil
+}
+root@1465729b6301:/app# go test ./...
+?       staged.local/snapshot/cmd/apex  [no test files]
+?       staged.local/snapshot/cmd/ctl   [no test files]
+?       staged.local/snapshot/internal/a0       [no test files]
+?       staged.local/snapshot/internal/b1       [no test files]
+?       staged.local/snapshot/internal/c2       [no test files]
+?       staged.local/snapshot/internal/d3       [no test files]
+?       staged.local/snapshot/internal/e4       [no test files]
+?       staged.local/snapshot/internal/f5       [no test files]
+?       staged.local/snapshot/internal/g6       [no test files]
+?       staged.local/snapshot/internal/h7       [no test files]
+root@1465729b6301:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     d=c.get('digest',{})
+>     print(f"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={
+len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}")
+> PY
+alpha: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=3
+beta: ok=False digest_equal=True groups_src=1 groups_rst=1 accounting=7
+delta: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=3
+epsilon: ok=False digest_equal=True groups_src=0 groups_rst=0 accounting=4
+gamma: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+zeta: ok=False digest_equal=False groups_src=1 groups_rst=1 accounting=9
+root@1465729b6301:/app#

@@ -1,0 +1,328 @@
+New Terminal Output:
+
+root@ccbd9cc473ba:/app# sed -n '1,220p' /app/internal/exec/run.go
+package exec
+
+import (
+        "encoding/json"
+        "fmt"
+        "os"
+        "path/filepath"
+        "strconv"
+        "strings"
+
+        "fog.local/resume/internal/mem"
+        "fog.local/resume/internal/mod"
+        "fog.local/resume/internal/slot"
+        "fog.local/resume/internal/store"
+        "fog.local/resume/internal/vis"
+)
+
+func sigFor(moves []MoveRow) string {
+        acc := int64(2166136261)
+        for _, m := range moves {
+                acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+                for _, ch := range m.Actor + m.Kind {
+                        acc ^= int64(ch)
+                        acc = (acc * 16777619) & 0x7fffffff
+                }
+        }
+        return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+        size := w.Width * w.Height
+        seen := append([]bool(nil), w.Seen...)
+        lit := append([]bool(nil), w.Lit...)
+        if len(seen) != size {
+                seen = make([]bool, size)
+        }
+        if len(lit) != size {
+                lit = make([]bool, size)
+        }
+        return &World{
+                Width: w.Width, Height: w.Height,
+                Walls:   append([]bool(nil), w.Walls...),
+                PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+                Hostile: append([]Hostile(nil), w.Hostile...),
+                Turn:    w.Turn,
+                Seen:    seen,
+                Lit:     lit,
+                Effects: append([]EffectState(nil), w.Effects...),
+        }
+}
+
+func applyPlayer(w *World, arg string) {
+        parts := strings.Split(arg, ",")
+        if len(parts) != 2 {
+                return
+        }
+        dx, _ := strconv.Atoi(parts[0])
+        dy, _ := strconv.Atoi(parts[1])
+        nx, ny := w.PlayerX+dx, w.PlayerY+dy
+        if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+                w.PlayerX, w.PlayerY = nx, ny
+        }
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+        out := map[string]bool{}
+        for _, h := range w.Hostile {
+                key := fmt.Sprintf("%d,%d", h.X, h.Y)
+                if extra != nil && extra[key] {
+                        out[key] = true
+                        continue
+                }
+                if vis.PlayerSees(w, h.X, h.Y) {
+                        out[key] = true
+                }
+        }
+        return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+        rows := []MoveRow{}
+        for i := range w.Hostile {
+                row, ok := slot.PlanSlot(w, cache, i)
+                if ok {
+                        rows = append(rows, row)
+                }
+        }
+        return rows
+}
+
+func blindNow(w *World) bool {
+        for _, e := range w.Effects {
+                if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+                        return true
+                }
+        }
+        return false
+}
+
+func snapToMod(effects []EffectState) []mod.EffectSnap {
+        out := make([]mod.EffectSnap, len(effects))
+        for i, e := range effects {
+                out[i] = mod.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+        }
+        return out
+}
+
+func mapSnaps(snaps []mod.EffectSnap) []EffectState {
+        out := make([]EffectState, len(snaps))
+        for i, s := range snaps {
+                out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+        }
+        return out
+}
+
+func profileToMod(p Profile) mod.ProfileSnap {
+        return mod.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func mapRowSnaps(rows []mod.RowSnap) []EffectRow {
+        out := make([]EffectRow, len(rows))
+        for i, r := range rows {
+                out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+        }
+        return out
+}
+
+func packWorld(w *World, obs map[string]bool) store.ItemY {
+        effects := make([]store.EffectSnap, len(w.Effects))
+        for i, e := range w.Effects {
+                effects[i] = store.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+        }
+        hostiles := make([]store.HostileSnap, len(w.Hostile))
+        for i, h := range w.Hostile {
+                hostiles[i] = store.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+        }
+        item := store.ItemY{
+                Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+                Effects: effects, Width: w.Width, Height: w.Height,
+                PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+        }
+        return store.PackItem(item)
+}
+
+func applyWorld(w *World, item store.ItemY) {
+        w.Width = item.Width
+        w.Height = item.Height
+        w.PlayerX = item.PlayerX
+        w.PlayerY = item.PlayerY
+        w.Turn = item.Turn
+        w.Lit = append([]bool(nil), item.Lit...)
+        w.Seen = append([]bool(nil), item.Seen...)
+        w.Hostile = make([]Hostile, len(item.Hostiles))
+        for i, h := range item.Host
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+t@ccbd9cc473ba:/app# sed -n '1,220p' /app/internal/slot/plan.go
+package slot
+
+import (
+        "fog.local/resume/internal/sim"
+        "fog.local/resume/internal/vis"
+)
+
+type tokenX string
+
+type nodeX struct {
+        Cache map[string]bool
+}
+
+func bind_d(a *nodeX, _ tokenX, c []int) (int, int, bool) {
+        if len(c) < 4 {
+                return 0, 0, false
+        }
+        px, py, hx, hy := c[0], c[1], c[2], c[3]
+        bestX, bestY := hx, hy
+        best := 1 << 30
+        for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+                nx, ny := hx+delta[0], hy+delta[1]
+                d := (nx-px)*(nx-px) + (ny-py)*(ny-py)
+                if d <= best {
+                        best = d
+                        bestX, bestY = nx, ny
+                }
+        }
+        return bestX, bestY, best < 1<<29
+}
+
+func PlanSlot(w *sim.World, cache map[string]bool, idx int) (sim.MoveRow, bool) {
+        if idx >= len(w.Hostile) {
+                return sim.MoveRow{}, false
+        }
+        h := w.Hostile[idx]
+        if !vis.PlayerSees(w, h.X, h.Y) {
+                return sim.MoveRow{}, false
+        }
+        node := &nodeX{Cache: cache}
+        tx, ty, ok := bind_d(node, tokenX(h.ID), []int{w.PlayerX, w.PlayerY, h.X, h.Y})
+        if !ok {
+                return sim.MoveRow{}, false
+        }
+        if w.IsWall(tx, ty) {
+                return sim.MoveRow{}, false
+        }
+        legal := vis.StepLegal(w, h.X, h.Y, tx, ty) && vis.PlayerSees(w, tx, ty)
+        row := sim.MoveRow{
+                Turn: w.Turn, Actor: h.ID,
+                FromX: h.X, FromY: h.Y, ToX: tx, ToY: ty,
+                Kind: "step", Legal: legal,
+        }
+        h.X, h.Y = tx, ty
+        w.Hostile[idx] = h
+        return row, true
+}
+root@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/vis/sight.go
+package vis
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+        size := w.Width * w.Height
+        if len(w.Lit) != size {
+                w.Lit = make([]bool, size)
+        }
+        for i := range w.Lit {
+                w.Lit[i] = false
+        }
+        if blind {
+                return
+        }
+        type point struct{ x, y int }
+        queue := []point{{w.PlayerX, w.PlayerY}}
+        dist := make([]int, size)
+        for i := range dist {
+                dist[i] = -1
+        }
+        start := w.Idx(w.PlayerX, w.PlayerY)
+        dist[start] = 0
+        w.Lit[start] = true
+        for len(queue) > 0 {
+                p := queue[0]
+                queue = queue[1:]
+                d := dist[w.Idx(p.x, p.y)]
+                if d >= radius {
+                        continue
+                }
+                for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+                        nx, ny := p.x+delta[0], p.y+delta[1]
+                        if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+                                continue
+                        }
+                        idx := w.Idx(nx, ny)
+                        if dist[idx] >= 0 {
+                                continue
+                        }
+                        dist[idx] = d + 1
+                        w.Lit[idx] = true
+                        queue = append(queue, point{nx, ny})
+                }
+        }
+        if len(w.Seen) != size {
+                w.Seen = make([]bool, size)
+        }
+        for i := 0; i < size; i++ {
+                if w.Lit[i] {
+                        w.Seen[i] = true
+                }
+        }
+}
+
+func CountSeen(w *sim.World) int {
+        n := 0
+        for _, v := range w.Seen {
+                if v {
+                        n++
+                }
+        }
+        return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+        if !w.InBounds(x, y) {
+                return false
+        }
+        idx := w.Idx(x, y)
+        if idx >= len(w.Seen) || idx >= len(w.Lit) {
+                return false
+        }
+        litIdx := idx
+        if y == w.Height-1 && y > 0 {
+                litIdx = w.Idx(x, y-1)
+        }
+        return w.Seen[idx] && w.Lit[litIdx]
+}
+root@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/vis/native.go
+package vis
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/../../probe
+#include <stdlib.h>
+#include "legality.h"
+#include "../../probe/legality.c"
+*/
+import "C"
+import (
+        "fog.local/resume/internal/sim"
+        "unsafe"
+)
+
+func StepLegal(w *sim.World, x0, y0, x1, y1 int) bool {
+        n := w.Width * w.Height
+        buf := C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof(C.int(0))))
+        if buf == nil {
+                return false
+        }
+        defer C.free(buf)
+        grid := (*[1 << 30]C.int)(buf)[:n:n]
+        for i, wall := range w.Walls {
+                if wall {
+                        grid[i] = 1
+                }
+        }
+        ctx := C.struct_qx{width: C.int(w.Width), height: C.int(w.Height), grid: (*C.int)(buf)}
+        return C.walk_e(&ctx, C.int(x0), C.int(y0), C.int(x1), C.int(y1)) == 1
+}
+root@ccbd9cc473ba:/app#

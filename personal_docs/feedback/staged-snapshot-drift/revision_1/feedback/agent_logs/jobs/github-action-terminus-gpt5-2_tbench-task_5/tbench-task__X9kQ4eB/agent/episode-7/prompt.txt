@@ -1,0 +1,57 @@
+New Terminal Output:
+
+root@fa0a66effa9b:/app# perl -0777 -i -pe 's/\n\s*if b\.Op == "write" && b\.Nlink > 1 \{\n\s*b\.Nlink = 1\n\s*\}\n/\n/sg' /app/internal/a0/core.go
+root@fa0a66effa9b:/app# grep -n "Nlink > 1" -n /app/internal/a0/core.go || true
+root@fa0a66effa9b:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@fa0a66effa9b:/app# work=/tmp/matrix-work; rm -rf "$work"; mkdir -p "$work"; /app/bin/snapctl --out /app/output/restore-audit.json --work "$work" --case bet
+a
+root@fa0a66effa9b:/app# echo '--- beta restored shared inodes/links after patch'; (cd /tmp/matrix-work/beta/restored && ls -li a/shared-a.dat b/shared-b.dat c/s
+hared-c.dat deep/x/shared.dat)
+--- beta restored shared inodes/links after patch
+498146688 -rw-r--r-- 1 root root 20 May 25 12:07 a/shared-a.dat
+499153067 -rw-r--r-- 1 root root 20 May 25 12:07 b/shared-b.dat
+500212448 -rw-r--r-- 1 root root 20 May 25 12:07 c/shared-c.dat
+502276632 -rw-r--r-- 1 root root 20 May 25 12:07 deep/x/shared.dat
+root@fa0a66effa9b:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> for c in obj['cases']:
+>     if c['name']=='beta':
+>         print('ok', c['ok'])
+>         print('digestMatch', c['digest']['source']==c['digest']['restored'])
+>         print('groups source', c['groups']['source'])
+>         print('groups restored', c['groups']['restored'])
+> PY
+ok False
+digestMatch False
+groups source [['a/shared-a.dat', 'b/shared-b.dat', 'c/shared-c.dat', 'deep/x/shared.dat']]
+groups restored []
+root@fa0a66effa9b:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@fa0a66effa9b:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> for c in obj['cases']:
+>     print(c['name'], 'ok='+str(c['ok']), 'digestMatch='+str(c['digest']['source']==c['digest']['restored']), 'groupsMatch='+str(c['groups']['source']==c['grou
+ps']['restored']), 'acctN='+str(len(c['accounting'])))
+> PY
+alpha ok=False digestMatch=False groupsMatch=True acctN=3
+beta ok=False digestMatch=False groupsMatch=False acctN=7
+delta ok=False digestMatch=False groupsMatch=True acctN=3
+epsilon ok=False digestMatch=False groupsMatch=True acctN=4
+gamma ok=False digestMatch=False groupsMatch=True acctN=4
+zeta ok=False digestMatch=False groupsMatch=False acctN=9
+root@fa0a66effa9b:/app#

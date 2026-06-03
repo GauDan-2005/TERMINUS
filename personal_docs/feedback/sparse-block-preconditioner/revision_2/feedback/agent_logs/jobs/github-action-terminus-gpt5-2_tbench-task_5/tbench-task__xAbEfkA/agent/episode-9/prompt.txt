@@ -1,0 +1,30 @@
+Current terminal state:
+New Terminal Output:
+
+root@608af32c58d9:/app# python3 - <<'PY'
+> import json,glob,os
+> m=json.load(open('/tmp/solver-audit.json.run1'))
+> by={c['name']:c for c in m['cases']}
+> all_ok=True
+> files=[f for f in glob.glob('/app/output/*-audit.json') if not f.endswith('/solver-audit.json')]
+> print('case_files', len(files))
+> for f in sorted(files):
+>     name=os.path.basename(f).replace('-audit.json','')
+>     one=json.load(open(f))['cases'][0]
+>     if one!=by.get(name):
+>         all_ok=False
+>         print('DIFF', name)
+>         print(' one :', one)
+>         print(' mat :', by.get(name))
+> print('per-case match:', all_ok)
+> PY
+case_files 6
+per-case match: True
+root@608af32c58d9:/app# cp /app/output/solver-audit.json /tmp/solver-audit.json.run2
+root@608af32c58d9:/app# bash /app/scripts/run-matrix.sh
+root@608af32c58d9:/app# cp /app/output/solver-audit.json /tmp/solver-audit.json.run3
+root@608af32c58d9:/app# diff -u /tmp/solver-audit.json.run2 /tmp/solver-audit.json.run3 || true
+root@608af32c58d9:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

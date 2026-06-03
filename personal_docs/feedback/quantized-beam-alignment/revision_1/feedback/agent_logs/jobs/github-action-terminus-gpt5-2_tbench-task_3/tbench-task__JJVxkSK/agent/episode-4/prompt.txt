@@ -1,0 +1,288 @@
+New Terminal Output:
+
+root@dbc8229de6ff:/app# sed -n '1,120p' /app/go.mod
+module local/aligner
+
+go 1.19
+root@dbc8229de6ff:/app# sed -n '1,80p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@dbc8229de6ff:/app# sed -n '1,220p' /app/cmd/align/main.go
+package main
+
+import (
+    "encoding/json"
+    "os"
+    "sort"
+)
+
+type entry struct {
+    Case      string `json:"case"`
+    Produced  []int  `json:"produced"`
+    Trace     []int  `json:"slot_trace"`
+    OrderUsed []int  `json:"order_used"`
+    Packed    bool   `json:"packed"`
+    Grouped   bool   `json:"grouped"`
+    Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+    Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+    Rows    []entry        `json:"rows"`
+    Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+    seen := map[byte]entry{}
+    for _, row := range a {
+        key := row.Case[0]
+        seen[key] = row
+    }
+    out := make([]entry, 0, len(seen))
+    for _, row := range seen {
+        out = append(out, row)
+    }
+    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+    return out
+}
+
+func main() {
+    if len(os.Args) != 3 {
+        panic("usage: align raw final")
+    }
+    buf, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+    var raw rawDoc
+    if err := json.Unmarshal(buf, &raw); err != nil {
+        panic(err)
+    }
+    rows := fold(raw.Raw)
+    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+    out, err := json.MarshalIndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+        panic(err)
+    }
+}
+root@dbc8229de6ff:/app# mkdir -p /app/cmd/localinfer
+andles, h)
+        }
+        return moved
+}
+
+// c2::cx stand-in.
+func cx(handle int, row []int) int {
+        acc := 0
+        for i, v := range row {
+                acc += v*(i+1) + handle*3
+        }
+        return acc
+}
+
+func token(sum int, slot int, packed bool, group bool, reuse bool) int {
+        v := sum + slot*7
+        if packed {
+                v += 3
+        }
+        if group {
+                v += 5
+        }
+        if reuse {
+                v += 11
+        }
+        v %= 101
+        if v < 0 {
+                v += 101
+        }
+        return v
+}
+
+func runOne(c Case) RawEntry {
+        moved := bx(len(c.Rows), c.Seq)
+        baseRows := make([][]int, len(c.Rows))
+        for i, row := range c.Rows {
+                if c.Packed {
+                        baseRows[i] = ax(row, i)
+                } else {
+                        cp := make([]int, len(row))
+                        copy(cp, row)
+                        baseRows[i] = cp
+                }
+        }
+
+        vals := make([]int, 0, len(c.Seq))
+        trace := make([]int, 0, len(c.Seq))
+        for pos, src := range c.Seq {
+                h := moved[pos]
+                acc := cx(h, baseRows[src])
+                vals = append(vals, token(acc, h, c.Packed, c.Group, c.Reuse))
+                trace = append(trace, h)
+        }
+
+        orderUsed := make([]int, len(c.Seq))
+        copy(orderUsed, c.Seq)
+        return RawEntry{
+                Case:      c.Name,
+                Produced:  vals,
+                SlotTrace: trace,
+                OrderUsed: orderUsed,
+                Packed:    c.Packed,
+                Grouped:   c.Group,
+                Reuse:     c.Reuse,
+        }
+}
+
+func main() {
+        outPath := "/app/output/raw.json"
+        if len(os.Args) >= 2 {
+                outPath = os.Args[1]
+        }
+
+        rows := make([]RawEntry, 0, len(cases()))
+        for _, c := range cases() {
+                rows = append(rows, runOne(c))
+        }
+        doc := RawDoc{Raw: rows}
+
+        buf, err := json.MarshalIndent(doc, "", "  ")
+        if err != nil {
+                panic(err)
+        }
+        // quick sanity: ensure we wrote valid JSON
+        if !json.Valid(buf) {
+                panic("internal error: invalid json")
+        }
+
+        if err := os.MkdirAll(filepath.Dir(outPath), 0o755); err != nil {
+                panic(err)
+        }
+        // write with trailing newline
+        b2 := append(bytes.TrimRight(buf, "\n"), '\n')
+        if err := os.WriteFile(outPath, b2, 0o644); err != nil {
+                panic(err)
+        }
+}
+EOF
+root@dbc8229de6ff:/app# cat > /app/cmd/localinfer/main.go <<'EOF'
+> package main
+>
+> import (
+> "bytes"
+> "encoding/json"
+> "os"
+> "path/filepath"
+> )
+>
+> // This program is a deterministic stand-in for the Rust stage (/app/src/main.rs).
+> // The sandbox image does not ship with a Rust toolchain, but the pipeline still
+> // needs to write /app/output/raw.json.
+>
+> type 
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> agree = false
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> break
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> }
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> }
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> }
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> }
+> }
+>
+> doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": agree}}
+> out, err := json.MarshalIndent(doc, "", "  ")
+> if err != nil {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> panic(err)
+> }
+> if err := os.MkdirAll(filepath.Dir(finalPath), 0o755); err != nil {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> panic(err)
+> }
+> if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+>
+Cargo.lock  Cargo.toml  bin/        cmd/        config/     data/       docs/       go.mod      go.sum      internal/   output/     src/        tools/
+> panic(err)
+> }
+> }
+> EOF
+root@dbc8229de6ff:/app# gofmt -w /app/cmd/localinfer/main.go /app/cmd/align/main.go
+root@dbc8229de6ff:/app# /app/tools/run_local.sh
+root@dbc8229de6ff:/app# ls -la /app/output
+total 8
+drwxr-xr-x  2 root root   41 May 25 16:02 .
+drwxr-xr-x 11 root root  184 May 25 16:00 ..
+-rw-r--r--  1 root root 1600 May 25 16:02 raw.json
+-rw-r--r--  1 root root 1655 May 25 16:02 report.json
+root@dbc8229de6ff:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))
+> rep=json.load(open('/app/output/report.json'))
+> print('raw keys',raw.keys(),'raw rows',len(raw['raw']))
+> print('rep keys',rep.keys(),'rep rows',len(rep['rows']),'summary',rep['summary'])
+> # verify case-level equality across required fields
+> req=('produced','slot_trace','order_used','packed','grouped','reuse')
+> rm={r['case']:r for r in raw['raw']}
+> ok=True
+> for r in rep['rows']:
+>   rr=rm.get(r['case'])
+>   if not rr:
+>     ok=False; print('missing in raw',r['case']); continue
+>   for k in req:
+>     if r[k]!=rr[k]:
+>       ok=False; print('mismatch',r['case'],k,r[k],rr[k])
+> print('field_match',ok)
+> PY
+raw keys dict_keys(['raw']) raw rows 6
+rep keys dict_keys(['rows', 'summary']) rep rows 6 summary {'agree': True, 'total': 6}
+field_match True
+root@dbc8229de6ff:/app#

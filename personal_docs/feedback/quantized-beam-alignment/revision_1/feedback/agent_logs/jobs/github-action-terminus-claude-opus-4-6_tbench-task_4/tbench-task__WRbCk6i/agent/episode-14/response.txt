@@ -1,0 +1,22 @@
+{
+  "analysis": "The mismatch detection works correctly - when the existing report.json had a tampered produced value, agree was set to false. Now I need to run it cleanly one more time to leave the system in the correct final state.",
+  "plan": "Remove output files and run clean to leave the system in correct final state with agree=true.",
+  "commands": [
+    {
+      "keystrokes": "rm -f /app/output/raw.json /app/output/report.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/tools/run_local.sh 2>&1\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "cat /app/output/report.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print('rows:', len(d['rows']), 'total:', d['summary']['total'], 'agree:', d['summary']['agree'])\"\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cat /app/output/raw.json | python3 -c \"import json,sys; d=json.load(sys.stdin); print('raw entries:', len(d['raw'])); [print(' ', r['case'], r['produced'], r['slot_trace'], r['order_used'], r['packed'], r['grouped'], r['reuse']) for r in d['raw']]\"\n",
+      "duration": 0.5
+    }
+  ]
+}

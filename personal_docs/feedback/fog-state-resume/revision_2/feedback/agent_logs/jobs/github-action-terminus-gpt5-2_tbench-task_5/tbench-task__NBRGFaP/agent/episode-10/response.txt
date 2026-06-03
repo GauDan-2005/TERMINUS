@@ -1,0 +1,39 @@
+{
+  "analysis": "Found the root cause: store.PackItem is wrong. It sets out.Seen = st.Lit (copying Lit into Seen), then resizes to match b.Seen length. This corrupts Seen on save/load: after packing, Seen becomes Lit (which is only the currently lit cells, not cumulative seen), and likely loses some truths, causing resume_seen smaller than fresh_seen. This exactly explains systematic fresh_seen > resume_seen after resuming from a save blob. Fix: PackItem should not overwrite Seen with Lit. It likely intended to pack state but currently mangles. Since there is no actual encoding/decoding, simplest is to just return b (or deep-copy slices) without altering fields. Implement PackItem to copy Lit/Seen (and other fields as needed) but preserve values. After that, resume_seen should match fresh_seen.\nAdditionally, audit concatenates moves and ok ignores visibility. We'll fix RunRow: write only freshMoves to Moves/sidecars, and set ok to also require visibility equality and signature match etc.",
+  "plan": "1) Fix /app/internal/store/pack.go PackItem to preserve Seen and Lit (no swapping). Remove stateX/phase_a if unnecessary, or make it a pure deep-copy. 2) Fix /app/internal/exec/run.go: set ok to include vis.CountSeen(wFresh)==vis.CountSeen(wResume); set Moves to freshMoves (or both separated; but schema has only Moves so use freshMoves), and flushRows with freshMoves so sidecars match JSON moves list. 3) Run gofmt. 4) Re-run one-case knight and matrix, verify visibility matches and duplicates gone.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/store/pack.go\n@@\n package store\n \n-type stateX struct {\n-        Lit  []bool\n-        Seen []bool\n-        Turn int\n-}\n-\n@@\n type ItemY struct {\n@@\n }\n-\n-func phase_a(a *stateX, b ItemY) error {\n-        a.Lit = append([]bool(nil), b.Lit...)\n-        a.Seen = append([]bool(nil), b.Seen...)\n-        a.Turn = b.Turn\n-        return nil\n-}\n-\n func PackItem(b ItemY) ItemY {\n-        st := &stateX{}\n-        _ = phase_a(st, b)\n-        out := b\n-        out.Seen = append([]bool(nil), st.Lit...)\n-        if len(out.Seen) < len(b.Seen) {\n-                out.Seen = append(out.Seen, make([]bool, len(b.Seen)-len(out.Seen))...)\n-        } else if len(out.Seen) > len(b.Seen) {\n-                out.Seen = out.Seen[:len(b.Seen)]\n-        }\n-        return out\n+\t// PackItem is used as the “save blob” passed across the resume boundary.\n+\t// It must preserve all state exactly; in particular Seen must remain the\n+\t// cumulative exploration map, not the current Lit mask.\n+\tout := b\n+\tout.Lit = append([]bool(nil), b.Lit...)\n+\tout.Seen = append([]bool(nil), b.Seen...)\n+\treturn out\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/exec/run.go\n@@\n \t\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n \t\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n-\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n+\t\tfreshSeen := vis.CountSeen(wFresh)\n+\t\tresumeSeen := vis.CountSeen(wResume)\n+\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\n@@\n-\t\t\tMoves:      allMoves,\n-\t\t\tVisibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n+\t\t\t// Moves are the resolved move list for the case. Fresh and resumed runs\n+\t\t\t// must agree, so we publish the fresh path and validate via signature.\n+\t\t\tMoves:      freshMoves,\n+\t\t\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/exec/run.go\n@@\n-\t\tallMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n+\t\t// Sidecars should list the resolved moves in order (same list as JSON).\n+\t\t// Since fresh/resume must match, write the fresh path only.\n+\t\tallMoves := freshMoves\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/one-case.sh knight\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/single-knight.json'\nwith open(p) as f:\n    data=json.load(f)\nc=data['cases'][0]\nprint('ok',c['ok'])\nprint('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])\nprint('moves',len(c['moves']))\nPY\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfail=[]\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('resume_seen'):\n        fail.append(c['name'])\nprint('fail',fail)\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

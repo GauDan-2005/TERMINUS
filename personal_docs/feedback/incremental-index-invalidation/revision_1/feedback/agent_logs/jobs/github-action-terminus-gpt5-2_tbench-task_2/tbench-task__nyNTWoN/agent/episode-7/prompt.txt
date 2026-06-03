@@ -1,0 +1,32 @@
+New Terminal Output:
+
+root@b06a763a4346:/app# cargo build -q
+root@b06a763a4346:/app# bash /app/scripts/run-matrix.sh
+root@b06a763a4346:/app# cp /app/output/index-report.json /tmp/index-report.1.json
+root@b06a763a4346:/app# bash /app/scripts/run-matrix.sh
+root@b06a763a4346:/app# cp /app/output/index-report.json /tmp/index-report.2.json
+root@b06a763a4346:/app# cmp -s /tmp/index-report.1.json /tmp/index-report.2.json && echo OK_byte_identical || (echo DIFF && diff -u /tmp/index-report.1.json /tm
+p/index-report.2.json | head -n 60)
+OK_byte_identical
+root@b06a763a4346:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/index-report.json'))
+> for c in obj['cases']:
+>     if (not c['ok']) or c['stale']:
+>         print('FAIL', c['name'], c['ok'], c['stale'])
+>         break
+> else:
+>     print('ALL_OK', [c['name'] for c in obj['cases']])
+> PY
+ALL_OK ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']
+root@b06a763a4346:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/index-report.json'))
+> alpha=[c for c in obj['cases'] if c['name']=='alpha'][0]
+> print(alpha)
+> PY
+{'name': 'alpha', 'ok': True, 'observations': [{'label': 'alpha_before', 'symbol': 'Widget', 'found': True, 'path': '/app/fixtures/alpha/ws-old/src/widget.ts',
+'source': '/app/fixtures/alpha/ws-old/src/widget.ts', 'line': 1, 'epoch': 1, 'reused': False, 'fresh': True}, {'label': 'alpha_after', 'symbol': 'Widget', 'foun
+d': True, 'path': '/app/fixtures/alpha/ws-new/src/widget.ts', 'source': '/app/fixtures/alpha/ws-new/src/widget.ts', 'line': 1, 'epoch': 2, 'reused': False, 'fre
+sh': True}], 'stale': []}
+root@b06a763a4346:/app#

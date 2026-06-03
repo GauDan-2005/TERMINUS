@@ -1,0 +1,27 @@
+{
+  "analysis": "After rewriting a0/core.go properly, alpha/delta/epsilon now have digestMatch true and groupsMatch true, so the newline-trim and nlink clobber were major issues fixed. Remaining: beta groups mismatch (hardlinks not restored), gamma digest mismatch (restart ordering/replay issue), zeta digest+groups mismatch (hardlinks plus maybe ordered/roll interactions). Next: inspect d3.KeyFor used to identify hardlink groups during restore—likely includes Dev which differs between source and restored, preventing linking. Also gamma uses b1.FoldRows which reverses order on Restart+Ordered, likely breaking final flow.txt content. We need to patch d3.KeyFor to key on inode identity excluding Dev (or using row.Ino only) and patch b1.FoldRows to not reverse rows (or implement correct restart folding).",
+  "plan": "1) Inspect /app/internal/d3/pair.go and map.go for KeyFor logic; adjust so hardlink grouping uses stable identifiers from staging (probably Ino) and ignores Dev, and only groups when row.Nlink>1. 2) Inspect gamma profile flags (likely Restart+Ordered) and fix b1/FoldRows to keep sequence order (no reversal) so final file content matches. 3) Rerun matrix and re-check ok/digest/groups; then verify accounting/period and ok computation in cmd/ctl if any still false.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/d3/pair.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/d3/map.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/d3/pair.go /app/internal/d3/map.go | grep -n \"KeyFor\\|Dev\\|Ino\\|Nlink\" || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/b1/replay.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/f5/types.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

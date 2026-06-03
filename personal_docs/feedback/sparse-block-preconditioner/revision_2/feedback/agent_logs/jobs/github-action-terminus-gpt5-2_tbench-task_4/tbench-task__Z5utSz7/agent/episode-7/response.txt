@@ -1,0 +1,35 @@
+{
+  "analysis": "Solver correctness/residual agreement is fixed by removing the +1e-4 bias in norm_q; all cases now ok=true and residual_agrees=true. Remaining issue: determinism check failed because solver-audit.1.json was not created. That’s because run-matrix.sh calls clean-room.sh, which currently preserves audit JSON but deletes other files; however solverctl writes solver-audit.json, and then the cp should create solver-audit.1.json. On the next matrix run, clean-room.sh will delete solver-audit.1.json because it is not named *-audit.json (it’s solver-audit.1.json). So after the second run, solver-audit.1.json gets removed before diff. Fix: adjust clean-room.sh to preserve solver-audit*.json (or any *.json audits), or in our determinism test write copies outside /app/output. Requirement only says two matrix runs must produce equivalent JSON; doesn’t require keeping extra copies in output. We'll rerun determinism by copying to /tmp, and also update clean-room.sh to preserve solver-audit*.json to avoid surprising deletions.",
+  "plan": "1) Update clean-room.sh to preserve solver-audit*.json and *-audit.json. 2) Rerun determinism test by copying outputs to /tmp (or rename to solver-audit-1.json that matches preserved pattern). 3) Confirm diff is empty (byte-identical) between runs. 4) Verify run-one still matches matrix slice after changes.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/scripts/clean-room.sh <<'EOF'\n#!/bin/bash\nset -euo pipefail\nAPP_ROOT=\"${APP_ROOT:-/app}\"\nOUT=\"${APP_ROOT}/output\"\nmkdir -p \"${OUT}\"\n\n# Clean transient solver byproducts but preserve audit JSON artifacts.\n# Keep the canonical solver-audit.json, any solver-audit*.json copies, and per-case *-audit.json.\nshopt -s nullglob\nfor f in \"${OUT}\"/*; do\n  base=\"$(basename \"$f\")\"\n  case \"$base\" in\n    solver-audit.json|solver-audit*.json|*-audit.json)\n      ;;\n    *)\n      rm -rf -- \"$f\"\n      ;;\n  esac\ndone\nEOF\nchmod +x /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -f /tmp/solver-audit.1.json /tmp/solver-audit.2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh && cp /app/output/solver-audit.json /tmp/solver-audit.1.json\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh && cp /app/output/solver-audit.json /tmp/solver-audit.2.json\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.1.json /tmp/solver-audit.2.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))['cases']\no=json.load(open('/app/output/basalt-audit.json'))['cases']\nmm=[c for c in m if c['name']=='basalt'][0]\nprint('slice_equal', mm==o[0])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

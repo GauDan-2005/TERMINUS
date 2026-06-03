@@ -1,0 +1,79 @@
+New Terminal Output:
+
+root@fb196c8d4778:/app# sed -n '1,120p' /app/sync_b/halo.cpp
+#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+void op_b(CellPatch *a, const CellPatch *b, int c, int d) {
+    if (!a || !b) return;
+    int width = (b->n < 8) ? b->n : 8;
+    a->n = width;
+    for (int i = 0; i < width; i++) {
+        int src = i + d;
+        if (src < 0) src = 0;
+        if (src >= b->n) src = b->n - 1;
+        a->vol[i] = b->vol[src];
+        for (int v = 0; v < NVAR; v++) {
+            a->q[i * NVAR + v] = b->q[src * NVAR + v];
+        }
+    }
+    (void)c;
+}
+root@fb196c8d4778:/app# cat > /app/agg_q/blend.cpp <<'EOF'
+> #include "../include/cell_view.h"
+>
+> #include <string.h>
+>
+> // Conservative merge (collapse): fold fine leaves into a parent.
+> // Preserve integrated quantities for each tracked variable.
+> void fold_q(const CellPatch *a, int n, CellPatch *out) {
+>     if (!a || !out) return;
+>
+>     int k = n;
+>     if (k > a->n) k = a->n;
+>     if (k > MAX_LEAVES) k = MAX_LEAVES;
+>
+>     if (k <= 0) {
+>         memset(out, 0, sizeof(*out));
+>         return;
+>     }
+>
+>     double vtot = 0.0;
+>     double mass[NVAR];
+>     for (int v = 0; v < NVAR; v++) mass[v] = 0.0;
+>
+>     for (int i = 0; i < k; i++) {
+>         double vol = a->vol[i];
+>         if (vol <= 0.0) continue;
+>         vtot += vol;
+>         for (int v = 0; v < NVAR; v++) {
+>             mass[v] += vol * a->q[i * NVAR + v];
+>         }
+>     }
+>
+>     memset(out, 0, sizeof(*out));
+>     out->n = 1;
+>     out->vol[0] = vtot;
+>     for (int v = 0; v < NVAR; v++) {
+>         out->q[v] = (vtot > 0.0) ? (mass[v] / vtot) : 0.0;
+>     }
+> }
+> EOF
+root@fb196c8d4778:/app# cmake --build /app/build -j"$(nproc)"
+[  5%] Building CXX object CMakeFiles/sim_run.dir/agg_q/blend.cpp.o
+[ 10%] Linking CXX executable bin/sim_run
+[100%] Built target sim_run
+root@fb196c8d4778:/app# bash /app/scripts/run-matrix.sh
+root@fb196c8d4778:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/conservation_audit.json'))
+> for c in obj['cases']:
+>     print(c['name'], 'drift', c['drift_ratio'], 'balanced', c['balanced'], 'base_match', c['base_match'], 'adj', c['adjacency'])
+> PY
+storm drift 0 balanced True base_match True adj 3
+canyon drift 1.282753350231261e-16 balanced True base_match True adj 5
+plume drift 0 balanced True base_match True adj 4
+spire drift 0 balanced True base_match True adj 2
+basin drift 0 balanced False base_match True adj 0
+dune drift 0 balanced False base_match True adj 0
+root@fb196c8d4778:/app#

@@ -1,0 +1,5 @@
+The index harness under `/app` shows old definition locations in rename, generated-module, and linked-package runs. Repair it so running `bash /app/scripts/run-matrix.sh` writes a clean `/app/output/index-report.json` from the current TypeScript files rather than a canned report.
+
+The JSON has a top-level cases array matching the supplied traces. Each case reports name, ok, observations, and stale. Each observation reports label, symbol, found, path, source, line, epoch, reused, and fresh. Paths and sources use absolute `/app` paths, and epochs are nondecreasing inside each case. A found symbol points at the live definition that the case would see after its preceding edits. A missing symbol leaves path and source empty. Unchanged definitions are marked as reused across unrelated edits.
+
+The audit is clean when every case is clean, stale is empty, no deleted or previous location is reported, generated entries point back to their current source, and linked package entries follow the active target.

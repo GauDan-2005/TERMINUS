@@ -1,0 +1,192 @@
+New Terminal Output:
+
+root@bba012489ee5:/app# cat /app/acc_m/edge_corr.cpp
+#include "../include/flow_record.h"
+
+void op_m(const EdgePulse *a, FluxBank *b) {
+    if (!a || !b) return;
+    if (b->n_pending >= MAX_FACES) return;
+    int slot = b->n_pending++;
+    b->leaf[slot] = a->base_idx;
+    for (int v = 0; v < NVAR; v++) {
+        b->flux[slot * NVAR + v] = a->flux_vals[v];
+    }
+}
+root@bba012489ee5:/app# cat /app/drv_u/run_blend.cpp
+#include "phases.h"
+#include "../include/topo_link.h"
+
+#include <string.h>
+
+void phase_fold(SimState *st, const ScenarioSpec *spec) {
+    for (int v = 0; v < NVAR; v++) st->halo_q[v] = 0.0;
+
+    int seam = -1;
+    for (int c = 0; c < st->n_coarse; c++) {
+        if (st->coarse_len[c] > 1) { seam = c; break; }
+    }
+    if (seam >= 0) {
+        int start = st->coarse_start[seam];
+        int k = st->coarse_len[seam];
+        CellPatch src;
+        src.n = k;
+        for (int j = 0; j < k && j < MAX_LEAVES; j++) {
+            src.vol[j] = st->grid.cells[start + j].vol;
+            for (int v = 0; v < NVAR; v++) {
+                src.q[j * NVAR + v] = st->grid.cells[start + j].q[v];
+            }
+        }
+        CellPatch ghost;
+        memset(&ghost, 0, sizeof(ghost));
+        op_b(&ghost, &src, k, 1);
+        for (int v = 0; v < NVAR; v++) st->halo_q[v] = ghost.q[v];
+    }
+
+    if (!spec->do_collapse) return;
+
+    CellGrid folded;
+    folded.n = 0;
+    for (int c = 0; c < st->n_coarse; c++) {
+        int start = st->coarse_start[c];
+        int k = st->coarse_len[c];
+        int gi = folded.n++;
+        if (k < 2) {
+            folded.cells[gi] = st->grid.cells[start];
+            folded.cells[gi].idx = gi;
+            folded.cells[gi].tier = 0;
+            folded.cells[gi].parent = -1;
+            continue;
+        }
+        CellPatch children;
+        children.n = k;
+        for (int j = 0; j < k && j < MAX_LEAVES; j++) {
+            children.vol[j] = st->grid.cells[start + j].vol;
+            for (int v = 0; v < NVAR; v++) {
+                children.q[j * NVAR + v] = st->grid.cells[start + j].q[v];
+            }
+        }
+        CellPatch parent;
+        memset(&parent, 0, sizeof(parent));
+        fold_q(&children, k, &parent);
+        folded.cells[gi].idx = gi;
+        folded.cells[gi].tier = 0;
+        folded.cells[gi].parent = -1;
+        folded.cells[gi].vol = parent.vol[0];
+        for (int v = 0; v < NVAR; v++) folded.cells[gi].q[v] = parent.q[v];
+    }
+    for (int c = 0; c < st->n_coarse; c++) {
+        st->coarse_start[c] = c;
+        st->coarse_len[c] = 1;
+    }
+    st->grid = folded;
+}
+root@bba012489ee5:/app# cat /app/drv_u/run_sync.cpp
+#include "phases.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static int copy_with_flip(const char *src_path, const char *dst_path) {
+    FILE *in = fopen(src_path, "rb");
+    if (!in) return -1;
+    FILE *out = fopen(dst_path, "wb");
+    if (!out) { fclose(in); return -2; }
+    unsigned char buf[8192];
+    size_t total = 0;
+    size_t r;
+    while ((r = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (total == 0 && r > 8) {
+            buf[8] ^= 0xFFu;
+        }
+        fwrite(buf, 1, r, out);
+        total += r;
+    }
+    fclose(in);
+    fclose(out);
+    return 0;
+}
+
+int phase_persist(SimState *st, const char *vault_path, const char *tamper_path,
+                  const char *log_path, VaultAudit *resume_aud) {
+    if (emit_p(st, vault_path) != 0) return -1;
+
+    FILE *log = fopen(log_path, "a");
+    if (copy_with_flip(vault_path, tamper_path) == 0) {
+        SimState probe = *st;
+        VaultAudit taud;
+        memset(&taud, 0, sizeof(taud));
+        load_k(tamper_path, &probe, &taud);
+        if (log) {
+            if (taud.reason == REASON_FINGERPRINT) {
+                fprintf(log, "REJECTED reason=SIGNATURE_MISMATCH path=%s\n", tamper_path);
+            } else {
+                fprintf(log, "ACCEPTED reason=%d path=%s\n", taud.reason, tamper_path);
+            }
+        }
+    }
+
+    int rc = load_k(vault_path, st, resume_aud);
+    if (log) {
+        if (resume_aud->reason == REASON_OK) {
+            fprintf(log, "ACCEPTED reason=OK path=%s\n", vault_path);
+        } else {
+            fprintf(log, "REJECTED reason=%d path=%s\n", resume_aud->reason, vault_path);
+        }
+        fclose(log);
+    }
+    return rc;
+}
+root@bba012489ee5:/app# cat /app/src/vault_io.cpp
+#include "../include/vault_layout.h"
+
+#include <stdint.h>
+
+uint64_t vault_fnv1a(const void *data, int n_bytes, uint64_t seed) {
+    const uint8_t *p = (const uint8_t *)data;
+    uint64_t h = 0xcbf29ce484222325ull ^ seed;
+    for (int i = 0; i < n_bytes; i++) {
+        h ^= (uint64_t)p[i];
+        h *= 0x100000001b3ull;
+    }
+    return h;
+}
+root@bba012489ee5:/app# cat /app/rsm_k/resume.cpp
+#include "../include/vault_layout.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int load_k(const char *a, SimState *b, VaultAudit *c) {
+    if (!a || !b || !c) return -1;
+    memset(c, 0, sizeof(*c));
+    FILE *in = fopen(a, "rb");
+    if (!in) {
+        c->reason = REASON_MISSING;
+        snprintf(c->msg, sizeof(c->msg), "open failed");
+        return -2;
+    }
+    VaultHeader hdr;
+    if (fread(&hdr, sizeof(hdr), 1, in) != 1) {
+        fclose(in);
+        c->reason = REASON_SHORT;
+        snprintf(c->msg, sizeof(c->msg), "header short");
+        return -3;
+    }
+    if (hdr.magic != VAULT_MAGIC) {
+        fclose(in);
+        c->reason = REASON_MAGIC;
+        snprintf(c->msg, sizeof(c->msg), "bad magic 0x%x", hdr.magic);
+        return -4;
+    }
+    int n_cells = 0;
+    fread(&n_cells, sizeof(int), 1, in);
+    b->grid.n = n_cells;
+    fread(b->grid.cells, sizeof(CellView), n_cells, in);
+    memset(&b->topo, 0, sizeof(b->topo));
+    b->bank.n_pending = 0;
+    fclose(in);
+    c->reason = REASON_OK;
+    snprintf(c->msg, sizeof(c->msg), "ok");
+    return 0;
+}
+root@bba012489ee5:/app#

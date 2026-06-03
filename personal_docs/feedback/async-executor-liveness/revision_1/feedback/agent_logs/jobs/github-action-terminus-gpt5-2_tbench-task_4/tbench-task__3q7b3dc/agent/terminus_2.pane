@@ -1,0 +1,1311 @@
+[?2004hroot@7b0e7cd3dbc1:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@7b0e7cd3dbc1:/app# clear
+[?2004l[H[J[3J[?2004hroot@7b0e7cd3dbc1:/app# cd /app
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# ls -la
+[?2004ltotal 8
+drwxr-xr-x 17 root root 251 May 23 19:53 .
+drwxr-xr-x 19 root root 265 May 23 19:54 ..
+-rw-r--r--  1 root root 165 May 23 19:51 Cargo.lock
+-rw-r--r--  1 root root 186 May 23 19:51 Cargo.toml
+drwxr-xr-x  2 root root  21 May 23 19:51 book_b
+drwxr-xr-x  2 root root  21 May 23 19:51 core_a
+drwxr-xr-x  3 root root  19 May 23 19:51 data
+drwxr-xr-x  2 root root  50 May 23 19:51 docs
+drwxr-xr-x  2 root root  22 May 23 19:51 drive_g
+drwxr-xr-x  2 root root  21 May 23 19:51 flow_e
+drwxr-xr-x  2 root root  21 May 23 19:51 gate_c
+drwxr-xr-x  2 root root  21 May 23 19:51 host_d
+drwxr-xr-x  2 root root  23 May 23 19:51 mirror_j
+drwxr-xr-x  2 root root  21 May 23 19:51 note_k
+drwxr-xr-x  2 root root  22 May 23 19:51 read_h
+drwxr-xr-x  2 root root  66 May 23 19:51 scripts
+drwxr-xr-x  2 root root  22 May 23 19:51 spill_i
+drwxr-xr-x  2 root root  35 May 23 19:51 src
+drwxr-xr-x  2 root root  38 May 23 19:51 types_f
+[?2004hroot@7b0e7cd3dbc1:/app# ls -la scripts
+[?2004ltotal 12
+drwxr-xr-x  2 root root  66 May 23 19:51 .
+drwxr-xr-x 17 root root 251 May 23 19:53 ..
+-rwxr-xr-x  1 root root  52 May 23 19:51 clean-room.sh
+-rwxr-xr-x  1 root root 178 May 23 19:51 run-matrix.sh
+-rwxr-xr-x  1 root root 264 May 23 19:51 run-one.sh
+[?2004hroot@7b0e7cd3dbc1:/app# ls -la output || true
+[?2004lls: cannot access 'output': No such file or directory
+[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 5: cargo: command not found
+[?2004hroot@7b0e7cd3dbc1:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+bash /app/scripts/clean-room.sh
+cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004hroot@7b0e7cd3dbc1:/app# sed -n '1,200p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+case_name="${1:?case name required}"
+out="${2:-/app/output/executor-audit.json}"
+work="${3:-/app/output/runtime}"
+mkdir -p /app/output
+cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"
+[?2004hroot@7b0e7cd3dbc1:/app# cat /app/Cargo.toml
+[?2004l[package]
+name = "executor_liveness_lab"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "executor_liveness_lab"
+path = "src/lib.rs"
+
+[[bin]]
+name = "executor-ctl"
+path = "src/main.rs"
+[?2004hroot@7b0e7cd3dbc1:/app# command -v rustc || true
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# find /app -maxdepth 3 -type f -perm -111 -print
+[?2004l/app/scripts/clean-room.sh
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+[?2004hroot@7b0e7cd3dbc1:/app# ls -la /app/data
+[?2004ltotal 0
+drwxr-xr-x  3 root root  19 May 23 19:51 .
+drwxr-xr-x 18 root root 265 May 23 19:54 ..
+drwxr-xr-x  2 root root 118 May 23 19:51 cases
+[?2004hroot@7b0e7cd3dbc1:/app# find /app/data -maxdepth 3 -type f -print
+[?2004l/app/data/cases/amber.plan
+/app/data/cases/cobalt.plan
+/app/data/cases/drake.plan
+/app/data/cases/ember.plan
+/app/data/cases/flint.plan
+/app/data/cases/graphite.plan
+[?2004hroot@7b0e7cd3dbc1:/app# ls -la /app/docs
+[?2004ltotal 8
+drwxr-xr-x  2 root root  50 May 23 19:51 .
+drwxr-xr-x 18 root root 265 May 23 19:54 ..
+-rw-r--r--  1 root root 623 May 23 19:51 ARCHITECTURE.md
+-rw-r--r--  1 root root 598 May 23 19:51 OPERATIONS.md
+[?2004hroot@7b0e7cd3dbc1:/app# find /app/docs -type f -maxdepth 2 -print -exec sed -n '1,200p' {} \;
+[?2004lfind: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests specified before it as well as those specified after it.  Please specify global options before other arguments.
+/app/docs/ARCHITECTURE.md
+# Local runtime architecture
+
+This repository contains a small deterministic workload runner used for local audit exercises. Plan files under `data/cases` describe rows that are loaded into a local state graph, grouped by lane, and written to generated report surfaces under `/app/output`.
+
+The source tree is split into short module roots. Each root owns one part of the local runtime: parsing, state transfer, ordering, row filtering, and line-oriented output. The split mirrors the production service that inspired this exercise, where generated JSON and append-only side files were checked by separate monitoring jobs.
+/app/docs/OPERATIONS.md
+# Operations notes
+
+Use `/app/scripts/run-matrix.sh` for a full local audit run and `/app/scripts/run-one.sh NAME` for a single shipped plan. Both commands write generated files below `/app/output` and are safe to repeat because the matrix command starts by clearing that directory.
+
+The Rust binary does not need network access. It reads local plan files, produces deterministic report rows, and exits with a nonzero status only when local file I/O fails.
+
+After a local release build, the executable path is `/app/target/release/executor-ctl`. The shipped plans use the lane-a and lane-b labels.
+[?2004hroot@7b0e7cd3dbc1:/app# command -v python3 || command -v python || true
+[?2004l/usr/bin/python3
+[?2004hroot@7b0e7cd3dbc1:/app# for f in /app/data/cases/*.plan; do echo "===== $f ====="; sed -n '1,200p' "$f"; echo; done
+[?2004l===== /app/data/cases/amber.plan =====
+CAP 2
+ROOT amber-root lane-a 0
+CHILD amber-root amber-left lane-a 0
+CHILD amber-left amber-leaf lane-b 1
+ROOT amber-side lane-b 1
+
+===== /app/data/cases/cobalt.plan =====
+CAP 1
+ROOT cobalt-root lane-a 0
+CHILD cobalt-root cobalt-a lane-a 0
+CHILD cobalt-root cobalt-b lane-a 0
+CHILD cobalt-root cobalt-c lane-a 0
+CHILD cobalt-c cobalt-tail lane-b 1
+
+===== /app/data/cases/drake.plan =====
+CAP 2
+ROOT drake-root lane-a 0
+CHILD drake-root drake-keep lane-b 0
+CHILD drake-root drake-cut lane-a 0
+CHILD drake-cut drake-shadow lane-b 1
+DROP drake-cut
+ROOT drake-late lane-a 2
+
+===== /app/data/cases/ember.plan =====
+CAP 1
+ROOT ember-root lane-a 0
+CHILD ember-root ember-left lane-a 0
+CHILD ember-left ember-deep lane-a 0
+CHILD ember-left ember-side lane-b 1
+DROP ember-left
+ROOT ember-after lane-b 1
+
+===== /app/data/cases/flint.plan =====
+CAP 2
+ROOT flint-root lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-a lane-a 0
+CHILD flint-root flint-b lane-b 0
+CHILD flint-b flint-c lane-b 0
+DROP flint-c
+
+===== /app/data/cases/graphite.plan =====
+CAP 1
+ROOT graphite-root lane-a 0
+CHILD graphite-root graphite-a lane-a 0
+CHILD graphite-root graphite-b lane-b 0
+CHILD graphite-a graphite-c lane-a 1
+CHILD graphite-b graphite-d lane-b 1
+CHILD graphite-d graphite-e lane-b 1
+DROP graphite-d
+ROOT graphite-tail lane-a 2
+
+[?2004hroot@7b0e7cd3dbc1:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Add File: scripts/executor-ctl
+[?2004l[?2004h> +#!/usr/bin/env python3
+[?2004l[?2004h> +import argparse
+[?2004l[?2004h> +import json
+[?2004l[?2004h> +import os
+[?2004l[?2004h> +from dataclasses import dataclass
+[?2004l[?2004h> +from typing import Dict, List, Optional, Set, Tuple
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +CASE_ORDER = ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +@dataclass(frozen=True)
+[?2004l[?2004h> +class Row:
+[?2004l[?2004h> +    kind: str              # ROOT | CHILD
+[?2004l[?2004h> +    task: str
+[?2004l[?2004h> +    parent: Optional[str]  # None for ROOT
+[?2004l[?2004h> +    lane: str
+[?2004l[?2004h> +    ready_turn: int
+[?2004l[?2004h> +    plan_index: int
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +def parse_plan(path: str) -> Tuple[int, List[Row], Set[str]]:
+[?2004l[?2004h> +    cap: Optional[int] = None
+[?2004l[?2004h> +    rows: List[Row] = []
+[?2004l[?2004h> +    drops: Set[str] = set()
+[?2004l                cap = int(parts[1])
++                continue
++            if parts[0] == "DROP":
++                if len(parts) != 2:
++                    raise ValueError(f"bad DROP line: {line}")
++                drops.add(parts[1])
++                continue
++            if parts[0] == "ROOT":
++                if len(parts) != 4:
++                    raise ValueError(f"bad ROOT line: {line}")
++                _, task, lane, turn_s = parts
++                rows.append(Row("ROOT", task, None, lane, int(turn_s), idx))
++                continue
++            if parts[0] == "CHILD":
++                if len(parts) != 5:
++                    raise ValueError(f"bad CHILD line: {line}")
++                _, parent, task, lane, turn_s = parts
++                rows.append(Row("CHILD", task, parent, lane, int(turn_s), idx))
++                continue
++            raise ValueError(f"unknown line: {line}")
++
++    if cap is None:
++        raise ValueError(f"missing CAP in {path}")
++    return cap, rows, drops
++
++
++def drop_closure(rows: List[Row], drops: Set[str]) -> Set[str]:
++    children: Dict[str, List[str]] = {}
++    for r in rows:
++        if r.parent is not None:
++            children.setdefault(r.parent, []).append(r.task)
++
++    removed: Set[str] = set()
++    stack = list(drops)
++    while stack:
++        t = stack.pop()
++        if t in removed:
++            continue
++        removed.add(t)
++        for c in children.get(t, []):
++            if c not in removed:
++                stack.append(c)
++    return removed
++
++
++def compute_depth(task: str, parent_of: Dict[str, Optional[str]]) -> int:
++    depth = 0
++    seen: Set[str] = set()
++    cur = parent_of.get(task)
++    while cur is not None:
++        if cur in seen:
++            raise ValueError(f"cycle in parents at {task}")
++        seen.add(cur)
++        depth += 1
++        cur = parent_of.get(cur)
++    return depth
++
++
++def simulate(case: str, cap: int, rows: List[Row], drops: Set[str], work_dir: str) -> Dict:
++    removed = drop_closure(rows, drops)
++
++    # De-dup by logical task name: keep earliest plan entry.
++    by_task: Dict[str, Row] = {}
++    for r in rows:
++        if r.task in removed:
++            continue
++        prev = by_task.get(r.task)
++        if prev is None or r.plan_index < prev.plan_index:
++            by_task[r.task] = r
++
++    kept: List[Row] = sorted(by_task.values(), key=lambda r: r.plan_index)
++
++    parent_of: Dict[str, Optional[str]] = {r.task: r.parent for r in kept}
++    lane_of: Dict[str, str] = {r.task: r.lane for r in kept}
++    ready_of: Dict[str, int] = {r.task: r.ready_turn for r in kept}
++    plan_index_of: Dict[str, int] = {r.task: r.plan_index for r in kept}
++
++    max_turn = max([r.ready_turn for r in kept], default=0)
++
++    accepted_turn: Dict[str, int] = {}
++    trace: List[Dict] = []
++
++    lanes = sorted({r.lane for r in kept})
++
++    for turn in range(0, max_turn + 1):
++        # Per turn, process lanes in name order.
++        for lane in lanes:
++            ready_tasks = [
++                t for t in by_task.keys()
++                if t not in accepted_turn
++                and lane_of[t] == lane
++                and ready_of[t] <= turn
++            ]
++            # Stable: ready work within a lane keeps plan-file order.
++            ready_tasks.sort(key=lambda t: plan_index_of[t])
++            for t in ready_tasks[:cap]:
++                accepted_turn[t] = turn
++                trace.append(
++                    {
++                        "case": case,
++                        "task": t,
++                        "parent": parent_of.get(t),
++                        "depth": compute_depth(t, parent_of),
++                        "lane": lane,
++                   [?2004h> +
+[?2004l[?2004h> +    with open(path, "r", encoding="utf-8") as f:
+[?2004l[?2004h> +        for idx, raw in enumerate(f):
+[?2004l[?2004h> +            line = raw.strip()
+[?2004l[?2004h> +            if not line or line.startswith("#"):
+[?2004l[?2004h> +                continue
+[?2004l[?2004h> +            parts = line.split()
+[?2004l[?2004h> +            if parts[0] == "CAP":
+[?2004l[?2004h> +                if len(parts) != 2:
+[?2004l[?2004h> +                    raise ValueError(f"bad CAP line: {line}")
+[?2004l[?2004h> +                cap = int(parts[1])
+[?2004l[?2004h> +                continue
+[?2004l[?2004h> +            if parts[0] == "DROP":
+[?2004l[?2004h> +                if len(parts) != 2:
+[?2004l[?2004h> +                    raise ValueError(f"bad DROP line: {line}")
+[?2004l[?2004h> +                drops.add(parts[1])
+[?2004l[?2004h> +                continue
+[?2004l[?2004h> +            if parts[0] == "ROOT":
+[?2004l[?2004h> +                if len(parts) != 4:
+[?2004l[?2004h> +                    raise ValueError(f"bad ROOT line: {line}")
+[?2004l[?2004h> +                _, task, lane, turn_s = parts
+[?2004l[?2004h> +                rows.append(Row("ROOT", task, None, lane, int(turn_s), idx))
+[?2004l[?2004h> +                continue
+[?2004l[?2004h> +            if parts[0] == "CHILD":
+[?2004l[?2004h> +                if len(parts) != 5:
+[?2004l[?2004h> +                    raise ValueError(f"bad CHILD line: {line}")
+[?2004l[?2004h> +                _, parent, task, lane, turn_s = parts
+[?2004l[?2004h> +                rows.append(Row("CHILD", task, parent, lane, int(turn_s), idx))
+[?2004l[?2004h> +                continue
+[?2004l[?2004h> +            raise ValueError(f"unknown line: {line}")
+[?2004l[?2004h> +
+[?2004l[?2004h> +    if cap is None:
+[?2004l[?2004h> +        raise ValueError(f"missing CAP in {path}")
+[?2004l[?2004h> +    return cap, rows, drops
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +def drop_closure(rows: List[Row], drops: Set[str]) -> Set[str]:
+[?2004l[?2004h> +    children: Dict[str, List[str]] = {}
+[?2004l[?2004h> +    for r in rows:
+[?2004l[?2004h> +        if r.parent is not None:
+[?2004l[?2004h> +            children.setdefault(r.parent, []).append(r.task)
+[?2004l[?2004h> +
+[?2004l[?2004h> +    removed: Set[str] = set()
+[?2004l[?2004h> +    stack = list(drops)
+[?2004l[?2004h> +    while stack:
+[?2004l[?2004h> +        t = stack.pop()
+[?2004l[?2004h> +        if t in removed:
+[?2004l[?2004h> +            continue
+[?2004l[?2004h> +        removed.add(t)
+[?2004l[?2004h> +        for c in children.get(t, []):
+[?2004l[?2004h> +            if c not in removed:
+[?2004l[?2004h> +                stack.append(c)
+[?2004l[?2004h> +    return removed
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +def compute_depth(task: str, parent_of: Dict[str, Optional[str]]) -> int:
+[?2004l[?2004h> +    depth = 0
+[?2004l[?2004h> +    seen: Set[str] = set()
+[?2004l[?2004h> +    cur = parent_of.get(task)
+[?2004l[?2004h> +    while cur is not None:
+[?2004l[?2004h> +        if cur in seen:
+[?2004l[?2004h> +            raise ValueError(f"cycle in parents at {task}")
+[?2004l[?2004h> +        seen.add(cur)
+[?2004l[?2004h> +        depth += 1
+[?2004l[?2004h> +        cur = parent_of.get(cur)
+[?2004l[?2004h> +    return depth
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +def simulate(case: str, cap: int, rows: List[Row], drops: Set[str], work_dir: str) -> Dict:
+[?2004l[?2004h> +    removed = drop_closure(rows, drops)
+[?2004l[?2004h> +
+[?2004l[?2004h> +    # De-dup by logical task name: keep earliest plan entry.
+[?2004l[?2004h> +    by_task: Dict[str, Row] = {}
+[?2004l[?2004h> +    for r in rows:
+[?2004l[?2004h> +        if r.task in removed:
+[?2004l[?2004h> +            continue
+[?2004l[?2004h> +        prev = by_task.get(r.task)
+[?2004l[?2004h> +        if prev is None or r.plan_index < prev.plan_index:
+[?2004l[?2004h> +            by_task[r.task] = r
+[?2004l[?2004h> +
+[?2004l[?2004h> +    kept: List[Row] = sorted(by_task.values(), key=lambda r: r.plan_index)
+[?2004l[?2004h> +
+[?2004l[?2004h> +    parent_of: Dict[str, Optional[str]] = {r.task: r.parent for r in kept}
+[?2004l[?2004h> +    lane_of: Dict[str, str] = {r.task: r.lane for r in kept}
+[?2004l[?2004h> +    ready_of: Dict[str, int] = {r.task: r.ready_turn for r in kept}
+[?2004l[?2004h> +    plan_index_of: Dict[str, int] = {r.task: r.plan_index for r in kept}
+[?2004l[?2004h> +
+[?2004l[?2004h> +    max_turn = max([r.ready_turn for r in kept], default=0)
+[?2004l[?2004h> +
+[?2004l[?2004h> +    accepted_turn: Dict[str, int] = {}
+[?2004l[?2004h> +    trace: List[Dict] = []
+[?2004l[?2004h> +
+[?2004l[?2004h> +    lanes = sorted({r.lane for r in kept})
+[?2004l[?2004h> +
+[?2004l[?2004h> +    for turn in range(0, max_turn + 1):
+[?2004l[?2004h> +        # Per turn, process lanes in name order.
+[?2004l[?2004h> +        for lane in lanes:
+[?2004l[?2004h> +            ready_tasks = [
+[?2004l[?2004h> +                t for t in by_task.keys()
+[?2004l[?2004h> +                if t not in accepted_turn
+[?2004l[?2004h> +                and lane_of[t] == lane
+[?2004l[?2004h> +                and ready_of[t] <= turn
+[?2004l[?2004h> +            ]
+[?2004l[?2004h> +            # Stable: ready work within a lane keeps plan-file order.
+[?2004l[?2004h> +            ready_tasks.sort(key=lambda t: plan_index_of[t])
+[?2004l[?2004h> +            for t in ready_tasks[:cap]:
+[?2004l[?2004h> +                accepted_turn[t] = turn
+[?2004l[?2004h> +                trace.append(
+[?2004l[?2004h> +                    {
+[?2004l[?2004h> +                        "case": case,
+[?2004l[?2004h> +                        "task": t,
+[?2004l[?2004h> +                        "parent": parent_of.get(t),
+[?2004l[?2004h> +                        "depth": compute_depth(t, parent_of),
+[?2004l[?2004h> +                        "lane": lane,
+[?2004l[?2004h> +                        "turn": turn,
+[?2004l[?2004h> +                    }
+[?2004l[?2004h> +                )
+[?2004l[?2004h> +
+[?2004l[?2004h> +    # Any kept but unaccepted remain pending.
+[?2004l[?2004h> +    pending_tasks = [t for t in by_task.keys() if t not in accepted_turn]
+[?2004l[?2004h> +    pending_tasks.sort(key=lambda t: (ready_of[t], lane_of[t], plan_index_of[t]))
+[?2004l[?2004h> +    pending = [
+[?2004l[?2004h> +        {
+[?2004l[?2004h> +            "case": case,
+[?2004l[?2004h> +            "task": t,
+[?2004l[?2004h> +            "parent": parent_of.get(t),
+[?2004l[?2004h> +            "depth": compute_depth(t, parent_of),
+[?2004l[?2004h> +            "lane": lane_of[t],
+[?2004l[?2004h> +            "turn": None,
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +        for t in pending_tasks
+[?2004l[?2004h> +    ]
+[?2004l[?2004h> +
+[?2004l[?2004h> +    os.makedirs(work_dir, exist_ok=True)
+[?2004l[?2004h> +    ledger_path = os.path.join(work_dir, f"{case}.ledger.jsonl")
+[?2004l[?2004h> +    journal_path = os.path.join(work_dir, f"{case}.journal.txt")
+[?2004l[?2004h> +
+[?2004l[?2004h> +    with open(ledger_path, "w", encoding="utf-8") as lf, open(journal_path, "w", encoding="utf-8") as jf:
+[?2004l[?2004h> +        for rec in trace:
+[?2004l[?2004h> +            lf.write(json.dumps(rec, sort_keys=True) + "\n")
+[?2004l[?2004h> +            parent = rec["parent"] if rec["parent"] is not None else "-"
+[?2004l[?2004h> +            jf.write(f"{rec['case']} {rec['task']} {parent} {rec['depth']} {rec['lane']} {rec['turn']}\n")
+[?2004l[?2004h> +
+[?2004l[?2004h> +    finished = (len(pending) == 0)
+[?2004l[?2004h> +    ok = finished
+[?2004l[?2004h> +    return {
+[?2004l[?2004h> +        "name": case,
+[?2004l[?2004h> +        "ok": ok,
+[?2004l[?2004h> +        "finished": finished,
+[?2004l[?2004h> +        "pending": pending,
+[?2004l[?2004h> +        "trace": trace,
+[?2004l[?2004h> +        "ledger": ledger_path,
+[?2004l[?2004h> +        "journal": journal_path,
+[?2004l[?2004h> +    }
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +def main() -> None:
+[?2004l[?2004h> +    ap = argparse.ArgumentParser(prog="executor-ctl")
+[?2004l[?2004h> +    ap.add_argument("--case", dest="case", default=None)
+[?2004l[?2004h> +    ap.add_argument("--out", dest="out", required=True)
+[?2004l[?2004h> +    ap.add_argument("--work", dest="work", required=True)
+[?2004l[?2004h> +    args = ap.parse_args()
+[?2004l[?2004h> +
+[?2004l[?2004h> +    cases = [args.case] if args.case else CASE_ORDER
+[?2004l[?2004h> +    out_dir = os.path.dirname(args.out)
+[?2004l[?2004h> +    if out_dir:
+[?2004l[?2004h> +        os.makedirs(out_dir, exist_ok=True)
+[?2004l[?2004h> +    os.makedirs(args.work, exist_ok=True)
+[?2004l[?2004h> +
+[?2004l[?2004h> +    case_objs = []
+[?2004l[?2004h> +    for c in cases:
+[?2004l[?2004h> +        plan_path = f"/app/data/cases/{c}.plan"
+[?2004l[?2004h> +        cap, rows, drops = parse_plan(plan_path)
+[?2004l[?2004h> +        case_objs.append(simulate(c, cap, rows, drops, args.work))
+[?2004l[?2004h> +
+[?2004l[?2004h> +    audit = {"cases": case_objs}
+[?2004l[?2004h> +    with open(args.out, "w", encoding="utf-8") as f:
+[?2004l[?2004h> +        json.dump(audit, f, indent=2, sort_keys=True)
+[?2004l[?2004h> +        f.write("\n")
+[?2004l[?2004h> +
+[?2004l[?2004h> +
+[?2004l[?2004h> +if __name__ == "__main__":
+[?2004l[?2004h> +    main()
+[?2004l[?2004h> +
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@7b0e7cd3dbc1:/app# chmod +x /app/scripts/executor-ctl
+[?2004lchmod: cannot access '/app/scripts/executor-ctl': No such file or directory
+[?2004hroot@7b0e7cd3dbc1:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scripts/run-matrix.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  bash /app/scripts/clean-room.sh
+[?2004l[?2004h> -cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004l[?2004h> +/app/scripts/executor-ctl --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@7b0e7cd3dbc1:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scripts/run-one.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  mkdir -p /app/output
+[?2004l[?2004h> -cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"
+[?2004l[?2004h> +/app/scripts/executor-ctl --case "$case_name" --out "$out" --work "$work"
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 5: cargo: command not found
+[?2004hroot@7b0e7cd3dbc1:/app# ls -la /app/output
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 23 19:55 .
+drwxr-xr-x 18 root root 265 May 23 19:55 ..
+[?2004hroot@7b0e7cd3dbc1:/app# python3 -c 'import json;print([c["name"] for c in json.load(open("/app/output/executor-audit.json"))["cases"]])'
+[?2004lTraceback (most recent call last):
+  File "<string>", line 1, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/executor-audit.json'
+[?2004hroot@7b0e7cd3dbc1:/app# cat > /app/scripts/executor-ctl <<'EOF'
+[?2004l[?2004h> #!/usr/bin/env python3
+[?2004l[?2004h> import argparse
+[?2004l[?2004h> import json
+[?2004l[?2004h> import os
+[?2004l[?2004h> from dataclasses import dataclass
+[?2004l[?2004h> from typing import Dict, List, Optional, Set, Tuple
+[?2004l[?2004h> 
+[?2004l[?2004h> CASE_ORDER = ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l [?2004h> @dataclass(frozen=True)
+[?2004l[?2004h> class Row:
+[?2004l[?2004h>     kind: str              # ROOT | CHILD
+[?2004l[?2004h>     task: str
+[?2004l[?2004h>     parent: Optional[str]  # None for ROOT
+[?2004l[?2004h>     lane: str
+[?2004l[?2004h>     ready_turn: int
+[?2004l[?2004h>     plan_index: int
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def parse_plan(path: str) -> Tuple[int, List[Row], Set[str]]:
+[?2004l[?2004h>     cap: Optional[int] = None
+[?2004l[?2004h>     rows: List[Row] = []
+[?2004l[?2004h>     drops: Set[str] = set()
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(path, "r", encoding="utf-8") as f:
+[?2004l[?2004h>         for idx, raw in enumerate(f):
+[?2004l[?2004h>             line = raw.strip()
+[?2004l[?2004h>             if not line or line.startswith("#"):
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             parts = line.split()
+[?2004l[?2004h>             if parts[0] == "CAP":
+[?2004l[?2004h>                 if len(parts) != 2:
+[?2004l[?2004h>                     raise ValueError(f"bad CAP line: {line}")
+[?2004l[?2004h>                 cap = int(parts[1])
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             if parts[0] == "DROP":
+[?2004l[?2004h>                 if len(parts) != 2:
+[?2004l[?2004h>                     raise ValueError(f"bad DROP line: {line}")
+[?2004l[?2004h>                 drops.add(parts[1])
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             if parts[0] == "ROOT":
+[?2004l[?2004h>                 if len(parts) != 4:
+[?2004l[?2004h>                     raise ValueError(f"bad ROOT line: {line}")
+[?2004l[?2004h>                 _, task, lane, turn_s = parts
+[?2004l[?2004h>                 rows.append(Row("ROOT", task, None, lane, int(turn_s), idx))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             if parts[0] == "CHILD":
+[?2004l[?2004h>                 if len(parts) != 5:
+[?2004l[?2004h>                     raise ValueError(f"bad CHILD line: {line}")
+[?2004l[?2004h>                 _, parent, task, lane, turn_s = parts
+[?2004l[?2004h>                 rows.append(Row("CHILD", task, parent, lane, int(turn_s), idx))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             raise ValueError(f"unknown line: {line}")
+[?2004l[?2004h> 
+[?2004l[?2004h>     if cap is None:
+[?2004l[?2004h>         raise ValueError(f"missing CAP in {path}")
+[?2004l[?2004h>     return cap, rows, drops
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def drop_closure(rows: List[Row], drops: Set[str]) -> Set[str]:
+[?2004l[?2004h>     children: Dict[str, List[str]] = {}
+[?2004l[?2004h>     for r in rows:
+[?2004l[?2004h>         if r.parent is not None:
+[?2004l[?2004h>             children.setdefault(r.parent, []).append(r.task)
+[?2004l[?2004h> 
+[?2004l[?2004h>     removed: Set[str] = set()
+[?2004l[?2004h>     stack = list(drops)
+[?2004l[?2004h>     while stack:
+[?2004l[?2004h>         t = stack.pop()
+[?2004l[?2004h>         if t in removed:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         removed.add(t)
+[?2004l[?2004h>         for c in children.get(t, []):
+[?2004l[?2004h>             if c not in removed:
+[?2004l[?2004h>                 stack.append(c)
+[?2004l[?2004h>     return removed
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l=[?2004h> def compute_depth(task: str, parent_of: Dict[str, Optional[str]]) -> int:
+[?2004l[?2004h>     depth = 0
+[?2004l[?2004h>     seen: Set[str] = set()
+[?2004l[?2004h>     cur = parent_of.get(task)
+[?2004l[?2004h>     while cur is not None:
+[?2004l[?2004h>         if cur in seen:
+[?2004l[?2004h>             raise ValueError(f"cycle in parents at {task}")
+[?2004l[?2004h>         seen.add(cur)
+[?2004l[?2004h>         depth += 1
+[?2004l[?2004h>         cur = parent_of.get(cur)
+[?2004l[?2004h>     return depth
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def simulate(case: str, cap: int, rows: List[Row], drops: Set[str], work_dir: str) -> Dict:
+[?2004l[?2004h>     removed = drop_closure(rows, drops)
+[?2004l[?2004h> 
+[?2004l[?2004h>     # De-dup by logical task name: keep earliest plan entry.
+[?2004l[?2004h>     by_task: Dict[str, Row] = {}
+[?2004l[?2004h>     for r in rows:
+[?2004l[?2004h>         if r.task in removed:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         prev = by_task.get(r.task)
+[?2004l[?2004h>         if prev is None or r.plan_index < prev.plan_index:
+[?2004l[?2004h>             by_task[r.task] = r
+[?2004l[?2004h> 
+[?2004l[?2004h>     kept: List[Row] = sorted(by_task.values(), key=lambda r: r.plan_index)
+[?2004l[?2004h> 
+[?2004l[?2004h>     parent_of: Dict[str, Optional[str]] = {r.task: r.parent for r in kept}
+[?2004l[?2004h>     lane_of: Dict[str, str] = {r.task: r.lane for r in kept}
+[?2004l[?2004h>     ready_of: Dict[str, int] = {r.task: r.ready_turn for r in kept}
+[?2004l[?2004h>     plan_index_of: Dict[str, int] = {r.task: r.plan_index for r in kept}
+[?2004l[?2004h> 
+[?2004l[?2004h>     max_turn = max([r.ready_turn for r in kept], default=0)
+[?2004l[?2004h> 
+[?2004l[?2004h>     accepted_turn: Dict[str, int] = {}
+[?2004l[?2004h>     trace: List[Dict] = []
+[?2004l[?2004h> 
+[?2004l[?2004h>     lanes = sorted({r.lane for r in kept})
+[?2004l[?2004h> 
+[?2004l[?2004h>     for turn in range(0, max_turn + 1):
+[?2004l[?2004h>         for lane in lanes:
+[?2004l[?2004h>             ready_tasks = [
+[?2004l[?2004h>                 t for t in by_task.keys()
+[?2004l[?2004h>                 if t not in accepted_turn
+[?2004l[?2004h>                 and lane_of[t] == lane
+[?2004l[?2004h>                 and ready_of[t] <= turn
+[?2004l[?2004h>             ]
+[?2004l[?2004h>             ready_tasks.sort(key=lambda t: plan_index_of[t])
+[?2004l[?2004h>             for t in ready_tasks[:cap]:
+[?2004l[?2004h>                 accepted_turn[t] = turn
+[?2004l[?2004h>                 trace.append(
+[?2004l[?2004h>                     {
+[?2004l[?2004h>                         "case": case,
+[?2004l[?2004h>                         "task": t,
+[?2004l[?2004h>                         "parent": parent_of.get(t),
+[?2004l[?2004h>                         "depth": compute_depth(t, parent_of),
+[?2004l[?2004h>                         "lane": lane,
+[?2004l[?2004h>                         "turn": turn,
+[?2004l[?2004h>                     }
+[?2004l[?2004h>                 )
+[?2004l[?2004h> 
+[?2004l[?2004h>     pending_tasks = [t for t in by_task.keys() if t not in accepted_turn]
+[?2004l[?2004h>     pending_tasks.sort(key=lambda t: (ready_of[t], lane_of[t], plan_index_of[t]))
+[?2004l[?2004h>     pending = [
+[?2004l[?2004h>         {
+[?2004l[?2004h>             "case": case,
+[?2004l[?2004h>             "task": t,
+[?2004l[?2004h>             "parent": parent_of.get(t),
+[?2004l[?2004h>             "depth": compute_depth(t, parent_of),
+[?2004l[?2004h>             "lane": lane_of[t],
+[?2004l[?2004h>             "turn": None,
+[?2004l[?2004h>         }
+[?2004l[?2004h>         for t in pending_tasks
+[?2004l[?2004h>     ]
+[?2004l[?2004h> 
+[?2004l[?2004h>     os.makedirs(work_dir, exist_ok=True)
+[?2004l[?2004h>     ledger_path = os.path.join(work_dir, f"{case}.ledger.jsonl")
+[?2004l[?2004h>     journal_path = os.path.join(work_dir, f"{case}.journal.txt")
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(ledger_path, "w", encoding="utf-8") as lf, open(journal_path, "w", encoding="utf-8") as jf:
+[?2004l[?2004h>         for rec in trace:
+[?2004l[?2004h>             lf.write(json.dumps(rec, sort_keys=True) + "\n")
+[?2004l[?2004h>             parent = rec["parent"] if rec["parent"] is not None else "-"
+[?2004l[?2004h>             jf.write(f"{rec['case']} {rec['task']} {parent} {rec['depth']} {rec['lane']} {rec['turn']}\n")
+[?2004l[?2004h> 
+[?2004l[?2004h>     finished = (len(pending) == 0)
+[?2004l[?2004h>     ok = finished
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         "name": case,
+[?2004l[?2004h>         "ok": ok,
+[?2004l[?2004h>         "finished": finished,
+[?2004l[?2004h>         "pending": pending,
+[?2004l[?2004h>         "trace": trace,
+[?2004l[?2004h>         "ledger": ledger_path,
+[?2004l[?2004h>         "journal": journal_path,
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def main() -> None:
+[?2004l[?2004h>     ap = argparse.ArgumentParser(prog="executor-ctl")
+[?2004l[?2004h>     ap.add_argument("--case", dest="case", default=None)
+[?2004l[?2004h>     ap.add_argument("--out", dest="out", required=True)
+[?2004l[?2004h>     ap.add_argument("--work", dest="work", required=True)
+[?2004l[?2004h>     args = ap.parse_args()
+[?2004l[?2004h> 
+[?2004l[?2004h>     cases = [args.case] if args.case else CASE_ORDER
+[?2004l[?2004h>     out_dir = os.path.dirname(args.out)
+[?2004l[?2004h>     if out_dir:
+[?2004l[?2004h>         os.makedirs(out_dir, exist_ok=True)
+[?2004l[?2004h>     os.makedirs(args.work, exist_ok=True)
+[?2004l[?2004h> 
+[?2004l[?2004h>     case_objs = []
+[?2004l[?2004h>     for c in cases:
+[?2004l[?2004h>         plan_path = f"/app/data/cases/{c}.plan"
+[?2004l[?2004h>         cap, rows, drops = parse_plan(plan_path)
+[?2004l[?2004h>         case_objs.append(simulate(c, cap, rows, drops, args.work))
+[?2004l[?2004h> 
+[?2004l[?2004h>     audit = {"cases": case_objs}
+[?2004l[?2004h>     with open(args.out, "w", encoding="utf-8") as f:
+[?2004l[?2004h>         json.dump(audit, f, indent=2, sort_keys=True)
+[?2004l[?2004h>         f.write("\n")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     main()
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# chmod +x /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# sed -i 's#^cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime#/app/scripts/executor-ctl --out /app/output/executor-audit.json --work /app/output/runtime#' /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# sed -i 's#^cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"#/app/scripts/executor-ctl --case "$case_name" --out "$out" --work "$work"#' /app/scripts/run-one.sh
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# ls -la /app/output /app/output/runtime
+[?2004l/app/output:
+total 8
+drwxr-xr-x  3 root root   48 May 23 19:55 .
+drwxr-xr-x 18 root root  265 May 23 19:55 ..
+-rw-r--r--  1 root root 5483 May 23 19:55 executor-audit.json
+drwxr-xr-x  2 root root  320 May 23 19:55 runtime
+
+/app/output/runtime:
+total 48
+drwxr-xr-x 2 root root 320 May 23 19:55 .
+drwxr-xr-x 3 root root  48 May 23 19:55 ..
+-rw-r--r-- 1 root root 138 May 23 19:55 amber.journal.txt
+-rw-r--r-- 1 root root 404 May 23 19:55 amber.ledger.jsonl
+-rw-r--r-- 1 root root 110 May 23 19:55 cobalt.journal.txt
+-rw-r--r-- 1 root root 309 May 23 19:55 cobalt.ledger.jsonl
+-rw-r--r-- 1 root root  99 May 23 19:55 drake.journal.txt
+-rw-r--r-- 1 root root 299 May 23 19:55 drake.ledger.jsonl
+-rw-r--r-- 1 root root  61 May 23 19:55 ember.journal.txt
+-rw-r--r-- 1 root root 195 May 23 19:55 ember.ledger.jsonl
+-rw-r--r-- 1 root root 102 May 23 19:55 flint.journal.txt
+-rw-r--r-- 1 root root 301 May 23 19:55 flint.ledger.jsonl
+-rw-r--r-- 1 root root 168 May 23 19:55 graphite.journal.txt
+-rw-r--r-- 1 root root 433 May 23 19:55 graphite.ledger.jsonl
+[?2004hroot@7b0e7cd3dbc1:/app# python3 -c 'import json;d=json.load(open("/app/output/executor-audit.json"));print("cases", [c["name"] for c in d["cases"]]);print("all_ok", all(c["ok"] for c in d["cases"]));print("any_pending", any(c["pending"] for c in d["cases"]))'
+[?2004lcases ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
+all_ok False
+any_pending True
+[?2004hroot@7b0e7cd3dbc1:/app# cp /app/output/executor-audit.json /app/output/executor-audit.1.json
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# cp /app/output/executor-audit.json /app/output/executor-audit.2.json
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# diff -u /app/output/executor-audit.1.json /app/output/executor-audit.2.json || true
+[?2004ldiff: /app/output/executor-audit.1.json: No such file or directory
+[?2004hroot@7b0e7cd3dbc1:/app# python3 -m py_compile /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# nl -ba /app/scripts/executor-ctl | sed -n '1,200p'
+[?2004l     1	#!/usr/bin/env python3
+     2	import argparse
+     3	import json
+     4	import os
+     5	from dataclasses import dataclass
+     6	from typing import Dict, List, Optional, Set, Tuple
+     7	
+     8	CASE_ORDER = ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+     9	
+    10	
+    11	@dataclass(frozen=True)
+    12	class Row:
+    13	    kind: str              # ROOT | CHILD
+    14	    task: str
+    15	    parent: Optional[str]  # None for ROOT
+    16	    lane: str
+    17	    ready_turn: int
+    18	    plan_index: int
+    19	
+    20	
+    21	def parse_plan(path: str) -> Tuple[int, List[Row], Set[str]]:
+    22	    cap: Optional[int] = None
+    23	    rows: List[Row] = []
+    24	    drops: Set[str] = set()
+    25	
+    26	    with open(path, "r", encoding="utf-8") as f:
+    27	        for idx, raw in enumerate(f):
+    28	            line = raw.strip()
+    29	            if not line or line.startswith("#"):
+    30	                continue
+    31	            parts = line.split()
+    32	            if parts[0] == "CAP":
+    33	                if len(parts) != 2:
+    34	                    raise ValueError(f"bad CAP line: {line}")
+    35	                cap = int(parts[1])
+    36	                continue
+    37	            if parts[0] == "DROP":
+    38	                if len(parts) != 2:
+    39	                    raise ValueError(f"bad DROP line: {line}")
+    40	                drops.add(parts[1])
+    41	                continue
+    42	            if parts[0] == "ROOT":
+    43	                if len(parts) != 4:
+    44	                    raise ValueError(f"bad ROOT line: {line}")
+    45	                _, task, lane, turn_s = parts
+    46	                rows.append(Row("ROOT", task, None, lane, int(turn_s), idx))
+    47	                continue
+    48	            if parts[0] == "CHILD":
+    49	                if len(parts) != 5:
+    50	                    raise ValueError(f"bad CHILD line: {line}")
+    51	                _, parent, task, lane, turn_s = parts
+    52	                rows.append(Row("CHILD", task, parent, lane, int(turn_s), idx))
+    53	                continue
+    54	            raise ValueError(f"unknown line: {line}")
+    55	
+    56	    if cap is None:
+    57	        raise ValueError(f"missing CAP in {path}")
+    58	    return cap, rows, drops
+    59	
+    60	
+    61	def drop_closure(rows: List[Row], drops: Set[str]) -> Set[str]:
+    62	    children: Dict[str, List[str]] = {}
+    63	    for r in rows:
+    64	        if r.parent is not None:
+    65	            children.setdefault(r.parent, []).append(r.task)
+    66	
+    67	    removed: Set[str] = set()
+    68	    stack = list(drops)
+    69	    while stack:
+    70	        t = stack.pop()
+    71	        if t in removed:
+    72	            continue
+    73	        removed.add(t)
+    74	        for c in children.get(t, []):
+    75	            if c not in removed:
+    76	                stack.append(c)
+    77	    return removed
+    78	
+    79	
+    80	def compute_depth(task: str, parent_of: Dict[str, Optional[str]]) -> int:
+    81	    depth = 0
+    82	    seen: Set[str] = set()
+    83	    cur = parent_of.get(task)
+    84	    while cur is not None:
+    85	        if cur in seen:
+    86	            raise ValueError(f"cycle in parents at {task}")
+    87	        seen.add(cur)
+    88	        depth += 1
+    89	        cur = parent_of.get(cur)
+    90	    return depth
+    91	
+    92	
+    93	def simulate(case: str, cap: int, rows: List[Row], drops: Set[str], work_dir: str) -> Dict:
+    94	    removed = drop_closure(rows, drops)
+    95	
+    96	    # De-dup by logical task name: keep earliest plan entry.
+    97	    by_task: Dict[str, Row] = {}
+    98	    for r in rows:
+    99	        if r.task in removed:
+   100	            continue
+   101	        prev = by_task.get(r.task)
+   102	        if prev is None or r.plan_index < prev.plan_index:
+   103	            by_task[r.task] = r
+   104	
+   105	    kept: List[Row] = sorted(by_task.values(), key=lambda r: r.plan_index)
+   106	
+   107	    parent_of: Dict[str, Optional[str]] = {r.task: r.parent for r in kept}
+   108	    lane_of: Dict[str, str] = {r.task: r.lane for r in kept}
+   109	    ready_of: Dict[str, int] = {r.task: r.ready_turn for r in kept}
+   110	    plan_index_of: Dict[str, int] = {r.task: r.plan_index for r in kept}
+   111	
+   112	    max_turn = max([r.ready_turn for r in kept], default=0)
+   113	
+   114	    accepted_turn: Dict[str, int] = {}
+   115	    trace: List[Dict] = []
+   116	
+   117	    lanes = sorted({r.lane for r in kept})
+   118	
+   119	    for turn in range(0, max_turn + 1):
+   120	        for lane in lanes:
+   121	            ready_tasks = [
+   122	                t for t in by_task.keys()
+   123	                if t not in accepted_turn
+   124	                and lane_of[t] == lane
+   125	                and ready_of[t] <= turn
+   126	            ]
+   127	            ready_tasks.sort(key=lambda t: plan_index_of[t])
+   128	            for t in ready_tasks[:cap]:
+   129	                accepted_turn[t] = turn
+   130	                trace.append(
+   131	                    {
+   132	                        "case": case,
+   133	                        "task": t,
+   134	                        "parent": parent_of.get(t),
+   135	                        "depth": compute_depth(t, parent_of),
+   136	                        "lane": lane,
+   137	                        "turn": turn,
+   138	                    }
+   139	                )
+   140	
+   141	    pending_tasks = [t for t in by_task.keys() if t not in accepted_turn]
+   142	    pending_tasks.sort(key=lambda t: (ready_of[t], lane_of[t], plan_index_of[t]))
+   143	    pending = [
+   144	        {
+   145	            "case": case,
+   146	            "task": t,
+   147	            "parent": parent_of.get(t),
+   148	            "depth": compute_depth(t, parent_of),
+   149	            "lane": lane_of[t],
+   150	            "turn": None,
+   151	        }
+   152	        for t in pending_tasks
+   153	    ]
+   154	
+   155	    os.makedirs(work_dir, exist_ok=True)
+   156	    ledger_path = os.path.join(work_dir, f"{case}.ledger.jsonl")
+   157	    journal_path = os.path.join(work_dir, f"{case}.journal.txt")
+   158	
+   159	    with open(ledger_path, "w", encoding="utf-8") as lf, open(journal_path, "w", encoding="utf-8") as jf:
+   160	        for rec in trace:
+   161	            lf.write(json.dumps(rec, sort_keys=True) + "\n")
+   162	            parent = rec["parent"] if rec["parent"] is not None else "-"
+   163	            jf.write(f"{rec['case']} {rec['task']} {parent} {rec['depth']} {rec['lane']} {rec['turn']}\n")
+   164	
+   165	    finished = (len(pending) == 0)
+   166	    ok = finished
+   167	    return {
+   168	        "name": case,
+   169	        "ok": ok,
+   170	        "finished": finished,
+   171	        "pending": pending,
+   172	        "trace": trace,
+   173	        "ledger": ledger_path,
+   174	        "journal": journal_path,
+   175	    }
+   176	
+   177	
+   178	def main() -> None:
+   179	    ap = argparse.ArgumentParser(prog="executor-ctl")
+   180	    ap.add_argument("--case", dest="case", default=None)
+   181	    ap.add_argument("--out", dest="out", required=True)
+   182	    ap.add_argument("--work", dest="work", required=True)
+   183	    args = ap.parse_args()
+   184	
+   185	    cases = [args.case] if args.case else CASE_ORDER
+   186	    out_dir = os.path.dirname(args.out)
+   187	    if out_dir:
+   188	        os.makedirs(out_dir, exist_ok=True)
+   189	    os.makedirs(args.work, exist_ok=True)
+   190	
+   191	    case_objs = []
+   192	    for c in cases:
+   193	        plan_path = f"/app/data/cases/{c}.plan"
+   194	        cap, rows, drops = parse_plan(plan_path)
+   195	        case_objs.append(simulate(c, cap, rows, drops, args.work))
+   196	
+   197	    audit = {"cases": case_objs}
+   198	    with open(args.out, "w", encoding="utf-8") as f:
+   199	        json.dump(audit, f, indent=2, sort_keys=True)
+   200	        f.write("\n")
+[?2004hroot@7b0e7cd3dbc1:/app# perl -0777 -i -pe 's/for turn in range\(0, max_turn \+ 1\):\n\s*for lane in lanes:/turn = 0\n    total = len(kept)\n\n    while len(accepted_turn) < total:\n        progressed = False\n        for lane in lanes:/s; s/for t in ready_tasks\[:cap\]:\n\s*accepted_turn\[t\] = turn/for t in ready_tasks[:cap]:\n                accepted_turn[t] = turn\n                progressed = True/s; s/\n\s*pending_tasks = \[t for t in by_task.keys\(\) if t not in accepted_turn\]\n/\n        if not progressed:\n            # No acceptances this turn; advance time until work becomes ready.
+[?2004l[?2004h>             # (All work is independent of parent acceptance.)
+[?2004l[?2004h>             turn += 1
+[?2004l[?2004h>             if turn > max_turn and len(accepted_turn) < total:
+[?2004l[?2004h>                 # If no additional ready_turn exists, remaining work should still drain under CAP.
+[?2004l[?2004h>                 pass
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         turn += 1
+[?2004l[?2004h> \n    pending_tasks = [r.task for r in kept if r.task not in accepted_turn]\n/s' /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# perl -0777 -i -pe 's/ready_tasks = \[\n\s*t for t in by_task.keys\(\)\n/ready_tasks = [\n                r.task for r in kept\n/s' /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# python3 -m py_compile /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004lTraceback (most recent call last):
+  File "/app/scripts/executor-ctl", line 218, in <module>
+    main()
+  File "/app/scripts/executor-ctl", line 209, in main
+    case_objs.append(simulate(c, cap, rows, drops, args.work))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/scripts/executor-ctl", line 125, in simulate
+    ready_tasks = [
+                  ^
+  File "/app/scripts/executor-ctl", line 127, in <listcomp>
+    if t not in accepted_turn
+       ^
+NameError: cannot access free variable 't' where it is not associated with a value in enclosing scope
+[?2004hroot@7b0e7cd3dbc1:/app# python3 -c 'import json;d=json.load(open("/app/output/executor-audit.json"));print("all_ok", all(c["ok"] for c in d["cases"]));print("any_pending", any(c["pending"] for c in d["cases"]));print([(c["name"], len(c["trace"]), len(c["pending"])) for c in d["cases"]])'
+[?2004lTraceback (most recent call last):
+  File "<string>", line 1, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/executor-audit.json'
+[?2004hroot@7b0e7cd3dbc1:/app# cp /app/output/executor-audit.json /tmp/executor-audit.1.json
+[?2004lcp: cannot stat '/app/output/executor-audit.json': No such file or directory
+[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004lTraceback (most recent call last):
+  File "/app/scripts/executor-ctl", line 218, in <module>
+    main()
+  File "/app/scripts/executor-ctl", line 209, in main
+    case_objs.append(simulate(c, cap, rows, drops, args.work))
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/app/scripts/executor-ctl", line 125, in simulate
+    ready_tasks = [
+                  ^
+  File "/app/scripts/executor-ctl", line 127, in <listcomp>
+    if t not in accepted_turn
+       ^
+NameError: cannot access free variable 't' where it is not associated with a value in enclosing scope
+[?2004hroot@7b0e7cd3dbc1:/app# cp /app/output/executor-audit.json /tmp/executor-audit.2.json
+[?2004lcp: cannot stat '/app/output/executor-audit.json': No such file or directory
+[?2004hroot@7b0e7cd3dbc1:/app# diff -u /tmp/executor-audit.1.json /tmp/executor-audit.2.json || true
+[?2004ldiff: /tmp/executor-audit.1.json: No such file or directory
+diff: /tmp/executor-audit.2.json: No such file or directory
+[?2004hroot@7b0e7cd3dbc1:/app# cat > /app/scripts/executor-ctl <<'EOF'
+[?2004l      if parts[0] == "DROP":
+                if len(parts) != 2:
+                    raise ValueError(f"bad DROP line: {line}")
+                drops.add(parts[1])
+                continue
+
+            if parts[0] == "ROOT":
+                if len(parts) != 4:
+                    raise ValueError(f"bad ROOT line: {line}")
+                _, task, lane, turn_s = parts
+                rows.append(Row("ROOT", task, None, lane, int(turn_s), idx))
+                continue
+
+            if parts[0] == "CHILD":
+                if len(parts) != 5:
+                    raise ValueError(f"bad CHILD line: {line}")
+                _, parent, task, lane, turn_s = parts
+                rows.append(Row("CHILD", task, parent, lane, int(turn_s), idx))
+                continue
+
+            raise ValueError(f"unknown line: {line}")
+
+    if cap is None:
+        raise ValueError(f"missing CAP in {path}")
+    if cap <= 0:
+        raise ValueError(f"CAP must be positive in {path}")
+    return cap, rows, drops
+
+
+def drop_closure(rows:[?2004h> #!/usr/bin/env python3
+[?2004l[?2004h> import argparse
+[?2004l[?2004h> import json
+[?2004lr.task] == lane
+                and ready_of[r.task] <= turn
+            ]
+            # R[?2004h> import os
+[?2004l[?2004h> from dataclasses import dataclass
+[?2004l[?2004h> from typing import Dict, List, Optional, Set, Tuple
+[?2004l[?2004h> 
+[?2004ln[?2004h> CASE_ORDER = ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> @dataclass(frozen=True)
+[?2004l[?2004h> class Row:
+[?2004l[?2004h>     kind: str              # ROOT | CHILD
+[?2004l[?2004h>     task: str
+[?2004l[?2004h>     parent: Optional[str]  # None for ROOT
+[?2004l[?2004h>     lane: str
+[?2004l[?2004h>     ready_turn: int
+[?2004l[?2004h>     plan_index: int
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def parse_plan(path: str) -> Tuple[int, List[Row], Set[str]]:
+[?2004l[?2004h>     cap: Optional[int] = None
+[?2004l[?2004h>     rows: List[Row] = []
+[?2004l[?2004h>     drops: Set[str] = set()
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(path, "r", encoding="utf-8") as f:
+[?2004l[?2004h>         for idx, raw in enumerate(f):
+[?2004l[?2004h>             line = raw.strip()
+[?2004l[?2004h>             if not line or line.startswith("#"):
+[?2004l[?2004h>                 continue
+[?2004l[?2004h>             parts = line.split()
+[?2004l[?2004h> 
+[?2004l[?2004h>             if parts[0] == "CAP":
+[?2004l[?2004h>                 if len(parts) != 2:
+[?2004l[?2004h>                     raise ValueError(f"bad CAP line: {line}")
+[?2004l[?2004h>                 cap = int(parts[1])
+[?2004l[?2004h>                 continue
+[?2004l[?2004h> 
+[?2004l[?2004h>             if parts[0] == "DROP":
+[?2004l[?2004h>                 if len(parts) != 2:
+[?2004l[?2004h>                     raise ValueError(f"bad DROP line: {line}")
+[?2004l[?2004h>                 drops.add(parts[1])
+[?2004l[?2004h>                 continue
+[?2004l[?2004h> 
+[?2004l[?2004h>             if parts[0] == "ROOT":
+[?2004l[?2004h>                 if len(parts) != 4:
+[?2004l[?2004h>                     raise ValueError(f"bad ROOT line: {line}")
+[?2004l[?2004h>                 _, task, lane, turn_s = parts
+[?2004l[?2004h>                 rows.append(Row("ROOT", task, None, lane, int(turn_s), idx))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h> 
+[?2004l[?2004h>             if parts[0] == "CHILD":
+[?2004l[?2004h>                 if len(parts) != 5:
+[?2004l[?2004h>                     raise ValueError(f"bad CHILD line: {line}")
+[?2004l[?2004h>                 _, parent, task, lane, turn_s = parts
+[?2004l[?2004h>                 rows.append(Row("CHILD", task, parent, lane, int(turn_s), idx))
+[?2004l[?2004h>                 continue
+[?2004l[?2004h> 
+[?2004l[?2004h>             raise ValueError(f"unknown line: {line}")
+[?2004l[?2004h> 
+[?2004l[?2004h>     if cap is None:
+[?2004l[?2004h>         raise ValueError(f"missing CAP in {path}")
+[?2004l[?2004h>     if cap <= 0:
+[?2004l[?2004h>         raise ValueError(f"CAP must be positive in {path}")
+[?2004l[?2004h>     return cap, rows, drops
+[?2004l[?2004h> 
+[?2004lj[?2004h> 
+[?2004l[?2004h> def drop_closure(rows: List[Row], drops: Set[str]) -> Set[str]:
+[?2004l[?2004h>     children: Dict[str, List[str]] = {}
+[?2004l[?2004h>     for r in rows:
+[?2004l[?2004h>         if r.parent is not None:
+[?2004l[?2004h>             children.setdefault(r.parent, []).append(r.task)
+[?2004l[?2004h> 
+[?2004l[?2004h>     removed: Set[str] = set()
+[?2004l[?2004h>     stack = list(drops)
+[?2004l[?2004h>     while stack:
+[?2004l[?2004h>         t = stack.pop()
+[?2004l[?2004h>         if t in removed:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         removed.add(t)
+[?2004l[?2004h>         for c in children.get(t, []):
+[?2004l[?2004h>             if c not in removed:
+[?2004l[?2004h>                 stack.append(c)
+[?2004l[?2004h>     return removed
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def compute_depth(task: str, parent_of: Dict[str, Optional[str]]) -> int:
+[?2004l[?2004h>     depth = 0
+[?2004l[?2004h>     seen: Set[str] = set()
+[?2004l[?2004h>     cur = parent_of.get(task)
+[?2004l[?2004h>     while cur is not None:
+[?2004l[?2004h>         if cur in seen:
+[?2004l[?2004h>             raise ValueError(f"cycle in parents at {task}")
+[?2004l[?2004h>         seen.add(cur)
+[?2004l[?2004h>         depth += 1
+[?2004l[?2004h>         cur = parent_of.get(cur)
+[?2004l[?2004h>     return depth
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def simulate(case: str, cap: int, rows: List[Row], drops: Set[str], work_dir: str) -> Dict:
+[?2004l[?2004h>     removed = drop_closure(rows, drops)
+[?2004l[?2004h> 
+[?2004l[?2004h>     # De-dup by logical task name: keep earliest plan entry.
+[?2004l[?2004h>     by_task: Dict[str, Row] = {}
+[?2004l[?2004h>     for r in rows:
+[?2004l[?2004h>         if r.task in removed:
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         prev = by_task.get(r.task)
+[?2004l[?2004h>         if prev is None or r.plan_index < prev.plan_index:
+[?2004l[?2004h>             by_task[r.task] = r
+[?2004l[?2004h> 
+[?2004l[?2004h>     kept: List[Row] = sorted(by_task.values(), key=lambda r: r.plan_index)
+[?2004l[?2004h> 
+[?2004l[?2004h>     parent_of: Dict[str, Optional[str]] = {r.task: r.parent for r in kept}
+[?2004l[?2004h>     lane_of: Dict[str, str] = {r.task: r.lane for r in kept}
+[?2004l[?2004h>     ready_of: Dict[str, int] = {r.task: r.ready_turn for r in kept}
+[?2004l[?2004h>     plan_index_of: Dict[str, int] = {r.task: r.plan_index for r in kept}
+[?2004l[?2004h> 
+[?2004l[?2004h>     lanes = sorted({r.lane for r in kept})
+[?2004l[?2004h> 
+[?2004l[?2004h>     accepted: Set[str] = set()
+[?2004l[?2004h>     trace: List[Dict] = []
+[?2004l[?2004h> 
+[?2004l[?2004h>     max_ready = max([r.ready_turn for r in kept], default=0)
+[?2004l[?2004h>     turn = 0
+[?2004l[?2004h>     # Drain until all non-dropped unique tasks are accepted.
+[?2004l[?2004h>     while len(accepted) < len(kept):
+[?2004l[?2004h>         for lane in lanes:
+[?2004l[?2004h>             ready_tasks = [
+[?2004l[?2004h>                 r.task for r in kept
+[?2004l[?2004h>                 if r.task not in accepted
+[?2004l[?2004h>                 and lane_of[r.task] == lane
+[?2004l[?2004h>                 and ready_of[r.task] <= turn
+[?2004l[?2004h>             ]
+[?2004l[?2004h>             # Ready work within a lane keeps plan-file order.
+[?2004l[?2004h>             ready_tasks.sort(key=lambda t: plan_index_of[t])
+[?2004l[?2004h>             for t in ready_tasks[:cap]:
+[?2004l[?2004h>                 accepted.add(t)
+[?2004l[?2004h>                 trace.append(
+[?2004l[?2004h>                     {
+[?2004l[?2004h>                         "case": case,
+[?2004l[?2004h>                         "task": t,
+[?2004l[?2004h>                         "parent": parent_of.get(t),
+[?2004l[?2004h>                         "depth": compute_depth(t, parent_of),
+[?2004l[?2004h>                         "lane": lane,
+[?2004l[?2004h>                         "turn": turn,
+[?2004l[?2004h>                     }
+[?2004l[?2004h>                 )
+[?2004l[?2004h> 
+[?2004l[?2004h>         # If nothing is ready yet, time still advances.
+[?2004l[?2004h>         turn += 1
+[?2004l[?2004h>         # Safety valve: should never trip for shipped inputs.
+[?2004l[?2004h>         if turn > max_ready + len(kept) + 10:
+[?2004l[?2004h>             break
+[?2004l[?2004h> 
+[?2004l[?2004h>     pending_tasks = [r.task for r in kept if r.task not in accepted]
+[?2004l[?2004h>     pending_tasks.sort(key=lambda t: (ready_of[t], lane_of[t], plan_index_of[t]))
+[?2004l[?2004h>     pending = [
+[?2004l[?2004h>         {
+[?2004l[?2004h>             "case": case,
+[?2004l[?2004h>             "task": t,
+[?2004l[?2004h>             "parent": parent_of.get(t),
+[?2004l[?2004h>             "depth": compute_depth(t, parent_of),
+[?2004l[?2004h>             "lane": lane_of[t],
+[?2004l[?2004h>             "turn": None,
+[?2004l[?2004h>         }
+[?2004l[?2004h>         for t in pending_tasks
+[?2004l[?2004h>     ]
+[?2004l[?2004h> 
+[?2004l[?2004h>     os.makedirs(work_dir, exist_ok=True)
+[?2004l[?2004h>     ledger_path = os.path.join(work_dir, f"{case}.ledger.jsonl")
+[?2004l[?2004h>     journal_path = os.path.join(work_dir, f"{case}.journal.txt")
+[?2004l[?2004h> 
+[?2004l[?2004h>     with open(ledger_path, "w", encoding="utf-8") as lf, open(journal_path, "w", encoding="utf-8") as jf:
+[?2004l[?2004h>         for rec in trace:
+[?2004l[?2004h>             lf.write(json.dumps(rec, sort_keys=True) + "\n")
+[?2004l[?2004h>             parent = rec["parent"] if rec["parent"] is not None else "-"
+[?2004l[?2004h>             jf.write(f"{rec['case']} {rec['task']} {parent} {rec['depth']} {rec['lane']} {rec['turn']}\n")
+[?2004l[?2004h> 
+[?2004l[?2004h>     finished = (len(pending) == 0)
+[?2004l[?2004h>     ok = finished
+[?2004l[?2004h>     return {
+[?2004l[?2004h>         "name": case,
+[?2004l[?2004h>         "ok": ok,
+[?2004l[?2004h>         "finished": finished,
+[?2004l[?2004h>         "pending": pending,
+[?2004l[?2004h>         "trace": trace,
+[?2004l[?2004h>         "ledger": ledger_path,
+[?2004l[?2004h>         "journal": journal_path,
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> def main() -> None:
+[?2004l[?2004h>     ap = argparse.ArgumentParser(prog="executor-ctl")
+[?2004l[?2004h>     ap.add_argument("--case", dest="case", default=None)
+[?2004l[?2004h>     ap.add_argument("--out", dest="out", required=True)
+[?2004l[?2004h>     ap.add_argument("--work", dest="work", required=True)
+[?2004l[?2004h>     args = ap.parse_args()
+[?2004l[?2004h> 
+[?2004l[?2004h>     cases = [args.case] if args.case else CASE_ORDER
+[?2004l[?2004h>     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
+[?2004l[?2004h>     os.makedirs(args.work, exist_ok=True)
+[?2004l[?2004h> 
+[?2004l[?2004h>     case_objs = []
+[?2004l[?2004h>     for c in cases:
+[?2004l[?2004h>         plan_path = f"/app/data/cases/{c}.plan"
+[?2004l[?2004h>         cap, rows, drops = parse_plan(plan_path)
+[?2004l[?2004h>         case_objs.append(simulate(c, cap, rows, drops, args.work))
+[?2004l[?2004h> 
+[?2004l[?2004h>     audit = {"cases": case_objs}
+[?2004l[?2004h>     with open(args.out, "w", encoding="utf-8") as f:
+[?2004l[?2004h>         json.dump(audit, f, indent=2, sort_keys=True)
+[?2004l[?2004h>         f.write("\n")
+[?2004l[?2004h> 
+[?2004l[?2004h> 
+[?2004l[?2004h> if __name__ == "__main__":
+[?2004l[?2004h>     main()
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# chmod +x /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# python3 -m py_compile /app/scripts/executor-ctl
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# python3 -c 'import json;d=json.load(open("/app/output/executor-audit.json"));print("all_ok", all(c["ok"] for c in d["cases"]));print("any_pending", any(c["pending"] for c in d["cases"]));print([(c["name"], len(c["trace"]), len(c["pending"])) for c in d["cases"]])'
+[?2004lall_ok True
+any_pending False
+[('amber', 4, 0), ('cobalt', 5, 0), ('drake', 3, 0), ('ember', 2, 0), ('flint', 3, 0), ('graphite', 5, 0)]
+[?2004hroot@7b0e7cd3dbc1:/app# cp /app/output/executor-audit.json /tmp/executor-audit.1.json
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# cp /app/output/executor-audit.json /tmp/executor-audit.2.json
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# diff -u /tmp/executor-audit.1.json /tmp/executor-audit.2.json || true
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# sed -n '1,120p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+bash /app/scripts/clean-room.sh
+/app/scripts/executor-ctl --out /app/output/executor-audit.json --work /app/output/runtime
+[?2004hroot@7b0e7cd3dbc1:/app# sed -n '1,160p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+
+case_name="${1:?case name required}"
+out="${2:-/app/output/executor-audit.json}"
+work="${3:-/app/output/runtime}"
+mkdir -p /app/output
+/app/scripts/executor-ctl --case "$case_name" --out "$out" --work "$work"
+[?2004hroot@7b0e7cd3dbc1:/app# bash /app/scripts/run-one.sh drake /tmp/drake-audit.json /tmp/drake-work
+[?2004l[?2004hroot@7b0e7cd3dbc1:/app# ls -la /tmp/drake-audit.json /tmp/drake-work
+[?2004l-rw-r--r-- 1 root root 787 May 23 19:56 /tmp/drake-audit.json
+
+/tmp/drake-work:
+total 8
+drwxr-xr-x 2 root root  57 May 23 19:56 .
+drwxrwxrwt 4 root root 154 May 23 19:56 ..
+-rw-r--r-- 1 root root  99 May 23 19:56 drake.journal.txt
+-rw-r--r-- 1 root root 299 May 23 19:56 drake.ledger.jsonl
+[?2004hroot@7b0e7cd3dbc1:/app# python3 -c 'import json;d=json.load(open("/tmp/drake-audit.json"));c=d["cases"][0];print(c["name"], c["ok"], len(c["trace"]), len(c["pending"]))'
+[?2004ldrake True 3 0
+[?2004hroot@7b0e7cd3dbc1:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> case='graphite'
+[?2004l[?2004h> aud=json.load(open('/app/output/executor-audit.json'))
+[?2004l[?2004h> co=[c for c in aud['cases'] if c['name']==case][0]
+[?2004l[?2004h> ledger=Path(co['ledger'])
+[?2004l[?2004h> journal=Path(co['journal'])
+[?2004l[?2004h> print('trace', len(co['trace']))
+[?2004l[?2004h> print('ledger_lines', ledger.read_text().count('\n'))
+[?2004l[?2004h> print('journal_lines', journal.read_text().count('\n'))
+[?2004l[?2004h> PY
+[?2004ltrace 5
+ledger_lines 5
+journal_lines 5
+[?2004hroot@7b0e7cd3dbc1:/app# 

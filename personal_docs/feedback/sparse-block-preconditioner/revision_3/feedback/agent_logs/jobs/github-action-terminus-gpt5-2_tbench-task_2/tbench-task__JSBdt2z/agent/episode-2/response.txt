@@ -1,0 +1,47 @@
+{
+  "analysis": "solverctl exists at /app/build/bin/solverctl and running it directly produced /app/output/solver-audit.json and /app/output/basalt-audit.json (despite no stdout from the sampled commands). So the core binary already writes the audit JSON files, but the wrapper scripts fail because they call /app/bin/solverctl and also nuke /app/output each time via clean-room.sh (which would break comparing matrix vs one-case slices if run sequentially). We need to restore run-matrix.sh and run-one.sh so they invoke the correct solverctl path and ensure the outputs are written as required, with determinism across two runs. We should inspect the generated JSON, check whether it matches layout.md and whether per-case equals matrix slice, and then adjust scripts to avoid deleting outputs unnecessarily (or to preserve required files).",
+  "plan": "1) Inspect current generated JSON files for schema/values and see if issues (iterations/residual/ok) remain. 2) Compare basalt-audit.json against the basalt entry in solver-audit.json. 3) Run matrix twice (without cleaning between runs) and compare normalized JSON to confirm determinism; if not deterministic, we’ll normalize/sort in the scripts (or adjust clean-room usage). 4) Patch run-matrix.sh and run-one.sh to: find solverctl at /app/build/bin/solverctl (fallbacks), write/retain output files, and optionally normalize JSON ordering with jq -S to guarantee equivalence across runs. Also remove clean-room.sh usage or make it selective so run-one doesn’t delete solver-audit.json (and vice versa).",
+  "commands": [
+    {
+      "keystrokes": "jq . /app/output/solver-audit.json | head -n 80\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq . /app/output/basalt-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq -c '.cases[] | select(.name==\"basalt\")' /app/output/solver-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "diff -u <(jq -S . /app/output/basalt-audit.json) <(jq -S '{cases:[.cases[]|select(.name==\"basalt\")]}' /app/output/solver-audit.json)\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u <(jq -S . /app/output/solver-audit.run1.json) <(jq -S . /app/output/solver-audit.run2.json) || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/scripts/run-matrix.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/scripts/run-one.sh\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

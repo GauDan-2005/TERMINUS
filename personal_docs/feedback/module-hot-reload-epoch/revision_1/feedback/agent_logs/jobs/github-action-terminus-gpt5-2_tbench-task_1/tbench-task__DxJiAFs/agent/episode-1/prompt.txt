@@ -1,0 +1,105 @@
+New Terminal Output:
+root@48d0f83bfd0b:/app# cd /app
+root@48d0f83bfd0b:/app# ls -la
+total 20
+drwxr-xr-x 12 root root 225 May 25 12:15 .
+drwxr-xr-x 19 root root 265 May 25 12:16 ..
+-rw-r--r--  1 root root 114 May 25 12:13 Cargo.lock
+-rw-r--r--  1 root root 166 May 25 12:13 Cargo.toml
+-rw-r--r--  1 root root 540 May 25 12:13 README.md
+drwxr-xr-x  2 root root  18 May 25 12:13 a1
+drwxr-xr-x  2 root root  18 May 25 12:13 b2
+drwxr-xr-x  2 root root  18 May 25 12:13 c3
+drwxr-xr-x  2 root root  18 May 25 12:13 d4
+drwxr-xr-x  2 root root  98 May 25 12:13 docs
+drwxr-xr-x  2 root root  28 May 25 12:13 fixtures
+-rw-r--r--  1 root root 191 May 25 12:13 package-lock.json
+-rw-r--r--  1 root root 204 May 25 12:13 package.json
+drwxr-xr-x  2 root root  28 May 25 12:15 scripts
+drwxr-xr-x  4 root root  32 May 25 12:13 src
+drwxr-xr-x  3 root root  63 May 25 12:15 target
+drwxr-xr-x  2 root root  27 May 25 12:14 tools
+root@48d0f83bfd0b:/app# cat package.json
+{"name":"local-runtime-matrix","version":"1.0.0","private":true,"description":"local mixed runtime scenario matrix","scripts":{"matrix":"node tools/run_matrix.j
+s"},"dependencies":{},"devDependencies":{}}
+root@48d0f83bfd0b:/app# find . -maxdepth 3 -type f -name "*matrix*" -o -name "*scenario*" -o -name "report.json" | sed 's|^./||'
+docs/scenario-format.md
+fixtures/scenarios.json
+tools/run_matrix.js
+root@48d0f83bfd0b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative (/app/a1/p.js:11:11)
+    at f_a (/app/a1/p.js:24:25)
+    at /app/tools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main (/app/tools/run_matrix.js:14:34)
+    at Object.<anonymous> (/app/tools/run_matrix.js:20:1)
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+    at Module.load (node:internal/modules/cjs/loader:1203:32)
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+
+Node.js v18.20.4
+root@48d0f83bfd0b:/app# ls -la outcome && ls -la outcome/report.json
+ls: cannot access 'outcome': No such file or directory
+root@48d0f83bfd0b:/app# python3 - <<'PY'
+> import json
+> p='/app/outcome/report.json'
+> with open(p) as f: data=json.load(f)
+> print('top keys:', sorted(data.keys()))
+> agg=data.get('aggregate') or data.get('folded') or {}
+> recs=data.get('records') or []
+> print('recordCount:', len(recs))
+> print('aggregate:', {k:agg.get(k) for k in ['source','recordCount','totalCounter','dependencyTotal','rowTotal','healthyCount','status'] if k in agg})
+> # show per-record summary
+> for r in recs:
+>     print('\nSCENARIO', r.get('scenario') or r.get('name'))
+>     print('healthy', r.get('healthy'), 'acceptedOlder', r.get('acceptedOlder'), 'finalCounter', r.get('finalCounter'), 'dependencyTotal', r.get('dependencyTot
+al'))
+>     rows=r.get('rows') or []
+>     print('rows:', len(rows))
+>     if rows:
+>         last=rows[-1]
+>         print('last row:', {k:last.get(k) for k in ['index','value','factor','nativeValue']})
+>         print('last deferred:', last.get('deferred'))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/outcome/report.json'
+root@48d0f83bfd0b:/app# sha256sum outcome/report.json
+sha256sum: outcome/report.json: No such file or directory
+root@48d0f83bfd0b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative (/app/a1/p.js:11:11)
+    at f_a (/app/a1/p.js:24:25)
+    at /app/tools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main (/app/tools/run_matrix.js:14:34)
+    at Object.<anonymous> (/app/tools/run_matrix.js:20:1)
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+    at Module.load (node:internal/modules/cjs/loader:1203:32)
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+
+Node.js v18.20.4
+root@48d0f83bfd0b:/app# sha256sum outcome/report.json
+sha256sum: outcome/report.json: No such file or directory
+root@48d0f83bfd0b:/app# git status --porcelain=v1
+bash: git: command not found
+root@48d0f83bfd0b:/app#

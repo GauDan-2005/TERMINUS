@@ -1,0 +1,221 @@
+New Terminal Output:
+
+root@cf8c7351aaa9:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: r3/d.rs
+> @@
+>  pub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+>      a.epoch += 1;
+> -    let shown = app_path(c);
+>      let actual = resolve_target_root(c)?;
+> -    a.active.insert(b.to_string(), shown);
+> +    // For linked-package slots, follow the active target. Queries should resolve
+> +    // to the currently linked package contents, not the alias path.
+> +    a.active.insert(b.to_string(), actual.clone());
+>      let mut found = collect_entries(a, b, &actual, a.epoch)?;
+>      a.entries.append(&mut found);
+>      Ok(())
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@cf8c7351aaa9:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: r4/e.rs
+> @@
+>  use crate::model::{Observation, State};
+>
+>  pub fn mote_e(a: &mut State, b: &str, c: bool) -> Observation {
+> -    if let Some(entry) = a.entries.iter().find(|entry| entry.symbol == b) {
+> -        let reused = a.last_seen.get(b).map(|old| *old == entry.handle).unwrap_or(false);
+> -        a.last_seen.insert(b.to_string(), entry.handle);
+> -        let fresh = a
+> -            .active
+> -            .get(&entry.slot)
+> -            .map(|root| entry.path.starts_with(root))
+> -            .unwrap_or(false);
+> -        Observation {
+> -            label: String::new(),
+> -            symbol: b.to_string(),
+> -            found: true,
+> -            path: entry.path.clone(),
+> -            source: entry.source.clone(),
+> -            line: entry.line,
+> -            epoch: entry.epoch,
+> -            reused,
+> -            fresh,
+> -        }
+> -    } else {
+> -        Observation::missing(b, b, a.epoch, !c)
+> -    }
+> +    // Find the definition that would be visible *now* after preceding edits.
+> +    // Restrict to currently-active slot roots and pick the newest entry.
+> +    let mut best = None;
+> +    for entry in &a.entries {
+> +        if entry.symbol != b {
+> +            continue;
+> +        }
+> +        let Some(root) = a.active.get(&entry.slot) else {
+> +            continue;
+> +        };
+> +        if !entry.path.starts_with(root) {
+> +            continue;
+> +        }
+> +        let replace = match &best {
+> +            None => true,
+> +            Some(prev) => {
+> +                (entry.epoch, &entry.path, entry.line) > (prev.epoch, &prev.path, prev.line)
+> +            }
+> +        };
+> +        if replace {
+> +            best = Some(entry.clone());
+> +        }
+> +    }
+> +
+> +    if let Some(entry) = best {
+> +        let reused = a
+> +            .last_seen
+> +            .get(b)
+> +            .map(|old| *old == entry.handle)
+> +            .unwrap_or(false);
+> +        a.last_seen.insert(b.to_string(), entry.handle);
+> +        Observation {
+> +            label: String::new(),
+> +            symbol: b.to_string(),
+> +            found: true,
+> +            path: entry.path,
+> +            source: entry.source,
+> +            line: entry.line,
+> +            // Epoch is the harness epoch at query time.
+> +            epoch: a.epoch,
+> +            reused,
+> +            // By construction this is the visible, current definition.
+> +            fresh: true,
+> +        }
+> +    } else {
+> +        // For queries (c=true) this is stale; for misses (c=false) this is fresh.
+> +        Observation::missing("", b, a.epoch, !c)
+> +    }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@cf8c7351aaa9:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: r5/f.rs
+> @@
+>  use crate::model::{Observation, State};
+>
+>  pub fn cast_f(_a: &State, b: Observation, c: bool) -> (Observation, Option<String>) {
+> -    if c {
+> -        if b.found && b.fresh {
+> -            (b, None)
+> -        } else {
+> -            let label = b.label.clone();
+> -            (b, Some(label))
+> -        }
+> -    } else if b.found && b.path.starts_with("/app/") {
+> -        (b, None)
+> -    } else {
+> -        (b, None)
+> -    }
+> +    // c=true means the trace expects the symbol to be found (query).
+> +    // c=false means the trace expects the symbol to be absent (miss).
+> +    if c {
+> +        if b.found {
+> +            if b.fresh {
+> +                (b, None)
+> +            } else {
+> +                (b, Some(format!("stale: {} resolved to non-current definition", b.symbol)))
+> +            }
+> +        } else {
+> +            (b, Some(format!("stale: {} was not found", b.symbol)))
+> +        }
+> +    } else {
+> +        if b.found {
+> +            (b, Some(format!("stale: {} was found but should be missing", b.symbol)))
+> +        } else {
+> +            (b, None)
+> +        }
+> +    }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@cf8c7351aaa9:/app# cargo build -q
+root@cf8c7351aaa9:/app# bash /app/scripts/run-matrix.sh
+root@cf8c7351aaa9:/app# cp /app/output/index-report.json /app/output/index-report.json.run1
+root@cf8c7351aaa9:/app# bash /app/scrip
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+tures/beta/schemas/
+v1/api.schema", "line": 2, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "beta_after", "symbol": "Client", "found": true, "path": "/app/fixtures/beta/gen-v1/generated/api.ts", "source": "/app/fixtures/beta/schemas/v
+1/api.schema", "line": 2, "epoch": 1, "reused": true, "fresh": false}
+      ],
+      "stale": [""]
+    },
+    {
+      "name": "gamma",
+      "ok": false,
+      "observations": [
+        {"label": "gamma_before", "symbol": "Bridge", "found": true, "path": "/app/fixtures/gamma/pkg-a/src/bridge.ts", "source": "/app/fixtures/gamma/pkg-a/src
+/bridge.ts", "line": 1, "epoch": 1, "reused": false, "fresh": false},
+        {"label": "gamma_after", "symbol": "Bridge", "found": true, "path": "/app/fixtures/gamma/pkg-a/src/bridge.ts", "source": "/app/fixtures/gamma/pkg-a/src/
+bridge.ts", "line": 1, "epoch": 1, "reused": true, "fresh": false}
+      ],
+      "stale": ["", ""]
+    },
+    {
+      "name": "delta",
+      "ok": false,
+      "observations": [
+        {"label": "delta_client_before", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fixtu
+res/delta/schemas/v1/client.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "delta_widget_before", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-old/src/widget.ts", "source": "/app/fixtures/d
+elta/app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "delta_client_after_app", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fi
+xtures/delta/schemas/v1/client.schema", "line": 2, "epoch": 2, "reused": true, "fresh": true},
+        {"label": "delta_widget_after_app", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-old/src/widget.ts", "source": "/app/fixture
+s/delta/app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": true, "fresh": false},
+        {"label": "delta_client_after_gen", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fi
+xtures/delta/schemas/v1/client.schema", "line": 2, "epoch": 2, "reused": true, "fresh": false},
+        {"label": "delta_widget_after_gen", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-old/src/widget.ts", "source": "/app/fixture
+s/delta/app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": true, "fresh": false}
+      ],
+      "stale": ["", "", ""]
+    },
+    {
+      "name": "epsilon",
+      "ok": true,
+      "observations": [
+        {"label": "epsilon_legacy_before", "symbol": "Legacy", "found": true, "path": "/app/fixtures/epsilon/gen-v1/generated/legacy.ts", "source": "/app/fixtur
+es/epsilon/schemas/v1/legacy.schema", "line": 2, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "epsilon_legacy_after", "symbol": "Legacy", "found": true, "path": "/app/fixtures/epsilon/gen-v1/generated/legacy.ts", "source": "/app/fixture
+s/epsilon/schemas/v1/legacy.schema", "line": 2, "epoch": 1, "reused": true, "fresh": false},
+        {"label": "epsilon_client_after", "symbol": "Client", "found": true, "path": "/app/fixtures/epsilon/gen-v2/generated/client.ts", "source": "/app/fixture
+s/epsilon/schemas/v2/client.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "zeta",
+      "ok": false,
+      "observations": [
+        {"label": "zeta_bridge_before", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-a/src/bridge.ts", "source": "/app/fixtures/zeta/pkg-a
+/src/bridge.ts", "line": 1, "epoch": 2, "reused": false, "fresh": false},
+        {"label": "zeta_widget_before", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/app
+-old/src/widget.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "zeta_bridge_after_pkg", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-a/src/bridge.ts", "source": "/app/fixtures/zeta/pk
+g-a/src/bridge.ts", "line": 1, "epoch": 2, "reused": true, "fresh": false},
+        {"label": "zeta_widget_after_pkg", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/
+app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": true, "fresh": true},
+        {"label": "zeta_widget_after_app", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/
+app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": true, "fresh": false},
+        {"label": "zeta_bridge_after_app", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-a/src/bridge.ts", "source": "/app/fixtures/zeta/pk
+g-a/src/bridge.ts", "line": 1, "epoch": 2, "reused": true, "fresh": false}
+      ],
+      "stale": ["", "", "", ""]
+    }
+  ]
+}
+root@cf8c7351aaa9:/app#

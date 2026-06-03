@@ -1,0 +1,138 @@
+New Terminal Output:
+
+root@1465729b6301:/app# command -v jq || echo 'jq not found'
+jq not found
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> print('top keys:',sorted(data.keys()))
+> print('cases:',[c.get('name') for c in data.get('cases',[])])
+> for c in data.get('cases',[]):
+>     print(c['name'],'ok=',c.get('ok'),'source=',c.get('source'),'restored=',c.get('restored'))
+> PY
+top keys: ['cases']
+cases: ['alpha', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']
+alpha ok= False source= /tmp/staged-snapshot-1200740893/alpha/source restored= /tmp/staged-snapshot-1200740893/alpha/restored
+beta ok= False source= /tmp/staged-snapshot-1200740893/beta/source restored= /tmp/staged-snapshot-1200740893/beta/restored
+delta ok= False source= /tmp/staged-snapshot-1200740893/delta/source restored= /tmp/staged-snapshot-1200740893/delta/restored
+epsilon ok= False source= /tmp/staged-snapshot-1200740893/epsilon/source restored= /tmp/staged-snapshot-1200740893/epsilon/restored
+gamma ok= False source= /tmp/staged-snapshot-1200740893/gamma/source restored= /tmp/staged-snapshot-1200740893/gamma/restored
+zeta ok= False source= /tmp/staged-snapshot-1200740893/zeta/source restored= /tmp/staged-snapshot-1200740893/zeta/restored
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     d=c.get('digest',{})
+>     print(f"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={
+len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}")
+> PY
+alpha: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=3
+beta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=7
+delta: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=3
+epsilon: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+gamma: ok=False digest_equal=False groups_src=0 groups_rst=0 accounting=4
+zeta: ok=False digest_equal=False groups_src=1 groups_rst=0 accounting=9
+root@1465729b6301:/app# python3 - <<'PY'
+> import json
+> p='/app/output/restore-audit.json'
+> with open(p) as f: data=json.load(f)
+> # pick first failing case
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print('picked case:',case['name'])
+> print('source:',case['source'])
+> print('restored:',case['restored'])
+> PY
+picked case: alpha
+source: /tmp/staged-snapshot-1200740893/alpha/source
+restored: /tmp/staged-snapshot-1200740893/alpha/restored
+root@1465729b6301:/app# case_name=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['name'])
+> PY
+> ); echo "case=$case_name"
+case=alpha
+root@1465729b6301:/app# src=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['source'])
+> PY
+> ); rst=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['restored'])
+> PY
+> ); echo "src=$src"; echo "rst=$rst"; ls -la "$src" "$rst"
+src=/tmp/staged-snapshot-1200740893/alpha/source
+rst=/tmp/staged-snapshot-1200740893/alpha/restored
+/tmp/staged-snapshot-1200740893/alpha/restored:
+total 0
+drwxr-xr-x 5 root root 33 May 25 12:05 .
+drwxr-xr-x 4 root root 36 May 25 12:05 ..
+drwxr-xr-x 2 root root 21 May 25 12:05 a
+drwxr-xr-x 2 root root 21 May 25 12:05 b
+drwxr-xr-x 2 root root 23 May 25 12:05 c
+
+/tmp/staged-snapshot-1200740893/alpha/source:
+total 0
+drwxr-xr-x 5 root root 33 May 25 12:05 .
+drwxr-xr-x 4 root root 36 May 25 12:05 ..
+drwxr-xr-x 2 root root 21 May 25 12:05 a
+drwxr-xr-x 2 root root 21 May 25 12:05 b
+drwxr-xr-x 2 root root 23 May 25 12:05 c
+root@1465729b6301:/app# src=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['source'])
+> PY
+> ); rst=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['restored'])
+> PY
+> ); echo '--- source tree (first 200)'; (cd "$src" && find . -printf '%y %p\n' | sort | head -n 200); echo '--- restored tree (first 200)'; (cd "$rst" && find
+. -printf '%y %p\n' | sort | head -n 200)
+--- source tree (first 200)
+d .
+d ./a
+d ./b
+d ./c
+f ./a/one.txt
+f ./b/two.txt
+f ./c/three.txt
+--- restored tree (first 200)
+d .
+d ./a
+d ./b
+d ./c
+f ./a/one.txt
+f ./b/two.txt
+f ./c/three.txt
+root@1465729b6301:/app# src=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['source'])
+> PY
+> ); rst=$(python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: data=json.load(f)
+> case=next((c for c in data['cases'] if not c.get('ok')), data['cases'][0])
+> print(case['restored'])
+> PY
+> ); diff -ruN "$src" "$rst" | head -n 200
+diff -ruN /tmp/staged-snapshot-1200740893/alpha/source/a/one.txt /tmp/staged-snapshot-1200740893/alpha/restored/a/one.txt
+--- /tmp/staged-snapshot-1200740893/alpha/source/a/one.txt      2026-05-25 12:05:17.522306131 +0000
++++ /tmp/staged-snapshot-1200740893/alpha/restored/a/one.txt    2026-05-25 12:05:17.522306131 +0000
+@@ -1 +1 @@
+-alpha:one
++alpha:one
+\ No newline at end of file
+root@1465729b6301:/app#

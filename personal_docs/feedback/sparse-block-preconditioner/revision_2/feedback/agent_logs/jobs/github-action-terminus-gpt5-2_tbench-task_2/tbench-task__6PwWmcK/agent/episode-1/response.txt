@@ -1,0 +1,35 @@
+{
+  "analysis": "CMake build succeeded, but it produced the executable at /app/build/bin/solverctl, not /app/bin/solverctl. Both run-matrix.sh and run-one.sh hardcode /app/bin/solverctl, so they fail and no audit JSON is produced. Next we need to restore scripts so they invoke the built binary correctly and write the required JSON files under /app/output. After scripts run, we can observe failing reordered-layout cases and then fix the solver.",
+  "plan": "1) Locate the built solverctl binary and confirm paths. 2) Patch run-matrix.sh and run-one.sh to resolve solverctl from common locations (/app/bin, /app/build/bin, or PATH) and to ensure they write /app/output/solver-audit.json and /app/output/<name>-audit.json. 3) Run matrix to generate the report and quickly summarize failing cases. Then we can iterate on solver fixes.",
+  "commands": [
+    {
+      "keystrokes": "find /app -maxdepth 3 -type f -name solverctl -print -ls\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/bin || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-matrix.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" matrix\n+\n+# Prefer an in-tree install, but fall back to the default CMake build tree.\n+SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+if [[ ! -x \"${SOLVERCTL}\" ]]; then\n+  SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+fi\n+\n+\"${SOLVERCTL}\" matrix\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-one.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n NAME=\"${1:?case name required}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" one \"${NAME}\"\n+\n+# Prefer an in-tree install, but fall back to the default CMake build tree.\n+SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+if [[ ! -x \"${SOLVERCTL}\" ]]; then\n+  SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+fi\n+\n+\"${SOLVERCTL}\" one \"${NAME}\"\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/solver-audit.json'\nwith open(p) as f: j=json.load(f)\nprint('cases:',len(j.get('cases',[])))\nfail=[c for c in j.get('cases',[]) if (not c.get('ok',False)) or (not c.get('residual_agrees',False)) or c.get('hit_limit',False)]\nprint('problem_cases:',len(fail))\nfor c in fail[:40]:\n    print(c['name'], 'ok=',c['ok'], 'residual_agrees=',c['residual_agrees'], 'hit_limit=',c['hit_limit'], 'it=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

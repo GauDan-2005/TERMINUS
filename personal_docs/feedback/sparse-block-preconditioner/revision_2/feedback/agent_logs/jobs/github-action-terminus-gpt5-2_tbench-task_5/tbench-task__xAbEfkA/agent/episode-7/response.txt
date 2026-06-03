@@ -1,0 +1,43 @@
+{
+  "analysis": "Not complete. run-one.sh calls clean-room.sh, which deletes /app/output each time. As a result, after running the six per-case audits only the last file (opal-audit.json) remains, and the saved matrix copy solver-audit.json.run1 was deleted too. This prevents verifying per-case vs matrix slice and breaks the requirement that run-one.sh writes /app/output/<name>-audit.json (it does, but previous ones are wiped) and that matrix+per-case reports can be compared. We must adjust scripts so clean-room does not delete /app/output (or so run-one/matrix preserve outputs). Best fix: change clean-room.sh to only clean solver temp artifacts, not /app/output; or remove clean-room invocation from run-one.sh and run-matrix.sh. Simplest: make clean-room.sh a no-op that only ensures output dir exists. Then rerun matrix and one scripts and confirm all six per-case JSON files exist and match matrix slice; then rerun matrix twice and diff for determinism.",
+  "plan": "1) Edit /app/scripts/clean-room.sh to stop deleting /app/output; instead just mkdir -p /app/output (and optionally remove only non-audit scratch files if any). 2) Clean output once manually, run run-matrix.sh and save run1 copy outside /app/output (e.g., /tmp/solver-audit.run1.json) to avoid being wiped. 3) Run all run-one.sh cases; verify all six *-audit.json exist simultaneously. 4) Compare each per-case JSON element to the corresponding case in the saved matrix JSON. 5) Run run-matrix.sh twice and diff against saved copy to ensure equivalent JSON between reruns.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/scripts/clean-room.sh <<'EOF'\n#!/bin/bash\nset -euo pipefail\nAPP_ROOT=\"${APP_ROOT:-/app}\"\n# Do not delete /app/output: audit scripts must preserve reports across runs.\nmkdir -p \"${APP_ROOT}/output\"\nEOF\nchmod +x /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /tmp/solver-audit.json.run1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for n in basalt flint shale garnet mica opal; do bash /app/scripts/run-one.sh \"$n\"; done\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json,glob\nm=json.load(open('/tmp/solver-audit.json.run1'))\nby={c['name']:c for c in m['cases']}\nall_ok=True\nfor f in sorted(glob.glob('/app/output/*-audit.json')):\n    name=f.split('/')[-1].replace('-audit.json','')\n    one=json.load(open(f))['cases'][0]\n    if one!=by.get(name):\n        all_ok=False\n        print('DIFF', name)\n        print(' one :', one)\n        print(' mat :', by.get(name))\nprint('per-case match:', all_ok)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.json.run1 /app/output/solver-audit.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

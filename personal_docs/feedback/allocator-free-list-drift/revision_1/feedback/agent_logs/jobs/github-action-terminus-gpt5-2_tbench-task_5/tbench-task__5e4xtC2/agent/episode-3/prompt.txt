@@ -1,0 +1,76 @@
+New Terminal Output:
+
+root@978e12d4a5e2:/app# rm -f /app/output/*-audit.json
+root@978e12d4a5e2:/app# for n in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh "$n"; done
+root@978e12d4a5e2:/app# ls -la /app/output | sed -n '1,200p'
+total 48
+drwxr-xr-x  2 root root  302 May 25 13:10 .
+drwxr-xr-x 21 root root  290 May 25 13:10 ..
+-rw-r--r--  1 root root  979 May 25 13:10 cedar-audit.json
+-rw-r--r--  1 root root  608 May 25 13:10 cedar.ledger.jsonl
+-rw-r--r--  1 root root  689 May 25 13:10 coral-audit.json
+-rw-r--r--  1 root root  370 May 25 13:10 coral.ledger.jsonl
+-rw-r--r--  1 root root 1416 May 25 13:10 jade-audit.json
+-rw-r--r--  1 root root  969 May 25 13:10 jade.ledger.jsonl
+-rw-r--r--  1 root root 1276 May 25 13:10 onyx-audit.json
+-rw-r--r--  1 root root  853 May 25 13:10 onyx.ledger.jsonl
+-rw-r--r--  1 root root 1567 May 25 13:10 pearl-audit.json
+-rw-r--r--  1 root root 1092 May 25 13:10 pearl.ledger.jsonl
+-rw-r--r--  1 root root 1265 May 25 13:10 slate-audit.json
+-rw-r--r--  1 root root  842 May 25 13:10 slate.ledger.jsonl
+root@978e12d4a5e2:/app# python3 - <<'PY'
+> import json,glob,os
+> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> for p in sorted(glob.glob('/app/output/*-audit.json')):
+>     data=json.load(open(p))
+>     missing=sorted(req_case_keys-set(data.keys()))
+>     if missing:
+>         print('BAD',p,'missing',missing); continue
+>     for s in data['steps']:
+>         m=sorted(req_step_keys-set(s.keys()))
+>         if m:
+>             print('BAD',p,'step',s.get('seq'),'missing',m)
+>             break
+>     else:
+>         print('OK',os.path.basename(p),'steps',len(data['steps']),'ledger',data['ledger'])
+> PY
+BAD /app/output/cedar-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/coral-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/jade-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/onyx-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/pearl-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/slate-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+root@978e12d4a5e2:/app# python3 - <<'PY'
+> import json,glob
+> from pathlib import Path
+> for p in sorted(glob.glob('/app/output/*-audit.json')):
+>     data=json.load(open(p))
+>     ledger=Path(data['ledger'])
+>     steps=data['steps']
+>     if not ledger.exists():
+>         print('MISSING LEDGER',p,ledger); continue
+>     rows=[json.loads(l) for l in ledger.read_text().splitlines() if l.strip()]
+>     if len(rows)!=len(steps):
+>         print('LEN MISMATCH',p,len(steps),len(rows)); continue
+>     for s,r in zip(steps,rows):
+>         if s['seq']!=r.get('seq'):
+>             print('SEQ MISMATCH',p,s['seq'],r.get('seq'))
+>             break
+>         for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+>             if s[k]!=r.get(k):
+>                 print('TALLY MISMATCH',p,'seq',s['seq'],k,s[k],r.get(k))
+>                 raise SystemExit
+>     else:
+>         pass
+> print('per-case ledgers align')
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+KeyError: 'ledger'
+root@978e12d4a5e2:/app# bash /app/scripts/run-one.sh cedar
+root@978e12d4a5e2:/app# cp -a /app/output/cedar-audit.json /tmp/cedar-audit.1.json
+root@978e12d4a5e2:/app# bash /app/scripts/run-one.sh cedar
+root@978e12d4a5e2:/app# cp -a /app/output/cedar-audit.json /tmp/cedar-audit.2.json
+root@978e12d4a5e2:/app# diff -u /tmp/cedar-audit.1.json /tmp/cedar-audit.2.json || true
+root@978e12d4a5e2:/app#

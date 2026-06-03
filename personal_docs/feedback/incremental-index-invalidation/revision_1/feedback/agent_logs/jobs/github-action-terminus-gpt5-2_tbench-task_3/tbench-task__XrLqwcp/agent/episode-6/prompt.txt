@@ -1,0 +1,189 @@
+New Terminal Output:
+
+root@01f99625b95f:/app# cat > /app/r4/e.rs <<'EOF'
+> use crate::model::{Entry, Observation, State};
+>
+> pub fn mote_e(a: &mut State, symbol: &str, expect_found: bool) -> Observation {
+>     let mut candidates: Vec<&Entry> = a
+>         .entries
+>         .iter()
+>         .filter(|entry| entry.symbol == symbol)
+>         .collect();
+>
+>     if candidates.is_empty() {
+>         return Observation::missing(symbol, symbol, a.epoch, !expect_found);
+>     }
+>
+>     // Prefer the definition visible from currently active roots; otherwise fall back
+>     // deterministically to the latest indexed definition.
+>     let in_active = |e: &&Entry| {
+>         a.active
+>             .get(&e.slot)
+>             .is_some_and(|root| e.path.starts_with(root))
+>     };
+>
+>     fn pick_best(items: &mut Vec<&Entry>) -> &Entry {
+>         items.sort_by(|l, r| {
+>             // newest epoch first, then stable by path+line
+>             r.epoch
+>                 .cmp(&l.epoch)
+>                 .then_with(|| l.path.cmp(&r.path))
+>                 .then_with(|| l.line.cmp(&r.line))
+>         });
+>         items[0]
+>     }
+>
+>     let mut active_candidates: Vec<&Entry> = candidates.iter().copied().filter(in_active).collect();
+>     let entry = if !active_candidates.is_empty() {
+>         pick_best(&mut active_candidates)
+>     } else {
+>         pick_best(&mut candidates)
+>     };
+>
+>     let reused = a
+>         .last_seen
+>         .get(symbol)
+>         .map(|old| *old == entry.handle)
+>         .unwrap_or(false);
+>     a.last_seen.insert(symbol.to_string(), entry.handle);
+>
+>     let fresh = a
+>         .active
+>         .get(&entry.slot)
+>         .map(|root| entry.path.starts_with(root))
+>         .unwrap_or(false);
+>
+>     Observation {
+>         label: String::new(),
+>         symbol: symbol.to_string(),
+>         found: true,
+>         path: entry.path.clone(),
+>         source: entry.source.clone(),
+>         line: entry.line,
+>         // Observation epoch is when the query ran.
+>         epoch: a.epoch,
+>         reused,
+>         fresh,
+>     }
+> }
+> EOF
+root@01f99625b95f:/app# cat > /app/r5/f.rs <<'EOF'
+> use crate::model::{Observation, State};
+>
+> pub fn cast_f(
+>     _a: &State,
+>     label: &str,
+>     obs: Observation,
+>     expect_found: bool,
+> ) -> (Observation, Option<String>) {
+>     if expect_found {
+>         if obs.found && obs.fresh {
+>             (obs, None)
+>         } else {
+>             (obs, Some(label.to_string()))
+>         }
+>     } else {
+>         // For misses we only record staleness when the harness incorrectly reports a symbol.
+>         if obs.found {
+>             (obs, Some(label.to_string()))
+>         } else {
+>             (obs, None)
+>         }
+>     }
+> }
+> EOF
+root@01f99625b95f:/app# perl -0777 -i -pe 's/let \(item, note\) = cast_f\(a, item, true\);/let (item, note) = cast_f(a, \&b.left, item, true);/g; s/let \(item,
+note\) = cast_f\(a, item, false\);/let (item, note) = cast_f(a, \&b.left, item, false);/g' /app/r0/a.rs
+root@01f99625b95f:/app# grep -n "cast_f" -n /app/r0/a.rs
+6:use crate::r5_f::cast_f;
+21:            let (item, note) = cast_f(a, &b.left, item, true);
+29:            let (item, note) = cast_f(a, &b.left, item, false);
+root@01f99625b95f:/app# cargo run --quiet -- /app/output/index-report.json /app/traces/alpha.trace /app/traces/beta.trace /app/traces/gamma.trace /app/traces/de
+lta.trace /app/traces/epsilon.trace /app/traces/zeta.trace
+error[E0106]: missing lifetime specifier
+  --> src/../r4/e.rs:22:46
+   |
+22 |     fn pick_best(items: &mut Vec<&Entry>) -> &Entry {
+   |                         ----------------     ^ expected named lifetime parameter
+   |
+   = help: this function's return type contains a borrowed value, but the signature does not say which one of `items`'s 2 lifetimes it is borrowed from
+help: consider introducing a named lifetime parameter
+   |
+22 |     fn pick_best<'a>(items: &'a mut Vec<&'a Entry>) -> &'a Entry {
+   |                 ++++         ++          ++             ++
+
+For more information about this error, try `rustc --explain E0106`.
+error: could not compile `incremental-index-invalidation` (lib) due to 1 previous error
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> for c in obj['cases']:
+>     print(c['name'], 'ok', c['ok'], 'stale', c['stale'])
+> PY
+alpha ok False stale ['']
+beta ok False stale ['']
+gamma ok False stale ['', '']
+delta ok False stale ['', '', '']
+epsilon ok True stale []
+zeta ok False stale ['', '', '', '']
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> # show alpha/beta/gamma key observations
+> for name in ['alpha','beta','gamma','zeta','delta','epsilon']:
+>     c=next(x for x in obj['cases'] if x['name']==name)
+>     print('==',name,'==')
+>     for o in c['observations']:
+>         print(o['label'],o['symbol'],o['found'],o['path'],o['source'],o['line'],o['epoch'],o['reused'],o['fresh'])
+> PY
+== alpha ==
+alpha_before Widget True /app/fixtures/alpha/ws-old/src/widget.ts /app/fixtures/alpha/ws-old/src/widget.ts 1 1 False True
+alpha_after Widget True /app/fixtures/alpha/ws-old/src/widget.ts /app/fixtures/alpha/ws-old/src/widget.ts 1 1 True False
+== beta ==
+beta_before Client True /app/fixtures/beta/gen-v1/generated/api.ts /app/fixtures/beta/schemas/v1/api.schema 2 1 False True
+beta_after Client True /app/fixtures/beta/gen-v1/generated/api.ts /app/fixtures/beta/schemas/v1/api.schema 2 1 True False
+== gamma ==
+gamma_before Bridge True /app/fixtures/gamma/pkg-a/src/bridge.ts /app/fixtures/gamma/pkg-a/src/bridge.ts 1 1 False False
+gamma_after Bridge True /app/fixtures/gamma/pkg-a/src/bridge.ts /app/fixtures/gamma/pkg-a/src/bridge.ts 1 1 True False
+== zeta ==
+zeta_bridge_before Bridge True /app/fixtures/zeta/pkg-a/src/bridge.ts /app/fixtures/zeta/pkg-a/src/bridge.ts 1 2 False False
+zeta_widget_before Widget True /app/fixtures/zeta/app-old/src/widget.ts /app/fixtures/zeta/app-old/src/widget.ts 1 1 False True
+zeta_bridge_after_pkg Bridge True /app/fixtures/zeta/pkg-a/src/bridge.ts /app/fixtures/zeta/pkg-a/src/bridge.ts 1 2 True False
+zeta_widget_after_pkg Widget True /app/fixtures/zeta/app-old/src/widget.ts /app/fixtures/zeta/app-old/src/widget.ts 1 1 True True
+zeta_widget_after_app Widget True /app/fixtures/zeta/app-old/src/widget.ts /app/fixtures/zeta/app-old/src/widget.ts 1 1 True False
+zeta_bridge_after_app Bridge True /app/fixtures/zeta/pkg-a/src/bridge.ts /app/fixtures/zeta/pkg-a/src/bridge.ts 1 2 True False
+== delta ==
+delta_client_before DeltaClient True /app/fixtures/delta/gen-v1/generated/client.ts /app/fixtures/delta/schemas/v1/client.schema 2 2 False True
+delta_widget_before DeltaWidget True /app/fixtures/delta/app-old/src/widget.ts /app/fixtures/delta/app-old/src/widget.ts 1 1 False True
+delta_client_after_app DeltaClient True /app/fixtures/delta/gen-v1/generated/client.ts /app/fixtures/delta/schemas/v1/client.schema 2 2 True True
+delta_widget_after_app DeltaWidget True /app/fixtures/delta/app-old/src/widget.ts /app/fixtures/delta/app-old/src/widget.ts 1 1 True False
+delta_client_after_gen DeltaClient True /app/fixtures/delta/gen-v1/generated/client.ts /app/fixtures/delta/schemas/v1/client.schema 2 2 True False
+delta_widget_after_gen DeltaWidget True /app/fixtures/delta/app-old/src/widget.ts /app/fixtures/delta/app-old/src/widget.ts 1 1 True False
+== epsilon ==
+epsilon_legacy_before Legacy True /app/fixtures/epsilon/gen-v1/generated/legacy.ts /app/fixtures/epsilon/schemas/v1/legacy.schema 2 1 False True
+epsilon_legacy_after Legacy True /app/fixtures/epsilon/gen-v1/generated/legacy.ts /app/fixtures/epsilon/schemas/v1/legacy.schema 2 1 True False
+epsilon_client_after Client True /app/fixtures/epsilon/gen-v2/generated/client.ts /app/fixtures/epsilon/schemas/v2/client.schema 2 2 False True
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json && cp /app/output/index-report.json /app/output/index-report.json.run1
+55f70241c7583f0567a9e203085bfb9ba3d11a25e1ca252769aa365bd7a1350a  /app/output/index-report.json
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+error[E0106]: missing lifetime specifier
+  --> src/../r4/e.rs:22:46
+   |
+22 |     fn pick_best(items: &mut Vec<&Entry>) -> &Entry {
+   |                         ----------------     ^ expected named lifetime parameter
+   |
+   = help: this function's return type contains a borrowed value, but the signature does not say which one of `items`'s 2 lifetimes it is borrowed from
+help: consider introducing a named lifetime parameter
+   |
+22 |     fn pick_best<'a>(items: &'a mut Vec<&'a Entry>) -> &'a Entry {
+   |                 ++++         ++          ++             ++
+
+For more information about this error, try `rustc --explain E0106`.
+error: could not compile `incremental-index-invalidation` (lib) due to 1 previous error
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json /app/output/index-report.json.run1
+55f70241c7583f0567a9e203085bfb9ba3d11a25e1ca252769aa365bd7a1350a  /app/output/index-report.json
+55f70241c7583f0567a9e203085bfb9ba3d11a25e1ca252769aa365bd7a1350a  /app/output/index-report.json.run1
+root@01f99625b95f:/app# diff -u /app/output/index-report.json.run1 /app/output/index-report.json || true
+root@01f99625b95f:/app#

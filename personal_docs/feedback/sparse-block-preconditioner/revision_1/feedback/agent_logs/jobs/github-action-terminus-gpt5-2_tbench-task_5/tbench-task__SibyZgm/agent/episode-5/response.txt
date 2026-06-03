@@ -1,0 +1,15 @@
+{
+  "analysis": "Per-case audits match the matrix slice for all names (all_slices_match True). However, the matrix determinism check failed because solver-audit.1.json was copied into /app/output and then deleted by the second run (clean-room.sh rm -rf /app/output). So we still must demonstrate two matrix runs produce equivalent JSON by copying the outputs somewhere not wiped (e.g., /tmp) or copying after both runs into separate locations. Once that’s shown, the task can be marked complete.",
+  "plan": "1) Run the matrix twice, copying /app/output/solver-audit.json to /tmp/solver-audit.1.json and /tmp/solver-audit.2.json immediately after each run (outside /app/output so clean-room won’t delete them). 2) Compare sha256 hashes and diff to confirm equivalence. If differences appear, we’ll inspect causes; expected result is identical files.",
+  "commands": [
+    {
+      "keystrokes": "rm -f /tmp/solver-audit.1.json /tmp/solver-audit.2.json\nbash /app/scripts/run-matrix.sh\ncp /app/output/solver-audit.json /tmp/solver-audit.1.json\nbash /app/scripts/run-matrix.sh\ncp /app/output/solver-audit.json /tmp/solver-audit.2.json\npython3 - <<'PY'\nimport hashlib\nfrom pathlib import Path\nfor p in [Path('/tmp/solver-audit.1.json'), Path('/tmp/solver-audit.2.json')]:\n    b=p.read_bytes()\n    print(p.name, 'sha256', hashlib.sha256(b).hexdigest(), 'bytes', len(b))\nPY\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.1.json /tmp/solver-audit.2.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

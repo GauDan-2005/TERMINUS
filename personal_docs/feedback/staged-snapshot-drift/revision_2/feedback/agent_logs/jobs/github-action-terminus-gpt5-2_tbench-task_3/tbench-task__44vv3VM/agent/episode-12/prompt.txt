@@ -1,0 +1,41 @@
+Current Terminal Screen:
+        }
+        sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
+        return items, nil
+}
+root@3b3cdaca49ea:/app# grep -RIn --line-number --no-messages "ItemsC\|AccountItem\|period\|p0\|p1\|roll" /app/internal/c2
+/app/internal/c2/roll.go:26:            if b&1 == 1 && item.Period == "p1" {
+/app/internal/c2/roll.go:27:                    item.Period = "p0"
+/app/internal/c2/roll.go:34:func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
+/app/internal/c2/roll.go:41:            period := "p0"
+/app/internal/c2/roll.go:43:                    period = "p1"
+/app/internal/c2/roll.go:45:            entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
+/app/internal/c2/roll.go:56:    items := make([]f5.AccountItem, 0, len(store.Items))
+/app/internal/c2/roll.go:58:            items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
+root@3b3cdaca49ea:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/restore-audit.json'))
+> for name in ['epsilon','zeta']:
+>     c=next(x for x in obj['cases'] if x['name']==name)
+>     print('\n==',name,'==')
+>     for it in c['accounting']:
+>         print(it)
+> PY
+
+== epsilon ==
+{'path': 'a/one.txt', 'bytes': 12, 'period': 'p0'}
+{'path': 'b/two.txt', 'bytes': 12, 'period': 'p0'}
+{'path': 'c/three.txt', 'bytes': 15, 'period': 'p0'}
+{'path': 'd/roll.txt', 'bytes': 0, 'period': 'p0'}
+
+== zeta ==
+{'path': 'a/flow.txt', 'bytes': 7, 'period': 'p0'}
+{'path': 'a/one.txt', 'bytes': 9, 'period': 'p0'}
+{'path': 'a/shared-a.dat', 'bytes': 10, 'period': 'p0'}
+{'path': 'b/shared-b.dat', 'bytes': 10, 'period': 'p0'}
+{'path': 'b/two.txt', 'bytes': 9, 'period': 'p0'}
+{'path': 'c/shared-c.dat', 'bytes': 11, 'period': 'p0'}
+{'path': 'c/three.txt', 'bytes': 12, 'period': 'p0'}
+{'path': 'd/roll.txt', 'bytes': 0, 'period': 'p0'}
+{'path': 'deep/x/shared.dat', 'bytes': 10, 'period': 'p0'}
+root@3b3cdaca49ea:/app#

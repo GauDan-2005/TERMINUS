@@ -1,0 +1,285 @@
+New Terminal Output:
+
+root@3447b0c626d4:/app# cat > /app/cmd/align/main.go <<'EOF'
+ rawBy {
+                if !seen[c] {
+                        extra = append(extra, c)
+                }
+        }
+        sort.Strings(extra)
+        for _, c := range extra {
+                agree = false // extras not in built-in list
+                rows = append(rows, rawBy[c])
+        }
+
+        // Verify new rows match raw on the six required fields by case.
+        for _, r := range rows {
+                if rr, ok := rawBy[r.Case]; !ok || !sameSix(r, rr) {
+                        agree = false
+                }
+        }
+
+        // Compare against prior report.json if it exists.
+        if prior, err := loadReport(finalPath); err == nil {
+                priorBy, priorCnt := mapByCase(prior.Rows)
+                // Missing/extra/duplicate rows in prior means disagreement.
+                for _, c := range builtins {
+                        if priorCnt[c] != 1 {
+                                agree = false
+                        }
+                        pr, okP := priorBy[c]
+                        rr, okR := rawBy[c]
+                        if !okP || !okR || !sameSix(pr, rr) {
+                                agree = false
+                        }
+                }
+                for c, n := range priorCnt {
+                        if n != 1 {
+                                agree = false
+                        }
+                        if !contains(builtins, c) {
+                                agree = false
+                        }
+                }
+        } else if !errors.Is(err, os.ErrNotExist) {
+                // unreadable prior report: cannot claim agreement
+                agree = false
+        }
+
+        doc :=> package main
+>
+> import (
+> "bytes"
+> "encoding/json"
+> "errors"
+> "os"
+> "reflect"
+> "sort"
+> "strings"
+> )
+>
+> type entry struct {
+> Case      string `json:"case"`
+> Produced  []int  `json:"produced"`
+> Trace     []int  `json:"slot_trace"`
+> OrderUsed []int  `json:"order_used"`
+> Packed    bool   `json:"packed"`
+> Grouped   bool   `json:"grouped"`
+> Reuse     bool   `json:"reuse"`
+> }
+>
+> type rawDoc struct {
+> Raw []entry `json:"raw"`
+> }
+>
+> type finalDoc struct {
+> Rows    []entry        `json:"rows"`
+> Summary map[string]any `json:"summary"`
+> }
+>
+> func readBuiltins(path string) ([]string, error) {
+> b, err := os.ReadFile(path)
+> if err != nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> return nil, err
+> }
+> lines := strings.Split(string(b), "\n")
+> out := make([]string, 0, len(lines))
+> for _, ln := range lines {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> ln = strings.TrimSpace(ln)
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> if ln == "" {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> continue
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> out = append(out, ln)
+> }
+> return out, nil
+> }
+>
+> func norm(e entry) entry {
+> // normalize nil vs empty slices for stable comparisons
+> if e.Produced == nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> e.Produced = []int{}
+> }
+> if e.Trace == nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> e.Trace = []int{}
+> }
+> if e.OrderUsed == nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> e.OrderUsed = []int{}
+> }
+> return e
+> }
+>
+> func sameSix(a, b entry) bool {
+> a = norm(a)
+> b = norm(b)
+> return reflect.DeepEqual(a.Produced, b.Produced) &&
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> reflect.DeepEqual(a.Trace, b.Trace) &&
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tool
+[... output limited to 10000 bytes; 71 interior bytes omitted ...]
+bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+> } else if !errors.Is(err, os.ErrNotExist) {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> // unreadable prior report: cannot claim agreement
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> agree = false
+> }
+>
+> doc := finalDoc{
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> Rows: rows,
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> Summary: map[string]any{
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> "total": len(builtins),
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> "agree": agree,
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> },
+> }
+> out, err := json.MarshalIndent(doc, "", "  ")
+> if err != nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> panic(err)
+> }
+> if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> panic(err)
+> }
+> }
+>
+> func contains(a []string, s string) bool {
+> for _, x := range a {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> if x == s {
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> return true
+>
+Cargo.lock  bin/        config/     docs/       go.sum      output/     target/
+Cargo.toml  cmd/        data/       go.mod      internal/   src/        tools/
+> }
+> }
+> return false
+> }
+> EOF
+root@3447b0c626d4:/app# go fmt /app/cmd/align/main.go
+cmd/align/main.go
+root@3447b0c626d4:/app# go build -o /app/bin/align /app/cmd/align/main.go
+root@3447b0c626d4:/app# cp -a /app/output/report.json /app/output/report.json.pre_fix.$(date +%s)
+root@3447b0c626d4:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@3447b0c626d4:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))['raw']
+> rep=json.load(open('/app/output/report.json'))
+> need=['produced','slot_trace','order_used','packed','grouped','reuse']
+> raw_by={r['case']:{k:r.get(k) for k in need} for r in raw}
+> rep_by={r['case']:{k:r.get(k) for k in need} for r in rep['rows']}
+> mis=[]
+> for c in sorted(set(raw_by)|set(rep_by)):
+>     if c not in raw_by or c not in rep_by:
+>         mis.append((c,'missing'))
+>         continue
+>     for k in need:
+>         if raw_by[c][k]!=rep_by[c][k]:
+>             mis.append((c,k,raw_by[c][k],rep_by[c][k]))
+>             break
+> print('mismatches',mis)
+> print('summary',rep['summary'])
+> PY
+mismatches []
+summary {'agree': True, 'total': 6}
+root@3447b0c626d4:/app#

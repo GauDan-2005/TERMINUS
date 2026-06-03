@@ -1,0 +1,6 @@
+{
+  "analysis": "All requirements are met:\n1. `bash /app/scripts/run-matrix.sh` successfully writes `/app/output/solver-audit.json` with all 6 cases (basalt, flint, shale, garnet, mica, opal) reporting ok=true, residual_agrees=true, hit_limit=false.\n2. `bash /app/scripts/run-one.sh garnet` writes `/app/output/garnet-audit.json` matching the matrix slice for garnet.\n3. Two consecutive matrix runs produce identical JSON (determinism confirmed with diff).\n4. The JSON structure has the correct top-level `cases` array with all required fields: name, ok, iterations, final_residual, reported_residual, residual_agrees, hit_limit.\n\nThe four bugs I fixed:\n1. `bsr_n/layout.cpp`: Column block indexing when reorder is active was `(bj+1) % nb` (wrong), fixed to `a->perm[bj]`; also col_idx now stores `bj` (permuted index)\n2. `perm_p/order.cpp`: RHS permutation was not implemented (just memcpy), now properly permutes blocks according to perm array\n3. `prec_r/apply.cpp`: Preconditioner was using wrong block index `(blk+1) % nblocks` when reorder active, fixed to always use `blk` directly\n4. `scale_q/metric.cpp`: Was adding spurious `1e-4` to the L2 norm causing reported_residual to always disagree with final_residual",
+  "plan": "Task is complete. All scripts produce correct output and runs are deterministic.",
+  "commands": [],
+  "task_complete": true
+}

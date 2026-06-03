@@ -1,0 +1,152 @@
+New Terminal Output:
+
+root@4adef29c471e:/app# cat > /app/drive_h/run.c << 'EOF'
+> #include "../include/plan.h"
+> #include "../include/report.h"
+>
+> #include <stdio.h>
+> #include <string.h>
+>
+> static size_t compute_byte_total(const Arena *a) {
+>     size_t total = 0;
+>     for (int i = 0; i < a->slot_count; i++) {
+>         if (a->slot_live[i]) {
+>             total += a->slot_payload[i];
+>         }
+>     }
+>     return total;
+> }
+>
+> int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {
+>     Arena arena;
+>     int seq = 0;
+>     memset(res, 0, sizeof(*res));
+>     strncpy(res->name, plan->name, sizeof(res->name) - 1);
+>     snprintf(res->ledger_path, sizeof(res->ledger_path), "%s/%s.ledger.jsonl", out_dir, plan->name);
+>     arena_init(&arena);
+>     for (int i = 0; i < plan->op_count; i++) {
+>         const PlanOp *op = &plan->ops[i];
+>         StepRec *st = &res->steps[res->step_count++];
+>         st->seq = seq++;
+>         st->index = op->index;
+>         st->size = op->size;
+>         st->result_index = -1;
+>         if (op->kind == OP_ALLOC) {
+>             strncpy(st->op, "alloc", sizeof(st->op) - 1);
+>             st->result_index = arena_slot_alloc(&arena, op->size);
+>         } else if (op->kind == OP_FREE) {
+>             strncpy(st->op, "free", sizeof(st->op) - 1);
+>             st->result_index = arena_slot_free(&arena, op->index);
+>         } else if (op->kind == OP_REALLOC) {
+>             strncpy(st->op, "realloc", sizeof(st->op) - 1);
+>             st->result_index = arena_slot_realloc(&arena, op->index, op->size);
+>         }
+>         st->heap_sig = arena_heap_sig(&arena);
+>         st->fl_count = arena_fl_count(&arena);
+>         st->fl_sig = arena_fl_sig(&arena);
+>         st->byte_total = compute_byte_total(&arena);
+>     }
+>     res->heap_sig = arena_heap_sig(&arena);
+>     res->fl_count = arena_fl_count(&arena);
+>     res->fl_sig = arena_fl_sig(&arena);
+>     res->byte_total = compute_byte_total(&arena);
+>     res->ok = 1;
+>     return 0;
+> }
+> EOF
+root@4adef29c471e:/app# cat > /app/move_d/move.c << 'EOF'
+> #include <stddef.h>
+> #include <string.h>
+>
+> int xc2(void *a, void *b, size_t c) {
+>     if (c > 0) {
+>         memcpy(a, b, c);
+>     }
+>     return (int)c;
+> }
+> EOF
+root@4adef29c471e:/app# cat > /app/pool_a/tag.c << 'EOF'
+> #include "../include/block.h"
+>
+> #include <stddef.h>
+>
+> void xa0(Block *a, size_t b) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     size_t *ftr;
+>     hdr[0] = b;
+>     hdr[1] = 0;
+>     ftr = (size_t *)(void *)(a->base + a->off + b - FTR_SIZE);
+>     ftr[0] = b;
+> }
+>
+> size_t tag_read_size(const Block *a) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     return hdr[0];
+> }
+>
+> int z_is_flag(const Block *a) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     return (int)(hdr[1] & 1);
+> }
+>
+> void z_set_flag(Block *a, int flag) {
+>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
+>     if (flag) {
+>         hdr[1] |= 1;
+>     } else {
+>         hdr[1] &= ~(size_t)1;
+>     }
+> }
+>
+> size_t tag_read_footer(const Block *a, size_t total) {
+>     size_t *ftr = (size_t *)(void *)(a->base + a->off + total - FTR_SIZE);
+>     return ftr[0];
+> }
+> EOF
+root@4adef29c471e:/app# cat > /app/acct_e/acct.c << 'EOF'
+> #include "../include/stats.h"
+>
+> #include <stddef.h>
+> #include <sys/types.h>
+>
+> void xd3(Stats *a, ssize_t b) {
+>     if (b > 0) {
+>         a->allocated += (size_t)b;
+>     } else {
+>         a->allocated -= (size_t)(-b);
+>     }
+>     if (a->allocated > a->peak) {
+>         a->peak = a->allocated;
+>     }
+> }
+> EOF
+root@4adef29c471e:/app# cd /app && make clean && make 2>&1
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o spl
+it_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+drive_h/run.c: In function ‘run_case’:
+drive_h/run.c:21:5: warning: ‘strncpy’ output may be truncated copying 31 bytes from a string of length 31 [-Wstringop-truncation]
+   21 |     strncpy(res->name, plan->name, sizeof(res->name) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_o
+ps.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_
+j/mirror.o
+root@4adef29c471e:/app#

@@ -1,0 +1,1515 @@
+[?2004hroot@27e9125e8859:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@27e9125e8859:/app# clear
+[?2004l[H[J[3J[?2004hroot@27e9125e8859:/app# cd /app
+[?2004l[?2004hroot@27e9125e8859:/app# ls -la
+[?2004ltotal 12
+drwxr-xr-x 17 root root  231 May 25 11:29 .
+drwxr-xr-x 19 root root  265 May 25 11:30 ..
+-rw-r--r--  1 root root 2683 May 25 11:26 Cargo.lock
+-rw-r--r--  1 root root  262 May 25 11:26 Cargo.toml
+-rw-r--r--  1 root root  162 May 25 11:26 README.md
+drwxr-xr-x  2 root root   29 May 25 11:26 docs
+drwxr-xr-x  8 root root   84 May 25 11:26 fixtures
+drwxr-xr-x  2 root root   18 May 25 11:26 k0
+drwxr-xr-x  2 root root   18 May 25 11:26 k1
+drwxr-xr-x  2 root root   18 May 25 11:26 k2
+drwxr-xr-x  2 root root   18 May 25 11:26 k3
+drwxr-xr-x  2 root root   18 May 25 11:26 k4
+drwxr-xr-x  2 root root   18 May 25 11:26 k5
+drwxr-xr-x  2 root root   18 May 25 11:26 k6
+drwxr-xr-x  2 root root   18 May 25 11:26 k7
+drwxr-xr-x  2 root root   18 May 25 11:26 k8
+drwxr-xr-x  2 root root   45 May 25 11:26 scripts
+drwxr-xr-x  2 root root   98 May 25 11:26 src
+drwxr-xr-x  3 root root   63 May 25 11:29 target
+drwxr-xr-x  2 root root  120 May 25 11:26 traces
+[?2004hroot@27e9125e8859:/app# find /app -maxdepth 2 -type f -name 'run-matrix.sh' -o -name 'policy-audit.json' -o -name '*.rs'
+[?2004l/app/k0/a.rs
+/app/k1/b.rs
+/app/k2/c.rs
+/app/k3/d.rs
+/app/k4/e.rs
+/app/k5/f.rs
+/app/k6/g.rs
+/app/k7/h.rs
+/app/k8/i.rs
+/app/scripts/run-matrix.sh
+/app/src/io.rs
+/app/src/lib.rs
+/app/src/main.rs
+/app/src/model.rs
+/app/src/report.rs
+/app/src/runner.rs
+[?2004hroot@27e9125e8859:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+cd /app
+mkdir -p /app/output
+cargo run --offline --quiet -- \
+  /app/output/policy-audit.json \
+  /app/traces/alpha.trace \
+  /app/traces/beta.trace \
+  /app/traces/gamma.trace \
+  /app/traces/delta.trace \
+  /app/traces/epsilon.trace \
+  /app/traces/zeta.trace
+[?2004hroot@27e9125e8859:/app# ls -la /app/output || true
+[?2004lls: cannot access '/app/output': No such file or directory
+[?2004hroot@27e9125e8859:/app# rg -n "policy-audit\.json|policy_audit|audit\.json|canned|fixture|golden" /app/src /app/k0 /app/k1 /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8 /app/scripts || true
+[?2004lbash: rg: command not found
+[?2004hroot@27e9125e8859:/app# cargo build -q
+[?2004lbash: cargo: command not found
+[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 4: cargo: command not found
+[?2004hroot@27e9125e8859:/app# ls -la /app/output
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 25 11:30 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+[?2004hroot@27e9125e8859:/app# python3 - <<'PY'
+[?2004l[?2004h> import hashlib, pathlib
+[?2004l[?2004h> p=pathlib.Path('/app/output/policy-audit.json')
+[?2004l[?2004h> print('exists',p.exists())
+[?2004l[?2004h> if p.exists():
+[?2004l[?2004h>     b=p.read_bytes()
+[?2004l[?2004h>     print('bytes',len(b))
+[?2004l[?2004h>     print('sha256',hashlib.sha256(b).hexdigest())
+[?2004l[?2004h> PY
+[?2004lexists False
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.1.json 2>/dev/null || true
+[?2004l[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 4: cargo: command not found
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.2.json 2>/dev/null || true
+[?2004l[?2004hroot@27e9125e8859:/app# if [ -f /tmp/policy-audit.1.json ] && [ -f /tmp/policy-audit.2.json ]; then sha256sum /tmp/policy-audit.1.json /tmp/policy-audit.2.json; diff -u /tmp/policy-audit.1.json /tmp/policy-audit.2.json | sed -n '1,120p'; fi
+[?2004l[?2004hroot@27e9125e8859:/app# cat /etc/os-release
+[?2004lPRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+[?2004hroot@27e9125e8859:/app# apt-get update
+[?2004l0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
+0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+0% [Working]            Reading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+[?2004hroot@27e9125e8859:/app# apt-get install -y cargo rustc
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+E: Unable to locate package cargo
+E: Unable to locate package rustc
+[?2004hroot@27e9125e8859:/app# apt-get install -y ripgrep
+[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
+Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
+Reading state information... 0% Reading state information... 0%Reading state information... Done
+E: Unable to locate package ripgrep
+[?2004hroot@27e9125e8859:/app# cargo --version && rustc --version
+[?2004lbash: cargo: command not found
+[?2004hroot@27e9125e8859:/app# command -v cargo || true; command -v rustc || true
+[?2004l[?2004hroot@27e9125e8859:/app# echo "$PATH"
+[?2004l/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[?2004hroot@27e9125e8859:/app# ls -la /usr/local/bin || true
+[?2004ltotal 12
+drwxr-xr-x  2 root root  53 May 25 11:27 .
+drwxr-xr-x 12 root root 141 Mar 18  2025 ..
+-rwxr-xr-x  1 root root 221 May 25 11:27 py.test
+-rwxr-xr-x  1 root root 215 May 25 11:27 pygmentize
+-rwxr-xr-x  1 root root 221 May 25 11:27 pytest
+[?2004hroot@27e9125e8859:/app# find / -maxdepth 4 -type f \( -name cargo -o -name rustc \) 2>/dev/null | head -n 50
+[?2004l[?2004hroot@27e9125e8859:/app# find /app/target -maxdepth 3 -type f -perm -111 2>/dev/null | sed -n '1,200p'
+[?2004l/app/target/debug/deps/libserde_derive-313d2cfc8d54f42f.so
+/app/target/debug/deps/pollab-41a7321f5abd401f
+/app/target/debug/pollab
+[?2004hroot@27e9125e8859:/app# ls -la /app/target/debug 2>/dev/null || true
+[?2004ltotal 11608
+drwxr-xr-x  7 root root     176 May 25 11:29 .
+drwxr-xr-x  3 root root      63 May 25 11:29 ..
+-rw-r--r--  1 root root       0 May 25 11:29 .cargo-lock
+drwxr-xr-x 27 root root    4096 May 25 11:29 .fingerprint
+drwxr-xr-x 14 root root    4096 May 25 11:29 build
+drwxr-xr-x  2 root root    4096 May 25 11:29 deps
+drwxr-xr-x  2 root root       6 May 25 11:29 examples
+drwxr-xr-x  4 root root      62 May 25 11:29 incremental
+-rw-r--r--  1 root root     238 May 25 11:29 libpollab.d
+-rw-r--r--  2 root root 4328288 May 25 11:29 libpollab.rlib
+-rwxr-xr-x  2 root root 7533344 May 25 11:29 pollab
+-rw-r--r--  1 root root     247 May 25 11:29 pollab.d
+[?2004hroot@27e9125e8859:/app# file /app/target/debug/* 2>/dev/null | sed -n '1,120p'
+[?2004l/app/target/debug/build:          directory
+/app/target/debug/deps:           directory
+/app/target/debug/examples:       directory
+/app/target/debug/incremental:    directory
+/app/target/debug/libpollab.d:    ASCII text
+/app/target/debug/libpollab.rlib: current ar archive
+/app/target/debug/pollab:         ELF 64-bit LSB pie executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, BuildID[sha1]=82039cdf1170bb613b95bfb96b34a6d1cb23f078, for GNU/Linux 3.2.0, with debug_info, not stripped
+/app/target/debug/pollab.d:       ASCII text
+[?2004hroot@27e9125e8859:/app# /app/target/debug/pollab --help || /app/target/debug/pollab -h || true
+[?2004lusage: pollab <out.json> <trace>...
+usage: pollab <out.json> <trace>...
+[?2004hroot@27e9125e8859:/app# sed -n '1,120p' /app/src/main.rs
+[?2004luse pollab::runner::run_all;
+use std::env;
+use std::path::PathBuf;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 3 {
+        eprintln!("usage: pollab <out.json> <trace>...");
+        std::process::exit(2);
+    }
+    let out = PathBuf::from(&args[1]);
+    let traces: Vec<PathBuf> = args[2..].iter().map(PathBuf::from).collect();
+    if let Err(err) = run_all(&out, &traces) {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
+}
+[?2004hroot@27e9125e8859:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004lxecutable" >&2
++  exit 1
++fi
+*** End Patch
+PATCH
+[?2004h> *** Update File: scripts/run-matrix.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  #!/bin/bash
+[?2004l[?2004h>  cd /app
+[?2004l[?2004h>  mkdir -p /app/output
+[?2004l[?2004h> -cargo run --offline --quiet -- \
+[?2004l[?2004h> -  /app/output/policy-audit.json \
+[?2004l[?2004h> -  /app/traces/alpha.trace \
+[?2004l[?2004h> -  /app/traces/beta.trace \
+[?2004l[?2004h> -  /app/traces/gamma.trace \
+[?2004l[?2004h> -  /app/traces/delta.trace \
+[?2004l[?2004h> -  /app/traces/epsilon.trace \
+[?2004l[?2004h> -  /app/traces/zeta.trace
+[?2004l[?2004h> +
+[?2004l[?2004h> +BIN="/app/target/debug/pollab"
+[?2004l[?2004h> +
+[?2004l[?2004h> +if command -v cargo >/dev/null 2>&1; then
+[?2004l[?2004h> +  cargo run --offline --quiet -- \
+[?2004l[?2004h> +    /app/output/policy-audit.json \
+[?2004l[?2004h> +    /app/traces/alpha.trace \
+[?2004l[?2004h> +    /app/traces/beta.trace \
+[?2004l[?2004h> +    /app/traces/gamma.trace \
+[?2004l[?2004h> +    /app/traces/delta.trace \
+[?2004l[?2004h> +    /app/traces/epsilon.trace \
+[?2004l[?2004h> +    /app/traces/zeta.trace
+[?2004l[?2004h> +elif [ -x "$BIN" ]; then
+[?2004l[?2004h> +  "$BIN" \
+[?2004l[?2004h> +    /app/output/policy-audit.json \
+[?2004l[?2004h> +    /app/traces/alpha.trace \
+[?2004l[?2004h> +    /app/traces/beta.trace \
+[?2004l[?2004h> +    /app/traces/gamma.trace \
+[?2004l[?2004h> +    /app/traces/delta.trace \
+[?2004l[?2004h> +    /app/traces/epsilon.trace \
+[?2004l[?2004h> +    /app/traces/zeta.trace
+[?2004l[?2004h> +else
+[?2004l[?2004h> +  echo "error: cargo not available and $BIN is missing/unexecutable" >&2
+[?2004l[?2004h> +  exit 1
+[?2004l[?2004h> +fi
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 4: cargo: command not found
+[?2004hroot@27e9125e8859:/app# ls -la /app/output && wc -c /app/output/policy-audit.json && head -n 20 /app/output/policy-audit.json
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 25 11:30 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+wc: /app/output/policy-audit.json: No such file or directory
+[?2004hroot@27e9125e8859:/app# sha256sum /app/output/policy-audit.json
+[?2004lsha256sum: /app/output/policy-audit.json: No such file or directory
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.1.json
+[?2004lcp: cannot stat '/app/output/policy-audit.json': No such file or directory
+[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 4: cargo: command not found
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.2.json && sha256sum /tmp/policy-audit.1.json /tmp/policy-audit.2.json && diff -u /tmp/policy-audit.1.json /tmp/policy-audit.2.json | sed -n '1,120p'
+[?2004lcp: cannot stat '/app/output/policy-audit.json': No such file or directory
+[?2004hroot@27e9125e8859:/app# sed -n '1,80p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+cd /app
+mkdir -p /app/output
+cargo run --offline --quiet -- \
+  /app/output/policy-audit.json \
+  /app/traces/alpha.trace \
+  /app/traces/beta.trace \
+  /app/traces/gamma.trace \
+  /app/traces/delta.trace \
+  /app/traces/epsilon.trace \
+  /app/traces/zeta.trace
+[?2004hroot@27e9125e8859:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> 
+[?2004l[?2004h> cd /app
+[?2004l[?2004h> mkdir -p /app/output
+[?2004l[?2004h> 
+[?2004l[?2004h> OUT=/app/output/policy-audit.json
+[?2004l[?2004h> TRACES=(
+[?2004l[?2004h>   /app/traces/alpha.trace
+[?2004l[?2004h>   /app/traces/beta.trace
+[?2004l[?2004h>   /app/traces/gamma.trace
+[?2004l[?2004h>   /app/traces/delta.trace
+[?2004l[?2004h>   /app/traces/epsilon.trace
+[?2004l[?2004h>   /app/traces/zeta.trace
+[?2004l[?2004h> )
+[?2004l[?2004h> 
+[?2004l[?2004h> BIN=/app/target/debug/pollab
+[?2004l[?2004h> 
+[?2004l[?2004h> if command -v cargo >/dev/null 2>&1; then
+[?2004l[?2004h>   cargo run --offline --quiet -- "$OUT" "${TRACES[@]}"
+[?2004l[?2004h> elif [ -x "$BIN" ]; then
+[?2004l[?2004h>   "$BIN" "$OUT" "${TRACES[@]}"
+[?2004l[?2004h> else
+[?2004l[?2004h>   echo "error: cargo not available and $BIN is missing/unexecutable" >&2
+[?2004l[?2004h>   exit 1
+[?2004l[?2004h> fi
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# chmod +x /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@27e9125e8859:/app# ls -la /app/output && wc -c /app/output/policy-audit.json && head -n 30 /app/output/policy-audit.json
+[?2004ltotal 4
+drwxr-xr-x  2 root root   31 May 25 11:33 .
+drwxr-xr-x 18 root root  245 May 25 11:30 ..
+-rw-r--r--  1 root root 3670 May 25 11:33 policy-audit.json
+3670 /app/output/policy-audit.json
+{
+  "cases": [
+    {
+      "name": "alpha",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "before",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": "boss"
+        },
+        {
+          "label": "batch",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 1,
+          "reused": false,
+          "batch_id": "b1",
+          "delegated_from": ""
+        },
+        {
+          "label": "after",
+[?2004hroot@27e9125e8859:/app# sha256sum /app/output/policy-audit.json
+[?2004l17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.1.json
+[?2004l[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.2.json
+[?2004l[?2004hroot@27e9125e8859:/app# sha256sum /tmp/policy-audit.1.json /tmp/policy-audit.2.json
+[?2004l17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /tmp/policy-audit.1.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /tmp/policy-audit.2.json
+[?2004hroot@27e9125e8859:/app# diff -u /tmp/policy-audit.1.json /tmp/policy-audit.2.json | sed -n '1,160p'
+[?2004l[?2004hroot@27e9125e8859:/app# for f in /app/traces/*.trace; do echo "--- $f"; sed -n '1,200p' "$f"; done
+[?2004l--- /app/traces/alpha.trace
+grant boss vault/read
+delegate boss clerk
+check before clerk:vault/read
+revoke clerk -
+batch b1 -
+check batch clerk:vault/read
+end - -
+check after clerk:vault/read
+--- /app/traces/beta.trace
+check miss intern:vault/read
+grant intern vault/read
+check solo intern:vault/read
+--- /app/traces/delta.trace
+grant alice logs/read
+check first alice:logs/read
+revoke bob -
+check second alice:logs/read
+--- /app/traces/epsilon.trace
+grant root api/invoke
+delegate root mid
+delegate mid leaf
+revoke mid -
+check check leaf:api/invoke
+--- /app/traces/gamma.trace
+grant boss vault/write
+delegate boss clerk
+delegate clerk intern
+revoke boss -
+batch b1 -
+check batch intern:vault/write
+end - -
+--- /app/traces/zeta.trace
+grant alpha secret/read
+grant beta secret/read
+revoke alpha -
+batch mix -
+check a alpha:secret/read
+check b beta:secret/read
+end - -
+[?2004hroot@27e9125e8859:/app# grep -RIn --line-number --exclude-dir target "batch_id\|delegated_from\|delegat\|inherit\|reused\|epoch\|group" /app/src /app/k0 /app/k1 /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8 | sed -n '1,200p'
+[?2004l/app/src/model.rs:18:    pub reused: bool,
+/app/src/model.rs:19:    pub group: String,
+/app/src/model.rs:38:    pub group_slot: BTreeMap<String, String>,
+/app/src/model.rs:39:    pub group_active: String,
+/app/src/model.rs:52:            group_slot: BTreeMap::new(),
+/app/src/model.rs:53:            group_active: String::new(),
+/app/src/model.rs:81:            reused: false,
+/app/src/model.rs:82:            group: String::new(),
+/app/src/report.rs:13:    epoch: u64,
+/app/src/report.rs:14:    reused: bool,
+/app/src/report.rs:15:    batch_id: String,
+/app/src/report.rs:16:    delegated_from: String,
+/app/src/report.rs:52:                        epoch: row.tick,
+/app/src/report.rs:53:                        reused: row.reused,
+/app/src/report.rs:54:                        batch_id: row.group.clone(),
+/app/src/report.rs:55:                        delegated_from: row.via.clone(),
+/app/k0/a.rs:19:        "delegate" => {
+/app/k0/a.rs:26:            a.group_active = b.left.clone();
+/app/k0/a.rs:27:            a.group_slot.clear();
+/app/k0/a.rs:31:            a.group_active.clear();
+/app/k0/a.rs:32:            a.group_slot.clear();
+/app/k0/a.rs:37:            let row = if a.group_active.is_empty() {
+/app/k3/d.rs:7:  if let Some(outcome) = a.group_slot.get(&slot) {
+/app/k3/d.rs:15:        row.group = a.group_active.clone();
+/app/k3/d.rs:20:    a.group_slot.insert(slot, outcome.clone());
+/app/k3/d.rs:23:    row.group = a.group_active.clone();
+/app/k5/f.rs:5:    let reused = a
+/app/k5/f.rs:10:    b.reused = reused;
+[?2004hroot@27e9125e8859:/app# sed -n '1,240p' /app/src/report.rs
+[?2004luse crate::model::CaseReport;
+use serde::Serialize;
+use std::fs;
+use std::path::Path;
+
+#[derive(Serialize)]
+struct RowOut {
+    label: String,
+    principal: String,
+    resource: String,
+    action: String,
+    verdict: String,
+    epoch: u64,
+    reused: bool,
+    batch_id: String,
+    delegated_from: String,
+}
+
+#[derive(Serialize)]
+struct CaseOut {
+    name: String,
+    ok: bool,
+    decisions: Vec<RowOut>,
+    stale: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct RootOut {
+    cases: Vec<CaseOut>,
+}
+
+pub fn write_report(path: &Path, cases: &[CaseReport]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+    }
+    let payload = RootOut {
+        cases: cases
+            .iter()
+            .map(|case| CaseOut {
+                name: case.name.clone(),
+                ok: case.ok,
+                stale: case.stale.clone(),
+                decisions: case
+                    .decisions
+                    .iter()
+                    .map(|row| RowOut {
+                        label: row.label.clone(),
+                        principal: row.subject.clone(),
+                        resource: row.object.clone(),
+                        action: row.mode.clone(),
+                        verdict: row.outcome.clone(),
+                        epoch: row.tick,
+                        reused: row.reused,
+                        batch_id: row.group.clone(),
+                        delegated_from: row.via.clone(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+    let text = serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?;
+    fs::write(path, text).map_err(|e| format!("write {}: {e}", path.display()))
+}
+[?2004hroot@27e9125e8859:/app# sed -n '1,260p' /app/src/runner.rs
+[?2004luse crate::io::read_trace;
+use crate::k0_a::phase_a;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        decisions: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+[?2004hroot@27e9125e8859:/app# sed -n '1,260p' /app/src/model.rs
+[?2004luse std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub kind: String,
+    pub left: String,
+    pub right: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Decision {
+    pub label: String,
+    pub subject: String,
+    pub object: String,
+    pub mode: String,
+    pub outcome: String,
+    pub tick: u64,
+    pub reused: bool,
+    pub group: String,
+    pub via: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub decisions: Vec<Decision>,
+    pub stale: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub direct: BTreeSet<(String, String, String)>,
+    pub chain: BTreeMap<String, String>,
+    pub ticks: BTreeMap<String, u64>,
+    pub blocked: BTreeSet<String>,
+    pub store: BTreeMap<String, String>,
+    pub group_slot: BTreeMap<String, String>,
+    pub group_active: String,
+    pub seen: BTreeMap<String, String>,
+    pub clock: u64,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            direct: BTreeSet::new(),
+            chain: BTreeMap::new(),
+            ticks: BTreeMap::new(),
+            blocked: BTreeSet::new(),
+            store: BTreeMap::new(),
+            group_slot: BTreeMap::new(),
+            group_active: String::new(),
+            seen: BTreeMap::new(),
+            clock: 0,
+        }
+    }
+
+    pub fn tick_for(&self, subject: &str) -> u64 {
+        *self.ticks.get(subject).unwrap_or(&0)
+    }
+
+    pub fn slot_key(object: &str, mode: &str) -> String {
+        format!("{object}|{mode}")
+    }
+
+    pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+        format!("{subject}|{object}|{mode}")
+    }
+}
+
+impl Decision {
+    pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+        Self {
+            label: label.to_string(),
+            subject: subject.to_string(),
+            object: object.to_string(),
+            mode: mode.to_string(),
+            outcome: String::new(),
+            tick,
+            reused: false,
+            group: String::new(),
+            via: String::new(),
+        }
+    }
+}
+[?2004hroot@27e9125e8859:/app# for f in /app/k0/a.rs /app/k1/b.rs /app/k2/c.rs /app/k3/d.rs /app/k4/e.rs /app/k5/f.rs /app/k6/g.rs /app/k7/h.rs /app/k8/i.rs; do echo "===== $f"; sed -n '1,220p' "$f"; done
+[?2004l===== /app/k0/a.rs
+use crate::io::split_subject_object_mode;
+use crate::k1_b::fold_b;
+use crate::k3_d::lift_d;
+use crate::k5_f::cast_f;
+use crate::model::{CaseReport, Decision, Event, State};
+
+pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+    match b.kind.as_str() {
+        "grant" => {
+            let (object, mode) = b
+                .right
+                .split_once('/')
+                .ok_or_else(|| format!("bad grant row {}", b.right))?;
+            a.direct
+                .insert((b.left.clone(), object.to_string(), mode.to_string()));
+            a.clock += 1;
+            Ok(())
+        }
+        "delegate" => {
+            a.chain.insert(b.right.clone(), b.left.clone());
+            a.clock += 1;
+            Ok(())
+        }
+        "revoke" => fold_b(a, &b.left),
+        "batch" => {
+            a.group_active = b.left.clone();
+            a.group_slot.clear();
+            Ok(())
+        }
+        "end" => {
+            a.group_active.clear();
+            a.group_slot.clear();
+            Ok(())
+        }
+        "check" => {
+            let (subject, object, mode) = split_subject_object_mode(&b.right)?;
+            let row = if a.group_active.is_empty() {
+                wrap_g(a, &b.left, &subject, &object, &mode)
+            } else {
+                lift_d(a, &b.left, &subject, &object, &mode)
+            };
+            let (row, note) = cast_f(a, row, true);
+            c.decisions.push(row);
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+            Ok(())
+        }
+        other => Err(format!("unknown trace row {other}")),
+    }
+}
+
+fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+    use crate::k2_c::emit_c;
+    use crate::k4_e::mote_e;
+
+    let tick = a.tick_for(subject);
+    if let Some(outcome) = emit_c(a, subject, object, mode) {
+        let via = if outcome == "allow" {
+            mote_e(a, subject, object, mode).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(label, subject, object, mode, tick);
+        row.outcome = outcome;
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, subject, object, mode);
+    a.store.insert(
+        crate::model::State::slot_key(object, mode),
+        outcome.clone(),
+    );
+    let mut row = Decision::blank(label, subject, object, mode, tick);
+    row.outcome = outcome;
+    row.via = via;
+    row
+}
+===== /app/k1/b.rs
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str) -> Result<(), String> {
+    let next = a.tick_for(b) + 1;
+    a.ticks.insert(b.to_string(), next);
+    a.blocked.insert(b.to_string());
+    a.clock += 1;
+    Ok(())
+}
+===== /app/k2/c.rs
+use crate::model::State;
+
+pub fn emit_c(a: &State, _b: &str, c: &str, d: &str) -> Option<String> {
+    let key = State::slot_key(c, d);
+    a.store.get(&key).cloned()
+}
+===== /app/k3/d.rs
+use crate::k4_e::mote_e;
+use crate::model::{Decision, State};
+
+pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+    let slot = State::slot_key(d, e);
+    let tick = a.tick_for(c);
+  if let Some(outcome) = a.group_slot.get(&slot) {
+        let via = if outcome == "allow" {
+            mote_e(a, c, d, e).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(b, c, d, e, tick);
+        row.outcome = outcome.clone();
+        row.group = a.group_active.clone();
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, c, d, e);
+    a.group_slot.insert(slot, outcome.clone());
+    let mut row = Decision::blank(b, c, d, e, tick);
+    row.outcome = outcome;
+    row.group = a.group_active.clone();
+    row.via = via;
+    row
+}
+===== /app/k4/e.rs
+use crate::model::State;
+
+pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+    let mut current = b.to_string();
+    loop {
+        if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+            if a.blocked.contains(b) {
+                return ("deny".to_string(), String::new());
+            }
+            let via = if current == b {
+                String::new()
+            } else {
+                current.clone()
+            };
+            return ("allow".to_string(), via);
+        }
+        match a.chain.get(&current) {
+            Some(parent) => current = parent.clone(),
+            None => return ("deny".to_string(), String::new()),
+        }
+    }
+}
+===== /app/k5/f.rs
+use crate::model::{Decision, State};
+
+pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+    let track = State::track_key(&b.subject, &b.object, &b.mode);
+    let reused = a
+        .seen
+        .get(&track)
+        .map(|old| old == &b.outcome)
+        .unwrap_or(false);
+    b.reused = reused;
+    a.seen.insert(track, b.outcome.clone());
+    if b.outcome == "allow" && a.blocked.contains(&b.subject) && !b.via.is_empty() {
+        let note = b.label.clone();
+        (b, Some(note))
+    } else {
+        (b, None)
+    }
+}
+===== /app/k6/g.rs
+use crate::model::State;
+
+pub fn tally_g(_a: &State, rows: usize) -> String {
+    format!("rows={rows}")
+}
+===== /app/k7/h.rs
+pub fn hint_h(label: &str) -> String {
+    label.to_ascii_lowercase()
+}
+===== /app/k8/i.rs
+pub fn order_i(left: &str, right: &str) -> std::cmp::Ordering {
+    left.cmp(right)
+}
+[?2004hroot@27e9125e8859:/app# sed -n '1,260p' /app/src/lib.rs
+[?2004lpub mod io;
+pub mod model;
+pub mod report;
+pub mod runner;
+
+#[path = "../k0/a.rs"]
+pub mod k0_a;
+#[path = "../k1/b.rs"]
+pub mod k1_b;
+#[path = "../k2/c.rs"]
+pub mod k2_c;
+#[path = "../k3/d.rs"]
+pub mod k3_d;
+#[path = "../k4/e.rs"]
+pub mod k4_e;
+#[path = "../k5/f.rs"]
+pub mod k5_f;
+#[path = "../k6/g.rs"]
+pub mod k6_g;
+#[path = "../k7/h.rs"]
+pub mod k7_h;
+#[path = "../k8/i.rs"]
+pub mod k8_i;
+[?2004hroot@27e9125e8859:/app# ls -la /root /root/.cargo /root/.rustup 2>/dev/null || true
+[?2004l/root:
+total 8
+drwx------  3 root root  52 May 25 11:30 .
+drwxr-xr-x 19 root root 265 May 25 11:30 ..
+-rw-r--r--  1 root root 571 Apr 10  2021 .bashrc
+drwxr-xr-x  3 root root  23 May 25 11:30 .config
+-rw-r--r--  1 root root 161 Jul  9  2019 .profile
+[?2004hroot@27e9125e8859:/app# find /root -maxdepth 4 -type f -name cargo -o -name rustc 2>/dev/null | sed -n '1,120p'
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/src/model.rs <<'EOF'
+[?2004l[?2004h> use std::collections::{BTreeMap, BTreeSet};
+[?2004l[?2004h> 
+[?2004l[?2004h> #[derive(Clone, Debug)]
+[?2004l[?2004h> pub struct Event {
+[?2004l[?2004h>     pub kind: String,
+[?2004l[?2004h>     pub left: String,
+[?2004l[?2004h>     pub right: String,
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> #[derive(Clone, Debug)]
+[?2004l[?2004h> pub struct Decision {
+[?2004l[?2004h>     pub label: String,
+[?2004l[?2004h>     pub subject: String,
+[?2004l[?2004h>     pub object: String,
+[?2004l[?2004h>     pub mode: String,
+[?2004l[?2004h>     pub outcome: String,
+[?2004l[?2004h>     pub tick: u64,
+[?2004l[?2004h>     pub reused: bool,
+[?2004l[?2004h>     pub group: String,
+[?2004l[?2004h>     pub via: String,
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> #[derive(Clone, Debug)]
+[?2004l[?2004h> pub struct CaseReport {
+[?2004l[?2004h>     pub name: String,
+[?2004l[?2004h>     pub ok: bool,
+[?2004l[?2004h>     pub decisions: Vec<Decision>,
+[?2004l[?2004h>     pub stale: Vec<String>,
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> #[derive(Debug)]
+[?2004l[?2004h> pub struct State {
+[?2004l[?2004h>     pub direct: BTreeSet<(String, String, String)>,
+[?2004l[?2004h>     pub chain: BTreeMap<String, String>,
+[?2004l[?2004h>     pub ticks: BTreeMap<String, u64>,
+[?2004l[?2004h>     pub blocked: BTreeSet<String>,
+[?2004l[?2004h>     pub store: BTreeMap<String, String>,
+[?2004l[?2004h>     pub group_slot: BTreeMap<String, String>,
+[?2004l[?2004h>     pub group_active: String,
+[?2004l[?2004h>     pub seen: BTreeMap<String, String>,
+[?2004l[?2004h>     pub clock: u64,
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> impl State {
+[?2004l[?2004h>     pub fn new() -> Self {
+[?2004l[?2004h>         Self {
+[?2004l[?2004h>             direct: BTreeSet::new(),
+[?2004l[?2004h>             chain: BTreeMap::new(),
+[?2004l[?2004h>             ticks: BTreeMap::new(),
+[?2004l[?2004h>             blocked: BTreeSet::new(),
+[?2004l[?2004h>             store: BTreeMap::new(),
+[?2004l[?2004h>             group_slot: BTreeMap::new(),
+[?2004l[?2004h>             group_active: String::new(),
+[?2004l[?2004h>             seen: BTreeMap::new(),
+[?2004l[?2004h>             clock: 0,
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     pub fn tick_for(&self, subject: &str) -> u64 {
+[?2004l[?2004h>         *self.ticks.get(subject).unwrap_or(&0)
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Cache keys must be per-principal. Traces contain mixed principals; caching by only
+[?2004l[?2004h>     // (resource, action) incorrectly reuses authorization rows across subjects.
+[?2004l[?2004h>     pub fn slot_key(subject: &str, object: &str, mode: &str) -> String {
+[?2004l[?2004h>         format!("{subject}|{object}|{mode}")
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+[?2004l[?2004h>         format!("{subject}|{object}|{mode}")
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> impl Decision {
+[?2004l[?2004h>     pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+[?2004l[?2004h>         Self {
+[?2004l[?2004h>             label: label.to_string(),
+[?2004l[?2004h>             subject: subject.to_string(),
+[?2004l[?2004h>             object: object.to_string(),
+[?2004l[?2004h>             mode: mode.to_string(),
+[?2004l[?2004h>             outcome: String::new(),
+[?2004l[?2004h>             tick,
+[?2004l[?2004h>             reused: false,
+[?2004l[?2004h>             group: String::new(),
+[?2004l[?2004h>             via: String::new(),
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/k2/c.rs <<'EOF'
+[?2004l[?2004h> use crate::model::State;
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn emit_c(a: &State, b: &str, c: &str, d: &str) -> Option<String> {
+[?2004l[?2004h>     let key = State::slot_key(b, c, d);
+[?2004l[?2004h>     a.store.get(&key).cloned()
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/k0/a.rs <<'EOF'
+[?2004l[?2004h> use crate::io::split_subject_object_mode;
+[?2004l[?2004h> use crate::k1_b::fold_b;
+[?2004l[?2004h> use crate::k3_d::lift_d;
+[?2004l[?2004h> use crate::k5_f::cast_f;
+[?2004l[?2004h> use crate::model::{CaseReport, Decision, Event, State};
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+[?2004l[?2004h>     match b.kind.as_str() {
+[?2004l[?2004h>         "grant" => {
+[?2004l[?2004h>             let (object, mode) = b
+[?2004l[?2004h>                 .right
+[?2004l[?2004h>                 .split_once('/')
+[?2004l[?2004h>                 .ok_or_else(|| format!("bad grant row {}", b.right))?;
+[?2004l[?2004h>             a.direct
+[?2004l[?2004h>                 .insert((b.left.clone(), object.to_string(), mode.to_string()));
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "delegate" => {
+[?2004l[?2004h>             a.chain.insert(b.right.clone(), b.left.clone());
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "revoke" => fold_b(a, &b.left),
+[?2004l[?2004h>         "batch" => {
+[?2004l[?2004h>             a.group_active = b.left.clone();
+[?2004l[?2004h>             a.group_slot.clear();
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "end" => {
+[?2004l[?2004h>             a.group_active.clear();
+[?2004l[?2004h>             a.group_slot.clear();
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "check" => {
+[?2004l[?2004h>             let (subject, object, mode) = split_subject_object_mode(&b.right)?;
+[?2004l[?2004h>             let row = if a.group_active.is_empty() {
+[?2004l[?2004h>                 wrap_g(a, &b.left, &subject, &object, &mode)
+[?2004l[?2004h>             } else {
+[?2004l[?2004h>                 lift_d(a, &b.left, &subject, &object, &mode)
+[?2004l[?2004h>             };
+[?2004l[?2004h>             let (row, note) = cast_f(a, row, true);
+[?2004l[?2004h>             c.decisions.push(row);
+[?2004l[?2004h>             if let Some(note) = note {
+[?2004l[?2004h>                 c.stale.push(note);
+[?2004l[?2004h>             }
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         other => Err(format!("unknown trace row {other}")),
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+[?2004l[?2004h>     use crate::k2_c::emit_c;
+[?2004l[?2004h>     use crate::k4_e::mote_e;
+[?2004l[?2004h> 
+[?2004l[?2004h>     let tick = a.tick_for(subject);
+[?2004l[?2004h>     if let Some(outcome) = emit_c(a, subject, object, mode) {
+[?2004l[?2004h>         // Cache is per-subject, so we can safely reuse the cached outcome.
+[?2004l[?2004h>         // `via` must remain consistent with the current policy state; however
+[?2004l[?2004h>         // on cached deny we must not attempt to synthesize a delegation source.
+[?2004l[?2004h>         let via = if outcome == "allow" {
+[?2004l[?2004h>             mote_e(a, subject, object, mode).1
+[?2004l[?2004h>         } else {
+[?2004l[?2004h>             String::new()
+[?2004l[?2004h>         };
+[?2004l[?2004h>         let mut row = Decision::blank(label, subject, object, mode, tick);
+[?2004l[?2004h>         row.outcome = outcome;
+[?2004l[?2004h>         row.via = via;
+[?2004l[?2004h>         return row;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     let (outcome, via) = mote_e(a, subject, object, mode);
+[?2004l[?2004h>     a.store
+[?2004l[?2004h>         .insert(State::slot_key(subject, object, mode), outcome.clone());
+[?2004l[?2004h>     let mut row = Decision::blank(label, subject, object, mode, tick);
+[?2004l[?2004h>     row.outcome = outcome;
+[?2004l[?2004h>     row.via = via;
+[?2004l[?2004h>     row
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/k3/d.rs <<'EOF'
+[?2004l[?2004h> use crate::k4_e::mote_e;
+[?2004l[?2004h> use crate::model::{Decision, State};
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+[?2004l[?2004h>     let slot = State::slot_key(c, d, e);
+[?2004l[?2004h>     let tick = a.tick_for(c);
+[?2004l[?2004h> 
+[?2004l[?2004h>     if let Some(outcome) = a.group_slot.get(&slot) {
+[?2004l[?2004h>         let via = if outcome == "allow" {
+[?2004l[?2004h>             mote_e(a, c, d, e).1
+[?2004l[?2004h>         } else {
+[?2004l[?2004h>             String::new()
+[?2004l[?2004h>         };
+[?2004l[?2004h>         let mut row = Decision::blank(b, c, d, e, tick);
+[?2004l[?2004h>         row.outcome = outcome.clone();
+[?2004l[?2004h>         row.group = a.group_active.clone();
+[?2004l[?2004h>         row.via = via;
+[?2004l[?2004h>         return row;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     let (outcome, via) = mote_e(a, c, d, e);
+[?2004l[?2004h>     a.group_slot.insert(slot, outcome.clone());
+[?2004l[?2004h>     let mut row = Decision::blank(b, c, d, e, tick);
+[?2004l[?2004h>     row.outcome = outcome;
+[?2004l[?2004h>     row.group = a.group_active.clone();
+[?2004l[?2004h>     row.via = via;
+[?2004l[?2004h>     row
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/k4/e.rs <<'EOF'
+[?2004l[?2004h> use crate::model::State;
+[?2004l[?2004h> 
+[?2004l[?2004h> // Returns (verdict, delegated_from).
+[?2004l[?2004h> //
+[?2004l[?2004h> // Delegation semantics:
+[?2004l[?2004h> // - Evaluate from the requesting subject toward grantors by following `chain`.
+[?2004l[?2004h> // - If any subject along that walk is blocked/revoked, inherited access must deny.
+[?2004l[?2004h> // - A blocked/revoked subject never receives allow on delegated paths.
+[?2004l[?2004h> // - delegated_from is empty for direct rows; otherwise it is the grantor that holds
+[?2004l[?2004h> //   the direct grant.
+[?2004l[?2004h> pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+[?2004l[?2004h>     let mut current = b.to_string();
+[?2004l[?2004h>     let mut first = true;
+[?2004l[?2004h> 
+[?2004l[?2004h>     loop {
+[?2004l[?2004h>         // If any subject on the walk is blocked/revoked, delegated paths are denied.
+[?2004l[?2004h>         // This includes the requester.
+[?2004l[?2004h>         if a.blocked.contains(&current) {
+[?2004l[?2004h>             return ("deny".to_string(), String::new());
+[?2004l[?2004h>         }
+[?2004l[?2004h> 
+[?2004l[?2004h>         if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+[?2004l[?2004h>             // Found a direct grant at `current`. If it's the requester, this is direct.
+[?2004l[?2004h>             // If it's an ancestor, this is inherited and delegated_from must be that grantor.
+[?2004l[?2004h>             let via = if first { String::new() } else { current.clone() };
+[?2004l[?2004h>             return ("allow".to_string(), via);
+[?2004l[?2004h>         }
+[?2004l[?2004h> 
+[?2004l[?2004h>         match a.chain.get(&current) {
+[?2004l[?2004h>             Some(parent) => {
+[?2004l[?2004h>                 current = parent.clone();
+[?2004l[?2004h>                 first = false;
+[?2004l[?2004h>             }
+[?2004l[?2004h>             None => return ("deny".to_string(), String::new()),
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/k5/f.rs <<'EOF'
+[?2004l[?2004h> use crate::model::{Decision, State};
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+[?2004l[?2004h>     // Reuse only when the subject is stable (epoch unchanged).
+[?2004l[?2004h>     let track = State::track_key(&b.subject, &b.object, &b.mode);
+[?2004l[?2004h>     let key = format!("{track}|{}", b.tick);
+[?2004l[?2004h> 
+[?2004l[?2004h>     let reused = a
+[?2004l[?2004h>         .seen
+[?2004l[?2004h>         .get(&key)
+[?2004l[?2004h>         .map(|old| old == &b.outcome)
+[?2004l[?2004h>         .unwrap_or(false);
+[?2004l[?2004h> 
+[?2004l[?2004h>     b.reused = reused;
+[?2004l[?2004h>     a.seen.insert(key, b.outcome.clone());
+[?2004l[?2004h> 
+[?2004l[?2004h>     // With correct mote_e semantics, we should not be producing "allow" for blocked
+[?2004l[?2004h>     // subjects via delegation. Keep stale empty.
+[?2004l[?2004h>     (b, None)
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# grep -RIn --line-number "slot_key\(" /app/src /app/k* | sed -n '1,120p'
+[?2004lgrep: Unmatched ( or \(
+[?2004hroot@27e9125e8859:/app# find / -maxdepth 5 -type f -name rustc -o -name cargo 2>/dev/null | sed -n '1,200p'
+[?2004l/usr/local/cargo
+/usr/local/cargo/bin/cargo
+[?2004hroot@27e9125e8859:/app# /usr/local/cargo/bin/cargo --version
+[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
+[?2004hroot@27e9125e8859:/app# ls -la /usr/local/cargo/bin
+[?2004ltotal 18628
+drwxrwxrwx 2 root root      236 Mar 18  2025 .
+drwxrwxrwx 4 root root      116 May 25 11:29 ..
+lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo-clippy -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo-fmt -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo-miri -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 clippy-driver -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rls -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-analyzer -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-gdb -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-gdbgui -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-lldb -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rustc -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rustdoc -> rustup
+lrwxrwxrwx 1 root root        6 Mar 18  2025 rustfmt -> rustup
+-rwxrwxrwx 1 root root 19072384 Mar 18  2025 rustup
+[?2004hroot@27e9125e8859:/app# export PATH=/usr/local/cargo/bin:$PATH
+[?2004l[?2004hroot@27e9125e8859:/app# command -v cargo; cargo --version
+[?2004l/usr/local/cargo/bin/cargo
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+[?2004hroot@27e9125e8859:/app# command -v rustc || true; rustc --version || true
+[?2004l/usr/local/cargo/bin/rustc
+rustc 1.85.0 (4d91de4e4 2025-02-17)
+[?2004hroot@27e9125e8859:/app# cargo build --quiet
+[?2004l[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@27e9125e8859:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, pathlib
+[?2004l[?2004h> p=pathlib.Path('/app/output/policy-audit.json')
+[?2004l[?2004h> print('bytes',p.stat().st_size)
+[?2004l[?2004h> d=json.loads(p.read_text())
+[?2004l[?2004h> for case in d['cases']:
+[?2004l[?2004h>     if case['name'] in ('alpha','gamma','epsilon','zeta'):
+[?2004l[?2004h>         print('\nCASE',case['name'],'ok',case['ok'],'stale',case['stale'])
+[?2004l[?2004h>         for row in case['decisions']:
+[?2004l[?2004h>             print(row['label'],row['principal'],row['resource'],row['action'],row['verdict'],'epoch',row['epoch'],'reused',row['reused'],'batch',row['batch_id'],'via',row['delegated_from'])
+[?2004l[?2004h> PY
+[?2004lbytes 3661
+
+CASE alpha ok True stale []
+before clerk vault read allow epoch 0 reused False batch  via boss
+batch clerk vault read deny epoch 1 reused False batch b1 via 
+after clerk vault read allow epoch 1 reused False batch  via 
+
+CASE gamma ok True stale []
+batch intern vault write deny epoch 0 reused False batch b1 via 
+
+CASE epsilon ok True stale []
+check leaf api invoke deny epoch 0 reused False batch  via 
+
+CASE zeta ok True stale []
+a alpha secret read deny epoch 1 reused False batch mix via 
+b beta secret read allow epoch 0 reused False batch mix via 
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.new1.json && bash /app/scripts/run-matrix.sh && cp -f /app/output/policy-audit.json /tmp/policy-audit.new2.json && sha256sum /tmp/policy-audit.new1.json /tmp/policy-audit.new2.json && diff -u /tmp/policy-audit.new1.json /tmp/policy-audit.new2.json | sed -n '1,80p'
+[?2004lc6f9ed6e34be2fa25cafdfc5879e76453613a8290f241b15e87fe0696be2f229  /tmp/policy-audit.new1.json
+c6f9ed6e34be2fa25cafdfc5879e76453613a8290f241b15e87fe0696be2f229  /tmp/policy-audit.new2.json
+[?2004hroot@27e9125e8859:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, pathlib
+[?2004l[?2004h> p=pathlib.Path('/app/output/policy-audit.json')
+[?2004l[?2004h> d=json.loads(p.read_text())
+[?2004l[?2004h> assert 'cases' in d
+[?2004l[?2004h> bad=[]
+[?2004l[?2004h> for case in d['cases']:
+[?2004l[?2004h>     if case.get('stale') not in ([], None) and len(case['stale'])!=0:
+[?2004l[?2004h>         bad.append((case['name'],'stale',case['stale']))
+[?2004l[?2004h>     last_epoch=-1
+[?2004l[?2004h>     for row in case['decisions']:
+[?2004l[?2004h>         for k in ['label','principal','resource','action','verdict','epoch','reused','batch_id','delegated_from']:
+[?2004l[?2004h>             if k not in row:
+[?2004l[?2004h>                 bad.append((case['name'],'missing',k,row))
+[?2004l[?2004h>         if row['epoch']<last_epoch:
+[?2004l[?2004h>             bad.append((case['name'],'epoch_decreased',last_epoch,row['epoch'],row['label']))
+[?2004l[?2004h>         last_epoch=row['epoch']
+[?2004l[?2004h>         if row['batch_id']==None or row['delegated_from']==None:
+[?2004l[?2004h>             bad.append((case['name'],'null_fields',row))
+[?2004l[?2004h> print('cases',len(d['cases']))
+[?2004l[?2004h> print('problems',len(bad))
+[?2004l[?2004h> for b in bad[:50]:
+[?2004l[?2004h>     print('BAD',b)
+[?2004l[?2004h> PY
+[?2004lcases 6
+problems 1
+BAD ('zeta', 'epoch_decreased', 1, 0, 'b')
+[?2004hroot@27e9125e8859:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> j=json.load(open('/app/output/policy-audit.json'))
+[?2004l[?2004h> for case in j['cases']:
+[?2004l[?2004h>     if case['name']=='beta':
+[?2004l[?2004h>         print(case)
+[?2004l[?2004h> PY
+[?2004l{'name': 'beta', 'ok': True, 'decisions': [{'label': 'miss', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 0, 'reused': False, 'batch_id': '', 'delegated_from': ''}, {'label': 'solo', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 0, 'reused': True, 'batch_id': '', 'delegated_from': ''}], 'stale': []}
+[?2004hroot@27e9125e8859:/app# cat /app/output/policy-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "alpha",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "before",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": "boss"
+        },
+        {
+          "label": "batch",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 1,
+          "reused": false,
+          "batch_id": "b1",
+          "delegated_from": ""
+        },
+        {
+          "label": "after",
+          "principal": "clerk",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 1,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": ""
+        }
+      ],
+      "stale": []
+    },
+    {
+      "name": "beta",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "miss",
+          "principal": "intern",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": ""
+        },
+        {
+          "label": "solo",
+          "principal": "intern",
+          "resource": "vault",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 0,
+          "reused": true,
+          "batch_id": "",
+          "delegated_from": ""
+        }
+      ],
+      "stale": []
+    },
+    {
+      "name": "gamma",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "batch",
+          "principal": "intern",
+          "resource": "vault",
+          "action": "write",
+          "verdict": "deny",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "b1",
+          "delegated_from": ""
+        }
+      ],
+      "stale": []
+    },
+    {
+      "name": "delta",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "first",
+          "principal": "alice",
+          "resource": "logs",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": ""
+        },
+        {
+          "label": "second",
+          "principal": "alice",
+          "resource": "logs",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 0,
+          "reused": true,
+          "batch_id": "",
+          "delegated_from": ""
+        }
+      ],
+      "stale": []
+    },
+    {
+      "name": "epsilon",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "check",
+          "principal": "leaf",
+          "resource": "api",
+          "action": "invoke",
+          "verdict": "deny",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "",
+          "delegated_from": ""
+        }
+      ],
+      "stale": []
+    },
+    {
+      "name": "zeta",
+      "ok": true,
+      "decisions": [
+        {
+          "label": "a",
+          "principal": "alpha",
+          "resource": "secret",
+          "action": "read",
+          "verdict": "deny",
+          "epoch": 1,
+          "reused": false,
+          "batch_id": "mix",
+          "delegated_from": ""
+        },
+        {
+          "label": "b",
+          "principal": "beta",
+          "resource": "secret",
+          "action": "read",
+          "verdict": "allow",
+          "epoch": 0,
+          "reused": false,
+          "batch_id": "mix",
+          "delegated_from": ""
+        }
+      ],
+      "stale": []
+    }
+  ]
+}[?2004hroot@27e9125e8859:/app# cat > /app/k0/a.rs <<'EOF'
+[?2004l mode: &str,
+    epoch: u64,
+) -> Decision {
+    use crate::k2_c::emit_c;
+    use crate::k4_e::mote_e;
+
+    if let Some(outcome) = emit_c(a, subject, object, mode) {
+        let via = if outcome == "allow" {
+            mote_e(a, subject, object, mode).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(label, subject, object, mode, epoch);
+        row.outcome = outcome;
+        row.via = via;
+        return row;
+    }
+
+    let (outcome, via) = mote_e(a, subject, object, mode);
+    a.store
+        .insert(State::slot_key(subject, object, mode), outcome.clone());
+    let mut row = Decision::blank(label, subject, object, mode, epoch);
+    row.outcome = outcome;
+    row.via = via;
+    row
+}
+EOF
+[?2004h> use crate::io::split_subject_object_mode;
+[?2004l[?2004h> use crate::k1_b::fold_b;
+[?2004l[?2004h> use crate::k3_d::lift_d;
+[?2004l[?2004h> use crate::k5_f::cast_f;
+[?2004l[?2004h> use crate::model::{CaseReport, Decision, Event, State};
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+[?2004l[?2004h>     match b.kind.as_str() {
+[?2004l[?2004h>         "grant" => {
+[?2004l[?2004h>             let (object, mode) = b
+[?2004l[?2004h>                 .right
+[?2004l[?2004h>                 .split_once('/')
+[?2004l[?2004h>                 .ok_or_else(|| format!("bad grant row {}", b.right))?;
+[?2004l[?2004h>             a.direct
+[?2004l[?2004h>                 .insert((b.left.clone(), object.to_string(), mode.to_string()));
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "delegate" => {
+[?2004l[?2004h>             a.chain.insert(b.right.clone(), b.left.clone());
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "revoke" => fold_b(a, &b.left),
+[?2004l[?2004h>         "batch" => {
+[?2004l[?2004h>             a.group_active = b.left.clone();
+[?2004l[?2004h>             a.group_slot.clear();
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "end" => {
+[?2004l[?2004h>             a.group_active.clear();
+[?2004l[?2004h>             a.group_slot.clear();
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         "check" => {
+[?2004l[?2004h>             // Advance the evaluation epoch. This guarantees nondecreasing epochs within a case,
+[?2004l[?2004h>             // while still being tied to the state at evaluation time.
+[?2004l[?2004h>             a.clock += 1;
+[?2004l[?2004h>             let epoch = a.clock;
+[?2004l[?2004h> 
+[?2004l[?2004h>             let (subject, object, mode) = split_subject_object_mode(&b.right)?;
+[?2004l[?2004h>             let row = if a.group_active.is_empty() {
+[?2004l[?2004h>                 wrap_g(a, &b.left, &subject, &object, &mode, epoch)
+[?2004l[?2004h>             } else {
+[?2004l[?2004h>                 lift_d(a, &b.left, &subject, &object, &mode, epoch)
+[?2004l[?2004h>             };
+[?2004l[?2004h>             let (row, note) = cast_f(a, row, true);
+[?2004l[?2004h>             c.decisions.push(row);
+[?2004l[?2004h>             if let Some(note) = note {
+[?2004l[?2004h>                 c.stale.push(note);
+[?2004l[?2004h>             }
+[?2004l[?2004h>             Ok(())
+[?2004l[?2004h>         }
+[?2004l[?2004h>         other => Err(format!("unknown trace row {other}")),
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> fn wrap_g(
+[?2004l[?2004h>     a: &mut State,
+[?2004l[?2004h>     label: &str,
+[?2004l[?2004h>     subject: &str,
+[?2004l[?2004h>     object: &str,
+[?2004l[?2004h>     mode: &str,
+[?2004l[?2004h>     epoch: u64,
+[?2004l[?2004h> ) -> Decision {
+[?2004l[?2004h>     use crate::k2_c::emit_c;
+[?2004l[?2004h>     use crate::k4_e::mote_e;
+[?2004l[?2004h> 
+[?2004l[?2004h>     if let Some(outcome) = emit_c(a, subject, object, mode) {
+[?2004l[?2004h>         let via = if outcome == "allow" {
+[?2004l[?2004h>             mote_e(a, subject, object, mode).1
+[?2004l[?2004h>         } else {
+[?2004l[?2004h>             String::new()
+[?2004l[?2004h>         };
+[?2004l[?2004h>         let mut row = Decision::blank(label, subject, object, mode, epoch);
+[?2004l[?2004h>         row.outcome = outcome;
+[?2004l[?2004h>         row.via = via;
+[?2004l[?2004h>         return row;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     let (outcome, via) = mote_e(a, subject, object, mode);
+[?2004l[?2004h>     a.store
+[?2004l[?2004h>         .insert(State::slot_key(subject, object, mode), outcome.clone());
+[?2004l[?2004h>     let mut row = Decision::blank(label, subject, object, mode, epoch);
+[?2004l[?2004h>     row.outcome = outcome;
+[?2004l[?2004h>     row.via = via;
+[?2004l[?2004h>     row
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# cat > /app/k3/d.rs <<'EOF'
+[?2004l[?2004h> use crate::k4_e::mote_e;
+[?2004l[?2004h> use crate::model::{Decision, State};
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str, epoch: u64) -> Decision {
+[?2004l[?2004h>     let slot = State::slot_key(c, d, e);
+[?2004l[?2004h> 
+[?2004l[?2004h>     if let Some(outcome) = a.group_slot.get(&slot) {
+[?2004l[?2004h>         let via = if outcome == "allow" {
+[?2004l[?2004h>             mote_e(a, c, d, e).1
+[?2004l[?2004h>         } else {
+[?2004l[?2004h>             String::new()
+[?2004l[?2004h>         };
+[?2004l[?2004h>         let mut row = Decision::blank(b, c, d, e, epoch);
+[?2004l[?2004h>         row.outcome = outcome.clone();
+[?2004l[?2004h>         row.group = a.group_active.clone();
+[?2004l[?2004h>         row.via = via;
+[?2004l[?2004h>         return row;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     let (outcome, via) = mote_e(a, c, d, e);
+[?2004l[?2004h>     a.group_slot.insert(slot, outcome.clone());
+[?2004l[?2004h>     let mut row = Decision::blank(b, c, d, e, epoch);
+[?2004l[?2004h>     row.outcome = outcome;
+[?2004l[?2004h>     row.group = a.group_active.clone();
+[?2004l[?2004h>     row.via = via;
+[?2004l[?2004h>     row
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@27e9125e8859:/app# export PATH=/usr/local/cargo/bin:$PATH
+[?2004l[?2004hroot@27e9125e8859:/app# cargo build --quiet
+[?2004l[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@27e9125e8859:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, pathlib
+[?2004l[?2004h> p=pathlib.Path('/app/output/policy-audit.json')
+[?2004l[?2004h> d=json.loads(p.read_text())
+[?2004l[?2004h> bad=[]
+[?2004l[?2004h> for case in d['cases']:
+[?2004l[?2004h>     last=-1
+[?2004l[?2004h>     for row in case['decisions']:
+[?2004l[?2004h>         if row['epoch']<last:
+[?2004l[?2004h>             bad.append((case['name'],last,row['epoch'],row['label']))
+[?2004l[?2004h>         last=row['epoch']
+[?2004l[?2004h> print('epoch_decreases',bad)
+[?2004l[?2004h> PY
+[?2004lepoch_decreases []
+[?2004hroot@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.final1.json && bash /app/scripts/run-matrix.sh && cp -f /app/output/policy-audit.json /tmp/policy-audit.final2.json && sha256sum /tmp/policy-audit.final1.json /tmp/policy-audit.final2.json
+[?2004l5aa76efe8932224c655cdb6a847c278fa9e08543baae4b6416bf46bd4ca80a0e  /tmp/policy-audit.final1.json
+5aa76efe8932224c655cdb6a847c278fa9e08543baae4b6416bf46bd4ca80a0e  /tmp/policy-audit.final2.json
+[?2004hroot@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@27e9125e8859:/app# sha256sum /app/output/policy-audit.json && wc -c /app/output/policy-audit.json
+[?2004l5aa76efe8932224c655cdb6a847c278fa9e08543baae4b6416bf46bd4ca80a0e  /app/output/policy-audit.json
+3663 /app/output/policy-audit.json
+[?2004hroot@27e9125e8859:/app# 

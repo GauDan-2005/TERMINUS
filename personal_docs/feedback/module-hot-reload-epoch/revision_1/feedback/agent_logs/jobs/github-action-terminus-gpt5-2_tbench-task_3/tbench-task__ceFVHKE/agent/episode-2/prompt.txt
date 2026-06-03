@@ -1,0 +1,165 @@
+New Terminal Output:
+
+root@594e8276182b:/app# sed -n '1,200p' a1/p.js
+const { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function callNative(root, rev, primary, carry) {
+  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+      accepted = false;
+    }
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+    carry = cycle.base;
+  }
+  return {
+    name: a.name,
+    rows,
+    finalCounter: carry,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy: false
+  };
+}
+
+module.exports = { f_a };
+root@594e8276182b:/app# sed -n '1,200p' tools/run_matrix.js
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { f_a } = require('../a1/p');
+const { m_e } = require('../d4/s');
+
+const base = process.cwd();
+const dataPath = path.join(base, 'fixtures', 'scenarios.json');
+const outDir = path.join(base, 'outcome');
+const outPath = path.join(outDir, 'report.json');
+
+function main() {
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
+  const aggregate = m_e(records, { source: 'local' });
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
+}
+
+main();
+root@594e8276182b:/app# ls -la src
+total 0
+drwxr-xr-x  4 root root  32 May 25 12:12 .
+drwxr-xr-x 12 root root 225 May 25 12:15 ..
+drwxr-xr-x 10 root root  86 May 25 12:12 core
+drwxr-xr-x  3 root root  34 May 25 12:12 native
+root@594e8276182b:/app# find src -maxdepth 3 -type f -print -exec sed -n '1,200p' {} \;
+src/core/e5/epsilon.js
+function shape_e(a, b, c) {
+  return { title: String(a), width: Number(b || 0), tags: Array.isArray(c) ? c.slice() : [] };
+}
+
+function print_e(a) {
+  return `${a.title}:${a.width}`;
+}
+
+module.exports = { shape_e, print_e };
+src/core/f6/zeta.js
+function order_f(a) {
+  return a.slice().sort((left, right) => String(left).localeCompare(String(right)));
+}
+
+function merge_f(a, b) {
+  return order_f([].concat(a || [], b || []));
+}
+
+module.exports = { order_f, merge_f };
+src/core/g7/theta.js
+function meter_g(a) {
+  return a.reduce((acc, value) => acc + Number(value || 0), 0);
+}
+
+function average_g(a) {
+  return a.length === 0 ? 0 : meter_g(a) / a.length;
+}
+
+module.exports = { meter_g, average_g };
+src/core/h8/iota.js
+function clone_h(a) {
+  return JSON.parse(JSON.stringify(a));
+}
+
+function stamp_h(a, b) {
+  const copy = clone_h(a);
+  copy.marker = b;
+  return copy;
+}
+
+module.exports = { clone_h, stamp_h };
+src/native/README.md
+# Native component
+
+The native component accepts three command-line values and returns a single integer. It stays deliberately small so JavaScript callers can invoke it through car
+go during local development.
+src/native/src/lib.rs
+pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    match a {
+        "old" => b,
+        "new" => b + c,
+        _ => b,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+src/native/src/main.rs
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        eprintln!("usage: mhre_native <rev> <primary> <carry>");
+        std::process::exit(2);
+    }
+    let rev = &args[1];
+    let primary: i64 = args[2].parse().expect("primary number");
+    let carry: i64 = args[3].parse().expect("carry number");
+    println!("{}", mhre_native::r_d(rev, primary, carry));
+}
+src/native/src/view.rs
+pub fn panel_v(a: &[i64]) -> String {
+    a.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+}
+root@594e8276182b:/app# cat Cargo.toml
+[package]
+name = "mhre_native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/native/src/lib.rs"
+
+[[bin]]
+name = "mhre_native"
+path = "src/native/src/main.rs"
+root@594e8276182b:/app# cargo run
+bash: cargo: command not found
+root@594e8276182b:/app#

@@ -1,0 +1,267 @@
+New Terminal Output:
+
+root@ddaff815948e:/app# sed -n '1,260p' /app/src/runner.rs
+use crate::io::read_trace;
+use crate::k0_a::phase_a;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        decisions: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+root@ddaff815948e:/app# sed -n '1,260p' /app/src/io.rs
+use crate::model::Event;
+use std::fs;
+use std::path::Path;
+
+pub fn read_trace(path: &Path) -> Result<Vec<Event>, String> {
+    let text = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let mut events = Vec::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() != 3 {
+            return Err(format!("trace {} has malformed row: {line}", path.display()));
+        }
+        events.push(Event {
+            kind: parts[0].to_string(),
+            left: parts[1].to_string(),
+            right: parts[2].to_string(),
+        });
+    }
+    Ok(events)
+}
+
+pub fn split_subject_object_mode(value: &str) -> Result<(String, String, String), String> {
+    let (subject, rest) = value
+        .split_once(':')
+        .ok_or_else(|| format!("bad check target {value}"))?;
+    let (object, mode) = rest
+        .split_once('/')
+        .ok_or_else(|| format!("bad check target {value}"))?;
+    Ok((subject.to_string(), object.to_string(), mode.to_string()))
+}
+root@ddaff815948e:/app# sed -n '1,320p' /app/src/report.rs
+use crate::model::CaseReport;
+use serde::Serialize;
+use std::fs;
+use std::path::Path;
+
+#[derive(Serialize)]
+struct RowOut {
+    label: String,
+    principal: String,
+    resource: String,
+    action: String,
+    verdict: String,
+    epoch: u64,
+    reused: bool,
+    batch_id: String,
+    delegated_from: String,
+}
+
+#[derive(Serialize)]
+struct CaseOut {
+    name: String,
+    ok: bool,
+    decisions: Vec<RowOut>,
+    stale: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct RootOut {
+    cases: Vec<CaseOut>,
+}
+
+pub fn write_report(path: &Path, cases: &[CaseReport]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+    }
+    let payload = RootOut {
+        cases: cases
+            .iter()
+            .map(|case| CaseOut {
+                name: case.name.clone(),
+                ok: case.ok,
+                stale: case.stale.clone(),
+                decisions: case
+                    .decisions
+                    .iter()
+                    .map(|row| RowOut {
+                        label: row.label.clone(),
+                        principal: row.subject.clone(),
+                        resource: row.object.clone(),
+                        action: row.mode.clone(),
+                        verdict: row.outcome.clone(),
+                        epoch: row.tick,
+                        reused: row.reused,
+                        batch_id: row.group.clone(),
+                        delegated_from: row.via.clone(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+    let text = serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?;
+    fs::write(path, text).map_err(|e| format!("write {}: {e}", path.display()))
+}
+root@ddaff815948e:/app# sed -n '1,360p' /app/src/model.rs
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub kind: String,
+    pub left: String,
+    pub right: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Decision {
+    pub label: String,
+    pub subject: String,
+    pub object: String,
+    pub mode: String,
+    pub outcome: String,
+    pub tick: u64,
+    pub reused: bool,
+    pub group: String,
+    pub via: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub decisions: Vec<Decision>,
+    pub stale: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub direct: BTreeSet<(String, String, String)>,
+    pub chain: BTreeMap<String, String>,
+    pub ticks: BTreeMap<String, u64>,
+    pub blocked: BTreeSet<String>,
+    pub store: BTreeMap<String, String>,
+    pub group_slot: BTreeMap<String, String>,
+    pub group_active: String,
+    pub seen: BTreeMap<String, String>,
+    pub clock: u64,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            direct: BTreeSet::new(),
+            chain: BTreeMap::new(),
+            ticks: BTreeMap::new(),
+            blocked: BTreeSet::new(),
+            store: BTreeMap::new(),
+            group_slot: BTreeMap::new(),
+            group_active: String::new(),
+            seen: BTreeMap::new(),
+            clock: 0,
+        }
+    }
+
+    pub fn tick_for(&self, subject: &str) -> u64 {
+        *self.ticks.get(subject).unwrap_or(&0)
+    }
+
+    pub fn slot_key(object: &str, mode: &str) -> String {
+        format!("{object}|{mode}")
+    }
+
+    pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+        format!("{subject}|{object}|{mode}")
+    }
+}
+
+impl Decision {
+    pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+        Self {
+            label: label.to_string(),
+            subject: subject.to_string(),
+            object: object.to_string(),
+            mode: mode.to_string(),
+            outcome: String::new(),
+            tick,
+            reused: false,
+            group: String::new(),
+            via: String::new(),
+        }
+    }
+}
+root@ddaff815948e:/app# set +H
+root@ddaff815948e:/app# grep -RIn --line-number -E 'fixtures|include_str!\(|CANNED|GOLDEN|static|policy-audit|policy_audit' /app/src /app/fixtures /app/k0 /app/
+k1 /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8 || true
+root@ddaff815948e:/app# ls -la /app/fixtures && find /app/fixtures -type f -maxdepth 2 -print -exec head -n 40 {} \;
+total 0
+drwxr-xr-x  8 root root  84 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+drwxr-xr-x  2 root root  24 May 25 11:26 alpha
+drwxr-xr-x  2 root root  24 May 25 11:26 beta
+drwxr-xr-x  2 root root  24 May 25 11:26 delta
+drwxr-xr-x  2 root root  24 May 25 11:26 epsilon
+drwxr-xr-x  2 root root  24 May 25 11:26 gamma
+drwxr-xr-x  2 root root  24 May 25 11:26 zeta
+find: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests spe
+cified before it as well as those specified after it.  Please specify global options before other arguments.
+/app/fixtures/alpha/actors.txt
+boss
+clerk
+/app/fixtures/beta/actors.txt
+intern
+/app/fixtures/delta/actors.txt
+alice
+bob
+/app/fixtures/epsilon/actors.txt
+root
+mid
+leaf
+/app/fixtures/gamma/actors.txt
+boss
+clerk
+intern
+/app/fixtures/zeta/actors.txt
+alpha
+beta
+root@ddaff815948e:/app# ls -la /usr/local/rustup && /usr/local/rustup show 2>/dev/null || true
+total 4
+drwxrwxrwx  6 root root  94 Mar 18  2025 .
+drwxr-xr-x 12 root root 141 Mar 18  2025 ..
+drwxrwxrwx  2 root root   6 Mar 18  2025 downloads
+-rw-rw-rw-  1 root root 151 Mar 18  2025 settings.toml
+drwxrwxrwx  2 root root   6 Mar 18  2025 tmp
+drwxrwxrwx  3 root root  45 Mar 18  2025 toolchains
+drwxrwxrwx  2 root root  45 Mar 18  2025 update-hashes
+root@ddaff815948e:/app#

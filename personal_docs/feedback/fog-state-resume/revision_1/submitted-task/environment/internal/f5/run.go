@@ -1,0 +1,302 @@
+package f5
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"fog.local/resume/internal/a0"
+	"fog.local/resume/internal/b1"
+	"fog.local/resume/internal/c2"
+	"fog.local/resume/internal/d3"
+	"fog.local/resume/internal/e4"
+)
+
+func sigFor(moves []MoveRow) string {
+	acc := int64(2166136261)
+	for _, m := range moves {
+		acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+		for _, ch := range m.Actor + m.Kind {
+			acc ^= int64(ch)
+			acc = (acc * 16777619) & 0x7fffffff
+		}
+	}
+	return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+	size := w.Width * w.Height
+	seen := append([]bool(nil), w.Seen...)
+	lit := append([]bool(nil), w.Lit...)
+	if len(seen) != size {
+		seen = make([]bool, size)
+	}
+	if len(lit) != size {
+		lit = make([]bool, size)
+	}
+	return &World{
+		Width: w.Width, Height: w.Height,
+		Walls:   append([]bool(nil), w.Walls...),
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+		Hostile: append([]Hostile(nil), w.Hostile...),
+		Turn:    w.Turn,
+		Seen:    seen,
+		Lit:     lit,
+		Effects: append([]EffectState(nil), w.Effects...),
+	}
+}
+
+func applyPlayer(w *World, arg string) {
+	parts := strings.Split(arg, ",")
+	if len(parts) != 2 {
+		return
+	}
+	dx, _ := strconv.Atoi(parts[0])
+	dy, _ := strconv.Atoi(parts[1])
+	nx, ny := w.PlayerX+dx, w.PlayerY+dy
+	if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+		w.PlayerX, w.PlayerY = nx, ny
+	}
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range w.Hostile {
+		key := fmt.Sprintf("%d,%d", h.X, h.Y)
+		if extra != nil && extra[key] {
+			out[key] = true
+			continue
+		}
+		if e4.PlayerSees(w, h.X, h.Y) {
+			out[key] = true
+		}
+	}
+	return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+	rows := []MoveRow{}
+	for i := range w.Hostile {
+		row, ok := d3.PlanSlot(w, cache, i)
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+func blindActive(w *World) bool {
+	for _, e := range w.Effects {
+		if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+			return true
+		}
+	}
+	return false
+}
+
+func snapToC2(effects []EffectState) []c2.EffectSnap {
+	out := make([]c2.EffectSnap, len(effects))
+	for i, e := range effects {
+		out[i] = c2.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	return out
+}
+
+func snapFromC2(snaps []c2.EffectSnap) []EffectState {
+	out := make([]EffectState, len(snaps))
+	for i, s := range snaps {
+		out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+	}
+	return out
+}
+
+func profileToC2(p Profile) c2.ProfileSnap {
+	return c2.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func rowsFromC2(rows []c2.RowSnap) []EffectRow {
+	out := make([]EffectRow, len(rows))
+	for i, r := range rows {
+		out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+	}
+	return out
+}
+
+func packWorld(w *World, obs map[string]bool) a0.ItemY {
+	effects := make([]a0.EffectSnap, len(w.Effects))
+	for i, e := range w.Effects {
+		effects[i] = a0.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]a0.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = a0.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := a0.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return a0.PackItem(item)
+}
+
+func applyWorld(w *World, item a0.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	w.Effects = make([]EffectState, len(item.Effects))
+	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob a0.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &b1.CacheX{Obs: map[string]bool{}}
+	b1.Merge(cache, blob)
+	merged := b1.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+		}
+		w.Turn = step.Turn
+		e4.ApplyLit(w, radius, blindActive(w))
+		moves = append(moves, advanceAll(w, merged)...)
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = snapFromC2(c2.Seed(profileToC2(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = snapFromC2(c2.Seed(profileToC2(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+		Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}

@@ -1,0 +1,31 @@
+{
+  "analysis": "We fixed bishop mismatch by removing the redundant pre-advance of wResume and syncing effects to the first post-save turn. Remaining 5 cases still have consistent visibility mismatch by a small constant offset between fresh and resume. This points to one path marking additional tiles as Seen during post-save processing compared to the other. Difference likely comes from observation cache handling: runDirect uses buildObs(w,nil) for hostile planning each time (no persistence), while runLoaded uses merged cache that includes stale obs from pre-save and keeps keys even if no longer visible; buildObs(w, merged) keeps extra entries (since extra map forces visibility true), effectively giving hostiles extra perceived observations after save, potentially changing their planned moves? but move sigs match, so planning outcomes same; however visibility mismatch concerns player's Seen, not hostiles. So mismatch is likely due to ApplyLit being called at different times with different blindNow; or more simply, resume path starts with Seen/Lit from blob that was packed using vis := buildObs(w,nil) and then OR’d with visStale, but Lit/Seen in blob may be stale because playUntilSave only calls vis.ApplyLit on player steps, not on initial state at turn 0. Fresh run counts seen after additional ApplyLit call(s) we added after hostile moves; resume blob maybe missing one such call at boundary. To align, we should ensure at save time we pack a world whose Seen/Lit reflect the same visibility updates that would exist at that turn in a direct run. Easiest: in playUntilSave, call vis.ApplyLit at each step turn change including before save packing, so Seen/Lit up-to-date. Also update visStale on hostile steps? But scripts before save might include hostile steps; current playUntilSave ignores step.Actor==\"H\" so wFresh pre-save hostiles never move in either path prior to save, but visibility counting might expect lit applied on every turn regardless. We'll update playUntilSave to also handle H steps by advancing hostiles (using buildObs(w,visStale) perhaps) and then ApplyLit. This should make the snapshot and fresh progression consistent.",
+  "plan": "1) Edit playUntilSave to process both P and H actors until save: on P, applyPlayer + ApplyLit; on H, advanceAll (discard moves) using buildObs(w, nil) and then ApplyLit. 2) Before packing at save, call vis.ApplyLit once so Lit/Seen correspond to save-turn state. 3) Rebuild and rerun matrix; verify visibility matches and ok=true.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -pi -e 's/if step\\.Action == \"save\" \\{\\n\\s*vis := buildObs\\(w, nil\\)\\n/if step.Action == \"save\" {\\n\\t\\t\\t\\/\\/ Ensure visibility fields are up to date at the save boundary.\\n\\t\\t\\tvis.ApplyLit(w, radius, blindNow(w))\\n\\t\\t\\tvis := buildObs(w, nil)\\n/s' /app/internal/exec/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "perl -0777 -pi -e 's/if step\\.Actor == \"P\" \\{\\n\\s*applyPlayer\\(w, step\\.Arg\\)\\n\\s*vis\\.ApplyLit\\(w, radius, blindNow\\(w\\)\\)\\n\\s*visStale = buildObs\\(w, nil\\)\\n\\s*\\}\\n/if step.Actor == \"P\" {\\n\\t\\t\\tapplyPlayer(w, step.Arg)\\n\\t\\t\\tvis.ApplyLit(w, radius, blindNow(w))\\n\\t\\t\\tvisStale = buildObs(w, nil)\\n\\t\\t}\\n\\t\\tif step.Actor == \"H\" {\\n\\t\\t\\t\\/\\/ Advance hostiles during the pre-save phase so the packed world\\n\\t\\t\\t\\/\\/ matches the direct run state at the save boundary.\\n\\t\\t\\t_ = advanceAll(w, buildObs(w, nil))\\n\\t\\t\\tvis.ApplyLit(w, radius, blindNow(w))\\n\\t\\t}\\n/s' /app/internal/exec/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '150,210p' /app/internal/exec/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -C /app\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\nprint('bad', sum(1 for c in d['cases'] if not c.get('ok')))\nfor c in d['cases']:\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print('VIS_MISMATCH', c['name'], vis)\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

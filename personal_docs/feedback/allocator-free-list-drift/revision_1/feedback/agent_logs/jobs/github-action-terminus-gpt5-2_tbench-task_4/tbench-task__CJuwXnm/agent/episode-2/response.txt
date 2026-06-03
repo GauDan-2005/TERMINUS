@@ -1,0 +1,23 @@
+{
+  "analysis": "`jq` is not installed, so JSON inspection must be done via python. Two consecutive matrix runs produced identical alloc-audit.json (diff empty), suggesting determinism at least for the top-level JSON. We still need to verify the JSON meets the required schema for all cases and that each case’s steps match ledger JSONL rows and signatures/tallies stay consistent. Also need to confirm `run-one.sh <name>` produces `/app/output/<name>-audit.json` for all required names (cedar, jade, slate, coral, onyx, pearl).",
+  "plan": "1) Use python to parse `/app/output/alloc-audit.json` and validate required fields per case and per step; also verify referenced ledger files exist. 2) Count steps vs ledger lines per case. 3) Run `run-one.sh` for each required case name and ensure it writes `<name>-audit.json` and its ledger. 4) (If any validation fails) inspect the producing binary/source next.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, os\np='/app/output/alloc-audit.json'\nwith open(p) as f: data=json.load(f)\nassert isinstance(data, dict)\nassert 'cases' in data and isinstance(data['cases'], list)\nprint('cases:', [c.get('name') for c in data['cases']])\nreq_case={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}\nreq_step={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}\nmissing=[]\nfor c in data['cases']:\n    mc=sorted(req_case - set(c))\n    if mc: missing.append((c.get('name'), 'case', mc))\n    if not isinstance(c.get('steps'), list):\n        missing.append((c.get('name'), 'steps_not_list', []));\n        continue\n    for i,s in enumerate(c['steps']):\n        ms=sorted(req_step - set(s))\n        if ms:\n            missing.append((c.get('name'), f'step[{i}]', ms))\n            break\n    led=c.get('ledger')\n    if isinstance(led,str):\n        if not os.path.exists(led):\n            missing.append((c.get('name'), 'ledger_missing', [led]))\n    else:\n        missing.append((c.get('name'), 'ledger_not_str', []))\nprint('missing:', missing)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/alloc-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    name=c['name']\n    steps=len(c['steps'])\n    ledger_path=c['ledger']\n    with open(ledger_path) as lf:\n        lines=sum(1 for _ in lf)\n    print(f\"{name}: steps={steps} ledger_lines={lines} ok={c['ok']}\")\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash -lc 'rm -rf /app/output && mkdir -p /app/output'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for n in cedar jade slate coral onyx pearl; do echo \"== $n ==\"; bash /app/scripts/run-one.sh \"$n\"; ls -la \"/app/output/${n}-audit.json\" \"/app/output/${n}.ledger.jsonl\"; done\n",
+      "duration": 30.0
+    }
+  ],
+  "task_complete": false
+}

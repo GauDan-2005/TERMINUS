@@ -1,0 +1,46 @@
+New Terminal Output:
+
+root@07f74449b762:/app# perl -0777 -pi -e 's/\n\s*if \(b&1 == 1 && item\.Period == "p1"\) \{\n\s*item\.Period = "p0";\n\s*\}\n/\n/sg' /app/internal/c2/roll.go
+root@07f74449b762:/app# perl -0777 -pi -e 's/if profile\.Roll && strings\.HasPrefix\(path, "d\/"\) \{\n\s*period = "p1"\n\s*\}/if profile.Roll \&\& profile.Rest
+art \&\& strings.HasPrefix(path, "d/") {\n\t\t\t\tperiod = "p1"\n\t\t\t}/s' /app/internal/c2/roll.go
+String found where operator expected (Missing operator before "") {\n\t\t\t\tperiod = ""?) at -e line 1, near "s/if profile\.Roll && strings\.HasPrefix\(path, "
+d\/"\) \{\n\s*period = "p1"\n\s*\}/if profile.Roll \&\& profile.Restart \&\& strings.HasPrefix(path, "d/") {\n\t\t\t\tperiod = ""
+syntax error at -e line 1, near "s/if profile\.Roll && strings\.HasPrefix\(path, "d\/"\) \{\n\s*period = "p1"\n\s*\}/if profile.Roll \&\& profile.Restart \&\& s
+trings.HasPrefix(path, "d/") {\n\t\t\t\tperiod = ""
+Execution of -e aborted due to compilation errors.
+root@07f74449b762:/app# grep -n "mark_c\|Period\|p1\|p0" /app/internal/c2/roll.go
+18:     Period string
+21:func mark_c(a *mapX, b uint64, c []entryX) error {
+26:             if b&1 == 1 && item.Period == "p1" {
+27:                     item.Period = "p0"
+41:             period := "p0"
+43:                     period = "p1"
+45:             entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
+53:     if err := mark_c(store, flags, entries); err != nil {
+58:             items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
+root@07f74449b762:/app# go build -o /app/bin/snapctl ./cmd/ctl
+root@07f74449b762:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:47:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:47:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   47 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@07f74449b762:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: d=json.load(f)
+> for name in ['epsilon','zeta']:
+>     c=next(x for x in d['cases'] if x['name']==name)
+>     ditems=[it for it in c['accounting'] if it['path'].startswith('d/')]
+>     print(name,'ok',c['ok'],'ditems',ditems)
+> PY
+epsilon ok True ditems [{'path': 'd/roll.txt', 'bytes': 19, 'period': 'p0'}]
+zeta ok True ditems [{'path': 'd/roll.txt', 'bytes': 16, 'period': 'p0'}]
+root@07f74449b762:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f: d=json.load(f)
+> print('ALL_OK', all(c['ok'] for c in d['cases']))
+> PY
+ALL_OK True
+root@07f74449b762:/app#

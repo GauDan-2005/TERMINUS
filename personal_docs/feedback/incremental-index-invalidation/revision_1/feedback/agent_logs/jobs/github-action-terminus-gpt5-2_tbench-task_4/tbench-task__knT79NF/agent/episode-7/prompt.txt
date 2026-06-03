@@ -1,0 +1,194 @@
+New Terminal Output:
+
+root@cf8c7351aaa9:/app# cat > /app/r4/e.rs <<'EOF'
+> use crate::model::{Entry, Observation, State};
+>
+> fn better(a: &Entry, b: &Entry) -> bool {
+>     (a.epoch, &a.path, a.line) > (b.epoch, &b.path, b.line)
+> }
+>
+> pub fn mote_e(state: &mut State, symbol: &str, expect_found: bool) -> Observation {
+>     // Find the definition that would be visible *now* after preceding edits.
+>     // Restrict to currently-active slot roots and pick the newest entry.
+>     let mut best: Option<Entry> = None;
+>     for entry in &state.entries {
+>         if entry.symbol != symbol {
+>             continue;
+>         }
+>         let Some(root) = state.active.get(&entry.slot) else {
+>             continue;
+>         };
+>         if !entry.path.starts_with(root) {
+>             continue;
+>         }
+>         match &best {
+>             None => best = Some(entry.clone()),
+>             Some(prev) => {
+>                 if better(entry, prev) {
+>                     best = Some(entry.clone());
+>                 }
+>             }
+>         }
+>     }
+>
+>     if let Some(entry) = best {
+>         let reused = state
+>             .last_seen
+>             .get(symbol)
+>             .map(|old| *old == entry.handle)
+>             .unwrap_or(false);
+>         state.last_seen.insert(symbol.to_string(), entry.handle);
+>         Observation {
+>             label: String::new(),
+>             symbol: symbol.to_string(),
+>             found: true,
+>             path: entry.path,
+>             source: entry.source,
+>             line: entry.line,
+>             // Epoch is the harness epoch at query time.
+>             epoch: state.epoch,
+>             reused,
+>             // By construction this is the visible, current definition.
+>             fresh: true,
+>         }
+>     } else {
+>         // For queries this is stale; for misses it's fresh.
+>         Observation::missing("", symbol, state.epoch, !expect_found)
+>     }
+> }
+> EOF
+root@cf8c7351aaa9:/app# cat > /app/r5/f.rs <<'EOF'
+> use crate::model::{Observation, State};
+>
+> pub fn cast_f(_a: &State, obs: Observation, expect_found: bool) -> (Observation, Option<String>) {
+>     if expect_found {
+>         if obs.found {
+>             if obs.fresh {
+>                 (obs, None)
+>             } else {
+>                 let sym = obs.symbol.clone();
+>                 (obs, Some(format!("stale: {} resolved to non-current definition", sym)))
+>             }
+>         } else {
+>             let sym = obs.symbol.clone();
+>             (obs, Some(format!("stale: {} was not found", sym)))
+>         }
+>     } else {
+>         if obs.found {
+>             let sym = obs.symbol.clone();
+>             (obs, Some(format!("stale: {} was found but should be missing", sym)))
+>         } else {
+>             (obs, None)
+>         }
+>     }
+> }
+> EOF
+root@cf8c7351aaa9:/app# cargo build -q
+root@cf8c7351aaa9:/app# bash /app/scripts/run-matrix.sh
+root@cf8c7351aaa9:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> with open(p) as f:
+>     data=json.load(f)
+> bad=[]
+> for c in data['cases']:
+>     if (not c['ok']) or c['stale']:
+>         bad.append((c['name'], c['ok'], c['stale']))
+> print('bad', len(bad))
+> for name, ok, stale in bad:
+>     print(name, ok, stale)
+> PY
+bad 0
+root@cf8c7351aaa9:/app# cp /app/output/index-report.json /app/output/index-report.json.run1
+root@cf8c7351aaa9:/app# bash /app/scripts/run-matrix.sh
+root@cf8c7351aaa9:/app# cmp -s /app/output/index-report.json.run1 /app/output/index-report.json && echo "byte-identical" || echo "DIFF"
+byte-identical
+root@cf8c7351aaa9:/app# head -n 120 /app/output/index-report.json
+{
+  "cases": [
+    {
+      "name": "alpha",
+      "ok": true,
+      "observations": [
+        {"label": "alpha_before", "symbol": "Widget", "found": true, "path": "/app/fixtures/alpha/ws-old/src/widget.ts", "source": "/app/fixtures/alpha/ws-old/s
+rc/widget.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "alpha_after", "symbol": "Widget", "found": true, "path": "/app/fixtures/alpha/ws-new/src/widget.ts", "source": "/app/fixtures/alpha/ws-new/sr
+c/widget.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "beta",
+      "ok": true,
+      "observations": [
+        {"label": "beta_before", "symbol": "Client", "found": true, "path": "/app/fixtures/beta/gen-v1/generated/api.ts", "source": "/app/fixtures/beta/schemas/
+v1/api.schema", "line": 2, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "beta_after", "symbol": "Client", "found": true, "path": "/app/fixtures/beta/gen-v2/generated/api.ts", "source": "/app/fixtures/beta/schemas/v
+2/api.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "gamma",
+      "ok": true,
+      "observations": [
+        {"label": "gamma_before", "symbol": "Bridge", "found": true, "path": "/app/fixtures/gamma/pkg-a/src/bridge.ts", "source": "/app/fixtures/gamma/pkg-a/src
+/bridge.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "gamma_after", "symbol": "Bridge", "found": true, "path": "/app/fixtures/gamma/pkg-b/src/bridge.ts", "source": "/app/fixtures/gamma/pkg-b/src/
+bridge.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "delta",
+      "ok": true,
+      "observations": [
+        {"label": "delta_client_before", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fixtu
+res/delta/schemas/v1/client.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "delta_widget_before", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-old/src/widget.ts", "source": "/app/fixtures/d
+elta/app-old/src/widget.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "delta_client_after_app", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fi
+xtures/delta/schemas/v1/client.schema", "line": 2, "epoch": 3, "reused": true, "fresh": true},
+        {"label": "delta_widget_after_app", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-new/src/widget.ts", "source": "/app/fixture
+s/delta/app-new/src/widget.ts", "line": 1, "epoch": 3, "reused": false, "fresh": true},
+        {"label": "delta_client_after_gen", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v2/generated/client.ts", "source": "/app/fi
+xtures/delta/schemas/v2/client.schema", "line": 2, "epoch": 4, "reused": false, "fresh": true},
+        {"label": "delta_widget_after_gen", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-new/src/widget.ts", "source": "/app/fixture
+s/delta/app-new/src/widget.ts", "line": 1, "epoch": 4, "reused": true, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "epsilon",
+      "ok": true,
+      "observations": [
+        {"label": "epsilon_legacy_before", "symbol": "Legacy", "found": true, "path": "/app/fixtures/epsilon/gen-v1/generated/legacy.ts", "source": "/app/fixtur
+es/epsilon/schemas/v1/legacy.schema", "line": 2, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "epsilon_legacy_after", "symbol": "Legacy", "found": false, "path": "", "source": "", "line": 0, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "epsilon_client_after", "symbol": "Client", "found": true, "path": "/app/fixtures/epsilon/gen-v2/generated/client.ts", "source": "/app/fixture
+s/epsilon/schemas/v2/client.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "zeta",
+      "ok": true,
+      "observations": [
+        {"label": "zeta_bridge_before", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-a/src/bridge.ts", "source": "/app/fixtures/zeta/pkg-a
+/src/bridge.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "zeta_widget_before", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/app
+-old/src/widget.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "zeta_bridge_after_pkg", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-b/src/bridge.ts", "source": "/app/fixtures/zeta/pk
+g-b/src/bridge.ts", "line": 1, "epoch": 3, "reused": false, "fresh": true},
+        {"label": "zeta_widget_after_pkg", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/
+app-old/src/widget.ts", "line": 1, "epoch": 3, "reused": true, "fresh": true},
+        {"label": "zeta_widget_after_app", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-new/src/widget.ts", "source": "/app/fixtures/zeta/
+app-new/src/widget.ts", "line": 1, "epoch": 4, "reused": false, "fresh": true},
+        {"label": "zeta_bridge_after_app", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-b/src/bridge.ts", "source": "/app/fixtures/zeta/pk
+g-b/src/bridge.ts", "line": 1, "epoch": 4, "reused": true, "fresh": true}
+      ],
+      "stale": []
+    }
+  ]
+}
+root@cf8c7351aaa9:/app#

@@ -1,0 +1,950 @@
+[?2004hroot@978e12d4a5e2:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@978e12d4a5e2:/app# clear
+[?2004l[H[J[3J[?2004hroot@978e12d4a5e2:/app# ls -la
+[?2004ltotal 4
+drwxr-xr-x 19 root root 257 May 25 13:09 .
+drwxr-xr-x 19 root root 265 May 25 13:10 ..
+-rw-r--r--  1 root root 576 May 25 13:08 Makefile
+drwxr-xr-x  2 root root  48 May 25 13:08 acct_e
+drwxr-xr-x  2 root root  22 May 25 13:09 bin
+drwxr-xr-x  2 root root  25 May 25 13:08 config
+drwxr-xr-x  3 root root  19 May 25 13:08 data
+drwxr-xr-x  2 root root  44 May 25 13:08 docs
+drwxr-xr-x  2 root root  32 May 25 13:08 drive_h
+drwxr-xr-x  2 root root  38 May 25 13:08 flow_g
+drwxr-xr-x  2 root root  81 May 25 13:08 include
+drwxr-xr-x  2 root root  48 May 25 13:08 list_b
+drwxr-xr-x  2 root root  38 May 25 13:08 mirror_j
+drwxr-xr-x  2 root root  48 May 25 13:08 move_d
+drwxr-xr-x  2 root root  45 May 25 13:08 pool_a
+drwxr-xr-x  2 root root  36 May 25 13:08 read_f
+drwxr-xr-x  2 root root  66 May 25 13:08 scripts
+drwxr-xr-x  2 root root  36 May 25 13:08 spill_i
+drwxr-xr-x  2 root root  51 May 25 13:08 split_c
+drwxr-xr-x  2 root root 302 May 25 13:08 src
+[?2004hroot@978e12d4a5e2:/app# find /app -maxdepth 3 -type f -print
+[?2004l/app/Makefile
+/app/acct_e/acct.c
+/app/acct_e/acct.h
+/app/acct_e/acct.o
+/app/bin/allocctl
+/app/config/limits.toml
+/app/data/cases/cedar.plan
+/app/data/cases/coral.plan
+/app/data/cases/jade.plan
+/app/data/cases/onyx.plan
+/app/data/cases/pearl.plan
+/app/data/cases/slate.plan
+/app/docs/layout.md
+/app/docs/operations.md
+/app/drive_h/run.c
+/app/drive_h/run.o
+/app/flow_g/report.c
+/app/flow_g/report.o
+/app/include/arena.h
+/app/include/block.h
+/app/include/plan.h
+/app/include/report.h
+/app/include/stats.h
+/app/list_b/list.c
+/app/list_b/list.h
+/app/list_b/list.o
+/app/mirror_j/mirror.c
+/app/mirror_j/mirror.o
+/app/move_d/move.c
+/app/move_d/move.h
+/app/move_d/move.o
+/app/pool_a/tag.c
+/app/pool_a/tag.h
+/app/pool_a/tag.o
+/app/read_f/parse.c
+/app/read_f/parse.o
+/app/scripts/clean-room.sh
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+/app/spill_i/spill.c
+/app/spill_i/spill.o
+/app/split_c/split.c
+/app/split_c/split.h
+/app/split_c/split.o
+/app/src/alloc_ops.c
+/app/src/alloc_ops.o
+/app/src/arena_core.c
+/app/src/arena_core.o
+/app/src/free_ops.c
+/app/src/free_ops.o
+/app/src/init_heap.c
+/app/src/init_heap.o
+/app/src/main.c
+/app/src/main.o
+/app/src/reloc_ops.c
+/app/src/reloc_ops.o
+/app/src/slot_split.c
+/app/src/slot_split.o
+/app/src/slot_take.c
+/app/src/slot_take.o
+[?2004hroot@978e12d4a5e2:/app# ls -la /app/scripts /app/output || true
+[?2004lls: cannot access '/app/output': No such file or directory
+/app/scripts:
+total 12
+drwxr-xr-x  2 root root  66 May 25 13:08 .
+drwxr-xr-x 19 root root 257 May 25 13:09 ..
+-rwxr-xr-x  1 root root 179 May 25 13:08 clean-room.sh
+-rwxr-xr-x  1 root root 177 May 25 13:08 run-matrix.sh
+-rwxr-xr-x  1 root root 162 May 25 13:08 run-one.sh
+[?2004hroot@978e12d4a5e2:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/allocctl" matrix
+[?2004hroot@978e12d4a5e2:/app# sed -n '1,200p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+CASE="${1:?case name required}"
+mkdir -p "${APP_ROOT}/output"
+"${APP_ROOT}/bin/allocctl" one "${CASE}"
+[?2004hroot@978e12d4a5e2:/app# bash -x /app/scripts/run-matrix.sh
+[?2004l+ set -euo pipefail
++ APP_ROOT=/app
++ OUT=/app/output
++ mkdir -p /app/output
++ bash /app/scripts/clean-room.sh
++ /app/bin/allocctl matrix
+[?2004hroot@978e12d4a5e2:/app# ls -la /app/output || true
+[?2004ltotal 32
+drwxr-xr-x  2 root root  184 May 25 13:10 .
+drwxr-xr-x 20 root root  271 May 25 13:10 ..
+-rw-r--r--  1 root root 7092 May 25 13:10 alloc-audit.json
+-rw-r--r--  1 root root  608 May 25 13:10 cedar.ledger.jsonl
+-rw-r--r--  1 root root  370 May 25 13:10 coral.ledger.jsonl
+-rw-r--r--  1 root root  969 May 25 13:10 jade.ledger.jsonl
+-rw-r--r--  1 root root  853 May 25 13:10 onyx.ledger.jsonl
+-rw-r--r--  1 root root 1092 May 25 13:10 pearl.ledger.jsonl
+-rw-r--r--  1 root root  842 May 25 13:10 slate.ledger.jsonl
+[?2004hroot@978e12d4a5e2:/app# for f in /app/output/*audit.json; do echo "=== $f"; head -n 50 "$f"; done
+[?2004l=== /app/output/alloc-audit.json
+{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    },
+    {
+      "name": "jade",
+      "ok": true,
+      "heap_sig": 5440,
+      "fl_count": 3,
+      "fl_sig": 65216,
+      "byte_total": 368,
+      "ledger": "/app/output/jade.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
+        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
+        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
+        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
+      ]
+    },
+    {
+      "name": "slate",
+      "ok": true,
+      "heap_sig": 3808,
+      "fl_count": 2,
+      "fl_sig": 65312,
+      "byte_total": 256,
+      "ledger": "/app/output/slate.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
+        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,os
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> data=json.load(open(p))
+[?2004l[?2004h> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+[?2004l[?2004h> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+[?2004l[?2004h> print('top keys',data.keys())
+[?2004l[?2004h> print('cases',len(data.get('cases',[])))
+[?2004l[?2004h> missing=[]
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     ck=set(c.keys())
+[?2004l[?2004h>     if not req_case_keys.issubset(ck):
+[?2004l[?2004h>         missing.append((c.get('name'),sorted(req_case_keys-ck)))
+[?2004l[?2004h>     for s in c.get('steps',[]):
+[?2004l[?2004h>         sk=set(s.keys())
+[?2004l[?2004h>         if not req_step_keys.issubset(sk):
+[?2004l[?2004h>             print('step missing keys',c.get('name'),s.get('seq'),sorted(req_step_keys-sk))
+[?2004l[?2004h>             break
+[?2004l[?2004h> print('missing case keys',missing)
+[?2004l[?2004h> print('names',[c['name'] for c in data['cases']])
+[?2004l[?2004h> PY
+[?2004ltop keys dict_keys(['cases'])
+cases 6
+missing case keys []
+names ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> data=json.load(open(p))
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     steps=c['steps']
+[?2004l[?2004h>     ok=(c['heap_sig'],c['fl_count'],c['fl_sig'],c['byte_total'])==(steps[-1]['heap_sig'],steps[-1]['fl_count'],steps[-1]['fl_sig'],steps[-1]['byte_total'])
+[?2004l[?2004h>     if not ok:
+[?2004l[?2004h>         print('SUMMARY MISMATCH',c['name'])
+[?2004l[?2004h>         print('case',c['heap_sig'],c['fl_count'],c['fl_sig'],c['byte_total'])
+[?2004l[?2004h>         print('last',steps[-1]['heap_sig'],steps[-1]['fl_count'],steps[-1]['fl_sig'],steps[-1]['byte_total'])
+[?2004l[?2004h> PY
+[?2004l[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,os
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> data=json.load(open(p))
+[?2004l[?2004h> for c in data['cases']:
+[?2004l[?2004h>     ledger=Path(c['ledger'])
+[?2004l[?2004h>     steps=c['steps']
+[?2004l[?2004h>     if not ledger.exists():
+[?2004l[?2004h>         print('MISSING LEDGER',c['name'],ledger)
+[?2004l[?2004h>         continue
+[?2004l[?2004h>     rows=[json.loads(line) for line in ledger.read_text().splitlines() if line.strip()]
+[?2004l[?2004h>     if len(rows)!=len(steps):
+[?2004l[?2004h>         print('LEN MISMATCH',c['name'],'steps',len(steps),'rows',len(rows))
+[?2004l[?2004h>         continue
+[?2004l[?2004h>     for s,r in zip(steps,rows):
+[?2004l[?2004h>         if s['seq']!=r.get('seq'):
+[?2004l[?2004h>             print('SEQ MISMATCH',c['name'],s['seq'],r.get('seq'))
+[?2004l[?2004h>             break
+[?2004l[?2004h>         for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>             if s[k]!=r.get(k):
+[?2004l[?2004h>                 print('TALLY MISMATCH',c['name'],'seq',s['seq'],k,s[k],r.get(k))
+[?2004l[?2004h>                 raise SystemExit
+[?2004l[?2004h> print('ledger alignment OK')
+[?2004l[?2004h> PY
+[?2004lledger alignment OK
+[?2004hroot@978e12d4a5e2:/app# cp -a /app/output /app/output.run1
+[?2004l[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@978e12d4a5e2:/app# diff -u /app/output.run1/alloc-audit.json /app/output/alloc-audit.json || true
+[?2004l[?2004hroot@978e12d4a5e2:/app# for n in cedar coral jade onyx pearl slate; do diff -u "/app/output.run1/${n}.ledger.jsonl" "/app/output/${n}.ledger.jsonl" || true; done
+[?2004l[?2004hroot@978e12d4a5e2:/app# rm -f /app/output/*-audit.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# for n in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh "$n"; done
+[?2004l[?2004hroot@978e12d4a5e2:/app# ls -la /app/output | sed -n '1,200p'
+[?2004ltotal 48
+drwxr-xr-x  2 root root  302 May 25 13:10 .
+drwxr-xr-x 21 root root  290 May 25 13:10 ..
+-rw-r--r--  1 root root  979 May 25 13:10 cedar-audit.json
+-rw-r--r--  1 root root  608 May 25 13:10 cedar.ledger.jsonl
+-rw-r--r--  1 root root  689 May 25 13:10 coral-audit.json
+-rw-r--r--  1 root root  370 May 25 13:10 coral.ledger.jsonl
+-rw-r--r--  1 root root 1416 May 25 13:10 jade-audit.json
+-rw-r--r--  1 root root  969 May 25 13:10 jade.ledger.jsonl
+-rw-r--r--  1 root root 1276 May 25 13:10 onyx-audit.json
+-rw-r--r--  1 root root  853 May 25 13:10 onyx.ledger.jsonl
+-rw-r--r--  1 root root 1567 May 25 13:10 pearl-audit.json
+-rw-r--r--  1 root root 1092 May 25 13:10 pearl.ledger.jsonl
+-rw-r--r--  1 root root 1265 May 25 13:10 slate-audit.json
+-rw-r--r--  1 root root  842 May 25 13:10 slate.ledger.jsonl
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,glob,os
+[?2004l[?2004h> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+[?2004l[?2004h> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+[?2004l[?2004h> for p in sorted(glob.glob('/app/output/*-audit.json')):
+[?2004l[?2004h>     data=json.load(open(p))
+[?2004l[?2004h>     missing=sorted(req_case_keys-set(data.keys()))
+[?2004l[?2004h>     if missing:
+[?2004l[?2004h>         print('BAD',p,'missing',missing); continue
+[?2004l[?2004h>     for s in data['steps']:
+[?2004l[?2004h>         m=sorted(req_step_keys-set(s.keys()))
+[?2004l[?2004h>         if m:
+[?2004l[?2004h>             print('BAD',p,'step',s.get('seq'),'missing',m)
+[?2004l[?2004h>             break
+[?2004l[?2004h>     else:
+[?2004l[?2004h>         print('OK',os.path.basename(p),'steps',len(data['steps']),'ledger',data['ledger'])
+[?2004l[?2004h> PY
+[?2004lBAD /app/output/cedar-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/coral-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/jade-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/onyx-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/pearl-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/slate-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,glob
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> for p in sorted(glob.glob('/app/output/*-audit.json')):
+[?2004l[?2004h>     data=json.load(open(p))
+[?2004l[?2004h>     ledger=Path(data['ledger'])
+[?2004l[?2004h>     steps=data['steps']
+[?2004l[?2004h>     if not ledger.exists():
+[?2004l[?2004h>         print('MISSING LEDGER',p,ledger); continue
+[?2004l[?2004h>     rows=[json.loads(l) for l in ledger.read_text().splitlines() if l.strip()]
+[?2004l[?2004h>     if len(rows)!=len(steps):
+[?2004l[?2004h>         print('LEN MISMATCH',p,len(steps),len(rows)); continue
+[?2004l[?2004h>     for s,r in zip(steps,rows):
+[?2004l[?2004h>         if s['seq']!=r.get('seq'):
+[?2004l[?2004h>             print('SEQ MISMATCH',p,s['seq'],r.get('seq'))
+[?2004l[?2004h>             break
+[?2004l[?2004h>         for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>             if s[k]!=r.get(k):
+[?2004l[?2004h>                 print('TALLY MISMATCH',p,'seq',s['seq'],k,s[k],r.get(k))
+[?2004l[?2004h>                 raise SystemExit
+[?2004l[?2004h>     else:
+[?2004l[?2004h>         pass
+[?2004l[?2004h> print('per-case ledgers align')
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m5[0m, in [35m<module>[0m
+[1;35mKeyError[0m: [35m'ledger'[0m
+[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-one.sh cedar
+[?2004l[?2004hroot@978e12d4a5e2:/app# cp -a /app/output/cedar-audit.json /tmp/cedar-audit.1.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-one.sh cedar
+[?2004l[?2004hroot@978e12d4a5e2:/app# cp -a /app/output/cedar-audit.json /tmp/cedar-audit.2.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# diff -u /tmp/cedar-audit.1.json /tmp/cedar-audit.2.json || true
+[?2004l[?2004hroot@978e12d4a5e2:/app# sed -n '1,120p' /app/output/cedar-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    }
+  ]
+}
+[?2004hroot@978e12d4a5e2:/app# head -n 5 /app/output/cedar.ledger.jsonl
+[?2004l{"seq":0,"op":"alloc","index":-1,"size":64,"result_index":0,"heap_sig":1496,"fl_count":1,"fl_sig":65448,"byte_total":96}
+{"seq":1,"op":"alloc","index":-1,"size":128,"result_index":1,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":256}
+{"seq":2,"op":"free","index":0,"size":0,"result_index":0,"heap_sig":2584,"fl_count":2,"fl_sig":65384,"byte_total":168}
+{"seq":3,"op":"alloc","index":-1,"size":32,"result_index":2,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":264}
+{"seq":4,"op":"realloc","index":1,"size":96,"result_index":1,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":264}
+[?2004hroot@978e12d4a5e2:/app# sed -n '1,220p' /app/src/main.c
+[?2004l#include "../include/plan.h"
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+static const char *CASES[] = {"cedar", "jade", "slate", "coral", "onyx", "pearl", NULL};
+
+static int run_named(const char *name, const char *out_dir, CaseResult *res) {
+    char path[512];
+    Plan plan;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.plan", name);
+    if (plan_load(path, &plan) != 0) {
+        return -1;
+    }
+    return run_case(&plan, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        CaseResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/alloc-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        CaseResult res;
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        char audit[512];
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_e(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: allocctl matrix | allocctl one <case>\n");
+    return 1;
+}
+[?2004hroot@978e12d4a5e2:/app# sed -n '1,260p' /app/flow_g/report.c
+[?2004l#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const CaseResult *res, int last) {
+    FILE *led = fopen(res->ledger_path, "w");
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
+    fprintf(fp, "      \"fl_count\": %d,\n", res->fl_count);
+    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
+    fprintf(fp, "      \"byte_total\": %zu,\n", res->byte_total);
+    fprintf(fp, "      \"ledger\": ");
+    esc(fp, res->ledger_path);
+    fprintf(fp, ",\n      \"steps\": [\n");
+    for (int i = 0; i < res->step_count; i++) {
+        const StepRec *st = &res->steps[i];
+        fprintf(fp,
+                "        {\"seq\": %d, \"op\": ", st->seq);
+        esc(fp, st->op);
+        fprintf(fp,
+                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+                st->byte_total);
+        if (i + 1 < res->step_count) {
+            fprintf(fp, ",");
+        }
+        fprintf(fp, "\n");
+        if (led) {
+            fprintf(led,
+                    "{\"seq\":%d,\"op\":", st->seq);
+            esc(led, st->op);
+            fprintf(led,
+                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+                    st->fl_sig, st->byte_total);
+        }
+    }
+    fprintf(fp, "      ]\n    }");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+    if (led) {
+        fclose(led);
+    }
+}
+
+int emit_e(const CaseResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    int i;
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+[?2004hroot@978e12d4a5e2:/app# grep -RIn "one\b" /app/src /app/flow_g /app/read_f /app/include | head -n 200
+[?2004l/app/src/main.c:37:    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+/app/src/main.c:46:    fprintf(stderr, "usage: allocctl matrix | allocctl one <case>\n");
+[?2004hroot@978e12d4a5e2:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: flow_g/report.c
+[?2004l[?2004h> @@
+[?2004l[?2004h>  static void write_case(FILE *fp, const CaseResult *res, int last) {
+[?2004l[?2004h> @@
+[?2004l[?2004h>  }
+[?2004l[?2004h> +
+[?2004l[?2004h> +// Emit a single case result as a top-level JSON object.
+[?2004l[?2004h> +// This is used by `allocctl one <case>` which must write /app/output/<name>-audit.json
+[?2004l[?2004h> +// with the case fields at the top level (no surrounding {"cases": [...] } wrapper).
+[?2004l[?2004h> +static void write_case_single(FILE *fp, const CaseResult *res) {
+[?2004l[?2004h> +    FILE *led = fopen(res->ledger_path, "w");
+[?2004l[?2004h> +    fprintf(fp, "{\n  \"name\": ");
+[?2004l[?2004h> +    esc(fp, res->name);
+[?2004l[?2004h> +    fprintf(fp, ",\n  \"ok\": %s,\n", res->ok ? "true" : "false");
+[?2004l[?2004h> +    fprintf(fp, "  \"heap_sig\": %zu,\n", res->heap_sig);
+[?2004l[?2004h> +    fprintf(fp, "  \"fl_count\": %d,\n", res->fl_count);
+[?2004l[?2004h> +    fprintf(fp, "  \"fl_sig\": %zu,\n", res->fl_sig);
+[?2004l[?2004h> +    fprintf(fp, "  \"byte_total\": %zu,\n", res->byte_total);
+[?2004l[?2004h> +    fprintf(fp, "  \"ledger\": ");
+[?2004l[?2004h> +    esc(fp, res->ledger_path);
+[?2004l[?2004h> +    fprintf(fp, ",\n  \"steps\": [\n");
+[?2004l[?2004h> +    for (int i = 0; i < res->step_count; i++) {
+[?2004l[?2004h> +        const StepRec *st = &res->steps[i];
+[?2004l[?2004h> +        fprintf(fp, "    {\"seq\": %d, \"op\": ", st->seq);
+[?2004l[?2004h> +        esc(fp, st->op);
+[?2004l[?2004h> +        fprintf(fp,
+[?2004l[?2004h> +                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+[?2004l[?2004h> +                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+[?2004l[?2004h> +                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+[?2004l[?2004h> +                st->byte_total);
+[?2004l[?2004h> +        if (i + 1 < res->step_count) {
+[?2004l[?2004h> +            fprintf(fp, ",");
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +        fprintf(fp, "\n");
+[?2004l[?2004h> +
+[?2004l[?2004h> +        if (led) {
+[?2004l[?2004h> +            fprintf(led, "{\"seq\":%d,\"op\":", st->seq);
+[?2004l[?2004h> +            esc(led, st->op);
+[?2004l[?2004h> +            fprintf(led,
+[?2004l[?2004h> +                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+[?2004l[?2004h> +                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+[?2004l[?2004h> +                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+[?2004l[?2004h> +                    st->fl_sig, st->byte_total);
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +    }
+[?2004l[?2004h> +    fprintf(fp, "  ]\n}\n");
+[?2004l[?2004h> +    if (led) {
+[?2004l[?2004h> +        fclose(led);
+[?2004l[?2004h> +    }
+[?2004l[?2004h> +}
+[?2004l[?2004h> @@
+[?2004l[?2004h>  int emit_e(const CaseResult *res, const char *audit_path) {
+[?2004l[?2004h>      FILE *fp = fopen(audit_path, "w");
+[?2004l[?2004h>      if (!fp) {
+[?2004l[?2004h>          return -1;
+[?2004l[?2004h>      }
+[?2004l[?2004h> -    fprintf(fp, "{\n  \"cases\": [\n");
+[?2004l[?2004h> -    write_case(fp, res, 1);
+[?2004l[?2004h> -    fprintf(fp, "  ]\n}\n");
+[?2004l[?2004h> +    write_case_single(fp, res);
+[?2004l[?2004h>      fclose(fp);
+[?2004l[?2004h>      return 0;
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@978e12d4a5e2:/app# make -C /app clean all
+[?2004lmake: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
+[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
+   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
+make: Leaving directory '/app'
+[?2004hroot@978e12d4a5e2:/app# rm -f /app/output/*-audit.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# for n in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh "$n"; done
+[?2004l[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,glob,os
+[?2004l[?2004h> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+[?2004l[?2004h> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+[?2004l[?2004h> for p in sorted(glob.glob('/app/output/*-audit.json')):
+[?2004l[?2004h>     data=json.load(open(p))
+[?2004l[?2004h>     missing=sorted(req_case_keys-set(data.keys()))
+[?2004l[?2004h>     if missing:
+[?2004l[?2004h>         print('BAD',p,'missing',missing); continue
+[?2004l[?2004h>     for s in data['steps']:
+[?2004l[?2004h>         m=sorted(req_step_keys-set(s.keys()))
+[?2004l[?2004h>         if m:
+[?2004l[?2004h>             print('BAD',p,'step',s.get('seq'),'missing',m)
+[?2004l[?2004h>             break
+[?2004l[?2004h>     else:
+[?2004l[?2004h>         print('OK',os.path.basename(p),'steps',len(data['steps']),'ledger',data['ledger'])
+[?2004l[?2004h> PY
+[?2004lBAD /app/output/cedar-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/coral-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/jade-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/onyx-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/pearl-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+BAD /app/output/slate-audit.json missing ['byte_total', 'fl_count', 'fl_sig', 'heap_sig', 'ledger', 'name', 'ok', 'steps']
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,glob
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> for p in sorted(glob.glob('/app/output/*-audit.json')):
+[?2004l[?2004h>     data=json.load(open(p))
+[?2004l[?2004h>     ledger=Path(data['ledger'])
+[?2004l[?2004h>     steps=data['steps']
+[?2004l[?2004h>     if not ledger.exists():
+[?2004l[?2004h>         print('MISSING LEDGER',p,ledger); continue
+[?2004l[?2004h>     rows=[json.loads(l) for l in ledger.read_text().splitlines() if l.strip()]
+[?2004l[?2004h>     if len(rows)!=len(steps):
+[?2004l[?2004h>         print('LEN MISMATCH',p,len(steps),len(rows)); continue
+[?2004l[?2004h>     for s,r in zip(steps,rows):
+[?2004l[?2004h>         if s['seq']!=r.get('seq'):
+[?2004l[?2004h>             print('SEQ MISMATCH',p,s['seq'],r.get('seq'))
+[?2004l[?2004h>             break
+[?2004l[?2004h>         for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>             if s[k]!=r.get(k):
+[?2004l[?2004h>                 print('TALLY MISMATCH',p,'seq',s['seq'],k,s[k],r.get(k))
+[?2004l[?2004h>                 raise SystemExit
+[?2004l[?2004h> print('per-case ledgers align')
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m5[0m, in [35m<module>[0m
+[1;35mKeyError[0m: [35m'ledger'[0m
+[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> data=json.load(open(p))
+[?2004l[?2004h> print('cases',len(data['cases']))
+[?2004l[?2004h> print('names',[c['name'] for c in data['cases']])
+[?2004l[?2004h> PY
+[?2004lcases 6
+names ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+[?2004hroot@978e12d4a5e2:/app# grep -n "^int emit_e" -n /app/flow_g/report.c
+[?2004l64:int emit_e(const CaseResult *res, const char *audit_path) {
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/flow_g/report.c')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> if 'write_case_single' not in s:
+[?2004l[?2004h>     insert_point = s.find('\nint emit_e')
+[?2004l[?2004h>     assert insert_point!=-1
+[?2004l[?2004h>     helper = r'''
+[?2004l[?2004h> 
+[?2004l[?2004h> // Emit a single case result as a top-level JSON object.
+[?2004l[?2004h> // Used by `allocctl one <case>` which must write /app/output/<name>-audit.json
+[?2004l[?2004h> // with the case fields at the top level (no surrounding {"cases": [...] } wrapper).
+[?2004l[?2004h> static void write_case_single(FILE *fp, const CaseResult *res) {
+[?2004l[?2004h>     FILE *led = fopen(res->ledger_path, "w");
+[?2004l[?2004h>     fprintf(fp, "{\n  \"name\": ");
+[?2004l[?2004h>     esc(fp, res->name);
+[?2004l[?2004h>     fprintf(fp, ",\n  \"ok\": %s,\n", res->ok ? "true" : "false");
+[?2004l[?2004h>     fprintf(fp, "  \"heap_sig\": %zu,\n", res->heap_sig);
+[?2004l[?2004h>     fprintf(fp, "  \"fl_count\": %d,\n", res->fl_count);
+[?2004l[?2004h>     fprintf(fp, "  \"fl_sig\": %zu,\n", res->fl_sig);
+[?2004l[?2004h>     fprintf(fp, "  \"byte_total\": %zu,\n", res->byte_total);
+[?2004l[?2004h>     fprintf(fp, "  \"ledger\": ");
+[?2004l[?2004h>     esc(fp, res->ledger_path);
+[?2004l[?2004h>     fprintf(fp, ",\n  \"steps\": [\n");
+[?2004l[?2004h>     for (int i = 0; i < res->step_count; i++) {
+[?2004l[?2004h>         const StepRec *st = &res->steps[i];
+[?2004l[?2004h>         fprintf(fp, "    {\"seq\": %d, \"op\": ", st->seq);
+[?2004l[?2004h>         esc(fp, st->op);
+[?2004l[?2004h>         fprintf(fp,
+[?2004l[?2004h>                 ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+[?2004l[?2004h>                 "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+[?2004l[?2004h>                 st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+[?2004l[?2004h>                 st->byte_total);
+[?2004l[?2004h>         if (i + 1 < res->step_count) {
+[?2004l[?2004h>             fprintf(fp, ",");
+[?2004l[?2004h>         }
+[?2004l[?2004h>         fprintf(fp, "\n");
+[?2004l[?2004h> 
+[?2004l[?2004h>         if (led) {
+[?2004l[?2004h>             fprintf(led, "{\"seq\":%d,\"op\":", st->seq);
+[?2004l[?2004h>             esc(led, st->op);
+[?2004l[?2004h>             fprintf(led,
+[?2004l[?2004h>                     ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+[?2004l[?2004h>                     "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+[?2004l[?2004h>                     st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+[?2004l[?2004h>                     st->fl_sig, st->byte_total);
+[?2004l[?2004h>         }
+[?2004l[?2004h>     }
+[?2004l[?2004h>     fprintf(fp, "  ]\n}\n");
+[?2004l[?2004h>     if (led) {
+[?2004l[?2004h>         fclose(led);
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> '''
+[?2004l[?2004h>     s = s[:insert_point] + helper + s[insert_point:]
+[?2004l[?2004h> 
+[?2004l[?2004h> # Replace emit_e body
+[?2004l[?2004h> import re
+[?2004l[?2004h> pat=re.compile(r'int emit_e\(const CaseResult \*res, const char \*audit_path\) \{.*?\n\}\n', re.S)
+[?2004l[?2004h> m=pat.search(s)
+[?2004l[?2004h> assert m, 'emit_e not found'
+[?2004l[?2004h> new_emit = r'''int emit_e(const CaseResult *res, const char *audit_path) {
+[?2004l[?2004h>     FILE *fp = fopen(audit_path, "w");
+[?2004l[?2004h>     if (!fp) {
+[?2004l[?2004h>         return -1;
+[?2004l[?2004h>     }
+[?2004l[?2004h>     write_case_single(fp, res);
+[?2004l[?2004h>     fclose(fp);
+[?2004l[?2004h>     return 0;
+[?2004l[?2004h> }
+[?2004l[?2004h> '''
+[?2004l[?2004h> s = s[:m.start()] + new_emit + s[m.end():]
+[?2004l[?2004h> 
+[?2004l[?2004h> p.write_text(s)
+[?2004l[?2004h> print('updated',p)
+[?2004l[?2004h> PY
+[?2004lupdated /app/flow_g/report.c
+[?2004hroot@978e12d4a5e2:/app# grep -n "write_case_single" -n /app/flow_g/report.c | head
+[?2004l68:static void write_case_single(FILE *fp, const CaseResult *res) {
+115:    write_case_single(fp, res);
+[?2004hroot@978e12d4a5e2:/app# sed -n '1,220p' /app/flow_g/report.c | sed -n '1,220p'
+[?2004l#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const CaseResult *res, int last) {
+    FILE *led = fopen(res->ledger_path, "w");
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
+    fprintf(fp, "      \"fl_count\": %d,\n", res->fl_count);
+    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
+    fprintf(fp, "      \"byte_total\": %zu,\n", res->byte_total);
+    fprintf(fp, "      \"ledger\": ");
+    esc(fp, res->ledger_path);
+    fprintf(fp, ",\n      \"steps\": [\n");
+    for (int i = 0; i < res->step_count; i++) {
+        const StepRec *st = &res->steps[i];
+        fprintf(fp,
+                "        {\"seq\": %d, \"op\": ", st->seq);
+        esc(fp, st->op);
+        fprintf(fp,
+                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+                st->byte_total);
+        if (i + 1 < res->step_count) {
+            fprintf(fp, ",");
+        }
+        fprintf(fp, "\n");
+        if (led) {
+            fprintf(led,
+                    "{\"seq\":%d,\"op\":", st->seq);
+            esc(led, st->op);
+            fprintf(led,
+                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+                    st->fl_sig, st->byte_total);
+        }
+    }
+    fprintf(fp, "      ]\n    }");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+    if (led) {
+        fclose(led);
+    }
+}
+
+
+// Emit a single case result as a top-level JSON object.
+// Used by `allocctl one <case>` which must write /app/output/<name>-audit.json
+// with the case fields at the top level (no surrounding {"cases": [...] } wrapper).
+static void write_case_single(FILE *fp, const CaseResult *res) {
+    FILE *led = fopen(res->ledger_path, "w");
+    fprintf(fp, "{\n  \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n  \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "  \"heap_sig\": %zu,\n", res->heap_sig);
+    fprintf(fp, "  \"fl_count\": %d,\n", res->fl_count);
+    fprintf(fp, "  \"fl_sig\": %zu,\n", res->fl_sig);
+    fprintf(fp, "  \"byte_total\": %zu,\n", res->byte_total);
+    fprintf(fp, "  \"ledger\": ");
+    esc(fp, res->ledger_path);
+    fprintf(fp, ",\n  \"steps\": [\n");
+    for (int i = 0; i < res->step_count; i++) {
+        const StepRec *st = &res->steps[i];
+        fprintf(fp, "    {\"seq\": %d, \"op\": ", st->seq);
+        esc(fp, st->op);
+        fprintf(fp,
+                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+                st->byte_total);
+        if (i + 1 < res->step_count) {
+            fprintf(fp, ",");
+        }
+        fprintf(fp, "\n");
+
+        if (led) {
+            fprintf(led, "{\"seq\":%d,\"op\":", st->seq);
+            esc(led, st->op);
+            fprintf(led,
+                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+                    st->fl_sig, st->byte_total);
+        }
+    }
+    fprintf(fp, "  ]\n}\n");
+    if (led) {
+        fclose(led);
+    }
+}
+
+int emit_e(const CaseResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    write_case_single(fp, res);
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    int i;
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+[?2004hroot@978e12d4a5e2:/app# make -C /app clean all
+[?2004lmake: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
+[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
+   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
+make: Leaving directory '/app'
+[?2004hroot@978e12d4a5e2:/app# rm -f /app/output/*-audit.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# for n in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh "$n"; done
+[?2004l[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,glob,os
+[?2004l[?2004h> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+[?2004l[?2004h> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+[?2004l[?2004h> for p in sorted(glob.glob('/app/output/*-audit.json')):
+[?2004l[?2004h>     data=json.load(open(p))
+[?2004l[?2004h>     missing=sorted(req_case_keys-set(data.keys()))
+[?2004l[?2004h>     if missing:
+[?2004l[?2004h>         print('BAD',p,'missing',missing); continue
+[?2004l[?2004h>     for s in data['steps']:
+[?2004l[?2004h>         m=sorted(req_step_keys-set(s.keys()))
+[?2004l[?2004h>         if m:
+[?2004l[?2004h>             print('BAD',p,'step',s.get('seq'),'missing',m)
+[?2004l[?2004h>             break
+[?2004l[?2004h>     else:
+[?2004l[?2004h>         print('OK',os.path.basename(p),'steps',len(data['steps']),'ledger',data['ledger'])
+[?2004l[?2004h> PY
+[?2004lOK cedar-audit.json steps 5 ledger /app/output/cedar.ledger.jsonl
+OK coral-audit.json steps 3 ledger /app/output/coral.ledger.jsonl
+OK jade-audit.json steps 8 ledger /app/output/jade.ledger.jsonl
+OK onyx-audit.json steps 7 ledger /app/output/onyx.ledger.jsonl
+OK pearl-audit.json steps 9 ledger /app/output/pearl.ledger.jsonl
+OK slate-audit.json steps 7 ledger /app/output/slate.ledger.jsonl
+[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,glob
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> for p in sorted(glob.glob('/app/output/*-audit.json')):
+[?2004l[?2004h>     data=json.load(open(p))
+[?2004l[?2004h>     ledger=Path(data['ledger'])
+[?2004l[?2004h>     steps=data['steps']
+[?2004l[?2004h>     rows=[json.loads(l) for l in ledger.read_text().splitlines() if l.strip()]
+[?2004l[?2004h>     assert len(rows)==len(steps), (p,len(rows),len(steps))
+[?2004l[?2004h>     for s,r in zip(steps,rows):
+[?2004l[?2004h>         assert s['seq']==r['seq']
+[?2004l[?2004h>         for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>             assert s[k]==r[k], (p,s['seq'],k,s[k],r[k])
+[?2004l[?2004h> print('per-case ledgers align')
+[?2004l[?2004h> PY
+[?2004lper-case ledgers align
+[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@978e12d4a5e2:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> data=json.load(open(p))
+[?2004l[?2004h> print('matrix cases',len(data['cases']))
+[?2004l[?2004h> PY
+[?2004lmatrix cases 6
+[?2004hroot@978e12d4a5e2:/app# cp -a /app/output /app/output.matrix1
+[?2004l[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@978e12d4a5e2:/app# 
+[?2004l[?2004hroot@978e12d4a5e2:/app# diff -u /app/output.matrix1/alloc-audit.json /app/output/alloc-audit.json || true
+[?2004l[?2004hroot@978e12d4a5e2:/app# for n in cedar coral jade onyx pearl slate; do diff -u "/app/output.matrix1/${n}.ledger.jsonl" "/app/output/${n}.ledger.jsonl" || true; done
+[?2004l[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-one.sh cedar
+[?2004l[?2004hroot@978e12d4a5e2:/app# cp -a /app/output/cedar-audit.json /tmp/cedar-audit.1.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# bash /app/scripts/run-one.sh cedar
+[?2004l[?2004hroot@978e12d4a5e2:/app# cp -a /app/output/cedar-audit.json /tmp/cedar-audit.2.json
+[?2004l[?2004hroot@978e12d4a5e2:/app# diff -u /tmp/cedar-audit.1.json /tmp/cedar-audit.2.json || true
+[?2004l[?2004hroot@978e12d4a5e2:/app# 

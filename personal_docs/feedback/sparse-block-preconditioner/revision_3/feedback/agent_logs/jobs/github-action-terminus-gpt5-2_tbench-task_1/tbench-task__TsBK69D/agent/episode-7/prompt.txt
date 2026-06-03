@@ -1,0 +1,32 @@
+Current terminal state:
+New Terminal Output:
+
+root@2270e3c17ab5:/app# rm -f /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json
+root@2270e3c17ab5:/app# bash /app/scripts/run-matrix.sh
+root@2270e3c17ab5:/app# cp /app/output/solver-audit.json /tmp/solver-audit.run1.json
+root@2270e3c17ab5:/app# ls -la /tmp/solver-audit.run1.json
+-rw-r--r-- 1 root root 1160 May 29 00:25 /tmp/solver-audit.run1.json
+root@2270e3c17ab5:/app# bash /app/scripts/run-one.sh basalt
+root@2270e3c17ab5:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/tmp/solver-audit.run1.json'))
+> o=json.load(open('/app/output/basalt-audit.json'))
+> ms=[c for c in m['cases'] if c['name']=='basalt']
+> print('slice_equal', bool(ms) and (o['cases'][0]==ms[0]))
+> PY
+slice_equal True
+root@2270e3c17ab5:/app# bash /app/scripts/run-matrix.sh
+root@2270e3c17ab5:/app# cp /app/output/solver-audit.json /tmp/solver-audit.run2.json
+root@2270e3c17ab5:/app# python3 - <<'PY'
+> import pathlib,json
+> p1=pathlib.Path('/tmp/solver-audit.run1.json')
+> p2=pathlib.Path('/tmp/solver-audit.run2.json')
+> print('byte_equal', p1.read_bytes()==p2.read_bytes())
+> print('json_equal', json.loads(p1.read_text())==json.loads(p2.read_text()))
+> PY
+byte_equal True
+json_equal True
+root@2270e3c17ab5:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

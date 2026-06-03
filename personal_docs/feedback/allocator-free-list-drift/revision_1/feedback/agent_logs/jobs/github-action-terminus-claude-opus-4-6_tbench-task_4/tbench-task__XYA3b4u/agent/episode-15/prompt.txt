@@ -1,0 +1,115 @@
+New Terminal Output:
+
+root@8c64c9759efb:/app# cat /app/src/arena_core.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+size_t arena_heap_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t off = 0;
+    while (off < a->used) {
+        Block b;
+        b.base = (unsigned char *)a->mem;
+        b.off = off;
+        size_t total = tag_read_size(&b);
+        if (total == 0) {
+            break;
+        }
+        if (z_is_flag(&b)) {
+            sig += total * 17;
+        }
+        off += total;
+    }
+    return sig;
+}
+
+size_t arena_fl_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        Block b = {(unsigned char *)a->mem, cur};
+        sig += tag_read_size(&b);
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return sig;
+}
+
+int arena_fl_count(const Arena *a) {
+    int c = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        c++;
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return c;
+}
+root@8c64c9759efb:/app# cat /app/src/init_heap.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+void arena_init(Arena *a) {
+    Block h;
+    size_t i;
+    memset(a, 0, sizeof(*a));
+    for (i = 0; i < FL_MAP_SZ; i++) {
+        a->fl_link_next[i] = FL_END;
+        a->fl_link_prev[i] = FL_END;
+    }
+    a->used = HEAP_BYTES;
+    h.base = a->mem;
+    h.off = 0;
+    xa0(&h, HEAP_BYTES);
+    z_set_flag(&h, 0);
+    a->head = h;
+    a->fl_head.base = h.base;
+    a->fl_head.off = FL_END;
+    xb1(a, &h);
+}
+root@8c64c9759efb:/app# cat /app/include/stats.h
+#ifndef STATS_H
+#define STATS_H
+
+#include <stddef.h>
+
+typedef struct Stats {
+    size_t allocated;
+    size_t peak;
+    size_t live_blocks;
+} Stats;
+
+#endif
+root@8c64c9759efb:/app# cat /app/acct_e/acct.c
+#include "../include/stats.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
+void xd3(Stats *a, ssize_t b) {
+    if (b > 0) {
+        a->allocated += (size_t)b + 8;
+    } else {
+        a->allocated -= (size_t)(-b);
+    }
+    if (a->allocated > a->peak) {
+        a->peak = a->allocated;
+    }
+}
+root@8c64c9759efb:/app# cat /app/acct_e/acct.h
+#ifndef ACCT_H
+#define ACCT_H
+
+#include "../include/stats.h"
+
+#include <sys/types.h>
+
+void xd3(Stats *a, ssize_t b);
+
+#endif
+root@8c64c9759efb:/app#

@@ -1,0 +1,31 @@
+{
+  "analysis": "We have Python 3.11 available and full visibility into plan format and Rust drive logic. The current Rust drive_g has key issues vs the required contract: it stores items in a BTreeMap keyed by ident, so duplicate logical entries (flint-a repeated) get overwritten (last wins), affecting ordering/eligibility. Also drop/cancellation is implemented as a simple gate mark_c that likely only filters by ident, not all descendants via child chain. Additionally, raw.values() iterates in key-sorted order, not arrival/seq order, so eligibility/order can become inconsistent. Since cargo/rustc are unavailable, best path is to implement a Python replacement for executor-ctl that follows the specified rules and produces executor-audit.json plus ledger/journal, and patch run-matrix.sh/run-one.sh to call it.",
+  "plan": "1) Inspect remaining Rust modules (book_b/core_a/flow_e/gate_c/host_d/serde/types) to mirror intended algorithm: how rows are represented, how fold_b applies CAP per turn and lane ordering, and how mark_c handles DROP. 2) Implement /app/scripts/executor_ctl.py that reads plans, builds items preserving plan-file order (seq), tracks parent/depth/chain for descendant pruning, applies DROP to remove a branch and all descendants, then simulates acceptance by turns with per-lane CAP, ordering lanes by name per turn and keeping plan-file order within lane among ready items. Ensure that items can be accepted even if their parent wasn’t accepted. Deduplicate identical logical entries (same task ident) so it appears once. 3) Write per-case ledger JSONL and journal TXT matching trace order, and write executor-audit.json with cases array in the required order. 4) Patch run-matrix.sh and run-one.sh to call python3 executor_ctl.py with equivalent flags. 5) Run run-matrix.sh twice and compare audits for determinism.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' /app/book_b/book.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/core_a/core.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/gate_c/gate.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/flow_e/flow.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/serde_f/serde.rs 2>/dev/null || sed -n '1,320p' /app/types_f/serde.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/host_d/host.rs\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

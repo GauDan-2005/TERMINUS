@@ -1,0 +1,31 @@
+{
+  "analysis": "The traces explicitly reference ws-old/gen-v1/app-old etc, so those paths are not inherently wrong; what’s wrong is that observations keep pointing at the old locations after switching slots (alpha_after still points to ws-old, beta_after still points to gen-v1). That indicates the query mechanism is returning the first-seen entry for a symbol rather than the latest active root. Also pkg slot likely needs to follow link.target resolution; io.rs has resolve_target_root, but r3_d (lift_d) probably isn’t using it, causing linked-package runs to not follow the active target. Additionally, stale currently contains empty strings, likely because cast_f returns Some(\"\") for no issue. Next: inspect r3_d, r4_e, r5_f which implement query lookup, reuse/fresh/stale logic.",
+  "plan": "1) Inspect r3/d.rs, r4/e.rs, r5/f.rs (and any additional modules involved) to see how entries are selected on query and how staleness is detected. 2) Fix lookup to consult the active root for the slot and choose entries under that root (and for pkg, resolve symlink target via resolve_target_root). 3) Ensure epoch in observations matches state.epoch at query time (already likely). 4) Ensure stale only contains meaningful messages; avoid pushing empty string. 5) Rebuild and rerun run-matrix.sh; then rerun again and verify byte-identical output.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' /app/r3/d.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/r4/e.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,360p' /app/r5/f.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,360p' /app/r6/g.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,360p' /app/r7/h.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,360p' /app/r8/i.rs\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

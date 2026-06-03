@@ -1,0 +1,27 @@
+{
+  "analysis": "The greps returned nothing, suggesting the implementations of run_case/emit_e/emit_matrix are missing from the repository (or compiled in from object files already present, or generated). However src contains .o files, implying the project was prebuilt and the .c sources may not include report emission code at all, which would explain ledger=null if allocctl is using some other minimal emitter (maybe in bin) unrelated to these sources. We need to inspect Makefile to see how allocctl is built and what sources are used; also inspect bin/allocctl (strings) to locate JSON emission code or missing compilation units. Then we can patch/add a new src/report.c implementing run_case + emitters, or fix build to include it.",
+  "plan": "1) Inspect Makefile to see build inputs for bin/allocctl and where run_case/emit_e/emit_matrix should come from. 2) Check current bin/allocctl timestamp and whether it’s built from sources. 3) Use `nm`/`strings` on bin/allocctl to see symbols for emit_matrix/emit_e/run_case and locate missing translation unit names. 4) If missing in sources, create a new src/report.c implementing these functions correctly including ledger serialization, and update Makefile to compile/link it. 5) Rebuild and rerun scripts; validate ledger field now populated.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' Makefile\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la bin/allocctl\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "file bin/allocctl\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "nm -C bin/allocctl 2>/dev/null | grep -E \"run_case|emit_e|emit_matrix|ledger_path\" | head -n 50 || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "strings -n 8 bin/allocctl | grep -E \"alloc-audit|ledger|cases\\\"|byte_total\" | head -n 50\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

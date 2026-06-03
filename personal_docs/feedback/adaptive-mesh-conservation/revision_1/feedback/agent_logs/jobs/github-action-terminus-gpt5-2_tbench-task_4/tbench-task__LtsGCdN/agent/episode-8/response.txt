@@ -1,0 +1,19 @@
+{
+  "analysis": "Restart scenarios still show balanced=false because load_k() zeroes bank.n_pending and topo, so after resume the pending flux bank is lost; run.cpp’s balanced check compares st.bank.n_pending against expected leaf subfaces and fails. The totals remain conserved because reflux is applied after resume? Actually apply_reflux happens after compute_adjacency and before fold; if bank is zeroed, no reflux corrections are applied, but drift is still zero, implying bank was already empty or corrections are net zero in those cases, but the audit expects pending entries count, so balanced must reflect that the seam accounting closed. For restart runs, we should either persist and restore FluxBank (and topo) or recompute reflux bank after resume, or adjust audit logic to check balance before persistence. Easiest consistent fix: include FluxBank and TopoLink (or at least parent/child mapping and bank entries) in the vault snapshot so resumed run continues identically and balanced check remains true. Additionally, adjacency is still 0 because we haven't rebuilt after changing relate.cpp. We should: (1) rebuild, (2) modify vault layout to serialize bank and topo and coarse metadata needed, or (simpler) after load_k, call phase_grow-like bookkeeping? But restart occurs after phase_grow already; persistence should capture full SimState including bank/topo and coarse_start/len, n_coarse, halo_q, fingerprint. We'll inspect vault_layout.h to see what can change and implement serialization/deserialization of needed fields while maintaining fingerprint/build_stamp checks. Then rebuild and rerun matrix and replay.",
+  "plan": "1) Inspect include/vault_layout.h and phases.h to see SimState definition and vault header/version. 2) Extend emit_p/load_k to write/read: n_coarse, coarse_start/coarse_len, halo_q, topo.parent/child0/child_count, bank.n_pending, bank.leaf and bank.flux entries. Bump VAULT_VERSION to invalidate old files (scripts clean-room anyway). 3) Update phase_persist if needed (likely calls emit_p then load_k). 4) Rebuild and rerun run-matrix and run-replay for basin/dune; verify balanced true and adjacency >0. 5) Run matrix twice and diff to ensure equivalent output.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,260p' /app/include/vault_layout.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/phases.h\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    }
+  ],
+  "task_complete": false
+}

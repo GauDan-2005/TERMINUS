@@ -1,0 +1,85 @@
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <stddef.h>
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+static void fl_clear(Arena *a, size_t off) {
+    size_t ix = fl_ix(off);
+    a->fl_link_next[ix] = FL_END;
+    a->fl_link_prev[ix] = FL_END;
+}
+
+void xb1(Arena *a, Block *b) {
+    size_t off = b->off;
+    size_t ix = fl_ix(off);
+    size_t old = a->fl_head.off;
+    a->fl_link_next[ix] = old;
+    a->fl_link_prev[ix] = FL_END;
+    if (old != FL_END) {
+        a->fl_link_prev[fl_ix(old)] = off;
+    }
+    a->fl_head.base = b->base;
+    a->fl_head.off = off;
+}
+
+void list_remove(Arena *a, Block *b) {
+    size_t off = b->off;
+    size_t ix = fl_ix(off);
+    size_t nxt = a->fl_link_next[ix];
+    size_t prv = a->fl_link_prev[ix];
+    if (nxt != FL_END) {
+        a->fl_link_prev[fl_ix(nxt)] = prv;
+    } else if (a->fl_head.off == off) {
+        a->fl_head.off = FL_END;
+    }
+    if (prv != FL_END) {
+        a->fl_link_next[fl_ix(prv)] = nxt;
+    } else {
+        a->fl_head.off = nxt;
+    }
+    fl_clear(a, off);
+}
+
+void list_coalesce(Arena *a, Block *b) {
+    size_t total = tag_read_size(b);
+    size_t off = b->off + total;
+    if (off < a->used) {
+        Block nb = {b->base, off};
+        if (!z_is_flag(&nb)) {
+            list_remove(a, &nb);
+            total += tag_read_size(&nb);
+            xa0(b, total);
+            off = b->off + total;
+        }
+    }
+    xb1(a, b);
+}
+
+int q8f_blk(Arena *a, Block *oldb, size_t need, size_t *merged_out) {
+    size_t old_total = tag_read_size(oldb);
+    size_t next_off = oldb->off + old_total;
+    size_t ntotal;
+    Block nb;
+    if (next_off >= a->used) {
+        return -1;
+    }
+    nb.base = oldb->base;
+    nb.off = next_off;
+    if (z_is_flag(&nb)) {
+        return -1;
+    }
+    ntotal = tag_read_size(&nb);
+    if (old_total + ntotal < need) {
+        return -1;
+    }
+    list_remove(a, &nb);
+    *merged_out = old_total + ntotal;
+    xa0(oldb, *merged_out);
+    z_set_flag(oldb, 1);
+    return 0;
+}

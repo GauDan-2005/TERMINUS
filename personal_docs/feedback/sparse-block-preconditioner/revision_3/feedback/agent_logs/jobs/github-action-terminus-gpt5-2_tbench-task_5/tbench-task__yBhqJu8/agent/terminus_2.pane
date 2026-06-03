@@ -1,0 +1,605 @@
+[?2004hroot@122b6c87f7b9:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@122b6c87f7b9:/app# clear
+[?2004l[H[J[3J[?2004hroot@122b6c87f7b9:/app# cd /app
+[?2004l[?2004hroot@122b6c87f7b9:/app# ls -la
+[?2004ltotal 4
+drwxr-xr-x 18 root root 251 May 29 00:20 .
+drwxr-xr-x 19 root root 265 May 29 00:21 ..
+-rw-r--r--  1 root root 575 May 29 00:19 CMakeLists.txt
+drwxr-xr-x  2 root root  24 May 29 00:19 bsr_n
+drwxr-xr-x  2 root root  25 May 29 00:19 config
+drwxr-xr-x  2 root root  26 May 29 00:19 csr_m
+drwxr-xr-x  3 root root  19 May 29 00:19 data
+drwxr-xr-x  2 root root  44 May 29 00:19 docs
+drwxr-xr-x  2 root root  21 May 29 00:19 drive_u
+drwxr-xr-x  2 root root  24 May 29 00:19 flow_t
+drwxr-xr-x  2 root root  69 May 29 00:19 include
+drwxr-xr-x  2 root root  23 May 29 00:19 mirror_w
+drwxr-xr-x  2 root root  23 May 29 00:19 perm_p
+drwxr-xr-x  2 root root  23 May 29 00:19 prec_r
+drwxr-xr-x  2 root root  24 May 29 00:19 scale_q
+drwxr-xr-x  2 root root  66 May 29 00:19 scripts
+drwxr-xr-x  2 root root  24 May 29 00:19 solve_s
+drwxr-xr-x  2 root root  24 May 29 00:19 spill_v
+drwxr-xr-x  2 root root  41 May 29 00:19 src
+[?2004hroot@122b6c87f7b9:/app# find /app -maxdepth 3 -type f -path '/app/docs/*' -print
+[?2004l/app/docs/layout.md
+/app/docs/operations.md
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,200p' /app/docs/layout.md
+[?2004l# Layout notes
+
+Internal modules under `/app` assemble case data into packed layouts used by the iterative driver.
+
+The matrix audit at `/app/output/solver-audit.json` contains a top-level `cases` array. Each element carries name, ok, iterations, final_residual, reported_residual, residual_agrees, and hit_limit as defined below.
+
+- `name` — scenario token
+- `ok` — overall row status
+- `iterations` — PCG iteration count
+- `final_residual` — measured L2 residual after the solve
+- `reported_residual` — value emitted through the metric helper
+- `residual_agrees` — whether the two residual fields match within tolerance
+- `hit_limit` — whether the iteration cap was reached
+
+Per-case output from `run-one.sh` follows the same shape inside a one-element `cases` array written to `/app/output/<name>-audit.json`.
+
+CMake build trees may live under `/app/build`.
+[?2004hroot@122b6c87f7b9:/app# ls -la /app/scripts
+[?2004ltotal 12
+drwxr-xr-x  2 root root  66 May 29 00:19 .
+drwxr-xr-x 18 root root 251 May 29 00:20 ..
+-rwxr-xr-x  1 root root 117 May 29 00:19 clean-room.sh
+-rwxr-xr-x  1 root root 178 May 29 00:19 run-matrix.sh
+-rwxr-xr-x  1 root root 217 May 29 00:19 run-one.sh
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" matrix
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,200p' /app/scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/solverctl" one "${NAME}"
+[?2004hroot@122b6c87f7b9:/app# find /app -maxdepth 3 -type f \( -name 'CMakeLists.txt' -o -name '*.cmake' \) -print
+[?2004l/app/CMakeLists.txt
+[?2004hroot@122b6c87f7b9:/app# ls -la /app/build || true
+[?2004lls: cannot access '/app/build': No such file or directory
+[?2004hroot@122b6c87f7b9:/app# find /app -maxdepth 3 -type f -path '*/scripts/*' -o -path '*/bin/*' -o -path '*/build/*' | head
+[?2004l/app/scripts/clean-room.sh
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+[?2004hroot@122b6c87f7b9:/app# cmake -S /app -B /app/build -DCMAKE_BUILD_TYPE=Release
+[?2004l-- The CXX compiler identification is GNU 14.2.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done (0.2s)
+-- Generating done (0.0s)
+-- Build files have been written to: /app/build
+[?2004hroot@122b6c87f7b9:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[  7%] [32mBuilding CXX object CMakeFiles/solverctl.dir/src/main.cpp.o[0m
+[ 15%] [32mBuilding CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o[0m
+[ 23%] [32mBuilding CXX object CMakeFiles/solverctl.dir/src/case_io.cpp.o[0m
+[ 30%] [32mBuilding CXX object CMakeFiles/solverctl.dir/csr_m/assemble.cpp.o[0m
+[ 38%] [32mBuilding CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o[0m
+[ 46%] [32mBuilding CXX object CMakeFiles/solverctl.dir/prec_r/apply.cpp.o[0m
+[ 53%] [32mBuilding CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o[0m
+[ 61%] [32mBuilding CXX object CMakeFiles/solverctl.dir/solve_s/driver.cpp.o[0m
+[ 69%] [32mBuilding CXX object CMakeFiles/solverctl.dir/flow_t/report.cpp.o[0m
+[ 76%] [32mBuilding CXX object CMakeFiles/solverctl.dir/drive_u/run.cpp.o[0m
+[ 84%] [32mBuilding CXX object CMakeFiles/solverctl.dir/spill_v/bucket.cpp.o[0m
+[ 92%] [32mBuilding CXX object CMakeFiles/solverctl.dir/mirror_w/trace.cpp.o[0m
+[100%] [32m[1mLinking CXX executable bin/solverctl[0m
+[100%] Built target solverctl
+[?2004hroot@122b6c87f7b9:/app# find /app/build -maxdepth 3 -type f -executable -print
+[?2004l/app/build/CMakeFiles/3.31.6/CMakeDetermineCompilerABI_CXX.bin
+/app/build/bin/solverctl
+[?2004hroot@122b6c87f7b9:/app# ls -la /app/bin || true
+[?2004lls: cannot access '/app/bin': No such file or directory
+[?2004hroot@122b6c87f7b9:/app# find /app -maxdepth 3 -type f -name 'solverctl' -o -name '*solver*' -print
+[?2004l/app/include/solver_report.h
+/app/build/CMakeFiles/solverctl.dir
+[?2004hroot@122b6c87f7b9:/app# /app/bin/solverctl --help 2>/dev/null || /app/build/bin/solverctl --help 2>/dev/null || true
+[?2004l[?2004hroot@122b6c87f7b9:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh || true
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# ls -la /app/output
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 29 00:21 .
+drwxr-xr-x 20 root root 278 May 29 00:21 ..
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt || true
+[?2004l/app/scripts/run-one.sh: line 8: /app/bin/solverctl: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# ls -la /app/output
+[?2004ltotal 0
+drwxr-xr-x  2 root root   6 May 29 00:21 .
+drwxr-xr-x 20 root root 278 May 29 00:21 ..
+[?2004hroot@122b6c87f7b9:/app# /app/build/bin/solverctl 2>&1 | sed -n '1,200p'
+[?2004lusage: solverctl matrix | solverctl one <case>
+[?2004hroot@122b6c87f7b9:/app# /app/build/bin/solverctl --help 2>&1 | sed -n '1,200p'
+[?2004lusage: solverctl matrix | solverctl one <case>
+[?2004hroot@122b6c87f7b9:/app# /app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'
+[?2004l[?2004hroot@122b6c87f7b9:/app# /app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'
+[?2004l[?2004hroot@122b6c87f7b9:/app# sed -n '1,200p' /app/src/main.cpp
+[?2004l#include "../include/case_spec.h"
+#include "../include/solver_report.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
+
+static const char *CASES[] = {"basalt", "flint", "shale", "garnet", "mica", "opal", NULL};
+
+static int run_named(const char *name, const char *out_dir, SolveResult *res) {
+    char path[512];
+    CaseSpec spec;
+    snprintf(path, sizeof(path), "/app/data/cases/%s.case", name);
+    if (case_load(path, &spec) != 0) {
+        return -1;
+    }
+    return run_u(&spec, out_dir, res);
+}
+
+int main(int argc, char **argv) {
+    const char *out_dir = "/app/output";
+    mkdir(out_dir, 0755);
+    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
+        SolveResult cases[6];
+        int n = 0;
+        for (int i = 0; CASES[i]; i++) {
+            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
+                return 1;
+            }
+            n++;
+        }
+        if (emit_matrix(cases, n, "/app/output/solver-audit.json") != 0) {
+            return 1;
+        }
+        return 0;
+    }
+    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
+        SolveResult res;
+        char audit[512];
+        if (run_named(argv[2], out_dir, &res) != 0) {
+            return 1;
+        }
+        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
+        return emit_t(&res, audit) != 0;
+    }
+    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
+    return 1;
+}
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,200p' /app/drive_u/run.cpp
+[?2004l#include "../include/case_spec.h"
+#include "../include/matrix_view.h"
+#include "../include/solver_report.h"
+
+#include <math.h>
+#include <string.h>
+
+void fn_n(const MatrixView *a, int reorder, BsrPack *c);
+void map_p(const double *a, const int *b, int c, int d, double *e);
+double norm_q(const double *a, int b);
+void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res);
+
+static double l2_norm(const double *v, int n) {
+    double s = 0.0;
+    for (int i = 0; i < n; i++) {
+        s += v[i] * v[i];
+    }
+    return sqrt(s);
+}
+
+int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
+    MatrixView view;
+    BsrPack pack;
+    double rhs[MAX_DIM];
+    double x[MAX_DIM];
+    double r[MAX_DIM];
+    double true_res;
+    double rep_res;
+    int hit;
+    int iters;
+
+    (void)out_dir;
+    matrix_from_case(spec, &view);
+    fn_n(&view, view.reorder, &pack);
+    map_p(view.b, view.perm, view.n, view.bs, rhs);
+    hit = pcg_solve(&pack, rhs, x, &iters, &true_res);
+    bsr_matvec(&pack, x, r);
+    for (int i = 0; i < view.n; i++) {
+        r[i] = rhs[i] - r[i];
+    }
+    true_res = l2_norm(r, view.n);
+    rep_res = norm_q(r, view.n);
+    strncpy(out->name, spec->name, sizeof(out->name) - 1);
+    out->iterations = iters;
+    out->final_residual = true_res;
+    out->reported_residual = rep_res;
+    out->hit_limit = hit;
+    out->residual_agrees = fabs(rep_res - true_res) <= 1e-6 * (1.0 + true_res);
+    out->ok = (!hit) && (true_res < 1e-8) && out->residual_agrees;
+    return 0;
+}
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,240p' /app/flow_t/report.cpp
+[?2004l#include "../include/solver_report.h"
+
+#include <stdio.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const SolveResult *res, int last) {
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
+    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
+    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
+    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
+    fprintf(fp, "      \"hit_limit\": %s\n    }", res->hit_limit ? "true" : "false");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+}
+
+int emit_t(const SolveResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const SolveResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (int i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+[?2004hroot@122b6c87f7b9:/app# sed -n '1,240p' /app/scale_q/metric.cpp
+[?2004l#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s) + 1.0e-4;
+}
+[?2004hroot@122b6c87f7b9:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scale_q/metric.cpp
+[?2004l[?2004h> @@
+[?2004l[?2004h>  double norm_q(const double *a, int b) {
+[?2004l[?2004h>      double s = 0.0;
+[?2004l[?2004h>      for (int i = 0; i < b; i++) {
+[?2004l[?2004h>          s += a[i] * a[i];
+[?2004l[?2004h>      }
+[?2004l[?2004h> -    return sqrt(s) + 1.0e-4;
+[?2004l[?2004h> +    // Metric helper must report the true L2 norm so it matches the
+[?2004l[?2004h> +    // independently computed residual used for auditing.
+[?2004l[?2004h> +    return sqrt(s);
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@122b6c87f7b9:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scripts/run-matrix.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h>  OUT="${APP_ROOT}/output"
+[?2004l[?2004h>  mkdir -p "${OUT}"
+[?2004l[?2004h>  bash "${APP_ROOT}/scripts/clean-room.sh"
+[?2004l[?2004h> -"${APP_ROOT}/bin/solverctl" matrix
+[?2004l[?2004h> +
+[?2004l[?2004h> +SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> +if [ ! -x "${SOLVERCTL}" ]; then
+[?2004l[?2004h> +  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +"${SOLVERCTL}" matrix
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@122b6c87f7b9:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: scripts/run-one.sh
+[?2004l[?2004h> @@
+[?2004l[?2004h>  APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h>  NAME="${1:?case name required}"
+[?2004l[?2004h>  OUT="${APP_ROOT}/output"
+[?2004l[?2004h>  mkdir -p "${OUT}"
+[?2004l[?2004h>  bash "${APP_ROOT}/scripts/clean-room.sh"
+[?2004l[?2004h> -"${APP_ROOT}/bin/solverctl" one "${NAME}"
+[?2004l[?2004h> +
+[?2004l[?2004h> +SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> +if [ ! -x "${SOLVERCTL}" ]; then
+[?2004l[?2004h> +  SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> +fi
+[?2004l[?2004h> +"${SOLVERCTL}" one "${NAME}"
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@122b6c87f7b9:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[100%] Built target solverctl
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# cat /app/output/solver-audit.json
+[?2004lcat: /app/output/solver-audit.json: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt
+[?2004l/app/scripts/run-one.sh: line 8: /app/bin/solverctl: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# cat /app/output/basalt-audit.json
+[?2004lcat: /app/output/basalt-audit.json: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> m=json.load(open('/app/output/solver-audit.json'))
+[?2004l[?2004h> o=json.load(open('/app/output/basalt-audit.json'))
+[?2004l[?2004h> name='basalt'
+[?2004l[?2004h> mc=[c for c in m['cases'] if c['name']==name][0]
+[?2004l[?2004h> oc=o['cases'][0]
+[?2004l[?2004h> print('matrix:', mc)
+[?2004l[?2004h> print('one   :', oc)
+[?2004l[?2004h> print('equal :', mc==oc)
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m2[0m, in [35m<module>[0m
+[1;35mFileNotFoundError[0m: [35m[Errno 2] No such file or directory: '/app/output/solver-audit.json'[0m
+[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+[?2004lcp: cannot stat '/app/output/solver-audit.json': No such file or directory
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/solverctl: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+[?2004lcp: cannot stat '/app/output/solver-audit.json': No such file or directory
+[?2004hroot@122b6c87f7b9:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+[?2004ldiff: /app/output/solver-audit.run1.json: No such file or directory
+diff: /app/output/solver-audit.run2.json: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# cat > /app/scale_q/metric.cpp <<'EOF'
+[?2004l[?2004h> #include "../include/matrix_view.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> #include <math.h>
+[?2004l[?2004h> 
+[?2004l[?2004h> double norm_q(const double *a, int b) {
+[?2004l[?2004h>     double s = 0.0;
+[?2004l[?2004h>     for (int i = 0; i < b; i++) {
+[?2004l[?2004h>         s += a[i] * a[i];
+[?2004l[?2004h>     }
+[?2004l[?2004h>     // Metric helper must report the true L2 norm so it matches the
+[?2004l[?2004h>     // independently computed residual used for auditing.
+[?2004l[?2004h>     return sqrt(s);
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@122b6c87f7b9:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h> OUT="${APP_ROOT}/output"
+[?2004l[?2004h> mkdir -p "${OUT}"
+[?2004l[?2004h> bash "${APP_ROOT}/scripts/clean-room.sh"
+[?2004l[?2004h> 
+[?2004l[?2004h> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> if [ ! -x "${SOLVERCTL}" ]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> "${SOLVERCTL}" matrix
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@122b6c87f7b9:/app# chmod +x /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cat > /app/scripts/run-one.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h> NAME="${1:?case name required}"
+[?2004l[?2004h> OUT="${APP_ROOT}/output"
+[?2004l[?2004h> mkdir -p "${OUT}"
+[?2004l[?2004h> bash "${APP_ROOT}/scripts/clean-room.sh"
+[?2004l[?2004h> 
+[?2004l[?2004h> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> if [ ! -x "${SOLVERCTL}" ]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> "${SOLVERCTL}" one "${NAME}"
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@122b6c87f7b9:/app# chmod +x /app/scripts/run-one.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cmake --build /app/build -j"$(nproc)"
+[?2004l[  7%] [32mBuilding CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o[0m
+[ 15%] [32m[1mLinking CXX executable bin/solverctl[0m
+[100%] Built target solverctl
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cat /app/output/solver-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    }
+  ]
+}
+[?2004hroot@122b6c87f7b9:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/solver-audit.json'
+[?2004l[?2004h> d=json.load(open(p))
+[?2004l[?2004h> print('cases:', len(d.get('cases',[])))
+[?2004l[?2004h> print('all_ok:', all(c.get('ok') for c in d['cases']))
+[?2004l[?2004h> print('all_residual_agrees:', all(c.get('residual_agrees') for c in d['cases']))
+[?2004l[?2004h> print('any_hit_limit:', any(c.get('hit_limit') for c in d['cases']))
+[?2004l[?2004h> PY
+[?2004lcases: 6
+all_ok: True
+all_residual_agrees: True
+any_hit_limit: False
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt
+[?2004l[?2004hroot@122b6c87f7b9:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> m=json.load(open('/app/output/solver-audit.json'))
+[?2004l[?2004h> o=json.load(open('/app/output/basalt-audit.json'))
+[?2004l[?2004h> name='basalt'
+[?2004l[?2004h> mc=[c for c in m['cases'] if c['name']==name][0]
+[?2004l[?2004h> oc=o['cases'][0]
+[?2004l[?2004h> print(mc==oc)
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m2[0m, in [35m<module>[0m
+[1;35mFileNotFoundError[0m: [35m[Errno 2] No such file or directory: '/app/output/solver-audit.json'[0m
+[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+[?2004lcp: cannot stat '/app/output/solver-audit.json': No such file or directory
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+[?2004l[?2004hroot@122b6c87f7b9:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+[?2004ldiff: /app/output/solver-audit.run1.json: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# cat > /app/scripts/run-one.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h> NAME="${1:?case name required}"
+[?2004l[?2004h> OUT="${APP_ROOT}/output"
+[?2004l[?2004h> mkdir -p "${OUT}"
+[?2004l[?2004h> 
+[?2004l[?2004h> # Do not wipe the entire output directory: per-case audits should be comparable
+[?2004l[?2004h> # against an existing matrix audit.
+[?2004l[?2004h> rm -f "${OUT}/${NAME}-audit.json"
+[?2004l[?2004h> 
+[?2004l[?2004h> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> if [ ! -x "${SOLVERCTL}" ]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> "${SOLVERCTL}" one "${NAME}"
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@122b6c87f7b9:/app# chmod +x /app/scripts/run-one.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+[?2004l[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-one.sh basalt
+[?2004l[?2004hroot@122b6c87f7b9:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> m=json.load(open('/app/output/solver-audit.run1.json'))
+[?2004l[?2004h> o=json.load(open('/app/output/basalt-audit.json'))
+[?2004l[?2004h> mc=[c for c in m['cases'] if c['name']=='basalt'][0]
+[?2004l[?2004h> oc=o['cases'][0]
+[?2004l[?2004h> print('equal:', mc==oc)
+[?2004l[?2004h> print('matrix:', mc)
+[?2004l[?2004h> print('one   :', oc)
+[?2004l[?2004h> PY
+[?2004lequal: True
+matrix: {'name': 'basalt', 'ok': True, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0, 'residual_agrees': True, 'hit_limit': False}
+one   : {'name': 'basalt', 'ok': True, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0, 'residual_agrees': True, 'hit_limit': False}
+[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+[?2004l[?2004hroot@122b6c87f7b9:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+[?2004ldiff: /app/output/solver-audit.run1.json: No such file or directory
+[?2004hroot@122b6c87f7b9:/app# cat > /app/scripts/run-matrix.sh <<'EOF'
+[?2004l[?2004h> #!/bin/bash
+[?2004l[?2004h> set -euo pipefail
+[?2004l[?2004h> APP_ROOT="${APP_ROOT:-/app}"
+[?2004l[?2004h> OUT="${APP_ROOT}/output"
+[?2004l[?2004h> mkdir -p "${OUT}"
+[?2004l[?2004h> 
+[?2004l[?2004h> # Do not wipe the entire output directory; only replace the matrix audit.
+[?2004l[?2004h> rm -f "${OUT}/solver-audit.json"
+[?2004l[?2004h> 
+[?2004l[?2004h> SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+[?2004l[?2004h> if [ ! -x "${SOLVERCTL}" ]; then
+[?2004l[?2004h>   SOLVERCTL="${APP_ROOT}/bin/solverctl"
+[?2004l[?2004h> fi
+[?2004l[?2004h> 
+[?2004l[?2004h> "${SOLVERCTL}" matrix
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@122b6c87f7b9:/app# chmod +x /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+[?2004l[?2004hroot@122b6c87f7b9:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@122b6c87f7b9:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+[?2004l[?2004hroot@122b6c87f7b9:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json
+[?2004l[?2004hroot@122b6c87f7b9:/app# 

@@ -1,0 +1,39 @@
+{
+  "analysis": "Repository layout and scripts are identified. run-matrix.sh calls clean-room then `bin/allocctl matrix` but produced no visible output and returned to prompt; we haven't confirmed whether /app/output/alloc-audit.json was written or whether it silently failed/produced incorrect content. We have StepRec fields: seq, op, index, size, result_index, heap_sig, fl_count, fl_sig, byte_total. Next we need to inspect outputs under /app/output, then run individual cases (cedar..pearl) to see which drift/mismatch and inspect the implementation in src/ and flow_g/report.c (likely emit_e/emit_matrix) plus any stats/signature computations.",
+  "plan": "1) List /app/output to see what allocctl matrix generated. 2) Inspect alloc-audit.json (and any per-case ledgers) to validate the required envelope format and ordering. 3) Run `allocctl one cedar` etc to reproduce issues and check the per-case audit format. 4) Locate emit_e/emit_matrix and signature computation code; inspect for errors in allocated-only heap_sig, free-list signatures, byte_total bookkeeping, and index/result_index population per step/ledger row. 5) After we identify mismatches, patch code and rebuild via make, then rerun matrix to confirm stable correct output.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app/output -maxdepth 2 -type f -print\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "test -f /app/output/alloc-audit.json && (echo '--- alloc-audit.json ---'; sed -n '1,200p' /app/output/alloc-audit.json) || echo 'missing /app/output/alloc-audit.json'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for n in cedar jade slate coral onyx pearl; do echo \"== one $n ==\"; /app/bin/allocctl one \"$n\" || echo \"allocctl one $n failed\"; done\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for f in /app/output/*-audit.json; do echo \"--- $f ---\"; sed -n '1,120p' \"$f\"; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,240p' flow_g/report.c\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RIn \"heap_sig\\|fl_sig\\|byte_total\\|emit_matrix\\|emit_e\\|ledger\" /app/src /app/flow_g /app/include | head -n 80\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

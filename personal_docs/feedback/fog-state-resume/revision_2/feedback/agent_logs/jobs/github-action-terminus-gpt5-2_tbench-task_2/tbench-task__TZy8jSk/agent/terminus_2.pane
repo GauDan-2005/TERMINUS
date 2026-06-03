@@ -1,0 +1,56 @@
+[?2004hroot@3c832fb61d9b:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@3c832fb61d9b:/app# clear
+[?2004l[H[J[3J[?2004hroot@3c832fb61d9b:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@3c832fb61d9b:/app# ls -la /app/output
+[?2004ltotal 8
+drwxr-xr-x  2 root root   31 May 28 17:11 .
+drwxr-xr-x 12 root root  188 May 28 17:11 ..
+-rw-r--r--  1 root root 5437 May 28 17:11 resume-audit.json
+[?2004hroot@3c832fb61d9b:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     j=json.load(f)
+[?2004l[?2004h> cases=j.get('cases',[])
+[?2004l[?2004h> bad=[c for c in cases if not c.get('ok',False)]
+[?2004l[?2004h> print('total',len(cases),'bad',len(bad))
+[?2004l[?2004h> for c in bad[:50]:
+[?2004l[?2004h>     print('---')
+[?2004l[?2004h>     print('case',c.get('case') or c.get('name') or c.get('id'))
+[?2004l[?2004h>     print('visibility',c.get('visibility'))
+[?2004l[?2004h>     for k in ['ok','fresh','resume']:
+[?2004l[?2004h>         if k in c:
+[?2004l[?2004h>             print(k, c[k])
+[?2004l[?2004h>     for k,v in c.items():
+[?2004l[?2004h>         if isinstance(v,dict) and ('signature' in v or 'illegal' in v or 'moves' in v or 'effects' in v):
+[?2004l[?2004h>             pass
+[?2004l[?2004h>     # common fields observed in prior audits
+[?2004l[?2004h>     for side in ['fresh','resume']:
+[?2004l[?2004h>         s=c.get(side,{})
+[?2004l[?2004h>         if isinstance(s,dict):
+[?2004l[?2004h>             print(side,'illegal',s.get('illegal'),'sig',s.get('signature'))
+[?2004l[?2004h>             for kk in ['movesResolved','effectsResolved','moves','effects','records','log']:
+[?2004l[?2004h>                 if kk in s:
+[?2004l[?2004h>                     vv=s[kk]
+[?2004l[?2004h>                     if isinstance(vv,list):
+[?2004l[?2004h>                         print(side,kk,'len',len(vv))
+[?2004l[?2004h>                     else:
+[?2004l[?2004h>                         print(side,kk,vv)
+[?2004l[?2004h> PY
+[?2004ltotal 7 bad 0
+[?2004hroot@3c832fb61d9b:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f:
+[?2004l[?2004h>     j=json.load(f)
+[?2004l[?2004h> cases=j.get('cases',[])
+[?2004l[?2004h> print('cases',len(cases))
+[?2004l[?2004h> print('all_ok', all(c.get('ok') for c in cases))
+[?2004l[?2004h> print('names', [c.get('case') or c.get('name') or c.get('id') for c in cases])
+[?2004l[?2004h> PY
+[?2004lcases 7
+all_ok True
+names ['bishop', 'knight', 'lancer', 'ranger', 'rook', 'sentinel', 'warden']
+[?2004hroot@3c832fb61d9b:/app# 

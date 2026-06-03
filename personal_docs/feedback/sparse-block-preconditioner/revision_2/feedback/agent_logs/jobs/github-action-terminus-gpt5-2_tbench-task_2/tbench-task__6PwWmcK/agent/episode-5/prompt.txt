@@ -1,0 +1,51 @@
+New Terminal Output:
+
+root@8d4b11936542:/app# cat > /app/scale_q/metric.cpp <<'EOF'
+> #include "../include/matrix_view.h"
+>
+> #include <math.h>
+>
+> double norm_q(const double *a, int b) {
+>     double s = 0.0;
+>     for (int i = 0; i < b; i++) {
+>         s += a[i] * a[i];
+>     }
+>     return sqrt(s);
+> }
+> EOF
+root@8d4b11936542:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 15%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@8d4b11936542:/app# rm -f /app/output/*audit.json
+root@8d4b11936542:/app# bash /app/scripts/run-matrix.sh
+root@8d4b11936542:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> with open(p) as f: j=json.load(f)
+> fail=[c for c in j.get('cases',[]) if (not c.get('ok',False)) or (not c.get('residual_agrees',False)) or c.get('hit_limit',False)]
+> print('cases:',len(j.get('cases',[])))
+> print('problem_cases:',len(fail))
+> for c in j['cases']:
+>     print(c['name'], 'ok=',c['ok'], 'agree=',c['residual_agrees'], 'it=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'])
+> PY
+cases: 6
+problem_cases: 0
+basalt ok= True agree= True it= 1 final= 0 reported= 0
+flint ok= True agree= True it= 1 final= 0 reported= 0
+shale ok= True agree= True it= 1 final= 0 reported= 0
+garnet ok= True agree= True it= 1 final= 0 reported= 0
+mica ok= True agree= True it= 1 final= 0 reported= 0
+opal ok= True agree= True it= 1 final= 0 reported= 0
+root@8d4b11936542:/app# cp /app/output/solver-audit.json /app/output/solver-audit.r1.json
+root@8d4b11936542:/app# bash /app/scripts/run-matrix.sh
+root@8d4b11936542:/app# python3 - <<'PY'
+> import json, math
+> r1=json.load(open('/app/output/solver-audit.r1.json'))
+> r2=json.load(open('/app/output/solver-audit.json'))
+> print('json_equal:', r1==r2)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.r1.json'
+root@8d4b11936542:/app#

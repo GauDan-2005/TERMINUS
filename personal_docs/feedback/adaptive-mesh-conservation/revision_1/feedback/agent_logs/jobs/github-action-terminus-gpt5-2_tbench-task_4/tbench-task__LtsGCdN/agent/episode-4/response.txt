@@ -1,0 +1,43 @@
+{
+  "analysis": "Changing fold_q to sum children made plume/spire drift much worse (after_total increased a lot). That indicates q is not an extensive per-cell amount; totals are probably supposed to be volume-weighted (q is intensive), and audit totals likely compute sum(q*vol). We didn’t inspect where totals are computed; audit_emit only prints. So fold must compute parent.q as volume-weighted average to preserve sum(q*vol). We need to locate where totals are accumulated (likely in emt_e/report.cpp or drv_u/run.cpp) and confirm. Then adjust fold_q accordingly: parent.vol=sum_vol; parent.q[v]= (sum(q_i*vol_i))/sum_vol. Also refine currently sets children.q = coarse.q * f, which will not conserve weighted totals either unless f weights sum to 1 under volume weights. So we must also fix refine to distribute so that sum(q_i*vol_i) equals parent.q*parent.vol for each variable. We'll implement both: in refine, compute per-child multiplier normalized by volume weights so that weighted sum matches parent; in fold, do volume-weighted average. Then rebuild and rerun matrix.",
+  "plan": "1) Find code that computes base_total/after_total/resumed_total to confirm conservation metric (q vs q*vol). 2) Patch fold_q to do volume-weighted averaging. 3) Patch phase_grow in run_refine.cpp to distribute q to leaves with a normalized shape factor so the volume-weighted total is conserved exactly: choose shape s_j = 1 + spread*(j-jbar); then normalize using denom = sum(vol_j*s_j); set child.q = parent.q * (parent.vol*s_j)/denom (or equivalently parent.q * s_j * parent.vol/denom) so sum(child.q*vol)=parent.q*parent.vol. 4) Rebuild and rerun matrix; verify all drift_ratio ~0 and base_match true; then check replay runs are stable.",
+  "commands": [
+    {
+      "keystrokes": "grep -RIn \"base_total\\|after_total\\|resumed_total\\|drift_ratio\" /app/src /app/emt_e /app/drv_u | head -n 80\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/emt_e/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/agg_q/blend.cpp <<'EOF'\n#include \"../include/cell_view.h\"\n\n// Merge (fold) child cells into one parent.\n//\n// q represents an intensive state stored per cell; the conserved totals used by\n// the audits are volume-weighted moments (sum over cells of q * vol). Folding\n// must therefore use a volume-weighted average so that:\n//   q_parent * vol_parent == sum_i (q_i * vol_i)\nvoid fold_q(const CellPatch *a, int b, CellPatch *c) {\n    if (!a || !c) return;\n    int n = (a->n < b) ? a->n : b;\n    if (n <= 0) {\n        c->n = 0;\n        return;\n    }\n\n    double sum_vol = 0.0;\n    double sum_qv[NVAR] = {0.0, 0.0, 0.0};\n    for (int i = 0; i < n; i++) {\n        const double vol = a->vol[i];\n        sum_vol += vol;\n        for (int v = 0; v < NVAR; v++) {\n            sum_qv[v] += a->q[i * NVAR + v] * vol;\n        }\n    }\n\n    c->n = 1;\n    c->vol[0] = sum_vol;\n    if (sum_vol <= 0.0) {\n        for (int v = 0; v < NVAR; v++) c->q[v] = 0.0;\n        return;\n    }\n    const double inv_vol = 1.0 / sum_vol;\n    for (int v = 0; v < NVAR; v++) {\n        c->q[v] = sum_qv[v] * inv_vol;\n    }\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/double f = \\(k > 1\\) \\? \\(1\\.0 \\+ LEAF_SPREAD \\* \\(\\(double\\)j - jbar\\)\\) : 1\\.0;\\n            for \\(int v = 0; v < NVAR; v\\+\\+\\) \\{\\n                leaves\\.cells\\[gi\\]\\.q\\[v\\] = coarse\\.cells\\[c\\]\\.q\\[v\\] \\* f;\\n            \\}/double s = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;\\n            \\/\\/ Normalize the shape so the volume-weighted totals are conserved:\\n            \\/\\/ sum_j (q_child * vol_child) == q_parent * vol_parent\\n            double denom = 0.0;\\n            for (int jj = 0; jj < k; jj++) {\\n                double ss = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)jj - jbar)) : 1.0;\\n                denom += vj[jj] * ss;\\n            }\\n            if (denom <= 0.0) denom = coarse.cells[c].vol;\\n            double scale = coarse.cells[c].vol * s \\/ denom;\\n            for (int v = 0; v < NVAR; v++) {\\n                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * scale;\\n            }/smsg' /app/drv_u/run_refine.cpp\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"Normalize the shape\" -n /app/drv_u/run_refine.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/conservation_audit.json'\nwith open(p) as f: d=json.load(f)\nfor row in d['cases']:\n    print(row['name'], row['base_total'], row['after_total'], 'drift', row['drift_ratio'], 'match', row['base_match'], 'balanced', row['balanced'])\nPY\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

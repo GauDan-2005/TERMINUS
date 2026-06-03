@@ -1,0 +1,166 @@
+New Terminal Output:
+
+root@9972658a2e17:/app# cat /app/package.json
+{"name":"local-runtime-matrix","version":"1.0.0","private":true,"description":"local mixed runtime scenario matrix","scripts":{"matrix":"node tools/run_matrix.j
+s"},"dependencies":{},"devDependencies":{}}
+root@9972658a2e17:/app# cat /app/fixtures/scenarios.json
+{
+  "scenarios": [
+    {
+      "name": "alpha",
+      "cycles": [
+        {
+          "base": 4,
+          "dep": 2,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 5,
+          "dep": 3,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "cycles": [
+        {
+          "base": 2,
+          "dep": 4,
+          "deferred": [
+            5,
+            1
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 4,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 5,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "gamma",
+      "cycles": [
+        {
+          "base": 6,
+          "dep": 1,
+          "deferred": [],
+          "native": "new"
+        },
+        {
+          "base": 2,
+          "dep": 6,
+          "deferred": [
+            4
+          ],
+          "native": "old"
+        }
+      ]
+    },
+    {
+      "name": "delta",
+      "cycles": [
+        {
+          "base": 1,
+          "dep": 7,
+          "deferred": [
+            2,
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 8,
+          "dep": 2,
+          "deferred": [
+            1
+          ],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "epsilon",
+      "cycles": [
+        {
+          "base": 3,
+          "dep": 3,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 8,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 2,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "zeta",
+      "cycles": [
+        {
+          "base": 9,
+          "dep": 2,
+          "deferred": [],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 9,
+          "deferred": [
+            3
+          ],
+          "native": "new"
+        }
+      ]
+    }
+  ]
+}
+root@9972658a2e17:/app# cat /app/tools/run_matrix.js
+#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { f_a } = require('../a1/p');
+const { m_e } = require('../d4/s');
+
+const base = process.cwd();
+const dataPath = path.join(base, 'fixtures', 'scenarios.json');
+const outDir = path.join(base, 'outcome');
+const outPath = path.join(outDir, 'report.json');
+
+function main() {
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
+  const aggregate = m_e(records, { source: 'local' });
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
+}
+
+main();
+root@9972658a2e17:/app#

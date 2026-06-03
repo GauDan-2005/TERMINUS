@@ -1,0 +1,105 @@
+New Terminal Output:
+
+root@26548499ec8e:/app# grep -n 'playUntilSave' /app/internal/f5/run.go
+163:func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+246:    blob, stale := playUntilSave(wFresh, steps, profile, radius)
+251:    playUntilSave(wResume, steps, profile, radius)
+root@26548499ec8e:/app# cat /app/internal/sim/world.go
+package sim
+
+type Hostile struct {
+        ID string
+        X  int
+        Y  int
+}
+
+type World struct {
+        Width   int
+        Height  int
+        Walls   []bool
+        PlayerX int
+        PlayerY int
+        Hostile []Hostile
+        Turn    int
+        Seen    []bool
+        Lit     []bool
+        Effects []EffectState
+}
+
+type EffectState struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+func (w *World) Idx(x, y int) int {
+        return y*w.Width + x
+}
+
+func (w *World) InBounds(x, y int) bool {
+        return x >= 0 && y >= 0 && x < w.Width && y < w.Height
+}
+
+func (w *World) IsWall(x, y int) bool {
+        if !w.InBounds(x, y) {
+                return true
+        }
+        return w.Walls[w.Idx(x, y)]
+}
+root@26548499ec8e:/app# cat /app/internal/sim/types.go
+package sim
+
+type Profile struct {
+        Name      string
+        Radius    int
+        Blind     bool
+        Dense     bool
+        Epoch     bool
+        Mixed     bool
+        CheckTurn int
+}
+
+type MoveRow struct {
+        Turn  int    `json:"turn"`
+        Actor string `json:"actor"`
+        FromX int    `json:"from_x"`
+        FromY int    `json:"from_y"`
+        ToX   int    `json:"to_x"`
+        ToY   int    `json:"to_y"`
+        Kind  string `json:"kind"`
+        Legal bool   `json:"legal"`
+}
+
+type PathSummary struct {
+        Sig     string `json:"sig"`
+        Illegal int    `json:"illegal"`
+        Steps   int    `json:"steps"`
+}
+
+type VisPair struct {
+        FreshSeen  int `json:"fresh_seen"`
+        ResumeSeen int `json:"resume_seen"`
+}
+
+type EffectRow struct {
+        ID     string `json:"id"`
+        Active bool   `json:"active"`
+        Epoch  int    `json:"epoch"`
+}
+
+type CaseResult struct {
+        Name       string      `json:"name"`
+        OK         bool        `json:"ok"`
+        Fresh      PathSummary `json:"fresh"`
+        Resume     PathSummary `json:"resume"`
+        Moves      []MoveRow   `json:"moves"`
+        Visibility VisPair     `json:"visibility"`
+        Effects    []EffectRow `json:"effects"`
+        Records    string      `json:"records"`
+        Log        string      `json:"log"`
+}
+
+type Report struct {
+        Cases []CaseResult `json:"cases"`
+}
+root@26548499ec8e:/app#

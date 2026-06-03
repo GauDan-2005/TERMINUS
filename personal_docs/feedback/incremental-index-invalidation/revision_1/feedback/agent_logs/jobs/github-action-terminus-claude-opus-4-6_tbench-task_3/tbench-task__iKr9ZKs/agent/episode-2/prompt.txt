@@ -1,0 +1,79 @@
+New Terminal Output:
+
+root@5a47b69ad599:/app# cat /app/src/main.rs
+use std::env;
+use std::path::PathBuf;
+
+fn main() {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() < 2 {
+        eprintln!("usage: idxlab <report> <trace> [trace ...]");
+        std::process::exit(2);
+    }
+    let out = PathBuf::from(&args[0]);
+    let traces: Vec<PathBuf> = args[1..].iter().map(PathBuf::from).collect();
+    if let Err(err) = idxlab::runner::run_all(&out, &traces) {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
+}
+root@5a47b69ad599:/app# cat /app/src/lib.rs
+pub mod io;
+pub mod model;
+pub mod report;
+pub mod runner;
+
+#[path = "../r0/a.rs"]
+pub mod r0_a;
+#[path = "../r1/b.rs"]
+pub mod r1_b;
+#[path = "../r2/c.rs"]
+pub mod r2_c;
+#[path = "../r3/d.rs"]
+pub mod r3_d;
+#[path = "../r4/e.rs"]
+pub mod r4_e;
+#[path = "../r5/f.rs"]
+pub mod r5_f;
+#[path = "../r6/g.rs"]
+pub mod r6_g;
+#[path = "../r7/h.rs"]
+pub mod r7_h;
+#[path = "../r8/i.rs"]
+pub mod r8_i;
+root@5a47b69ad599:/app# cat /app/src/runner.rs
+use crate::io::read_trace;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use crate::r0_a::phase_a;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        observations: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+root@5a47b69ad599:/app#

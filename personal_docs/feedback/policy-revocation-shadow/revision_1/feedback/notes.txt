@@ -1,0 +1,118 @@
+Feedback for Submission: 52218157-dee7-483f-a7f5-5653ee5e1d01
+Assignment ID: 07211270-9aa6-4e4f-bf8b-91bd33c6d019
+Project ID: bfe79c33-8ab0-4061-9849-08d3207c9927
+Project: Terminus-2nd-Edition
+
+================================================================================
+
+Revision Notes
+--------------------------------------------------------------------------------
+The delegation chain clarification is now present, but the verifier still never checks required decision metadata fields like principal, resource, and action. More importantly, all traces are static and there is no dynamic trace or source level guard, so a canned policy audit.json path could satisfy the suite without proving the engine processes current inputs. Add coverage for those required fields and at least one dynamic trace/generalization check before acceptance .
+
+Summary (difficulty check)
+--------------------------------------------------------------------------------
+Difficulty: ✅ HARD
+
+Status: ✅ Solvable (all tests passed by at least one agent run)
+
+Agent Performance:
+  • terminus-claude-opus-4-6: 100.0% (5/5 runs)
+  • terminus-gpt5-2: 0.0% (0/5 runs)
+
+Reference Agents:
+  • nop: 0.0% (0/1 runs)
+  • oracle: 100.0% (3/3 runs)
+
+Failure Breakdown:
+  • nop: 1 other
+  • terminus-gpt5-2: 5 other
+
+Unit Tests Results:
+  • test_t01_flow: 7 passed / 10 runs
+  • test_t02_flow: 7 passed / 10 runs
+  • test_t03_flow: 10 passed / 10 runs
+  • test_t04_flow: 8 passed / 10 runs
+  • test_t05_flow: 10 passed / 10 runs
+  • test_t06_flow: 7 passed / 10 runs
+  • test_t07_flow: 10 passed / 10 runs
+  • test_t08_flow: 7 passed / 10 runs
+  • test_t09_flow: 10 passed / 10 runs
+  • test_t10_flow: 10 passed / 10 runs
+  • test_t11_flow: 10 passed / 10 runs
+  • test_t12_flow: 10 passed / 10 runs
+
+Analysis on Agent Failures:
+  • Task Instruction Sufficiency: ✅ PASS, ## Job Summary: Rust Policy-Audit Repair Task
+
+### 1. Overall Results
+**0/5 trials passed** (reward = 0 for all). No agent achieved the required all-12-tests threshold.
+
+| Trial | Tests Passed | Score |
+|-------|-------------|-------|
+| tbench-task__jFfrbM2 | 11/12 | 0 |
+| tbench-task__caAuuvM | 11/12 | 0 |
+| tbench-task__mQtpYiX | 8/12 | 0 |
+| tbench-task__UBRzt2u | 8/12 | 0 |
+| tbench-task__28y5d44 | 8/12 | 0 |
+
+Two agents got very close (11/12); three got stuck at 8/12.
+
+---
+
+### 2. Common Failure Patterns
+
+**Pattern A — Cache invalidation on grant/revoke (affected all 8/12 agents, likely present in 11/12 agents too):**
+The most pervasive bug. The `store`/`wrap_g` cache keyed only on `(object, mode)` without embedding subject state, so after a `revoke` or `grant` event, subsequent checks return stale verdicts. This caused `alpha` post-revoke to wrongly return `allow` (t01, t08) and `beta` post-grant to wrongly return `deny` (t02) in trials __UBRzt2u__ and __28y5d44__.
+
+**Pattern B — `group_slot` keyed by `(object, mode)` instead of `(subject, object, mode)` (t06, affects 3+ trials):**
+In `zeta`'s grouped-replay batch, a blocked subject's denial pollutes the slot for a non-blocked subject. Trials __jFfrbM2__, __28y5d44__, and __mQtpYiX__ explicitly note `test_t06_flow` failing for this reason.
+
+**Pattern C — Global epoch clock breaking per-subject reuse detection (t04, affects __caAuuvM__, __UBRzt2u__, __28y5d44__):**
+Agents switched from per-subject tick counters to a global monotonic clock to fix epoch monotonicity. This broke the "reused for stable subjects" requirement: an unrelated `revoke bob` advances the global clock, changing alice's apparent epoch and preventing her second check from being marked `reused: true`.
+
+**Pattern D — `cargo` not on PATH (all 5 trials):**
+Every agent hit this environmental obstacle. Two agents (__mQtpYiX__) never successfully recompiled—their source fixes were correct but the old binary ran, yielding 8/12. The other agents found the toolchain at `/usr/local/cargo/bin` or `/usr/local/rustup` and recovered.
+
+---
+
+### 3. Hack Check
+**All 5 agents: clean.** No agent accessed `solution/`, modified test files, or wrote to `/logs/verifier/reward.txt`. All `reward_hacking` checks passed. Work was confined to legitimate source edits in `k0`–`k8`, `src/`, and shell scripts.
+
+---
+
+### 4. Instruction/Specification Issues
+**None detected.** All 5 `task_specification` checks passed. The specification adequately covers delegation-chain denial, `reused` marking for stable subjects, per-subject epochs, `batch_id`/`delegated_from` semantics, and deterministic reruns. Failures were implementation errors, not spec gaps.
+
+---
+
+### 5. Progress (Failed Trials)
+
+| Tier | Trials | Root Cause of Remaining Failures |
+|------|--------|----------------------------------|
+| 11/12 (very close) | __jFfrbM2__, __caAuuvM__ | Single test: either t06 group_slot isolation or t04 epoch/reuse logic |
+| 8/12 | __mQtpYiX__, __UBRzt2u__, __28y5d44__ | Cache invalidation + group_slot key + (in __mQtpYiX__) binary never recompiled |
+
+All agents correctly fixed delegation-chain blocking (`k4/e.rs`) and at least some epoch/reuse logic. The cache invalidation problem was the hardest bug — it requires understanding that the cache must be keyed on or invalidated by subject state changes, not just `(object, mode)`.
+
+---
+
+### 6. Key Takeaways
+
+- The **11/12 agents were one targeted fix away** from full credit, making this a high-value debugging target for future runs.
+- The **`cargo`-not-in-PATH environment issue** cost one agent entirely (__mQtpYiX__) and slowed all others; pre-seeding PATH or documenting toolchain location in the task would reduce wasted steps.
+- The **cache invalidation + group_slot key bugs** are the hardest and most consequential; a hint toward "check how the cache is keyed relative to subject state changes" could unlock the remaining failures.
+- No model identity differences are available, but the 11/12 agents appear to have done more thorough delegation-chain and epoch fixes before getting stuck, suggesting more systematic source-reading in early exploration.
+
+Quality check summary
+--------------------------------------------------------------------------------
+## Quality Check Results
+✅ pass - behavior_in_task_description: instruction.md explicitly describes all behaviors tested: the output file path (/app/output/policy-audit.json), the command to run (bash /app/scripts/run-matrix.sh), byte-identical repeat runs, the top-level cases array schema, each case's name/ok/decisions/stale fields, each decision's label/principal/resource/action/verdict/epoch/reused/batch_id/delegated_from fields, batch_id semantics (group name or empty), delegated_from semantics (grantor name or empty), delegation chain blocking (any blocked subject along the walk denies), epoch monotonicity, and the reused marking for stable subjects. One minor ambiguity: the instruction says delegated_from is 'empty for direct rows' but test_t03_flow also requires it empty for denied inherited rows — this is reasonably inferred from the semantics (no enabling grantor on denial) but not stated explicitly. The gap is not sufficient to fail.
+✅ pass - behavior_in_tests: All behaviors described in the instruction are exercised by the tests. Inheritance blocking is covered by test_t01, test_t03, and test_t05. Direct grant without delegation is covered by test_t02. Reuse marking for stable vs. changed subjects is covered by test_t02 and test_t04. batch_id population in grouped checks and emptiness outside is covered by test_t01, test_t06, and test_t11. delegated_from naming the grantor is covered by test_t01 and test_t10. Epoch monotonicity and advancement on revoke is covered by test_t09. The clean-audit invariant (ok=True, stale=[]) is covered by test_t07. Byte-identical repeat runs are covered by test_t12. No described behavior is left untested.
+✅ pass - informative_test_structure: test_outputs.py has a clear session-scoped fixture (report_data) that runs the matrix once and parses the result. Each test function carries a one-line docstring naming exactly what scenario it covers. Helper functions case_by_name and row_by_label are clearly named and short. Test names (test_t01_flow through test_t12_flow) use a generic numbering scheme, but the accompanying docstrings make intent unambiguous. The overall structure is readable and maintainable.
+✅ pass - anti_cheating_measures: The .dockerignore explicitly excludes tests/ and solution/ from the build context, and the Dockerfile COPY commands never reference either directory, so neither is present in the runtime image. The fixtures/*/actors.txt files list only actor names and do not embed expected verdicts. The trace files are genuine inputs, not answer keys. The environment code contains multiple intentional bugs (wrong cache key in k2/c.rs ignoring subject, missing cache/seen invalidation in k1/b.rs on revoke, incorrect delegation-chain block check order in k4/e.rs, wrong epoch-tracking key in k5/f.rs) that require understanding the logic to fix — there is no shortcut through string matching or file copying.
+✅ pass - structured_data_schema: instruction.md names every field: cases (array), name, ok, decisions, stale, label, principal, resource, action, verdict, epoch, reused, batch_id, delegated_from. The semantics of each field are described in prose: verdict is allow/deny, epoch is the subject epoch at evaluation time, reused is set for repeated equivalent checks with unchanged subjects, batch_id carries the active group name (empty otherwise), delegated_from names the grantor (empty for direct rows). The output_contract.toml reinforces the same field list. Types are inferrable (boolean for ok/reused, number for epoch, string for others). The schema specification is adequate for the task.
+✅ pass - pinned_dependencies: The Dockerfile pins the base image with both tag and SHA256 digest (rust:1.85.0-bookworm@sha256:0ff31c9ffa...). Apt packages are pinned (asciinema=2.2.0-1, python3-pip=23.0.1+dfsg-1, tmux=3.3a-3). Python packages are pinned (pytest==8.4.1, pytest-json-ctrf==0.3.5). Cargo dependencies are pinned to exact versions in Cargo.toml (serde 1.0.219, serde_json 1.0.140) and locked in Cargo.lock. Pinning is thorough across all dependency types.
+✅ pass - typos: No typos were found in filenames, paths, commands, variable names, or prose across instruction.md, task.toml, output_contract.toml, construction_manifest.json, Dockerfile, all Rust source files (src/ and k0–k8), trace files, scripts, fixture files, or tests. Field names used in test assertions match the field names defined in report.rs and described in instruction.md (label, principal, resource, action, verdict, epoch, reused, batch_id, delegated_from).
+✅ pass - tests_or_solution_in_image: The Dockerfile contains no COPY instruction for tests/ or solution/. The .dockerignore explicitly lists both solution/ and tests/ as excluded patterns. The only directories copied into /app are: Cargo.lock, Cargo.toml, README.md, docs/, fixtures/, k0/–k8/, scripts/, src/, and traces/. Tests and solution are cleanly isolated from the runtime image.
+✅ pass - hardcoded_solution: solution/solve.sh writes corrected Rust source files (k0/a.rs through k5/f.rs) with the proper logic, then executes 'cargo build --offline --locked --quiet' to compile them, then runs 'bash /app/scripts/run-matrix.sh' to generate the output. The solution derives the result by fixing actual code defects (e.g., adding subject to cache keys in k2/c.rs, clearing store/seen maps on revoke in k1/b.rs, correcting the blocked-check order in k4/e.rs, using epoch-aware seen keys in k5/f.rs) and running the program — it does not echo or cat a hardcoded JSON answer.
+✅ pass - file_reference_mentioned: instruction.md explicitly states the output path: 'bash /app/scripts/run-matrix.sh writes /app/output/policy-audit.json'. The output_contract.toml also lists /app/output/policy-audit.json as a user_visible_output. The tests read from the same path (REPORT = APP / 'output' / 'policy-audit.json'). The filename is consistently and explicitly referenced.

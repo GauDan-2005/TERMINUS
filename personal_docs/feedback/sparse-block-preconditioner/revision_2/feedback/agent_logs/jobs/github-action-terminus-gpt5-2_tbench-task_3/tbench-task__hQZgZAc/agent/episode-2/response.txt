@@ -1,0 +1,47 @@
+{
+  "analysis": "The project builds successfully and produces /app/build/bin/solverctl. The audit scripts still point to /app/bin/solverctl which doesn’t exist, so they fail. Next we need to restore scripts so they run the built binary and write the required JSON outputs. Then run matrix/one to generate audit JSON and observe the reordered-layout solver issues, then patch solver code accordingly and verify deterministic equivalent JSON across reruns.",
+  "plan": "1) Inspect solverctl CLI usage/help to see expected flags/output paths. 2) Run solverctl matrix/one directly from /app/build/bin and see what it currently outputs (stdout vs files). 3) Update run-matrix.sh and run-one.sh to call the correct solverctl path (prefer /app/build/bin/solverctl, with fallback), and ensure they capture/emit JSON to /app/output/solver-audit.json and /app/output/<name>-audit.json. 4) Run matrix to generate the audit report; if rows show residual disagreement/dirty rows, identify failing cases and inspect relevant modules (layout/order/metric/driver/report) to fix ordering-dependent bugs. For now, get the scripts unblocked and obtain failing output for debugging.",
+  "commands": [
+    {
+      "keystrokes": "/app/build/bin/solverctl --help || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix --help || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix | head -n 80\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt | head -n 120\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-matrix.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" matrix\n+\n+SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+if [[ -x \"${APP_ROOT}/bin/solverctl\" ]]; then\n+  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+fi\n+\n+\"${SOLVERCTL}\" matrix >\"${OUT}/solver-audit.json\"\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-one.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n NAME=\"${1:?case name required}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" one \"${NAME}\"\n+\n+SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+if [[ -x \"${APP_ROOT}/bin/solverctl\" ]]; then\n+  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+fi\n+\n+\"${SOLVERCTL}\" one \"${NAME}\" >\"${OUT}/${NAME}-audit.json\"\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "jq '.cases|length' /app/output/solver-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "jq '.cases[]|{name,ok,iterations,final_residual,reported_residual,residual_agrees,hit_limit}' /app/output/solver-audit.json\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,39 @@
+{
+  "analysis": "run-matrix.sh runs `cargo run --quiet -- /app/output/index-report.json ...traces...` and it successfully produced index-report.json, but the content points at clearly old locations (e.g. /app/fixtures/alpha/ws-old/...) and marks cases as not ok with non-empty stale arrays (even containing empty strings). ripgrep is not installed, so we need to inspect Rust sources with grep/sed. Next we should inspect src/main.rs and runner/report code to see if it is loading a canned JSON or hardcoding fixture paths (ws-old, gen-v1, etc.) rather than actually indexing current TS files. Then adjust code to generate report from live filesystem state, and ensure deterministic output (stable ordering, stable epochs).",
+  "plan": "1) Read Rust entrypoints (main.rs, lib.rs, runner.rs, report.rs, io.rs, model.rs) to locate how observations are computed and where stale gets populated. 2) Search using grep for suspicious strings like ws-old, gen-v1, pkg-a, and for reading/writing index-report.json. 3) Check Cargo.toml dependencies/features to understand intended indexing mechanism. Based on findings, remove/replace any canned report generation and implement real trace execution and indexing against the current TypeScript files under fixtures, ensuring stable ordering and no empty-string stale entries.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/lib.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/src/runner.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/report.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/io.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/src/model.rs\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/Cargo.toml\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RIn --line-number \"ws-old\\|gen-v1\\|pkg-a\\|index-report\\.json\\|canned\\|fixture\\|golden\" /app/src /app/r0 /app/r1 /app/r2 /app/r3 /app/r4 /app/r5 /app/r6 /app/r7 /app/r8\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

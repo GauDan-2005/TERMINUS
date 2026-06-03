@@ -1,0 +1,39 @@
+{
+  "analysis": "Project builds successfully and produces /app/build/bin/solverctl, but scripts hardcode /app/bin/solverctl which does not exist, so audits don’t run and no JSON is produced. Next: inspect solverctl behavior/CLI (help printed nothing—maybe writes to stderr or requires args). We need to adjust run-matrix.sh and run-one.sh to use the built binary (likely /app/build/bin/solverctl) and ensure they write the required audit JSON files (/app/output/solver-audit.json and /app/output/<name>-audit.json). We also need to confirm solverctl’s output format and whether it already emits audit JSON or we must compute/format ourselves.",
+  "plan": "Run solverctl with no args and with expected subcommands to see usage/output. Inspect src/main.cpp and any reporting code to understand how to generate the audit JSON (or where it currently writes). Then patch scripts to (a) locate solverctl in /app/build/bin (or via env var), (b) call it with correct args/options to write JSON to the required paths, and (c) avoid non-determinism (e.g., sort cases) if needed. After patching, run run-matrix.sh and run-one.sh and inspect produced JSON; run twice and diff for equivalence.",
+  "commands": [
+    {
+      "keystrokes": "/app/build/bin/solverctl 2>&1 | sed -n '1,200p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl --help 2>&1 | sed -n '1,200p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/flow_t/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

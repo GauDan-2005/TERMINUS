@@ -1,0 +1,35 @@
+{
+  "analysis": "We are at a root shell in /app with no prior commands run in this session. The task indicates restore audits are failing for all six matrix cases and we must repair the pipeline so `bash /app/scripts/run-matrix.sh` produces `/app/output/restore-audit.json` with correct contract semantics (layout, contents, hardlinks, accounting, ok flag). Next we need to inspect the repository structure, run the matrix to see current failures/errors, then trace into the Go staging/restore service, native helper, and audit generation to identify the mismatch source.",
+  "plan": "1) Inspect /app layout and scripts to understand entrypoints. 2) Run the matrix script to capture current failure output and see whether restore-audit.json is produced at all. 3) If it fails early, run the underlying build/audit steps individually (likely Go build + helper compile) to isolate the failing component. 4) Examine expected JSON schema generation code and audit logic (digest, groups, accounting, ok). 5) After we see concrete diffs, patch the responsible component and rerun the matrix until it writes /app/output/restore-audit.json cleanly.",
+  "commands": [
+    {
+      "keystrokes": "cd /app\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -maxdepth 3 -type f -name 'run-matrix.sh' -o -name '*.go' -o -name 'Makefile' -o -name '*.c' -o -name '*.h' | sed 's|^|FILE: |'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/run-matrix.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -lc 'bash /app/scripts/run-matrix.sh'\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/output/restore-audit.json && head -c 2000 /app/output/restore-audit.json || true\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

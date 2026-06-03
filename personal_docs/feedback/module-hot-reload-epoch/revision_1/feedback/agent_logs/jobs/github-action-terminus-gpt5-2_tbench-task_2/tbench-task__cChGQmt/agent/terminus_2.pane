@@ -1,0 +1,887 @@
+[?2004hroot@eca5a5f6d31b:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@eca5a5f6d31b:/app# clear
+[?2004l[H[J[3J[?2004hroot@eca5a5f6d31b:/app# cd /app
+[?2004l[?2004hroot@eca5a5f6d31b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative [90m(/app/[39ma1/p.js:11:11[90m)[39m
+    at f_a [90m(/app/[39ma1/p.js:24:25[90m)[39m
+    at [90m/app/[39mtools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main [90m(/app/[39mtools/run_matrix.js:14:34[90m)[39m
+    at Object.<anonymous> [90m(/app/[39mtools/run_matrix.js:20:1[90m)[39m
+[90m    at Module._compile (node:internal/modules/cjs/loader:1364:14)[39m
+[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)[39m
+[90m    at Module.load (node:internal/modules/cjs/loader:1203:32)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1019:12)[39m
+
+Node.js v18.20.4
+[?2004hroot@eca5a5f6d31b:/app# ls -la outcome
+[?2004lls: cannot access 'outcome': No such file or directory
+[?2004hroot@eca5a5f6d31b:/app# jq '.' outcome/report.json | head -200
+[?2004lbash: jq: command not found
+[?2004hroot@eca5a5f6d31b:/app# jq '{aggregate:.aggregate, records:(.records|map({scenario,finalCounter,dependencyTotal,acceptedOlder,healthy,rowsCount:(.rows|length)}))}' outcome/report.json
+[?2004lbash: jq: command not found
+[?2004hroot@eca5a5f6d31b:/app# rg -n "matrix|report\.json|outcome|scenario runner|acceptedOlder|finalCounter|dependencyTotal|deferred|nativeValue|factor|descriptor|cargo run" .
+[?2004lbash: rg: command not found
+[?2004hroot@eca5a5f6d31b:/app# ls -la
+[?2004ltotal 20
+drwxr-xr-x 12 root root 225 May 25 12:15 .
+drwxr-xr-x 19 root root 265 May 25 12:16 ..
+-rw-r--r--  1 root root 114 May 25 12:12 Cargo.lock
+-rw-r--r--  1 root root 166 May 25 12:12 Cargo.toml
+-rw-r--r--  1 root root 540 May 25 12:12 README.md
+drwxr-xr-x  2 root root  18 May 25 12:12 a1
+drwxr-xr-x  2 root root  18 May 25 12:12 b2
+drwxr-xr-x  2 root root  18 May 25 12:12 c3
+drwxr-xr-x  2 root root  18 May 25 12:12 d4
+drwxr-xr-x  2 root root  98 May 25 12:12 docs
+drwxr-xr-x  2 root root  28 May 25 12:12 fixtures
+-rw-r--r--  1 root root 191 May 25 12:12 package-lock.json
+-rw-r--r--  1 root root 204 May 25 12:12 package.json
+drwxr-xr-x  2 root root  28 May 25 12:15 scripts
+drwxr-xr-x  4 root root  32 May 25 12:12 src
+drwxr-xr-x  3 root root  63 May 25 12:15 target
+drwxr-xr-x  2 root root  27 May 25 12:15 tools
+[?2004hroot@eca5a5f6d31b:/app# cat package.json
+[?2004l{"name":"local-runtime-matrix","version":"1.0.0","private":true,"description":"local mixed runtime scenario matrix","scripts":{"matrix":"node tools/run_matrix.js"},"dependencies":{},"devDependencies":{}}
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,200p' a1/p.js
+[?2004lconst { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function callNative(root, rev, primary, carry) {
+  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+      accepted = false;
+    }
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+    carry = cycle.base;
+  }
+  return {
+    name: a.name,
+    rows,
+    finalCounter: carry,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy: false
+  };
+}
+
+module.exports = { f_a };
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,200p' tools/run_matrix.js
+[?2004l#!/usr/bin/env node
+const fs = require('fs');
+const path = require('path');
+const { f_a } = require('../a1/p');
+const { m_e } = require('../d4/s');
+
+const base = process.cwd();
+const dataPath = path.join(base, 'fixtures', 'scenarios.json');
+const outDir = path.join(base, 'outcome');
+const outPath = path.join(outDir, 'report.json');
+
+function main() {
+  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
+  const aggregate = m_e(records, { source: 'local' });
+  fs.mkdirSync(outDir, { recursive: true });
+  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
+}
+
+main();
+[?2004hroot@eca5a5f6d31b:/app# cat Cargo.toml
+[?2004l[package]
+name = "mhre_native"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/native/src/lib.rs"
+
+[[bin]]
+name = "mhre_native"
+path = "src/native/src/main.rs"
+[?2004hroot@eca5a5f6d31b:/app# find src -maxdepth 2 -type f -print -exec sed -n '1,200p' {} \;
+[?2004lsrc/native/README.md
+# Native component
+
+The native component accepts three command-line values and returns a single integer. It stays deliberately small so JavaScript callers can invoke it through cargo during local development.
+[?2004hroot@eca5a5f6d31b:/app# cargo run --quiet -- --help
+[?2004lbash: cargo: command not found
+[?2004hroot@eca5a5f6d31b:/app# cargo run
+[?2004lbash: cargo: command not found
+[?2004hroot@eca5a5f6d31b:/app# node -e "const {spawnSync}=require('child_process'); const p=spawnSync('node',['tools/run_matrix.js'],{encoding:'utf8'}); console.log('status',p.status); console.log('stdout\n'+p.stdout); console.log('stderr\n'+p.stderr);"
+[?2004lstatus [33m1[39m
+stdout
+
+stderr
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative (/app/a1/p.js:11:11)
+    at f_a (/app/a1/p.js:24:25)
+    at /app/tools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main (/app/tools/run_matrix.js:14:34)
+    at Object.<anonymous> (/app/tools/run_matrix.js:20:1)
+    at Module._compile (node:internal/modules/cjs/loader:1364:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+    at Module.load (node:internal/modules/cjs/loader:1203:32)
+    at Module._load (node:internal/modules/cjs/loader:1019:12)
+
+Node.js v18.20.4
+
+[?2004hroot@eca5a5f6d31b:/app# command -v cargo || true
+[?2004l[?2004hroot@eca5a5f6d31b:/app# command -v rustc || true
+[?2004l[?2004hroot@eca5a5f6d31b:/app# command -v rustup || true
+[?2004l[?2004hroot@eca5a5f6d31b:/app# ls -la /root/.cargo/bin 2>/dev/null || true
+[?2004l[?2004hroot@eca5a5f6d31b:/app# ls -la /usr/local/cargo/bin 2>/dev/null || true
+[?2004ltotal 18628
+drwxrwxrwx 2 root root      236 Mar 17  2025 .
+drwxrwxrwx 3 root root      100 May 25 12:15 ..
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-clippy -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-fmt -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-miri -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 clippy-driver -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rls -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-analyzer -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-gdb -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-gdbgui -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-lldb -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rustc -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rustdoc -> rustup
+lrwxrwxrwx 1 root root        6 Mar 17  2025 rustfmt -> rustup
+-rwxrwxrwx 1 root root 19072384 Mar 17  2025 rustup
+[?2004hroot@eca5a5f6d31b:/app# ls -la /usr/bin/cargo /bin/cargo /usr/local/bin/cargo 2>/dev/null || true
+[?2004l[?2004hroot@eca5a5f6d31b:/app# find / -maxdepth 4 -type f -name cargo 2>/dev/null | head
+[?2004l[?2004hroot@eca5a5f6d31b:/app# echo "$PATH"
+[?2004l/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[?2004hroot@eca5a5f6d31b:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: a1/p.js
+[?2004l[?2004h> @@
+[?2004l[?2004h>  const { spawnSync } = require('child_process');
+[?2004l[?2004h>  const { q_b } = require('../b2/q');
+[?2004l[?2004h>  const { k_c } = require('../c3/r');
+[?2004l[?2004h> +
+[?2004l[?2004h> +function resolveCargo() {
+[?2004l[?2004h> +  if (process.env.CARGO && String(process.env.CARGO).trim()) return process.env.CARGO;
+[?2004l[?2004h> +  // In this runtime image the rustup shims live here but PATH may not include it.
+[?2004l[?2004h> +  return '/usr/local/cargo/bin/cargo';
+[?2004l[?2004h> +}
+[?2004l[?2004h> @@
+[?2004l[?2004h>  function callNative(root, rev, primary, carry) {
+[?2004l[?2004h> -  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+[?2004l[?2004h> +  const cargo = resolveCargo();
+[?2004l[?2004h> +  const env = {
+[?2004l[?2004h> +    ...process.env,
+[?2004l[?2004h> +    PATH: process.env.PATH
+[?2004l[?2004h> +      ? `${process.env.PATH}:/usr/local/cargo/bin`
+[?2004l[?2004h> +      : '/usr/local/cargo/bin'
+[?2004l[?2004h> +  };
+[?2004l[?2004h> +  const proc = spawnSync(cargo, ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+[?2004l[?2004h>      cwd: root,
+[?2004l[?2004h> -    encoding: 'utf8'
+[?2004l[?2004h> +    encoding: 'utf8',
+[?2004l[?2004h> +    env
+[?2004l[?2004h>    });
+[?2004l[?2004h>    if (proc.status !== 0) {
+[?2004l[?2004h>      throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+[?2004l[?2004h>    }
+[?2004l[?2004h>    return Number(proc.stdout.trim());
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@eca5a5f6d31b:/app# node -e "const {spawnSync}=require('child_process'); const p=spawnSync('/usr/local/cargo/bin/cargo',['run','--quiet','--bin','mhre_native','--','new','1','0'],{cwd:'/app',encoding:'utf8',env:{...process.env,PATH:process.env.PATH+':/usr/local/cargo/bin'}}); console.log({status:p.status, stdout:p.stdout, stderr:p.stderr});"
+[?2004l{ status: [33m0[39m, stdout: [32m'1\n'[39m, stderr: [32m''[39m }
+[?2004hroot@eca5a5f6d31b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+/app/a1/p.js:11
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+    ^
+
+Error: native worker failed
+    at callNative [90m(/app/[39ma1/p.js:11:11[90m)[39m
+    at f_a [90m(/app/[39ma1/p.js:24:25[90m)[39m
+    at [90m/app/[39mtools/run_matrix.js:14:49
+    at Array.map (<anonymous>)
+    at main [90m(/app/[39mtools/run_matrix.js:14:34[90m)[39m
+    at Object.<anonymous> [90m(/app/[39mtools/run_matrix.js:20:1[90m)[39m
+[90m    at Module._compile (node:internal/modules/cjs/loader:1364:14)[39m
+[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)[39m
+[90m    at Module.load (node:internal/modules/cjs/loader:1203:32)[39m
+[90m    at Module._load (node:internal/modules/cjs/loader:1019:12)[39m
+
+Node.js v18.20.4
+[?2004hroot@eca5a5f6d31b:/app# ls -la outcome || true
+[?2004lls: cannot access 'outcome': No such file or directory
+[?2004hroot@eca5a5f6d31b:/app# python3 -c "import json; p='outcome/report.json'; d=json.load(open(p)); print('records',len(d.get('records',[])),'keys',d.keys()); print('aggregate',d.get('aggregate')); print('first record keys', d['records'][0].keys() if d.get('records') else None)" 
+[?2004lTraceback (most recent call last):
+  File "<string>", line 1, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: 'outcome/report.json'
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,120p' a1/p.js
+[?2004lconst { spawnSync } = require('child_process');
+const { q_b } = require('../b2/q');
+const { k_c } = require('../c3/r');
+
+function callNative(root, rev, primary, carry) {
+  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
+    cwd: root,
+    encoding: 'utf8'
+  });
+  if (proc.status !== 0) {
+    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
+  }
+  return Number(proc.stdout.trim());
+}
+
+function f_a(a, b, c) {
+  let carry = 0;
+  const rows = [];
+  let accepted = true;
+  for (let index = 0; index < a.cycles.length; index += 1) {
+    const cycle = a.cycles[index];
+    const owned = q_b(cycle.deferred || [], index, c);
+    const factor = k_c(cycle.dep, index, c);
+    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+      accepted = false;
+    }
+    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+    carry = cycle.base;
+  }
+  return {
+    name: a.name,
+    rows,
+    finalCounter: carry,
+    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+    acceptedOlder: accepted,
+    healthy: false
+  };
+}
+
+module.exports = { f_a };
+[?2004hroot@eca5a5f6d31b:/app# cat > a1/p.js <<'EOF'
+[?2004l[?2004h> const { spawnSync } = require('child_process');
+[?2004l[?2004h> const { q_b } = require('../b2/q');
+[?2004l[?2004h> const { k_c } = require('../c3/r');
+[?2004l[?2004h> 
+[?2004l[?2004h> function resolveCargo() {
+[?2004l[?2004h>   if (process.env.CARGO && String(process.env.CARGO).trim()) return process.env.CARGO;
+[?2004l[?2004h>   // rustup shims live here in this environment; PATH may not include it.
+[?2004l[?2004h>   return '/usr/local/cargo/bin/cargo';
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function callNative(root, rev, primary, carry) {
+[?2004l[?2004h>   const cargo = resolveCargo();
+[?2004l[?2004h>   const env = {
+[?2004l[?2004h>     ...process.env,
+[?2004l[?2004h>     PATH: process.env.PATH ? `${process.env.PATH}:/usr/local/cargo/bin` : '/usr/local/cargo/bin'
+[?2004l[?2004h>   };
+[?2004l[?2004h> 
+[?2004l[?2004h>   const proc = spawnSync(
+[?2004l[?2004h>     cargo,
+[?2004l[?2004h>     ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)],
+[?2004l[?2004h>     {
+[?2004l[?2004h>       cwd: root,
+[?2004l[?2004h>       encoding: 'utf8',
+[?2004l[?2004h>       env
+[?2004l[?2004h>     }
+[?2004l[?2004h>   );
+[?2004l[?2004h> 
+[?2004l[?2004h>   if (proc.status !== 0) {
+[?2004l[?2004h>     // Include spawn error details if present.
+[?2004l[?2004h>     const err = proc.stderr || proc.stdout || (proc.error && proc.error.message) || 'native worker failed';
+[?2004l[?2004h>     throw new Error(err);
+[?2004l[?2004h>   }
+[?2004l[?2004h>   return Number(String(proc.stdout).trim());
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function f_a(a, b, c) {
+[?2004l[?2004h>   let carry = 0;
+[?2004l[?2004h>   const rows = [];
+[?2004l[?2004h>   let accepted = true;
+[?2004l[?2004h>   for (let index = 0; index < a.cycles.length; index += 1) {
+[?2004l[?2004h>     const cycle = a.cycles[index];
+[?2004l[?2004h>     const owned = q_b(cycle.deferred || [], index, c);
+[?2004l[?2004h>     const factor = k_c(cycle.dep, index, c);
+[?2004l[?2004h>     const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+[?2004l[?2004h>     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+[?2004l[?2004h>     if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+[?2004l[?2004h>       accepted = false;
+[?2004l[?2004h>     }
+[?2004l[?2004h>     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+[?2004l[?2004h>     carry = cycle.base;
+[?2004l[?2004h>   }
+[?2004l[?2004h>   return {
+[?2004l[?2004h>     name: a.name,
+[?2004l[?2004h>     rows,
+[?2004l[?2004h>     finalCounter: carry,
+[?2004l[?2004h>     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+[?2004l[?2004h>     acceptedOlder: accepted,
+[?2004l[?2004h>     healthy: false
+[?2004l[?2004h>   };
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { f_a };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@eca5a5f6d31b:/app# node -c a1/p.js
+[?2004l[?2004hroot@eca5a5f6d31b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+[?2004hroot@eca5a5f6d31b:/app# ls -la outcome || true
+[?2004ltotal 4
+drwxr-xr-x  2 root root   25 May 25 12:18 .
+drwxr-xr-x 13 root root  240 May 25 12:18 ..
+-rw-r--r--  1 root root 3179 May 25 12:18 report.json
+[?2004hroot@eca5a5f6d31b:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='outcome/report.json'
+[?2004l[?2004h> d=json.load(open(p))
+[?2004l[?2004h> print('top keys:', list(d.keys()))
+[?2004l[?2004h> print('aggregate:', d.get('aggregate'))
+[?2004l[?2004h> print('recordCount:', len(d.get('records', [])))
+[?2004l[?2004h> for r in d.get('records', []):
+[?2004l[?2004h>   print('\nSCENARIO', r.get('name'))
+[?2004l[?2004h>   print(' finalCounter', r.get('finalCounter'), 'dependencyTotal', r.get('dependencyTotal'), 'acceptedOlder', r.get('acceptedOlder'), 'healthy', r.get('healthy'))
+[?2004l[?2004h>   rows=r.get('rows',[])
+[?2004l[?2004h>   print(' rows', len(rows))
+[?2004l[?2004h>   for row in rows:
+[?2004l[?2004h>     print('  ', row)
+[?2004l[?2004h> PY
+[?2004ltop keys: ['records', 'aggregate']
+aggregate: {'source': 'local', 'recordCount': 6, 'totalCounter': 20, 'dependencyTotal': 38, 'rowTotal': 109, 'healthyCount': 3, 'status': 'stale'}
+recordCount: 6
+
+SCENARIO alpha
+ finalCounter 5 dependencyTotal 5 acceptedOlder True healthy False
+ rows 2
+   {'index': 0, 'value': 6, 'factor': 2, 'nativeValue': 4, 'deferred': []}
+   {'index': 1, 'value': 12, 'factor': 3, 'nativeValue': 9, 'deferred': []}
+
+SCENARIO beta
+ finalCounter 1 dependencyTotal 9 acceptedOlder False healthy False
+ rows 3
+   {'index': 0, 'value': 4, 'factor': 2, 'nativeValue': 2, 'deferred': []}
+   {'index': 1, 'value': 6, 'factor': 3, 'nativeValue': 3, 'deferred': []}
+   {'index': 2, 'value': 8, 'factor': 4, 'nativeValue': 4, 'deferred': []}
+
+SCENARIO gamma
+ finalCounter 2 dependencyTotal 5 acceptedOlder False healthy False
+ rows 2
+   {'index': 0, 'value': 8, 'factor': 2, 'nativeValue': 6, 'deferred': []}
+   {'index': 1, 'value': 5, 'factor': 3, 'nativeValue': 2, 'deferred': []}
+
+SCENARIO delta
+ finalCounter 8 dependencyTotal 5 acceptedOlder True healthy False
+ rows 2
+   {'index': 0, 'value': 3, 'factor': 2, 'nativeValue': 1, 'deferred': []}
+   {'index': 1, 'value': 12, 'factor': 3, 'nativeValue': 9, 'deferred': []}
+
+SCENARIO epsilon
+ finalCounter 3 dependencyTotal 9 acceptedOlder False healthy False
+ rows 3
+   {'index': 0, 'value': 5, 'factor': 2, 'nativeValue': 3, 'deferred': []}
+   {'index': 1, 'value': 6, 'factor': 3, 'nativeValue': 3, 'deferred': []}
+   {'index': 2, 'value': 10, 'factor': 4, 'nativeValue': 6, 'deferred': []}
+
+SCENARIO zeta
+ finalCounter 1 dependencyTotal 5 acceptedOlder True healthy False
+ rows 2
+   {'index': 0, 'value': 11, 'factor': 2, 'nativeValue': 9, 'deferred': []}
+   {'index': 1, 'value': 13, 'factor': 3, 'nativeValue': 10, 'deferred': []}
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,200p' b2/q.js
+[?2004lfunction q_b(a, b, c) {
+  const label = `slot-${b}`;
+  c[label] = (c[label] || []).concat(a);
+  const next = `slot-${b + 1}`;
+  const visible = c[next] || [];
+  c[next] = [];
+  return visible.slice().sort((left, right) => left - right);
+}
+
+function scan_b(a) {
+  return Object.keys(a).sort();
+}
+
+module.exports = { q_b, scan_b };
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,200p' c3/r.js
+[?2004llet saved = null;
+
+function k_c(a, b, c) {
+  if (saved === null) {
+    saved = Number(a);
+  }
+  return saved + b;
+}
+
+function lens_c(a) {
+  return String(a).length;
+}
+
+module.exports = { k_c, lens_c };
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,260p' d4/s.js
+[?2004lfunction m_e(a, b) {
+  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+  const healthyCount = a.filter((row) => row.acceptedOlder).length;
+  return {
+    source: b.source,
+    recordCount: a.length,
+    totalCounter,
+    dependencyTotal,
+    rowTotal,
+    healthyCount,
+    status: 'stale'
+  };
+}
+
+function view_e(a) {
+  return a.map((row) => row.name).join(',');
+}
+
+module.exports = { m_e, view_e };
+[?2004hroot@eca5a5f6d31b:/app# find src/native/src -type f -maxdepth 2 -print -exec sed -n '1,220p' {} \;
+[?2004lfind: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests specified before it as well as those specified after it.  Please specify global options before other arguments.
+src/native/src/lib.rs
+pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    match a {
+        "old" => b,
+        "new" => b + c,
+        _ => b,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+src/native/src/main.rs
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        eprintln!("usage: mhre_native <rev> <primary> <carry>");
+        std::process::exit(2);
+    }
+    let rev = &args[1];
+    let primary: i64 = args[2].parse().expect("primary number");
+    let carry: i64 = args[3].parse().expect("carry number");
+    println!("{}", mhre_native::r_d(rev, primary, carry));
+}
+src/native/src/view.rs
+pub fn panel_v(a: &[i64]) -> String {
+    a.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+}
+[?2004hroot@eca5a5f6d31b:/app# sed -n '1,220p' src/native/src/main.rs
+[?2004luse std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        eprintln!("usage: mhre_native <rev> <primary> <carry>");
+        std::process::exit(2);
+    }
+    let rev = &args[1];
+    let primary: i64 = args[2].parse().expect("primary number");
+    let carry: i64 = args[3].parse().expect("carry number");
+    println!("{}", mhre_native::r_d(rev, primary, carry));
+}
+[?2004hroot@eca5a5f6d31b:/app# cat fixtures/scenarios.json
+[?2004l{
+  "scenarios": [
+    {
+      "name": "alpha",
+      "cycles": [
+        {
+          "base": 4,
+          "dep": 2,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 5,
+          "dep": 3,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "cycles": [
+        {
+          "base": 2,
+          "dep": 4,
+          "deferred": [
+            5,
+            1
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 4,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 5,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "gamma",
+      "cycles": [
+        {
+          "base": 6,
+          "dep": 1,
+          "deferred": [],
+          "native": "new"
+        },
+        {
+          "base": 2,
+          "dep": 6,
+          "deferred": [
+            4
+          ],
+          "native": "old"
+        }
+      ]
+    },
+    {
+      "name": "delta",
+      "cycles": [
+        {
+          "base": 1,
+          "dep": 7,
+          "deferred": [
+            2,
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 8,
+          "dep": 2,
+          "deferred": [
+            1
+          ],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "epsilon",
+      "cycles": [
+        {
+          "base": 3,
+          "dep": 3,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 8,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 2,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "zeta",
+      "cycles": [
+        {
+          "base": 9,
+          "dep": 2,
+          "deferred": [],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 9,
+          "deferred": [
+            3
+          ],
+          "native": "new"
+        }
+      ]
+    }
+  ]
+}
+[?2004hroot@eca5a5f6d31b:/app# cat > b2/q.js <<'EOF'
+[?2004l[?2004h> function q_b(a, _b, _c) {
+[?2004l[?2004h>   // Deferred numbers listed on a cycle belong to that same cycle.
+[?2004l[?2004h>   return (a || []).slice().sort((left, right) => left - right);
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function scan_b(a) {
+[?2004l[?2004h>   return Object.keys(a).sort();
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { q_b, scan_b };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@eca5a5f6d31b:/app# cat > c3/r.js <<'EOF'
+[?2004l[?2004h> function k_c(a, b, _c) {
+[?2004l[?2004h>   // Descriptor factors are recomputed per row from that row's descriptor number and position.
+[?2004l[?2004h>   return Number(a) + Number(b);
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function lens_c(a) {
+[?2004l[?2004h>   return String(a).length;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { k_c, lens_c };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@eca5a5f6d31b:/app# cat > src/native/src/lib.rs <<'EOF'
+[?2004l[?2004h> pub fn r_d(_rev: &str, primary: i64, carry: i64) -> i64 {
+[?2004l[?2004h>     // Older native revision markers must normalize like newer ones,
+[?2004l[?2004h>     // incorporating carried state into the native row.
+[?2004l[?2004h>     primary + carry
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn aux_r(a: i64) -> i64 {
+[?2004l[?2004h>     a * 2
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@eca5a5f6d31b:/app# cat > a1/p.js <<'EOF'
+[?2004l[?2004h> const { spawnSync } = require('child_process');
+[?2004l[?2004h> const { q_b } = require('../b2/q');
+[?2004l[?2004h> const { k_c } = require('../c3/r');
+[?2004l[?2004h> 
+[?2004l[?2004h> function resolveCargo() {
+[?2004l[?2004h>   if (process.env.CARGO && String(process.env.CARGO).trim()) return process.env.CARGO;
+[?2004l[?2004h>   return '/usr/local/cargo/bin/cargo';
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function callNative(root, rev, primary, carry) {
+[?2004l[?2004h>   const cargo = resolveCargo();
+[?2004l[?2004h>   const env = {
+[?2004l[?2004h>     ...process.env,
+[?2004l[?2004h>     PATH: process.env.PATH ? `${process.env.PATH}:/usr/local/cargo/bin` : '/usr/local/cargo/bin'
+[?2004l[?2004h>   };
+[?2004l[?2004h> 
+[?2004l[?2004h>   const proc = spawnSync(
+[?2004l[?2004h>     cargo,
+[?2004l[?2004h>     ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)],
+[?2004l[?2004h>     { cwd: root, encoding: 'utf8', env }
+[?2004l[?2004h>   );
+[?2004l[?2004h> 
+[?2004l[?2004h>   if (proc.status !== 0) {
+[?2004l[?2004h>     const err = proc.stderr || proc.stdout || (proc.error && proc.error.message) || 'native worker failed';
+[?2004l[?2004h>     throw new Error(err);
+[?2004l[?2004h>   }
+[?2004l[?2004h>   return Number(String(proc.stdout).trim());
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function f_a(a, b, c) {
+[?2004l[?2004h>   let carry = 0;
+[?2004l[?2004h>   const rows = [];
+[?2004l[?2004h>   let accepted = true;
+[?2004l[?2004h>   let lastNative = 0;
+[?2004l[?2004h>   const sumBases = a.cycles.reduce((acc, cycle) => acc + Number(cycle.base), 0);
+[?2004l[?2004h> 
+[?2004l[?2004h>   for (let index = 0; index < a.cycles.length; index += 1) {
+[?2004l[?2004h>     const cycle = a.cycles[index];
+[?2004l[?2004h>     const owned = q_b(cycle.deferred || [], index, c);
+[?2004l[?2004h>     const factor = k_c(cycle.dep, index, c);
+[?2004l[?2004h>     const nativeValue = callNative(b, cycle.native, cycle.base, carry);
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Acceptance check uses the carried native state.
+[?2004l[?2004h>     if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
+[?2004l[?2004h>       accepted = false;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
+[?2004l[?2004h>     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
+[?2004l[?2004h> 
+[?2004l[?2004h>     carry = nativeValue;
+[?2004l[?2004h>     lastNative = nativeValue;
+[?2004l[?2004h>   }
+[?2004l[?2004h> 
+[?2004l[?2004h>   const finalCounter = lastNative;
+[?2004l[?2004h>   const healthy = Boolean(accepted && finalCounter === sumBases);
+[?2004l[?2004h> 
+[?2004l[?2004h>   return {
+[?2004l[?2004h>     name: a.name,
+[?2004l[?2004h>     scenario: a.name,
+[?2004l[?2004h>     rows,
+[?2004l[?2004h>     finalCounter,
+[?2004l[?2004h>     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
+[?2004l[?2004h>     acceptedOlder: accepted,
+[?2004l[?2004h>     healthy
+[?2004l[?2004h>   };
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { f_a };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@eca5a5f6d31b:/app# cat > d4/s.js <<'EOF'
+[?2004l[?2004h> function m_e(a, b) {
+[?2004l[?2004h>   const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+[?2004l[?2004h>   const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+[?2004l[?2004h>   const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+[?2004l[?2004h>   const healthyCount = a.filter((row) => row.healthy).length;
+[?2004l[?2004h>   const status = healthyCount === a.length ? 'healthy' : 'stale';
+[?2004l[?2004h> 
+[?2004l[?2004h>   return {
+[?2004l[?2004h>     source: b.source,
+[?2004l[?2004h>     recordCount: a.length,
+[?2004l[?2004h>     totalCounter,
+[?2004l[?2004h>     dependencyTotal,
+[?2004l[?2004h>     rowTotal,
+[?2004l[?2004h>     healthyCount,
+[?2004l[?2004h>     status
+[?2004l[?2004h>   };
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> function view_e(a) {
+[?2004l[?2004h>   return a.map((row) => row.name).join(',');
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> module.exports = { m_e, view_e };
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@eca5a5f6d31b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+[?2004hroot@eca5a5f6d31b:/app# cp outcome/report.json /tmp/report1.json
+[?2004l[?2004hroot@eca5a5f6d31b:/app# npm run matrix
+[?2004l
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+[?2004hroot@eca5a5f6d31b:/app# cp outcome/report.json /tmp/report2.json
+[?2004l[?2004hroot@eca5a5f6d31b:/app# diff -u /tmp/report1.json /tmp/report2.json || true
+[?2004l[?2004hroot@eca5a5f6d31b:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='outcome/report.json'
+[?2004l[?2004h> d=json.load(open(p))
+[?2004l[?2004h> print('aggregate:', d['aggregate'])
+[?2004l[?2004h> for r in d['records']:
+[?2004l[?2004h>   sum_bases = None
+[?2004l[?2004h>   # bases are not in record; recompute from fixtures for a quick check
+[?2004l[?2004h> print('healthy scenarios:', [r['name'] for r in d['records'] if r['healthy']])
+[?2004l[?2004h> for r in d['records']:
+[?2004l[?2004h>   rows=r['rows']
+[?2004l[?2004h>   print('\n',r['name'],'finalCounter',r['finalCounter'],'acceptedOlder',r['acceptedOlder'],'healthy',r['healthy'])
+[?2004l[?2004h>   for row in rows:
+[?2004l[?2004h>     assert row['deferred']==sorted(row['deferred'])
+[?2004l[?2004h>     print(' ',row)
+[?2004l[?2004h> PY
+[?2004laggregate: {'source': 'local', 'recordCount': 6, 'totalCounter': 51, 'dependencyTotal': 68, 'rowTotal': 183, 'healthyCount': 6, 'status': 'healthy'}
+healthy scenarios: ['alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta']
+
+ alpha finalCounter 9 acceptedOlder True healthy True
+  {'index': 0, 'value': 9, 'factor': 2, 'nativeValue': 4, 'deferred': [3]}
+  {'index': 1, 'value': 13, 'factor': 4, 'nativeValue': 9, 'deferred': []}
+
+ beta finalCounter 6 acceptedOlder True healthy True
+  {'index': 0, 'value': 12, 'factor': 4, 'nativeValue': 2, 'deferred': [1, 5]}
+  {'index': 1, 'value': 12, 'factor': 5, 'nativeValue': 5, 'deferred': [2]}
+  {'index': 2, 'value': 13, 'factor': 7, 'nativeValue': 6, 'deferred': []}
+
+ gamma finalCounter 8 acceptedOlder True healthy True
+  {'index': 0, 'value': 7, 'factor': 1, 'nativeValue': 6, 'deferred': []}
+  {'index': 1, 'value': 19, 'factor': 7, 'nativeValue': 8, 'deferred': [4]}
+
+ delta finalCounter 9 acceptedOlder True healthy True
+  {'index': 0, 'value': 12, 'factor': 7, 'nativeValue': 1, 'deferred': [2, 2]}
+  {'index': 1, 'value': 13, 'factor': 3, 'nativeValue': 9, 'deferred': [1]}
+
+ epsilon finalCounter 9 acceptedOlder True healthy True
+  {'index': 0, 'value': 9, 'factor': 3, 'nativeValue': 3, 'deferred': [3]}
+  {'index': 1, 'value': 17, 'factor': 9, 'nativeValue': 6, 'deferred': [2]}
+  {'index': 2, 'value': 13, 'factor': 4, 'nativeValue': 9, 'deferred': []}
+
+ zeta finalCounter 10 acceptedOlder True healthy True
+  {'index': 0, 'value': 11, 'factor': 2, 'nativeValue': 9, 'deferred': []}
+  {'index': 1, 'value': 23, 'factor': 10, 'nativeValue': 10, 'deferred': [3]}
+[?2004hroot@eca5a5f6d31b:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='outcome/report.json'
+[?2004l[?2004h> d=json.load(open(p))
+[?2004l[?2004h> assert set(d.keys())=={'records','aggregate'}
+[?2004l[?2004h> agg=d['aggregate']
+[?2004l[?2004h> req_agg={'source','recordCount','totalCounter','dependencyTotal','rowTotal','healthyCount','status'}
+[?2004l[?2004h> print('aggregate keys ok:', req_agg.issubset(agg.keys()))
+[?2004l[?2004h> for rec in d['records']:
+[?2004l[?2004h>   for k in ['scenario','rows','finalCounter','dependencyTotal','acceptedOlder','healthy']:
+[?2004l[?2004h>     assert k in rec, (rec.get('name'), 'missing', k)
+[?2004l[?2004h>   rows=rec['rows']
+[?2004l[?2004h>   for i,row in enumerate(rows):
+[?2004l[?2004h>     for k in ['index','value','factor','nativeValue','deferred']:
+[?2004l[?2004h>       assert k in row
+[?2004l[?2004h>     assert row['index']==i
+[?2004l[?2004h>     assert row['deferred']==sorted(row['deferred'])
+[?2004l[?2004h> print('records/rows shape ok for', len(d['records']), 'records')
+[?2004l[?2004h> PY
+[?2004laggregate keys ok: True
+records/rows shape ok for 6 records
+[?2004hroot@eca5a5f6d31b:/app# ls -la target | head
+[?2004ltotal 8
+drwxr-xr-x  3 root root   63 May 25 12:15 .
+drwxr-xr-x 13 root root  240 May 25 12:18 ..
+-rw-r--r--  1 root root 1039 May 25 12:18 .rustc_info.json
+-rw-r--r--  1 root root  177 May 25 12:15 CACHEDIR.TAG
+drwxr-xr-x  7 root root  145 May 25 12:19 debug
+[?2004hroot@eca5a5f6d31b:/app# ls -la outcome/report.json
+[?2004l-rw-r--r-- 1 root root 3601 May 25 12:20 outcome/report.json
+[?2004hroot@eca5a5f6d31b:/app# 

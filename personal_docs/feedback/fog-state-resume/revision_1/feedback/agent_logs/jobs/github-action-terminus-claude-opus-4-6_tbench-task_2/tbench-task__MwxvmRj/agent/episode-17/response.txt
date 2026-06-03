@@ -1,0 +1,14 @@
+{
+  "analysis": "I found the issue! In `PackItem` (a0/pack.go), `out.Seen = make([]bool, len(b.Seen))` creates a zero-filled slice, wiping the Seen data. When `applyWorld` restores the world from this blob, `w.Seen` is all false. Then in `PlayerSees`, which checks `w.Seen[idx] && w.Lit[idx]`, it returns false because Seen is all zeroes. This causes `visible` to be false in PlanSlot, making `Legal = legal && visible = false`.\n\nThe fix is to preserve the Seen data in PackItem instead of zeroing it.",
+  "plan": "Fix PackItem to preserve the Seen data by copying it properly instead of creating a zeroed slice.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/out.Seen = make(\\[\\]bool, len(b.Seen))/out.Seen = append([]bool(nil), b.Seen...)/' /app/internal/a0/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/internal/a0/pack.go\n",
+      "duration": 0.1
+    }
+  ]
+}

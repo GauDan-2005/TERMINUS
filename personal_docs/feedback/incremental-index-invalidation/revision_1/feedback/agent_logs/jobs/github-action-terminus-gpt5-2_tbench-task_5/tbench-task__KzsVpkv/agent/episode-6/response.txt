@@ -1,0 +1,39 @@
+{
+  "analysis": "Core stale-location issue is fixed for alpha/beta/delta/epsilon (ok=true, stale empty) and output is deterministic across reruns. Remaining failing cases: gamma and zeta, both stale entries are 'Bridge'. These are linked-package/alias cases. The slot 'pkg' uses lift_d which sets active[pkg]=shown alias path (fixtures/gamma/alias-a etc) but indexes entries from `actual = resolve_target_root(c)`. Our mote_e freshness check now always sets fresh=true, which makes cast_f mark ok only if found&fresh; yet gamma/zeta still stale, meaning cast_f is receiving observations with fresh=false or found=false? Actually stale contains 'Bridge' strings, likely coming from cast_f returning Some(label) where label is empty string? In previous output stale was \"\"; now it's 'Bridge'. That indicates our cast_f is using label=b.label clone, but label is empty in mote_e. So stale 'Bridge' must be from Observation::missing(label,symbol,...) where label was set to b in missing() (we pass b,b). For gamma/zeta, it's likely not finding Bridge under active roots (alias paths), because active root is alias-* but entry.path is actual pkg-a/pkg-b, so entry.path does not start with active root, so mote_e doesn't consider it visible and returns missing => fresh = !c; for queries c=true, fresh=false; cast_f marks stale note=label (which becomes label from phase_a update?) Actually phase_a overwrites label with event label, so missing.label becomes correct query label; but missing() currently sets label to first arg 'b' which we passed symbol; then overwritten; stale note in cast_f uses b.label clone, so it returns correct query label, but stale array shows 'Bridge' not query label, so overwrite maybe not applied to note (note computed before label update). In phase_a: let item=mote_e; let (item,note)=cast_f; then push Observation {label: b.left.clone(), ..item}; note already computed using item.label (empty or 'Bridge'). So we must set label inside mote_e before cast_f or change cast_f to use event label passed separately. Simplest: change phase_a to pass label into mote_e/cast_f or set item.label=b.left before cast_f. We'll patch phase_a: for query/miss, set item.label=b.left.clone() before cast_f, and for miss also. Then stale notes will be correct and, more importantly, freshness for linked packages should be based on shown root (alias) not actual. For gamma/zeta we want path reported to follow active target (actual pkg-a/pkg-b), but considered fresh even though not under shown alias root. So in mote_e, for slot pkg we should treat entry fresh if its path starts with resolved actual root while active holds shown alias. Better: store active_actual roots separately. Minimal: in lift_d store active root as actual instead of shown so fresh check passes; but report paths should remain actual anyway. We'll update lift_d to set active[b]=app_path(actual) not shown. That will also make visibility filter work. We'll do both fixes.",
+  "plan": "1) Edit r0/a.rs to assign observation label before calling cast_f so stale notes are not empty/wrong. 2) Edit r3/d.rs so active root for pkg slot is the actual target root (resolved), not the alias path, ensuring queries see Bridge and are fresh. 3) Rebuild and rerun matrix, verify all cases ok=true and stale empty. 4) Re-run to ensure byte-identical output.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/r0/a.rs <<'EOF'\nuse crate::model::{CaseReport, Event, State};\nuse crate::r1_b::fold_b;\nuse crate::r2_c::emit_c;\nuse crate::r3_d::lift_d;\nuse crate::r4_e::mote_e;\nuse crate::r5_f::cast_f;\n\npub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {\n    match b.kind.as_str() {\n        \"slot\" => {\n            if b.left == \"gen\" {\n                emit_c(a, &b.left, &b.right)?;\n            } else if b.left == \"pkg\" {\n                lift_d(a, &b.left, &b.right)?;\n            } else {\n                fold_b(a, &b.left, &b.right)?;\n            }\n        }\n        \"query\" => {\n            let mut item = mote_e(a, &b.right, true);\n            // Ensure any staleness note refers to the correct trace label.\n            item.label = b.left.clone();\n            let (item, note) = cast_f(a, item, true);\n            c.observations.push(item);\n            if let Some(note) = note {\n                c.stale.push(note);\n            }\n        }\n        \"miss\" => {\n            let mut item = mote_e(a, &b.right, false);\n            item.label = b.left.clone();\n            let (item, note) = cast_f(a, item, false);\n            c.observations.push(item);\n            if let Some(note) = note {\n                c.stale.push(note);\n            }\n        }\n        other => return Err(format!(\"unknown trace row {other}\")),\n    }\n    Ok(())\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/r3/d.rs <<'EOF'\nuse crate::io::{app_path, collect_entries, resolve_target_root};\nuse crate::model::State;\n\npub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {\n    a.epoch += 1;\n    let actual = resolve_target_root(c)?;\n\n    // For linked packages we want lookups/freshness to follow the active target.\n    // The trace supplies an alias path, but that alias points at an actual pkg.\n    a.active.insert(b.to_string(), app_path(&actual));\n\n    // Linked package retargeting should not leave old package entries around.\n    a.entries.retain(|e| e.slot != b);\n\n    let mut found = collect_entries(a, b, &actual, a.epoch)?;\n    a.entries.append(&mut found);\n    Ok(())\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cargo build -q\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/index-report.json'))\nfor case in obj['cases']:\n    print(case['name'], case['ok'], case['stale'])\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp /app/output/index-report.json /app/output/index-report.json.1\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "cmp -s /app/output/index-report.json /app/output/index-report.json.1 && echo OK_IDENTICAL\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

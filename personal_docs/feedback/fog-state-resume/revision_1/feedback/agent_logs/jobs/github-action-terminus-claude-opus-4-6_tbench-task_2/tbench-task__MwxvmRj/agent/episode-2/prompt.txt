@@ -1,0 +1,46 @@
+New Terminal Output:
+
+root@26548499ec8e:/app# cat /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+out="/app/output/resume-audit.json"
+work=""
+one_case=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --out) out="$2"; shift 2 ;;
+    --work) work="$2"; shift 2 ;;
+    --case) one_case="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$(dirname "$out")"
+make -s -C /app build
+args=("--out" "$out")
+if [ -n "$work" ]; then
+  args+=("--root" "$work")
+fi
+if [ -n "$one_case" ]; then
+  args+=("--case" "$one_case")
+fi
+/app/bin/rogctl "${args[@]}"
+root@26548499ec8e:/app# cat /app/scripts/one-case.sh
+#!/bin/bash
+set -euo pipefail
+if [ "$#" -lt 1 ]; then
+  echo "usage: one-case.sh <name>" >&2
+  exit 2
+fi
+name="$1"
+out="/app/output/single-${name}.json"
+bash /app/scripts/run-matrix.sh --out "$out" --case "$name"
+root@26548499ec8e:/app# cat /app/Makefile
+.PHONY: build clean
+
+build:
+        mkdir -p /app/bin
+        go build -o /app/bin/rogctl ./cmd/rogctl
+
+clean:
+        rm -f /app/bin/rogctl
+root@26548499ec8e:/app#

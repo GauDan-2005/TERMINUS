@@ -1,0 +1,76 @@
+New Terminal Output:
+
+root@f3c44f310304:/app# grep -n "return" -n /app/scale_q/metric.cpp && sed -n '1,80p' /app/scale_q/metric.cpp
+10:    return sqrt(s) + 1.0e-4;
+#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s) + 1.0e-4;
+}
+root@f3c44f310304:/app# perl -0777 -pe 's/return\s+sqrt\(s\)\s*\+\s*1\.0e-4\s*;/\/\/ Report the true L2 norm.\n    return sqrt(s);/s' -i /app/scale_q/metric.cpp
+root@f3c44f310304:/app# sed -n '1,80p' /app/scale_q/metric.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    // Report the true L2 norm.
+    return sqrt(s);
+}
+root@f3c44f310304:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o
+[ 15%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> data=json.load(open(p))
+> cases=data['cases']
+> print('cases',len(cases))
+> print('ok_false',sum(1 for c in cases if not c['ok']))
+> print('residual_disagree',sum(1 for c in cases if not c['residual_agrees']))
+> for c in cases:
+>     print(c['name'], 'ok',c['ok'], 'it',c['iterations'], 'final',c['final_residual'], 'reported',c['reported_residual'], 'agree',c['residual_agrees'])
+> PY
+cases 6
+ok_false 0
+residual_disagree 0
+basalt ok True it 1 final 0 reported 0 agree True
+flint ok True it 1 final 0 reported 0 agree True
+shale ok True it 1 final 0 reported 0 agree True
+garnet ok True it 1 final 0 reported 0 agree True
+mica ok True it 1 final 0 reported 0 agree True
+opal ok True it 1 final 0 reported 0 agree True
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /app/output/solver-audit.saved.json
+root@f3c44f310304:/app# bash /app/scripts/run-one.sh basalt
+root@f3c44f310304:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.saved.json'))['cases']
+> one=json.load(open('/app/output/basalt-audit.json'))['cases'][0]
+> mx=[c for c in m if c['name']=='basalt'][0]
+> print('equal', mx==one)
+> if mx!=one:
+>     print('matrix',mx)
+>     print('one   ',one)
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 2, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.saved.json'
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /app/output/solver-audit.run1.json
+cp: cannot stat '/app/output/solver-audit.json': No such file or directory
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /app/output/solver-audit.run2.json
+root@f3c44f310304:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+diff: /app/output/solver-audit.run1.json: No such file or directory
+root@f3c44f310304:/app#

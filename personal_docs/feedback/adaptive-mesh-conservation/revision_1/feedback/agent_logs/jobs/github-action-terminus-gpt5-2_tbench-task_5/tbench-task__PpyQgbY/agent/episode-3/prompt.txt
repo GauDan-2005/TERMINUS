@@ -1,0 +1,192 @@
+New Terminal Output:
+
+root@94d12f079014:/app# sed -n '1,220p' /app/include/flow_record.h
+#ifndef FLOW_RECORD_H
+#define FLOW_RECORD_H
+
+#include "cell_view.h"
+
+struct EdgePulse {
+    int base_idx;
+    int subfaces;
+    double flux_vals[MAX_LEAVES * NVAR];
+};
+
+struct FluxBank {
+    int n_pending;
+    int leaf[MAX_FACES];
+    double flux[MAX_FACES * NVAR];
+};
+
+void op_m(const EdgePulse *a, FluxBank *b);
+
+#endif
+root@94d12f079014:/app# sed -n '1,260p' /app/agg_q/blend.cpp
+#include "../include/cell_view.h"
+
+void fold_q(const CellPatch *a, int b, CellPatch *c) {
+    if (!a || !c) return;
+    int n = (a->n < b) ? a->n : b;
+    if (n <= 0) {
+        c->n = 0;
+        return;
+    }
+    double sum_vol = 0.0;
+    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < n; i++) {
+        sum_vol += a->vol[i];
+        for (int v = 0; v < NVAR; v++) {
+            sum_q[v] += a->q[i * NVAR + v];
+        }
+    }
+    c->n = 1;
+    c->vol[0] = sum_vol;
+    double inv_n = 1.0 / (double)n;
+    for (int v = 0; v < NVAR; v++) {
+        c->q[v] = sum_q[v] * inv_n;
+    }
+}
+root@94d12f079014:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: drv_u/run_refine.cpp
+> @@
+>      for (int c = 0; c < spec->n_coarse; c++) {
+>          int k = spec->leaf_count[c];
+>          if (k < 1) k = 1;
+> @@
+>          double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+> +
+> +        // When splitting a coarse cell into leaves, we may imprint a shaped
+> +        // variation (via LEAF_SPREAD) across the children. That imprint must
+> +        // remain conservative: the volume-weighted sum of each tracked
+> +        // quantity across the children must match the parent integral.
+> +        //
+> +        // We do this by applying the shape, then renormalizing per variable.
+> +        double target_sum[NVAR];
+> +        for (int v = 0; v < NVAR; v++) {
+> +            target_sum[v] = coarse.cells[c].vol * coarse.cells[c].q[v];
+> +        }
+> +        double shaped_sum[NVAR] = {0.0, 0.0, 0.0};
+> +        double fshape[MAX_LEAVES];
+> +        for (int j = 0; j < k; j++) {
+> +            fshape[j] = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+> +            for (int v = 0; v < NVAR; v++) {
+> +                shaped_sum[v] += vj[j] * (coarse.cells[c].q[v] * fshape[j]);
+> +            }
+> +        }
+> +        double renorm[NVAR];
+> +        for (int v = 0; v < NVAR; v++) {
+> +            renorm[v] = (shaped_sum[v] != 0.0) ? (target_sum[v] / shaped_sum[v]) : 1.0;
+> +        }
+>          for (int j = 0; j < k; j++) {
+>              int gi = leaves.n++;
+>              leaves.cells[gi].idx = gi;
+>              leaves.cells[gi].vol = vj[j];
+> -            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+>              for (int v = 0; v < NVAR; v++) {
+> -                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+> +                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * fshape[j] * renorm[v];
+>              }
+>              leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+>              leaves.cells[gi].parent = (k > 1) ? c : -1;
+>          }
+>      }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@94d12f079014:/app# cmake --build /app/build -j"$(nproc)"
+[100%] Built target sim_run
+root@94d12f079014:/app# bash /app/scripts/run-matrix.sh
+root@94d12f079014:/app# cat /app/output/conservation_audit.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    },
+    {
+      "name": "canyon",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0101312499999997, 1.7511281249999999, 1.7394281249999999],
+      "resumed_total": [9.6342749999999988, 8.9240281249999995, 7.3328218750000014],
+      "drift_ratio": 0.0048689341421142614,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "plume",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.3136083333333337, 1.6860166666666665, 1.7727833333333334],
+      "resumed_total": [5.8175833333333333, 3.9711666666666665, 4.5618833333333333],
+      "drift_ratio": 0.011862633181126228,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.68053333333333332, 0.50346666666666662, 0.29973333333333335]
+    },
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9903, 1.768275, 1.7481249999999999],
+      "resumed_total": [5.3113000000000001, 3.9472749999999999, 4.5431249999999999],
+      "drift_ratio": 0.010442857142857167,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    },
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    },
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+root@94d12f079014:/app# cp /app/output/conservation_audit.json /app/output/conservation_audit.run1.json
+root@94d12f079014:/app# bash /app/scripts/run-matrix.sh
+root@94d12f079014:/app# diff -u /app/output/conservation_audit.run1.json /app/output/conservation_audit.json || true
+diff: /app/output/conservation_audit.run1.json: No such file or directory
+root@94d12f079014:/app# bash /app/scripts/run-replay.sh storm
+root@94d12f079014:/app# cat /app/output/storm-replay.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    }
+  ]
+}
+root@94d12f079014:/app#

@@ -1,0 +1,111 @@
+New Terminal Output:
+
+root@81dea2c5d812:/app# sed -n '1,240p' /app/internal/e4/sight.go
+package e4
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+        size := w.Width * w.Height
+        if len(w.Lit) != size {
+                w.Lit = make([]bool, size)
+        }
+        for i := range w.Lit {
+                w.Lit[i] = false
+        }
+        if blind {
+                return
+        }
+        type point struct{ x, y int }
+        queue := []point{{w.PlayerX, w.PlayerY}}
+        dist := make([]int, size)
+        for i := range dist {
+                dist[i] = -1
+        }
+        start := w.Idx(w.PlayerX, w.PlayerY)
+        dist[start] = 0
+        w.Lit[start] = true
+        for len(queue) > 0 {
+                p := queue[0]
+                queue = queue[1:]
+                d := dist[w.Idx(p.x, p.y)]
+                if d >= radius {
+                        continue
+                }
+                for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+                        nx, ny := p.x+delta[0], p.y+delta[1]
+                        if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+                                continue
+                        }
+                        idx := w.Idx(nx, ny)
+                        if dist[idx] >= 0 {
+                                continue
+                        }
+                        dist[idx] = d + 1
+                        w.Lit[idx] = true
+                        queue = append(queue, point{nx, ny})
+                }
+        }
+        if len(w.Seen) != size {
+                w.Seen = make([]bool, size)
+        }
+        for i := 0; i < size; i++ {
+                if w.Lit[i] {
+                        w.Seen[i] = true
+                }
+        }
+}
+
+func CountSeen(w *sim.World) int {
+        n := 0
+        for _, v := range w.Seen {
+                if v {
+                        n++
+                }
+        }
+        return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+        if !w.InBounds(x, y) {
+                return false
+        }
+        idx := w.Idx(x, y)
+        if idx >= len(w.Seen) || idx >= len(w.Lit) {
+                return false
+        }
+        return w.Seen[idx] && w.Lit[idx]
+}
+root@81dea2c5d812:/app# python3 - <<'PY'
+> from pathlib import Path
+> import re
+> p=Path('/app/internal/f5/run.go')
+> s=p.read_text()
+> # In runLoaded, replace buildObs(w, merged) with buildObs(w, nil)
+> s2=s.replace('moves = append(moves, advanceAll(w, buildObs(w, merged))...)','moves = append(moves, advanceAll(w, buildObs(w, nil))...)')
+> if s2==s:
+>     raise SystemExit('no replacement made (pattern not found)')
+> p.write_text(s2)
+> print('patched runLoaded to use current obs only')
+> PY
+patched runLoaded to use current obs only
+root@81dea2c5d812:/app# go build -o /app/bin/rogctl /app/cmd/rogctl/main.go
+root@81dea2c5d812:/app# bash /app/scripts/run-matrix.sh
+root@81dea2c5d812:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/resume-audit.json') as f: data=json.load(f)
+> for c in data['cases']:
+>     name=c['name']
+>     ok=c['ok']
+>     fi=c['fresh']['illegal']; ri=c['resume']['illegal']
+>     fs=c['fresh']['sig']; rs=c['resume']['sig']
+>     vis=c['visibility']
+>     print(f"{name:9} ok={ok} illegal=({fi},{ri}) sig=({fs},{rs}) seen=({vis['fresh_seen']},{vis['resume_seen']}) moves={len(c['moves'])}")
+> PY
+bishop    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+knight    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(7,0) moves=0
+lancer    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(18,0) moves=0
+rook      ok=False illegal=(0,0) sig=(7d3f56fa,811c9dc5) seen=(9,0) moves=1
+sentinel  ok=False illegal=(0,0) sig=(9a98d68,811c9dc5) seen=(9,0) moves=1
+warden    ok=True illegal=(0,0) sig=(811c9dc5,811c9dc5) seen=(0,0) moves=0
+root@81dea2c5d812:/app#

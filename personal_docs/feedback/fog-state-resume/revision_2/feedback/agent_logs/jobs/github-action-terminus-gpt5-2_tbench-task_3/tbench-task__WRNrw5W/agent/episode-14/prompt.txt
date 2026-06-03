@@ -1,0 +1,120 @@
+New Terminal Output:
+
+root@59645c3f7916:/app# sed -n '1,220p' /app/internal/vis/native.go
+package vis
+
+/*
+#cgo CFLAGS: -I${SRCDIR}/../../probe
+#include <stdlib.h>
+#include "legality.h"
+#include "../../probe/legality.c"
+*/
+import "C"
+import (
+        "fog.local/resume/internal/sim"
+        "unsafe"
+)
+
+func StepLegal(w *sim.World, x0, y0, x1, y1 int) bool {
+        n := w.Width * w.Height
+        buf := C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof(C.int(0))))
+        if buf == nil {
+                return false
+        }
+        defer C.free(buf)
+        grid := (*[1 << 30]C.int)(buf)[:n:n]
+        for i, wall := range w.Walls {
+                if wall {
+                        grid[i] = 1
+                }
+        }
+        ctx := C.struct_qx{width: C.int(w.Width), height: C.int(w.Height), grid: (*C.int)(buf)}
+        return C.walk_e(&ctx, C.int(x0), C.int(y0), C.int(x1), C.int(y1)) == 1
+}
+root@59645c3f7916:/app# sed -n '1,260p' /app/internal/vis/sight.go
+package vis
+
+import "fog.local/resume/internal/sim"
+
+func ApplyLit(w *sim.World, radius int, blind bool) {
+        size := w.Width * w.Height
+        if len(w.Lit) != size {
+                w.Lit = make([]bool, size)
+        }
+        for i := range w.Lit {
+                w.Lit[i] = false
+        }
+        if blind {
+                return
+        }
+        type point struct{ x, y int }
+        queue := []point{{w.PlayerX, w.PlayerY}}
+        dist := make([]int, size)
+        for i := range dist {
+                dist[i] = -1
+        }
+        start := w.Idx(w.PlayerX, w.PlayerY)
+        dist[start] = 0
+        w.Lit[start] = true
+        for len(queue) > 0 {
+                p := queue[0]
+                queue = queue[1:]
+                d := dist[w.Idx(p.x, p.y)]
+                if d >= radius {
+                        continue
+                }
+                for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {
+                        nx, ny := p.x+delta[0], p.y+delta[1]
+                        if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {
+                                continue
+                        }
+                        idx := w.Idx(nx, ny)
+                        if dist[idx] >= 0 {
+                                continue
+                        }
+                        dist[idx] = d + 1
+                        w.Lit[idx] = true
+                        queue = append(queue, point{nx, ny})
+                }
+        }
+        if len(w.Seen) != size {
+                w.Seen = make([]bool, size)
+        }
+        for i := 0; i < size; i++ {
+                if w.Lit[i] {
+                        w.Seen[i] = true
+                }
+        }
+}
+
+func CountSeen(w *sim.World) int {
+        n := 0
+        for _, v := range w.Seen {
+                if v {
+                        n++
+                }
+        }
+        return n
+}
+
+func PlayerSees(w *sim.World, x, y int) bool {
+        if !w.InBounds(x, y) {
+                return false
+        }
+        idx := w.Idx(x, y)
+        if idx >= len(w.Seen) || idx >= len(w.Lit) {
+                return false
+        }
+        litIdx := idx
+        if y == w.Height-1 && y > 0 {
+                litIdx = w.Idx(x, y-1)
+        }
+        return w.Seen[idx] && w.Lit[litIdx]
+}
+root@59645c3f7916:/app# grep -RIn --exclude-dir=.git -- "func CountSeen" /app/internal/vis /app/internal | head
+/app/internal/vis/sight.go:56:func CountSeen(w *sim.World) int {
+/app/internal/vis/sight.go:56:func CountSeen(w *sim.World) int {
+root@59645c3f7916:/app# grep -RIn --exclude-dir=.git -- "func ApplyLit" /app/internal/vis /app/internal | head
+/app/internal/vis/sight.go:5:func ApplyLit(w *sim.World, radius int, blind bool) {
+/app/internal/vis/sight.go:5:func ApplyLit(w *sim.World, radius int, blind bool) {
+root@59645c3f7916:/app#

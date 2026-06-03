@@ -1,0 +1,136 @@
+New Terminal Output:
+
+root@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+root@3ddcf2b2b165:/app# /app/build/bin/solverctl matrix
+root@3ddcf2b2b165:/app# sed -n '1,120p' /app/output/solver-audit.json
+{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    },
+    {
+      "name": "opal",
+      "ok": true,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0,
+      "residual_agrees": true,
+      "hit_limit": false
+    }
+  ]
+}
+root@3ddcf2b2b165:/app# python3 - <<'PY'
+> import math, re
+> from pathlib import Path
+>
+> def load_case(path):
+>     name=None; nblocks=0; bs=0; reorder=0; perm=[]; blocks=[]; rhs=[]
+>     for line in Path(path).read_text().splitlines():
+>         line=line.strip()
+>         if not line or line.startswith('#'): continue
+>         parts=line.split()
+>         if parts[0]=='name': name=parts[1]
+>         elif parts[0]=='nblocks': nblocks=int(parts[1])
+>         elif parts[0]=='bs': bs=int(parts[1])
+>         elif parts[0]=='reorder': reorder=int(parts[1])
+>         elif parts[0]=='perm': perm=list(map(int, parts[1:]))
+>         elif parts[0]=='block':
+>             rb=int(parts[1]); cb=int(parts[2]); vals=list(map(float, parts[3:]))
+>             blocks.append((rb,cb,vals))
+>         elif parts[0]=='rhs': rhs=list(map(float, parts[1:]))
+>     n=nblocks*bs
+>     A=[[0.0]*n for _ in range(n)]
+>     for rb,cb,vals in blocks:
+>         for r in range(bs):
+>             for c in range(bs):
+>                 gr=rb*bs+r; gc=cb*bs+c
+>                 A[gr][gc]=vals[r*bs+c]
+>     b=rhs[:n]
+>     return name,A,b
+>
+> def solve_gauss(A,b):
+>     n=len(b)
+>     M=[row[:] + [b[i]] for i,row in enumerate(A)]
+>     for col in range(n):
+>         piv=max(range(col,n), key=lambda r: abs(M[r][col]))
+>         M[col],M[piv]=M[piv],M[col]
+>         p=M[col][col]
+>         if abs(p)<1e-15: raise ValueError('singular')
+>         for j in range(col,n+1): M[col][j]/=p
+>         for r in range(n):
+>             if r==col: continue
+>             f=M[r][col]
+>             if f==0: continue
+>             for j in range(col,n+1):
+>                 M[r][j]-=f*M[col][j]
+>     return [M[i][n] for i in range(n)]
+>
+> def residual_norm(A,x,b):
+>     n=len(b)
+>     r=[]
+>     for i in range(n):
+>         ax=sum(A[i][j]*x[j] for j in range(n))
+>         r.append(b[i]-ax)
+>     return math.sqrt(sum(v*v for v in r))
+>
+> for case in ['basalt','flint','shale','garnet','mica','opal']:
+>     name,A,b=load_case(f'/app/data/cases/{case}.case')
+>     x=solve_gauss(A,b)
+>     rn=residual_norm(A,x,b)
+>     print(case,'direct_residual',rn,'x0',x[0])
+> PY
+basalt direct_residual 0.0 x0 0.25
+flint direct_residual 0.0 x0 0.25
+shale direct_residual 0.0 x0 0.25
+garnet direct_residual 0.0 x0 0.2
+mica direct_residual 0.0 x0 0.2
+opal direct_residual 0.0 x0 0.2
+root@3ddcf2b2b165:/app# rm -rf /app/output && mkdir -p /app/output
+root@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+root@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run1.json
+root@3ddcf2b2b165:/app# bash /app/scripts/run-matrix.sh
+root@3ddcf2b2b165:/app# cp /app/output/solver-audit.json /app/output/solver-audit.run2.json
+root@3ddcf2b2b165:/app# diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true
+root@3ddcf2b2b165:/app#

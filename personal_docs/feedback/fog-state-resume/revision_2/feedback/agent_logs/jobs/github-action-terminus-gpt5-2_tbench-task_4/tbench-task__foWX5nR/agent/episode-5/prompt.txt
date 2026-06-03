@@ -1,0 +1,90 @@
+Current terminal state:
+New Terminal Output:
+
+root@c6c596d788f9:/app# python3 - <<'PY'
+> import json, os
+>
+> def load_jsonl(path):
+>     out=[]
+>     with open(path) as f:
+>         for line in f:
+>             line=line.strip()
+>             if not line:
+>                 continue
+>             out.append(json.loads(line))
+>     return out
+>
+> p='/app/output/resume-audit.json'
+> with open(p) as f:
+>     report=json.load(f)
+>
+> cases=report.get('cases',[])
+> problems=[]
+> for c in cases:
+>     name=c.get('name')
+>     ok=c.get('ok')
+>     fresh=c.get('fresh',{})
+>     resume=c.get('resume',{})
+>     if ok is not True:
+>         problems.append((name,'ok_false'))
+>     if fresh.get('illegal')!=0 or resume.get('illegal')!=0:
+>         problems.append((name,'illegal',fresh.get('illegal'),resume.get('illegal')))
+>     if fresh.get('sig')!=resume.get('sig'):
+>         problems.append((name,'sig_mismatch',fresh.get('sig'),resume.get('sig')))
+>
+>     rec_path=c.get('records')
+>     log_path=c.get('log')
+>     if not (rec_path and os.path.exists(rec_path)):
+>         problems.append((name,'missing_records',rec_path))
+>         continue
+>     if not (log_path and os.path.exists(log_path)):
+>         problems.append((name,'missing_log',log_path))
+>
+>     moves=c.get('moves',[])
+>     recs=load_jsonl(rec_path)
+>     # heuristic: many record formats; try to find records with a 'move' object
+>     rec_moves=[]
+>     for r in recs:
+>         if isinstance(r,dict) and 'move' in r and isinstance(r['move'],dict):
+>             rec_moves.append(r['move'])
+>     if rec_moves:
+>         if len(rec_moves)!=len(moves):
+>             problems.append((name,'move_count_mismatch',len(moves),len(rec_moves)))
+>         else:
+>             # compare key fields if present
+>             keys_map=[('turn','turn'),('actor','actor'),('from_x','from_x'),('from_y','from_y'),('to_x','to_x'),('to_y','to_y'),('kind','kind')]
+>             for i,(m,rm) in enumerate(zip(moves,rec_moves)):
+>                 for mk,rk in keys_map:
+>                     if mk in m and rk in rm and m[mk]!=rm[rk]:
+>                         problems.append((name,'move_order_mismatch',i,mk,m[mk],rm[rk]))
+>                         raise StopIteration
+>
+> print('case_count',len(cases))
+> if problems:
+>     print('PROBLEMS',len(problems))
+>     for pr in problems[:200]:
+>         print(pr)
+>     raise SystemExit(1)
+> print('ALL_CHECKS_PASS')
+> PY
+case_count 7
+ALL_CHECKS_PASS
+root@c6c596d788f9:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/resume-audit.json') as f:
+>     r=json.load(f)
+> for c in r.get('cases',[]):
+>     print(c['name'], 'ok=%s'%c['ok'], 'illegal(f/r)=%d/%d'%(c['fresh']['illegal'],c['resume']['illegal']), 'sig_match=%s'%(c['fresh']['sig']==c['resume']['sig
+']), 'moves=%d'%len(c.get('moves',[])), 'effects=%d'%len(c.get('effects',[])))
+> PY
+bishop ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=1
+knight ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=0
+lancer ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=0
+ranger ok=True illegal(f/r)=0/0 sig_match=True moves=4 effects=1
+rook ok=True illegal(f/r)=0/0 sig_match=True moves=2 effects=0
+sentinel ok=True illegal(f/r)=0/0 sig_match=True moves=2 effects=1
+warden ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=2
+root@c6c596d788f9:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

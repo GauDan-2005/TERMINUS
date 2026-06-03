@@ -1,0 +1,27 @@
+{
+  "analysis": "All six cases have ok=false and digest mismatch. For alpha, directory shape matches exactly, but file content differs only by missing trailing newline in restored/a/one.txt (source ends with newline; restored does not). This points to a systematic restore write issue (likely trimming final newline when materializing files) rather than structural restore. Next we should confirm other files in alpha (two.txt, three.txt) and then inspect the restore implementation to see how it writes file content (e.g., using fmt.Fprint vs Write, or strings.TrimSpace).",
+  "plan": "1) Confirm whether all alpha files lose trailing newline on restore (or only some). 2) Check whether restored bytes differ by exactly 1 and whether the last byte is '\\n' in source but not restored. 3) Locate the Go code path that writes restored file contents (probably under internal/e4 or similar I/O package) and search for Trim/Scanner usage. 4) Patch to preserve exact bytes (read/write raw bytes; avoid bufio.Scanner default tokenization; avoid strings.TrimSpace). Then rerun run-matrix.sh to see if audits become clean.",
+  "commands": [
+    {
+      "keystrokes": "src=/tmp/staged-snapshot-1200740893/alpha/source; rst=/tmp/staged-snapshot-1200740893/alpha/restored; for p in a/one.txt b/two.txt c/three.txt; do echo \"== $p\"; wc -c \"$src/$p\" \"$rst/$p\"; tail -c 20 \"$src/$p\" | od -An -tx1; tail -c 20 \"$rst/$p\" | od -An -tx1; done\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn --line-number -E 'TrimSpace|TrimRight|Scanner\\b|ReadString\\(|ReadBytes\\(|Fscan|Sscan|fmt\\.Fprint|fmt\\.Fprintf|bufio\\.NewScanner' internal cmd | head -n 200\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn --line-number -E 'restore|restor|materiali|write(file)?|os\\.WriteFile|Create\\(|OpenFile\\(' internal cmd | head -n 200\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' internal/e4/io.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' internal/e4/walk.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

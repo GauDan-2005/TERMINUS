@@ -1,0 +1,22 @@
+{
+  "analysis": "Let me do one final comprehensive verification before marking complete - run the full matrix one more time, verify all cases are present, check determinism, and confirm run-one.sh works for all cases.",
+  "plan": "Run a final comprehensive check to be absolutely sure everything is working.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh 2>&1 && echo 'MATRIX OK'\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "python3 -c \"\nimport json\nwith open('/app/output/alloc-audit.json') as f:\n    d = json.load(f)\ncases = d['cases']\nnames = [c['name'] for c in cases]\nexpected = ['cedar','jade','slate','coral','onyx','pearl']\nassert set(names) == set(expected), f'Missing cases: {set(expected)-set(names)}'\nfor c in cases:\n    assert c['ok'] == True, f'{c[\"name\"]} not ok'\n    assert 'steps' in c and len(c['steps']) > 0\n    assert 'heap_sig' in c\n    assert 'fl_count' in c\n    assert 'fl_sig' in c\n    assert 'byte_total' in c\n    assert 'ledger' in c\n    assert c['ledger'].endswith('.ledger.jsonl')\nprint(f'All {len(cases)} cases valid with ok=true')\n\" 2>&1\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "for name in cedar jade slate coral onyx pearl; do bash /app/scripts/run-one.sh $name 2>&1; done && echo 'ALL ONE OK'\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cp /app/output/alloc-audit.json /tmp/final1.json && bash /app/scripts/run-matrix.sh && diff /tmp/final1.json /app/output/alloc-audit.json && echo 'DETERMINISTIC CONFIRMED'\n",
+      "duration": 5.0
+    }
+  ]
+}

@@ -1,0 +1,153 @@
+New Terminal Output:
+
+root@85b121dde67e:/app# sed -n '1,120p' /app/internal/c2/effect.go
+package c2
+
+type EffectSnap struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+type ProfileSnap struct {
+        Blind     bool
+        Epoch     bool
+        CheckTurn int
+}
+
+type RowSnap struct {
+        ID     string
+        Active bool
+        Epoch  int
+}
+
+type mapX struct {
+        Items map[string]entryX
+}
+
+type entryX struct {
+        ID         string
+        ExpiryTurn int
+        Active     bool
+}
+
+func mark_c(a *mapX, b uint64, c []entryX) error {
+        if a.Items == nil {
+                a.Items = map[string]entryX{}
+        }
+        for _, item := range c {
+                if b&1 == 1 && item.ExpiryTurn > 0 {
+                        item.ExpiryTurn = item.ExpiryTurn + 1
+                }
+                a.Items[item.ID] = item
+        }
+        return nil
+}
+
+func SyncBoundary(effects []EffectSnap, savedTurn int, currentTurn int) []EffectSnap {
+        store := &mapX{}
+        entries := []entryX{}
+        for _, eff := range effects {
+                entries = append(entries, entryX{ID: eff.ID, ExpiryTurn: eff.ExpiryTurn, Active: eff.Active})
+        }
+        _ = mark_c(store, 1, entries)
+        out := make([]EffectSnap, 0, len(store.Items))
+        for _, item := range store.Items {
+                out = append(out, EffectSnap{ID: item.ID, ExpiryTurn: item.ExpiryTurn, Active: true})
+        }
+        return out
+}
+
+func Seed(profile ProfileSnap, turn int) []EffectSnap {
+        out := []EffectSnap{}
+        if profile.Blind {
+                out = append(out, EffectSnap{ID: "blind", ExpiryTurn: turn + 4, Active: true})
+        }
+        if profile.Epoch {
+                out = append(out, EffectSnap{ID: "ward", ExpiryTurn: profile.CheckTurn + 2, Active: true})
+        }
+        return out
+}
+
+func ItemsFor(effects []EffectSnap, turn int) []RowSnap {
+        rows := []RowSnap{}
+        for _, eff := range effects {
+                rows = append(rows, RowSnap{
+                        ID:     eff.ID,
+                        Active: turn < eff.ExpiryTurn,
+                        Epoch:  eff.ExpiryTurn,
+                })
+        }
+        return rows
+}
+root@85b121dde67e:/app# cat > /app/internal/c2/effect.go <<'EOF'
+> package c2
+>
+> type EffectSnap struct {
+>         ID         string
+>         ExpiryTurn int
+>         Active     bool
+> }
+>
+> type ProfileSnap struct {
+>         Blind     bool
+>         Epoch     bool
+>         CheckTurn int
+> }
+>
+> type RowSnap struct {
+>         ID     string
+>         Active bool
+>         Epoch  int
+> }
+>
+> // SyncBoundary reconciles effect state across a save/load boundary.
+> // For this engine, the saved snapshot is authoritative: resume must
+> // reproduce the same effect state as fresh. Therefore we preserve the
+> // provided effects without mutating expiry/active flags.
+> func SyncBoundary(effects []EffectSnap, savedTurn int, currentTurn int) []EffectSnap {
+>         out := make([]EffectSnap, len(effects))
+>         copy(out, effects)
+>         return out
+> }
+>
+> func Seed(profile ProfileSnap, turn int) []EffectSnap {
+>         out := []EffectSnap{}
+>         if profile.Blind {
+>                 out = append(out, EffectSnap{ID: "blind", ExpiryTurn: turn + 4, Active: true})
+>         }
+>         if profile.Epoch {
+>                 out = append(out, EffectSnap{ID: "ward", ExpiryTurn: profile.CheckTurn + 2, Active: true})
+>         }
+>         return out
+> }
+>
+> func ItemsFor(effects []EffectSnap, turn int) []RowSnap {
+>         rows := []RowSnap{}
+>         for _, eff := range effects {
+>                 rows = append(rows, RowSnap{
+>                         ID:     eff.ID,
+>                         Active: turn < eff.ExpiryTurn,
+>                         Epoch:  eff.ExpiryTurn,
+>                 })
+>         }
+>         return rows
+> }
+> EOF
+root@85b121dde67e:/app# make -s -C /app build
+root@85b121dde67e:/app# bash /app/scripts/run-matrix.sh
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     print(c['name'], 'ok=', c['ok'], 'fresh.illegal=', c['fresh']['illegal'], 'resume.illegal=', c['resume']['illegal'], 'sigs_match=', c['fresh']['sig']==c['
+resume']['sig'])
+> PY
+bishop ok= True fresh.illegal= 0 resume.illegal= 0 sigs_match= True
+knight ok= True fresh.illegal= 0 resume.illegal= 0 sigs_match= True
+lancer ok= True fresh.illegal= 0 resume.illegal= 0 sigs_match= True
+rook ok= False fresh.illegal= 0 resume.illegal= 0 sigs_match= False
+sentinel ok= False fresh.illegal= 0 resume.illegal= 0 sigs_match= False
+warden ok= True fresh.illegal= 0 resume.illegal= 0 sigs_match= True
+root@85b121dde67e:/app#

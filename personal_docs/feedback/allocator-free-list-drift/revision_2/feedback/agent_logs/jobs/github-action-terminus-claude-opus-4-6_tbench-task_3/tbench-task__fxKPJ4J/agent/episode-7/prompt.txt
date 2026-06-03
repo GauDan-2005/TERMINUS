@@ -1,0 +1,122 @@
+New Terminal Output:
+
+root@9bc1d408efaf:/app# cat /app/drive_h/run.c
+#include "../include/plan.h"
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {
+    Arena arena;
+    int seq = 0;
+    memset(res, 0, sizeof(*res));
+    strncpy(res->name, plan->name, sizeof(res->name) - 1);
+    snprintf(res->ledger_path, sizeof(res->ledger_path), "%s/%s.ledger.jsonl", out_dir, plan->name);
+    arena_init(&arena);
+    for (int i = 0; i < plan->op_count; i++) {
+        const PlanOp *op = &plan->ops[i];
+        StepRec *st = &res->steps[res->step_count++];
+        st->seq = seq++;
+        st->index = op->index;
+        st->size = op->size;
+        st->result_index = -1;
+        if (op->kind == OP_ALLOC) {
+            strncpy(st->op, "alloc", sizeof(st->op) - 1);
+            st->result_index = arena_slot_alloc(&arena, op->size);
+        } else if (op->kind == OP_FREE) {
+            strncpy(st->op, "free", sizeof(st->op) - 1);
+            st->result_index = arena_slot_free(&arena, op->index);
+        } else if (op->kind == OP_REALLOC) {
+            strncpy(st->op, "realloc", sizeof(st->op) - 1);
+            st->result_index = arena_slot_realloc(&arena, op->index, op->size);
+        }
+        st->heap_sig = arena_heap_sig(&arena);
+        st->fl_count = arena_fl_count(&arena);
+        st->fl_sig = arena_fl_sig(&arena);
+        st->byte_total = arena.stats.allocated;
+    }
+    res->heap_sig = arena_heap_sig(&arena);
+    res->fl_count = arena_fl_count(&arena);
+    res->fl_sig = arena_fl_sig(&arena);
+    res->byte_total = arena.stats.allocated;
+    res->ok = 1;
+    return 0;
+}
+root@9bc1d408efaf:/app# cat /app/src/init_heap.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+void arena_init(Arena *a) {
+    Block h;
+    size_t i;
+    memset(a, 0, sizeof(*a));
+    for (i = 0; i < FL_MAP_SZ; i++) {
+        a->fl_link_next[i] = FL_END;
+        a->fl_link_prev[i] = FL_END;
+    }
+    a->used = HEAP_BYTES;
+    h.base = a->mem;
+    h.off = 0;
+    xa0(&h, HEAP_BYTES);
+    z_set_flag(&h, 0);
+    a->head = h;
+    a->fl_head.base = h.base;
+    a->fl_head.off = FL_END;
+    xb1(a, &h);
+}
+root@9bc1d408efaf:/app# cat /app/Makefile
+CC = gcc
+CFLAGS = -std=c17 -Wall -Wextra -O2 -Iinclude
+
+SRCS = src/main.c src/arena_core.c src/init_heap.c src/alloc_ops.c src/slot_take.c \
+       src/slot_split.c src/free_ops.c src/reloc_ops.c \
+       pool_a/tag.c list_b/list.c split_c/split.c \
+       move_d/move.c acct_e/acct.c read_f/parse.c drive_h/run.c flow_g/report.c \
+       spill_i/spill.c mirror_j/mirror.c
+
+OBJS = $(SRCS:.c=.o)
+
+all: bin/allocctl
+
+bin/allocctl: $(OBJS)
+        mkdir -p bin
+        $(CC) $(CFLAGS) -o $@ $(OBJS)
+
+%.o: %.c
+        $(CC) $(CFLAGS) -c -o $@ $<
+
+clean:
+        rm -f $(OBJS) bin/allocctl
+
+.PHONY: all clean
+root@9bc1d408efaf:/app# cat /app/data/cases/cedar.plan
+# cedar baseline
+ALLOC 64
+ALLOC 128
+FREE 0
+ALLOC 32
+REALLOC 1 96
+root@9bc1d408efaf:/app# cat /app/data/cases/jade.plan
+# jade split pressure
+ALLOC 48
+ALLOC 48
+ALLOC 48
+ALLOC 48
+ALLOC 48
+FREE 1
+FREE 3
+ALLOC 80
+root@9bc1d408efaf:/app# cat /app/data/cases/slate.plan
+# slate coalesce
+ALLOC 96
+ALLOC 96
+ALLOC 96
+FREE 1
+FREE 0
+FREE 2
+ALLOC 200
+root@9bc1d408efaf:/app#

@@ -1,0 +1,122 @@
+New Terminal Output:
+
+root@e7a8cfbce7ce:/app# cat /app/src/d3/mod.rs
+pub fn dx(a: &[i32], b: &[usize]) -> Vec<i32> {
+    b.iter().map(|i| a[*i]).collect()
+}
+
+pub fn tag(a: &str, b: usize) -> String {
+    format!("{}:{}", a, b)
+}
+root@e7a8cfbce7ce:/app# cat /app/src/e4/mod.rs
+pub struct E0 {
+    pub v: Vec<String>,
+}
+
+impl E0 {
+    pub fn new() -> Self {
+        Self { v: Vec::new() }
+    }
+}
+
+pub fn ex(a: &mut E0, b: &str, c: &[i32], d: &[usize]) {
+    let vals = c.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",");
+    let hs = d.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",");
+    a.v.push(format!("{{\"case\":\"{}\",\"produced\":[{}],\"slot_trace\":[{}]}}", b, vals, hs));
+}
+root@e7a8cfbce7ce:/app# cat /app/src/f5/mod.rs
+pub fn view(a: &[i32]) -> String {
+    a.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("|")
+}
+
+pub fn lens(a: &[i32]) -> usize {
+    a.len()
+}
+root@e7a8cfbce7ce:/app# cat /app/src/g6/mod.rs
+pub fn arrange(a: &[usize]) -> Vec<usize> {
+    let mut x = a.to_vec();
+    x.sort();
+    x
+}
+
+pub fn describe(a: &[usize]) -> String {
+    arrange(a).iter().map(|x| x.to_string()).collect::<Vec<_>>().join("-")
+}
+root@e7a8cfbce7ce:/app# cat /app/cmd/align/main.go
+package main
+
+import (
+    "encoding/json"
+    "os"
+    "sort"
+)
+
+type entry struct {
+    Case      string `json:"case"`
+    Produced  []int  `json:"produced"`
+    Trace     []int  `json:"slot_trace"`
+    OrderUsed []int  `json:"order_used"`
+    Packed    bool   `json:"packed"`
+    Grouped   bool   `json:"grouped"`
+    Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+    Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+    Rows    []entry        `json:"rows"`
+    Summary map[string]any `json:"summary"`
+}
+
+func fold(a []entry) []entry {
+    seen := map[byte]entry{}
+    for _, row := range a {
+        key := row.Case[0]
+        seen[key] = row
+    }
+    out := make([]entry, 0, len(seen))
+    for _, row := range seen {
+        out = append(out, row)
+    }
+    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
+    return out
+}
+
+func main() {
+    if len(os.Args) != 3 {
+        panic("usage: align raw final")
+    }
+    buf, err := os.ReadFile(os.Args[1])
+    if err != nil {
+        panic(err)
+    }
+    var raw rawDoc
+    if err := json.Unmarshal(buf, &raw); err != nil {
+        panic(err)
+    }
+    rows := fold(raw.Raw)
+    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
+    out, err := json.MarshalIndent(doc, "", "  ")
+    if err != nil {
+        panic(err)
+    }
+    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
+        panic(err)
+    }
+}
+root@e7a8cfbce7ce:/app# cat /app/internal/collate/table.go
+package collate
+
+import "strings"
+
+func Mix(a string) string {
+    return strings.TrimSpace(a)
+}
+
+func Keep(a []string) []string {
+    out := append([]string{}, a...)
+    return out
+}
+root@e7a8cfbce7ce:/app#

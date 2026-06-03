@@ -1,0 +1,43 @@
+{
+  "analysis": "We are at a shell prompt in /app with no prior command output. We need to reproduce the failure by running the matrix script, inspect the produced (or missing) outputs, then locate and fix the Rust runner logic that produces executor-audit.json/ledger/journal. First step is to run the shipped scripts and capture errors, then inspect repository structure and relevant source files.",
+  "plan": "1) Inspect /app layout to find Cargo project(s), scripts, and existing output dirs. 2) Run bash /app/scripts/run-matrix.sh to observe the failure mode and what files get written. 3) If it fails, inspect logs/output directory and any partial audit artifacts. 4) Locate the Rust implementation used by the scripts, then iterate: run failing case(s) via run-one.sh, add targeted debug (if needed), fix ordering/CAP/cancellation/child handling per contract, run tests by rerunning matrix until it produces the required audit JSON and companion files.",
+  "commands": [
+    {
+      "keystrokes": "pwd\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -maxdepth 3 -type f -name \"run-matrix.sh\" -o -name \"run-one.sh\" -o -name \"Cargo.toml\" -o -name \"*.rs\" | sed -e 's|^|FILE |'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/run-matrix.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/run-one.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -x /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "ls -la /app/output || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "test -f /app/output/executor-audit.json && (echo \"--- audit head\"; sed -n '1,120p' /app/output/executor-audit.json) || echo \"missing /app/output/executor-audit.json\"\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

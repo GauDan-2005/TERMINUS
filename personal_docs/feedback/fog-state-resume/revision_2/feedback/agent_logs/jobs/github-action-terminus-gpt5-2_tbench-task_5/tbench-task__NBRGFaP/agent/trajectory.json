@@ -1,0 +1,798 @@
+{
+  "schema_version": "ATIF-v1.6",
+  "session_id": "b2f55b48-717d-4fd9-9f48-467e7b057686",
+  "agent": {
+    "name": "terminus-2",
+    "version": "2.0.0",
+    "model_name": "openai/@openai/gpt-5.2",
+    "extra": {
+      "parser": "json",
+      "temperature": 0.7
+    }
+  },
+  "steps": [
+    {
+      "step_id": 1,
+      "timestamp": "2026-05-28T17:11:37.212764+00:00",
+      "source": "user",
+      "message": "You are an AI assistant tasked with solving command-line tasks in a Linux environment. You will be given a task description and the output from previously executed commands. Your goal is to solve the task by providing batches of shell commands.\n\nFormat your response as JSON with the following structure:\n\n{\n  \"analysis\": \"Analyze the current state based on the terminal output provided. What do you see? What has been accomplished? What still needs to be done?\",\n  \"plan\": \"Describe your plan for the next steps. What commands will you run and why? Be specific about what you expect each command to accomplish.\",\n  \"commands\": [\n    {\n      \"keystrokes\": \"ls -la\\n\",\n      \"duration\": 0.1\n    },\n    {\n      \"keystrokes\": \"cd project\\n\",\n      \"duration\": 0.1\n    }\n  ],\n  \"task_complete\": true\n}\n\nRequired fields:\n- \"analysis\": Your analysis of the current situation\n- \"plan\": Your plan for the next steps\n- \"commands\": Array of command objects to execute\n\nOptional fields:\n- \"task_complete\": Boolean indicating if the task is complete (defaults to false if not present)\n\nCommand object structure:\n- \"keystrokes\": String containing the exact keystrokes to send to the terminal (required)\n- \"duration\": Number of seconds to wait for the command to complete before the next command will be executed (defaults to 1.0 if not present)\n\nIMPORTANT: The text inside \"keystrokes\" will be used completely verbatim as keystrokes. Write commands exactly as you want them sent to the terminal:\n- You must end every command with a newline (\\n) or it will not execute.\n- For special key sequences, use tmux-style escape sequences:\n  - C-c for Ctrl+C\n  - C-d for Ctrl+D\n\nThe \"duration\" attribute specifies the number of seconds to wait for the command to complete (default: 1.0) before the next command will be executed. On immediate tasks (e.g., cd, ls, echo, cat) set a duration of 0.1 seconds. On commands (e.g., gcc, find, rustc) set a duration of 1.0 seconds. On slow commands (e.g., make, python3 [long running script], wget [file]) set an appropriate duration as you determine necessary.\n\nIt is better to set a smaller duration than a longer duration. It is always possible to wait again if the prior output has not finished, by running {\"keystrokes\": \"\", \"duration\": 10.0} on subsequent requests to wait longer. Never wait longer than 60 seconds; prefer to poll to see intermediate result status.\n\nImportant notes:\n- Each command's keystrokes are sent exactly as written to the terminal\n- Do not include extra whitespace before or after the keystrokes unless it's part of the intended command\n- Extra text before or after the JSON will generate warnings but be tolerated\n- The JSON must be valid - use proper escaping for quotes and special characters within strings\n- Commands array can be empty if you want to wait without taking action\n\nTask Description:\nThe turn-based grid engine under `/app` produces resume audits where restored runs disagree with uninterrupted runs on the same bundled inputs. Repair the engine so the matrix run is clean. `bash /app/scripts/run-matrix.sh` writes `/app/output/resume-audit.json`. Layout maps live under `/app/data`, action scripts under `/app/data/scripts`, and configuration tables under `/app/config`.\n\nThe matrix covers rook, bishop, knight, lancer, sentinel, warden, and ranger. The audit JSON uses a top-level `cases` array; each row includes `visibility` plus the move and effect collections described by CaseResult in `/app/internal/sim/types.go`. Move and effect element field names follow MoveRow and EffectRow in that same file. Epoch-style configuration exposes a ward modifier row in effects. A row is clean when ok is true, fresh and resume path summaries show illegal 0, signatures match, and the JSON plus records and log sidecars list the same resolved moves in order.\n\nThe matrix leaves `/app/bin/rogctl` executable. `bash /app/scripts/one-case.sh <case>` writes `/app/output/single-<case>.json` matching that matrix row.\n\n\nCurrent terminal state:\nCurrent Terminal Screen:\nroot@ccbd9cc473ba:/app#\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+    },
+    {
+      "step_id": 2,
+      "timestamp": "2026-05-28T17:11:57.229184+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: We are at a shell prompt in /app with no prior commands executed in this session. The task is to reproduce the failing resume audits, inspect differences between fresh vs resumed runs, locate the nondeterminism/state-restore bug in the grid engine (likely in sim/state serialization, RNG, ordering, or effect/move resolution), fix it, then re-run the matrix so /app/output/resume-audit.json is clean (all cases ok=true; signatures match; illegal=0; and JSON/records/log sidecars agree on resolved moves order). Next step is to run the matrix to generate the audit and inspect which cases fail.\nPlan: 1) Run the matrix script to generate /app/output/resume-audit.json. 2) Pretty-print and summarize failing cases (ok=false or signature mismatch) using jq. 3) For one failing case, run one-case.sh to produce a single-case JSON and inspect fresh vs resume deltas. 4) Based on deltas, inspect relevant Go code (types.go for fields; sim engine for ordering/RNG/serialization) and identify where resume diverges. 5) After making a fix, re-run the failing single case(s) and then the full matrix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_0_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+            "duration": 10.0
+          }
+        },
+        {
+          "tool_call_id": "call_0_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "ls -la /app/output\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_0_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "jq '.' /app/output/resume-audit.json | head -n 40\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_0_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature or .fresh.illegal!=0 or .resume.illegal!=0) | [.case, \"ok=\"+(.ok|tostring), \"fresh_sig=\"+.fresh.signature, \"resume_sig=\"+.resume.signature, \"fresh_illegal=\"+(.fresh.illegal|tostring), \"resume_illegal=\"+(.resume.illegal|tostring)] | @tsv' /app/output/resume-audit.json\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_0_5",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature) | .case' /app/output/resume-audit.json | head\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\nroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh\nroot@ccbd9cc473ba:/app# ls -la /app/output\ntotal 8\ndrwxr-xr-x  2 root root   31 May 28 17:11 .\ndrwxr-xr-x 12 root root  188 May 28 17:11 ..\n-rw-r--r--  1 root root 5437 May 28 17:11 resume-audit.json\nroot@ccbd9cc473ba:/app# jq '.' /app/output/resume-audit.json | head -n 40\nbash: jq: command not found\nroot@ccbd9cc473ba:/app# jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature or .fresh.illegal!=0 or .resume.illegal!=0) | [.case, \"ok=\"+(\n.ok|tostring), \"fresh_sig=\"+.fresh.signature, \"resume_sig=\"+.resume.signature, \"fresh_illegal=\"+(.fresh.illegal|tostring), \"resume_illegal=\"+(.resume.illegal|to\nstring)] | @tsv' /app/output/resume-audit.json\nbash: jq: command not found\nroot@ccbd9cc473ba:/app# jq -r '.cases[] | select(.ok==false or .fresh.signature!=.resume.signature) | .case' /app/output/resume-audit.json | head\nbash: jq: command not found\nroot@ccbd9cc473ba:/app#\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 921,
+        "completion_tokens": 556,
+        "cost_usd": 0.0187915
+      }
+    },
+    {
+      "step_id": 3,
+      "timestamp": "2026-05-28T17:12:04.564914+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: The matrix ran and produced /app/output/resume-audit.json. However, jq is not installed, so we cannot query the JSON with jq. Next we need another way to inspect the JSON to find failing cases (ok=false or signature mismatch) and then drill into a failing case with one-case.sh. We can use python3 (likely available) to parse and summarize the JSON.\nPlan: 1) Use python3 to load /app/output/resume-audit.json and print a compact summary of each case with ok/signature/illegal fields, plus list only failing cases. 2) Pick the first failing case and run /app/scripts/one-case.sh for it to generate /app/output/single-<case>.json. 3) Use python3 again to diff fresh vs resume move/effect sequences and identify where ordering/content diverges (moves/effects/visibility). Then we can locate the engine code responsible.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_1_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\ncases=data.get('cases',[])\nprint('cases:',len(cases))\nfail=[]\nfor c in cases:\n    fresh=c.get('fresh',{})\n    resume=c.get('resume',{})\n    ok=c.get('ok')\n    fs=fresh.get('signature')\n    rs=resume.get('signature')\n    fi=fresh.get('illegal')\n    ri=resume.get('illegal')\n    if (ok is not True) or (fs!=rs) or (fi not in (0,None)) or (ri not in (0,None)):\n        fail.append(c.get('case'))\n    print(f\"{c.get('case')}: ok={ok} fresh_sig={fs} resume_sig={rs} fresh_illegal={fi} resume_illegal={ri}\")\nprint('\\nFAIL:',len(fail))\nfor x in fail:\n    print(x)\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_1_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfor c in data.get('cases',[]):\n    fresh=c.get('fresh',{})\n    resume=c.get('resume',{})\n    ok=c.get('ok')\n    if (ok is not True) or (fresh.get('signature')!=resume.get('signature')):\n        print(c.get('case'))\n        break\nPY\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> cases=data.get('cases',[])\n> print('cases:',len(cases))\n> fail=[]\n> for c in cases:\n>     fresh=c.get('fresh',{})\n>     resume=c.get('resume',{})\n>     ok=c.get('ok')\n>     fs=fresh.get('signature')\n>     rs=resume.get('signature')\n>     fi=fresh.get('illegal')\n>     ri=resume.get('illegal')\n>     if (ok is not True) or (fs!=rs) or (fi not in (0,None)) or (ri not in (0,None)):\n>         fail.append(c.get('case'))\n>     print(f\"{c.get('case')}: ok={ok} fresh_sig={fs} resume_sig={rs} fresh_illegal={fi} resume_illegal={ri}\")\n> print('\\nFAIL:',len(fail))\n> for x in fail:\n>     print(x)\n> PY\ncases: 7\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\nNone: ok=True fresh_sig=None resume_sig=None fresh_illegal=0 resume_illegal=0\n\nFAIL: 0\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> for c in data.get('cases',[]):\n>     fresh=c.get('fresh',{})\n>     resume=c.get('resume',{})\n>     ok=c.get('ok')\n>     if (ok is not True) or (fresh.get('signature')!=resume.get('signature')):\n>         print(c.get('case'))\n>         break\n> PY\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 1827,
+        "completion_tokens": 614,
+        "cached_tokens": 1280,
+        "cost_usd": 0.0195545
+      }
+    },
+    {
+      "step_id": 4,
+      "timestamp": "2026-05-28T17:12:13.329340+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: The audit JSON parsed, but every case printed case=None and signatures are None, which indicates our field expectations don't match the actual JSON schema produced (different key names, nesting, or signatures stored elsewhere). Despite that, ok=true for all 7 cases and illegal counts are 0, but we still must ensure the matrix row is truly clean per task: signatures match and JSON/records/log sidecars list same resolved moves in order. Next step is to inspect the raw JSON structure to find the correct field names (case identifier, fresh/resume path summaries, signatures, moves/effects arrays, and sidecar references).\nPlan: 1) Print the top-level keys and a pretty sample of the first case using python3 pretty-print to understand schema. 2) Extract the real case id field name and the fresh/resume summary field names and signatures. 3) Then compute a robust validation: compare fresh vs resume move/effect lists and any sidecar move lists if included. If everything matches, task is complete; otherwise identify discrepancies and proceed to engine fix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_2_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json, pprint\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nprint('top-level keys:', sorted(data.keys()))\ncases=data.get('cases') or []\nprint('cases:', len(cases))\nif cases:\n    print('\\nfirst case keys:', sorted(cases[0].keys()))\n    print('\\nfirst case preview:')\n    pprint.pp(cases[0], width=120)\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_2_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nc=data['cases'][0]\n# Print nested keys for likely fresh/resume sections\nfor k in c.keys():\n    v=c[k]\n    if isinstance(v, dict):\n        print(k, '->', sorted(v.keys()))\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_2_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,120p' /app/output/resume-audit.json\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json, pprint\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> print('top-level keys:', sorted(data.keys()))\n> cases=data.get('cases') or []\n> print('cases:', len(cases))\n> if cases:\n>     print('\\nfirst case keys:', sorted(cases[0].keys()))\n>     print('\\nfirst case preview:')\n>     pprint.pp(cases[0], width=120)\n> PY\ntop-level keys: ['cases']\ncases: 7\n\nfirst case keys: ['effects', 'fresh', 'log', 'moves', 'name', 'ok', 'records', 'resume', 'visibility']\n\nfirst case preview:\n{'name': 'bishop',\n 'ok': True,\n 'fresh': {'sig': '811c9dc5', 'illegal': 0, 'steps': 0},\n 'resume': {'sig': '811c9dc5', 'illegal': 0, 'steps': 0},\n 'moves': [],\n 'visibility': {'fresh_seen': 0, 'resume_seen': 0},\n 'effects': [{'id': 'blind', 'active': False, 'epoch': 3}],\n 'records': '/app/workspace/bishop/records.jsonl',\n 'log': '/app/workspace/bishop/trace.tsv'}\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> c=data['cases'][0]\n> # Print nested keys for likely fresh/resume sections\n> for k in c.keys():\n>     v=c[k]\n>     if isinstance(v, dict):\n>         print(k, '->', sorted(v.keys()))\n> PY\nfresh -> ['illegal', 'sig', 'steps']\nresume -> ['illegal', 'sig', 'steps']\nvisibility -> ['fresh_seen', 'resume_seen']\nroot@ccbd9cc473ba:/app# sed -n '1,120p' /app/output/resume-audit.json\n{\n  \"cases\": [\n    {\n      \"name\": \"bishop\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"resume\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"moves\": [],\n      \"visibility\": {\n        \"fresh_seen\": 0,\n        \"resume_seen\": 0\n      },\n      \"effects\": [\n        {\n          \"id\": \"blind\",\n          \"active\": false,\n          \"epoch\": 3\n        }\n      ],\n      \"records\": \"/app/workspace/bishop/records.jsonl\",\n      \"log\": \"/app/workspace/bishop/trace.tsv\"\n    },\n    {\n      \"name\": \"knight\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"resume\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"moves\": [],\n      \"visibility\": {\n        \"fresh_seen\": 7,\n        \"resume_seen\": 4\n      },\n      \"effects\": [],\n      \"records\": \"/app/workspace/knight/records.jsonl\",\n      \"log\": \"/app/workspace/knight/trace.tsv\"\n    },\n    {\n      \"name\": \"lancer\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"resume\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"moves\": [],\n      \"visibility\": {\n        \"fresh_seen\": 18,\n        \"resume_seen\": 15\n      },\n      \"effects\": [],\n      \"records\": \"/app/workspace/lancer/records.jsonl\",\n      \"log\": \"/app/workspace/lancer/trace.tsv\"\n    },\n    {\n      \"name\": \"ranger\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"5c4ed3de\",\n        \"illegal\": 0,\n        \"steps\": 2\n      },\n      \"resume\": {\n        \"sig\": \"5c4ed3de\",\n        \"illegal\": 0,\n        \"steps\": 2\n      },\n      \"moves\": [\n        {\n          \"turn\": 5,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 3,\n          \"to_x\": 3,\n          \"to_y\": 2,\n          \"kind\": \"step\",\n          \"legal\": true\n        },\n        {\n          \"turn\": 6,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 2,\n          \"to_x\": 3,\n          \"to_y\": 1,\n          \"kind\": \"step\",\n          \"legal\": true\n        },\n        {\n          \"turn\": 5,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 3,\n          \"to_x\": 3,\n          \"to_y\": 2,\n          \"kind\": \"step\",\n          \"legal\": true\n        },\n        {\n          \"turn\": 6,\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 2981,
+        "completion_tokens": 535,
+        "cached_tokens": 2304,
+        "cost_usd": 0.018155899999999996
+      }
+    },
+    {
+      "step_id": 5,
+      "timestamp": "2026-05-28T17:12:33.588605+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: The audit JSON schema uses fields: name, ok, fresh{sig,illegal,steps}, resume{sig,illegal,steps}, moves, visibility{fresh_seen,resume_seen}, effects, and sidecar paths records/log. Signatures match and illegal=0 everywhere, but there is an issue: visibility counts differ between fresh and resume for at least knight and lancer (fresh_seen != resume_seen). Also the moves array appears to include both fresh and resume moves appended together (ranger shows duplicated move entries with same turn 5/6 repeated), which may violate the requirement that JSON plus records/log sidecars list the same resolved moves in order. We need to confirm which rows are actually not clean by checking for any differences (visibility mismatch, move list duplication, effects mismatch) and also compare moves in JSON vs the records.jsonl and trace.tsv outputs. Then fix the engine so resumed runs produce identical visibility and move/effect ordering, and so audit output is structured consistently (likely separate fresh_moves/resume_moves, or stable concatenation order with labels).\nPlan: 1) Programmatically find any cases where visibility differs, or where moves/effects indicate duplicates or mismatched counts between fresh and resume. 2) For a failing case (likely knight/lancer/ranger), inspect the associated records.jsonl and trace.tsv to see whether fresh/resume traces differ and how they are combined. 3) Run one-case.sh for one problematic case to reproduce in isolation. 4) Then inspect Go code that computes visibility and/or serializes/restores FOV state; likely resume path fails to restore seen tiles or clears cache, causing fresh_seen>resume_seen. Fix by persisting seen/visibility state in save/resume, or by recomputing deterministically from records after restore. After fix, re-run one-case and matrix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_3_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json, collections\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nprint('name\\tok\\tfresh_sig\\tresume_sig\\tfresh_illegal\\tresume_illegal\\tfresh_seen\\tresume_seen\\tmoves\\teffects')\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    print(f\"{c['name']}\\t{c['ok']}\\t{c['fresh']['sig']}\\t{c['resume']['sig']}\\t{c['fresh']['illegal']}\\t{c['resume']['illegal']}\\t{vis.get('fresh_seen')}\\t{vis.get('resume_seen')}\\t{len(c.get('moves',[]))}\\t{len(c.get('effects',[]))}\")\nprint('\\nVisibility mismatches:')\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print(c['name'], vis)\nprint('\\nMove duplicates by (turn,actor,from,to,kind):')\nfor c in data['cases']:\n    moves=c.get('moves',[])\n    key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))\n    ctr=collections.Counter(key(m) for m in moves)\n    dups=[k for k,v in ctr.items() if v>1]\n    if dups:\n        print(c['name'], 'dups:', len(dups), 'total moves:', len(moves))\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_3_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen') or len(c.get('moves',[]))%2==0 and len(c.get('moves',[]))>0:\n        print(c['name'], 'records=', c.get('records'), 'log=', c.get('log'))\nPY\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_3_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '120,260p' /app/output/resume-audit.json\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_3_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/one-case.sh knight\n",
+            "duration": 5.0
+          }
+        },
+        {
+          "tool_call_id": "call_3_5",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "ls -la /app/output | grep single-knight || true\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_3_6",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,200p' /app/output/single-knight.json\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json, collections\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> print('name\\tok\\tfresh_sig\\tresume_sig\\tfresh_illegal\\tresume_illegal\\tfresh_seen\\tresume_seen\\tmoves\\teffects')\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     print(f\"{c['name']}\\t{c['ok']}\\t{c['fresh']['sig']}\\t{c['resume']['sig']}\\t{c['fresh']['illegal']}\\t{c['resume']['illegal']}\\t{vis.get('fresh_seen')}\\t{vi\ns.get('resume_seen')}\\t{len(c.get('moves',[]))}\\t{len(c.get('effects',[]))}\")\n> print('\\nVisibility mismatches:')\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     if vis.get('fresh_seen')!=vis.get('resume_seen'):\n>         print(c['name'], vis)\n> print('\\nMove duplicates by (turn,actor,from,to,kind):')\n> for c in data['cases']:\n>     moves=c.get('moves',[])\n>     key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))\n>     ctr=collections.Counter(key(m) for m in moves)\n>     dups=[k for k,v in ctr.items() if v>1]\n>     if dups:\n>         print(c['name'], 'dups:', len(dups), 'total moves:', len(moves))\n> PY\nname    ok      fresh_sig       resume_sig      fresh_illegal   resume_illegal  fresh_seen      resume_seen     moves   effects\nbishop  True    811c9dc5        811c9dc5        0       0       0       0       0       1\nknight  True    811c9dc5        811c9dc5        0       0       7       4       0       0\nlancer  True    811c9dc5        811c9dc5        0       0       18      15      0       0\nranger  True    5c4ed3de        5c4ed3de        0       0       9       8       4       1\nrook    True    7d3f56fa        7d3f56fa        0       0       9       8       2       0\nsentinel        True    9a98d68 9a98d68 0       0       9       8       2       1\nwarden  True    811c9dc5        811c9dc5        0       0       0       0       0       2\n\nVisibility mismatches:\nknight {'fresh_seen': 7, 'resume_seen': 4}\nlancer {'fresh_seen': 18, 'resume_seen': 15}\nranger {'fresh_seen': 9, 'resume_seen': 8}\nrook {'fresh_seen': 9, 'resume_seen': 8}\nsentinel {'fresh_seen': 9, 'resume_seen': 8}\n\nMove duplicates by (turn,actor,from,to,kind):\nranger dups: 2 total moves: 4\nrook dups: 1 total moves: 2\nsentinel dups: 1 total moves: 2\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     if vis.get('fresh_seen')!=vis.get('resume_seen') or len(c.get('moves',[]))%2==0 and len(c.get('moves',[]))>0:\n>         print(c['name'], 'records=', c.get('records'), 'log=', c.get('log'))\n> PY\nknight records= /app/workspace/knight/records.jsonl log= /app/workspace/knight/trace.tsv\nlancer records= /app/workspace/lancer/records.jsonl log= /app/workspace/lancer/trace.tsv\nranger records= /app/workspace/ranger/records.jsonl log= /app/workspace/ranger/trace.tsv\nrook records= /app/workspace/rook/records.jsonl log= /app/workspace/rook/trace.tsv\nsentinel records= /app/workspace/sentinel/records.jsonl log= /app/workspace/sentinel/trace.tsv\nroot@ccbd9cc473ba:/app# sed -n '120,260p' /app/output/resume-audit.json\n          \"turn\": 6,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 2,\n          \"to_x\": 3,\n          \"to_y\": 1,\n          \"kind\": \"step\",\n          \"legal\": true\n        }\n      ],\n      \"visibility\": {\n        \"fresh_seen\": 9,\n        \"resume_seen\": 8\n      },\n      \"effects\": [\n        {\n          \"id\": \"ward\",\n          \"active\": false,\n          \"epoch\": 5\n        }\n      ],\n      \"records\": \"/app/workspace/ranger/records.jsonl\",\n      \"log\": \"/app/workspace/ranger/trace.tsv\"\n    },\n    {\n      \"name\": \"rook\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"7d3f56fa\",\n        \"illegal\": 0,\n        \"steps\": 1\n      },\n      \"resume\": {\n        \"sig\": \"7d3f56fa\",\n        \"illegal\": 0,\n        \"steps\": 1\n      },\n      \"moves\": [\n        {\n          \"turn\": 3,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 3,\n          \"to_x\": 3,\n          \"to_y\": 2,\n          \"kind\": \"step\",\n          \"legal\": true\n        },\n        {\n          \"turn\": 3,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 3,\n          \"to_x\": 3,\n          \"to_y\": 2,\n          \"kind\": \"step\",\n          \"legal\": true\n        }\n      ],\n      \"visibility\": {\n        \"fresh_seen\": 9,\n        \"resume_seen\": 8\n      },\n      \"effects\": [],\n      \"records\": \"/app/workspace/rook/records.jsonl\",\n      \"log\": \"/app/workspace/rook/trace.tsv\"\n    },\n    {\n      \"name\": \"sentinel\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"9a98d68\",\n        \"illegal\": 0,\n        \"steps\": 1\n      },\n      \"resume\": {\n        \"sig\": \"9a98d68\",\n        \"illegal\": 0,\n        \"steps\": 1\n      },\n      \"moves\": [\n        {\n          \"turn\": 5,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 3,\n          \"to_x\": 3,\n          \"to_y\": 2,\n          \"kind\": \"step\",\n          \"legal\": true\n        },\n        {\n          \"turn\": 5,\n          \"actor\": \"1\",\n          \"from_x\": 3,\n          \"from_y\": 3,\n          \"to_x\": 3,\n          \"to_y\": 2,\n          \"kind\": \"step\",\n          \"legal\": true\n        }\n      ],\n      \"visibility\": {\n        \"fresh_seen\": 9,\n        \"resume_seen\": 8\n      },\n      \"effects\": [\n        {\n          \"id\": \"ward\",\n          \"active\": false,\n          \"epoch\": 5\n        }\n      ],\n      \"records\": \"/app/workspace/sentinel/records.jsonl\",\n      \"log\": \"/app/workspace/sentinel/trace.tsv\"\n    },\n    {\n      \"name\": \"warden\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"resume\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"moves\": [],\n      \"visibility\": {\n        \"fresh_seen\": 0,\n        \"resume_seen\": 0\n      },\n      \"effects\": [\n        {\n          \"id\": \"blind\",\n          \"active\": false,\n          \"epoch\": 3\n        },\n        {\nroot@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight\nroot@ccbd9cc473ba:/app# ls -la /app/output | grep single-knight || true\n-rw-r--r--  1 root root  488 May 28 17:12 single-knight.json\nroot@ccbd9cc473ba:/app# sed -n '1,200p' /app/output/single-knight.json\n{\n  \"cases\": [\n    {\n      \"name\": \"knight\",\n      \"ok\": true,\n      \"fresh\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"resume\": {\n        \"sig\": \"811c9dc5\",\n        \"illegal\": 0,\n        \"steps\": 0\n      },\n      \"moves\": [],\n      \"visibility\": {\n        \"fresh_seen\": 7,\n        \"resume_seen\": 4\n      },\n      \"effects\": [],\n      \"records\": \"/app/workspace/knight/records.jsonl\",\n      \"log\": \"/app/workspace/knight/trace.tsv\"\n    }\n  ]\n}\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 4754,
+        "completion_tokens": 1105,
+        "cost_usd": 0.047578999999999996
+      }
+    },
+    {
+      "step_id": 6,
+      "timestamp": "2026-05-28T17:12:43.367426+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: Resume audit shows systematic visibility mismatches (fresh_seen > resume_seen) for multiple pieces, and the moves list in the audit JSON contains duplicates (likely fresh+resume concatenated without labeling). Even though ok=true and sig matches, the row is not clean per requirements because visibility differs and ordering/sidecar agreement likely fails. The issue is likely that 'seen' (fog-of-war / explored tiles) is not persisted/restored on resume, so resume run has fewer seen tiles. Additionally, audit construction likely appends both run move streams into one array, causing duplicates; but the underlying engine issue is the visibility divergence. Next: inspect records/log for a mismatching case (knight has no moves so focus on visibility), locate how visibility/seen is tracked and serialized, and ensure it's included in snapshot/resume state.\nPlan: 1) Inspect /app/workspace/knight/records.jsonl and trace.tsv to see what is recorded about visibility and whether resume run recomputes from scratch. 2) Search the Go codebase for 'seen', 'visibility', 'fov', 'explored' and for save/restore/snapshot structures. 3) Identify missing field in serialized state and add it (e.g., persist a seen bitset/grid in snapshot; restore it on resume). 4) Re-run one-case.sh knight and then full matrix to confirm fresh_seen == resume_seen and that moves/effects in audit are properly represented (we may also need to fix audit move collection to not double-append without distinction, but first confirm sidecar comparison logic).",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_4_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "echo '--- knight records ---'\nwc -l /app/workspace/knight/records.jsonl\nsed -n '1,200p' /app/workspace/knight/records.jsonl\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_4_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "echo '--- knight trace ---'\nwc -l /app/workspace/knight/trace.tsv\nsed -n '1,200p' /app/workspace/knight/trace.tsv\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_4_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "rg -n \"fresh_seen|resume_seen|seen|visibility|fov|fog\" /app/internal/sim /app/internal -S\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_4_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "rg -n \"snapshot|resume|restore|save\" /app/internal/sim /app/internal -S\n",
+            "duration": 1.0
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# echo '--- knight records ---'\n--- knight records ---\nroot@ccbd9cc473ba:/app# wc -l /app/workspace/knight/records.jsonl\n0 /app/workspace/knight/records.jsonl\nroot@ccbd9cc473ba:/app# sed -n '1,200p' /app/workspace/knight/records.jsonl\nroot@ccbd9cc473ba:/app# echo '--- knight trace ---'\n--- knight trace ---\nroot@ccbd9cc473ba:/app# wc -l /app/workspace/knight/trace.tsv\n0 /app/workspace/knight/trace.tsv\nroot@ccbd9cc473ba:/app# sed -n '1,200p' /app/workspace/knight/trace.tsv\nroot@ccbd9cc473ba:/app# rg -n \"fresh_seen|resume_seen|seen|visibility|fov|fog\" /app/internal/sim /app/internal -S\nbash: rg: command not found\nroot@ccbd9cc473ba:/app# rg -n \"snapshot|resume|restore|save\" /app/internal/sim /app/internal -S\nbash: rg: command not found\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8095,
+        "completion_tokens": 571,
+        "cached_tokens": 3328,
+        "cost_usd": 0.0338373
+      }
+    },
+    {
+      "step_id": 7,
+      "timestamp": "2026-05-28T17:12:50.532951+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: The per-case sidecars for knight are empty (0 lines), so visibility is being computed without leaving trace/records for this case. Also ripgrep (rg) is not installed, so we need to use grep/find instead to locate relevant code. Next step: use grep -R to search for visibility/seen/fov and for snapshot/resume/restore/save in /app/internal. Then open the relevant Go files to locate state serialization and ensure visibility/seen state is included in snapshots and restored consistently.\nPlan: 1) Use grep -R to find references to visibility/seen/fov and snapshot/resume/restore/save across /app/internal. 2) Identify the snapshot/state struct and where it\u2019s encoded/decoded. 3) Inspect visibility implementation: where 'seen' tiles are tracked and how the counts fresh_seen/resume_seen are computed. 4) Implement persistence/restoration for 'seen' (and any other derived caches) in the snapshot. 5) Rebuild (if needed) and rerun one-case and matrix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_5_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "grep -RIn --exclude-dir=.git --include='*.go' -E 'visibility|fresh_seen|resume_seen|\\bseen\\b|fov|fog' /app/internal | head -n 200\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_5_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "grep -RIn --exclude-dir=.git --include='*.go' -E 'snapshot|resume|restore|save(\\b|_)|load(\\b|_)' /app/internal | head -n 200\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_5_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "find /app/internal -maxdepth 4 -type f -name '*.go' | wc -l\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# grep -RIn --exclude-dir=.git --include='*.go' -E 'visibility|fresh_seen|resume_seen|\\bseen\\b|fov|fog' /app/internal | head -n 200\n/app/internal/exec/run.go:11:   \"fog.local/resume/internal/mem\"\n/app/internal/exec/run.go:12:   \"fog.local/resume/internal/mod\"\n/app/internal/exec/run.go:13:   \"fog.local/resume/internal/slot\"\n/app/internal/exec/run.go:14:   \"fog.local/resume/internal/store\"\n/app/internal/exec/run.go:15:   \"fog.local/resume/internal/vis\"\n/app/internal/exec/run.go:32:   seen := append([]bool(nil), w.Seen...)\n/app/internal/exec/run.go:34:   if len(seen) != size {\n/app/internal/exec/run.go:35:           seen = make([]bool, size)\n/app/internal/exec/run.go:46:           Seen:    seen,\n/app/internal/exec/types.go:3:import \"fog.local/resume/internal/sim\"\n/app/internal/mem/cache.go:3:import \"fog.local/resume/internal/store\"\n/app/internal/sim/types.go:31:  FreshSeen  int `json:\"fresh_seen\"`\n/app/internal/sim/types.go:32:  ResumeSeen int `json:\"resume_seen\"`\n/app/internal/sim/types.go:47:  Visibility VisPair     `json:\"visibility\"`\n/app/internal/slot/plan.go:4:   \"fog.local/resume/internal/sim\"\n/app/internal/slot/plan.go:5:   \"fog.local/resume/internal/vis\"\n/app/internal/vis/native.go:11: \"fog.local/resume/internal/sim\"\n/app/internal/vis/sight.go:3:import \"fog.local/resume/internal/sim\"\nroot@ccbd9cc473ba:/app# grep -RIn --exclude-dir=.git --include='*.go' -E 'snapshot|resume|restore|save(\\b|_)|load(\\b|_)' /app/internal | head -n 200\n/app/internal/exec/run.go:11:   \"fog.local/resume/internal/mem\"\n/app/internal/exec/run.go:12:   \"fog.local/resume/internal/mod\"\n/app/internal/exec/run.go:13:   \"fog.local/resume/internal/slot\"\n/app/internal/exec/run.go:14:   \"fog.local/resume/internal/store\"\n/app/internal/exec/run.go:15:   \"fog.local/resume/internal/vis\"\n/app/internal/exec/run.go:168:          if step.Action == \"save\" {\n/app/internal/exec/run.go:189:          if step.Action == \"save\" {\n/app/internal/exec/run.go:220:          if step.Action == \"save\" {\n/app/internal/exec/run.go:262:  resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)\n/app/internal/exec/run.go:264:  freshIllegal, resumeIllegal := 0, 0\n/app/internal/exec/run.go:270:  for _, m := range resumeMoves {\n/app/internal/exec/run.go:272:                  resumeIllegal++\n/app/internal/exec/run.go:275:  allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n/app/internal/exec/run.go:283:  resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n/app/internal/exec/run.go:284:  ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n/app/internal/exec/run.go:290:          Resume:     resume,\n/app/internal/exec/types.go:3:import \"fog.local/resume/internal/sim\"\n/app/internal/mem/cache.go:3:import \"fog.local/resume/internal/store\"\n/app/internal/sim/types.go:32:  ResumeSeen int `json:\"resume_seen\"`\n/app/internal/sim/types.go:45:  Resume     PathSummary `json:\"resume\"`\n/app/internal/slot/plan.go:4:   \"fog.local/resume/internal/sim\"\n/app/internal/slot/plan.go:5:   \"fog.local/resume/internal/vis\"\n/app/internal/vis/native.go:11: \"fog.local/resume/internal/sim\"\n/app/internal/vis/sight.go:3:import \"fog.local/resume/internal/sim\"\nroot@ccbd9cc473ba:/app# find /app/internal -maxdepth 4 -type f -name '*.go' | wc -l\n14\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 8962,
+        "completion_tokens": 419,
+        "cached_tokens": 8448,
+        "cost_usd": 0.016487799999999997
+      }
+    },
+    {
+      "step_id": 8,
+      "timestamp": "2026-05-28T17:12:58.877537+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: We found key code locations. /app/internal/exec/run.go copies w.Seen into a local seen slice and includes it in something at line ~46, suggesting Seen is part of the world/state. The audit builder in exec/run.go appends freshMoves and resumeMoves into allMoves, which explains duplicates in the JSON moves array. ok is computed only from illegal counts and signature match, ignoring visibility mismatch; so matrix reports ok=true even though visibility differs. The bug to fix for a clean matrix is that resumed visibility must match fresh (restore Seen correctly and/or recompute deterministically), and audit output should likely separate fresh/resume moves or otherwise ensure JSON and sidecars agree on resolved moves in order. Next: open exec/run.go and relevant vis/slot code to see how Seen is initialized for fresh vs resume and why resume_seen is smaller.\nPlan: 1) Open /app/internal/exec/run.go around the Seen handling, save/resume logic, and how visibility counts are computed. 2) Inspect /app/internal/slot/plan.go and /app/internal/vis/* to understand how Seen is mutated and how resume load reconstructs world. 3) Implement fix: ensure resume path uses the same initial Seen state as fresh (likely must persist Seen into the saved blob and restore it), or ensure the loaded world\u2019s Seen is initialized from bundled input rather than zeroed. Also adjust ok to include visibility equality and adjust moves in CaseResult to avoid concatenation confusion (e.g., only include resolved moves once, or include separate arrays). 4) Re-run run-matrix.sh and confirm visibility matches and no duplicate move rows (or that ordering requirements are satisfied).",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_6_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,220p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_6_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '220,380p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_6_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,220p' /app/internal/slot/plan.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_6_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,240p' /app/internal/vis/sight.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_6_5",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,240p' /app/internal/vis/native.go\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# sed -n '1,220p' /app/internal/exec/run.go\npackage exec\n\nimport (\n        \"encoding/json\"\n        \"fmt\"\n        \"os\"\n        \"path/filepath\"\n        \"strconv\"\n        \"strings\"\n\n        \"fog.local/resume/internal/mem\"\n        \"fog.local/resume/internal/mod\"\n        \"fog.local/resume/internal/slot\"\n        \"fog.local/resume/internal/store\"\n        \"fog.local/resume/internal/vis\"\n)\n\nfunc sigFor(moves []MoveRow) string {\n        acc := int64(2166136261)\n        for _, m := range moves {\n                acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)\n                for _, ch := range m.Actor + m.Kind {\n                        acc ^= int64(ch)\n                        acc = (acc * 16777619) & 0x7fffffff\n                }\n        }\n        return fmt.Sprintf(\"%x\", acc)\n}\n\nfunc cloneWorld(w *World) *World {\n        size := w.Width * w.Height\n        seen := append([]bool(nil), w.Seen...)\n        lit := append([]bool(nil), w.Lit...)\n        if len(seen) != size {\n                seen = make([]bool, size)\n        }\n        if len(lit) != size {\n                lit = make([]bool, size)\n        }\n        return &World{\n                Width: w.Width, Height: w.Height,\n                Walls:   append([]bool(nil), w.Walls...),\n                PlayerX: w.PlayerX, PlayerY: w.PlayerY,\n                Hostile: append([]Hostile(nil), w.Hostile...),\n                Turn:    w.Turn,\n                Seen:    seen,\n                Lit:     lit,\n                Effects: append([]EffectState(nil), w.Effects...),\n        }\n}\n\nfunc applyPlayer(w *World, arg string) {\n        parts := strings.Split(arg, \",\")\n        if len(parts) != 2 {\n                return\n        }\n        dx, _ := strconv.Atoi(parts[0])\n        dy, _ := strconv.Atoi(parts[1])\n        nx, ny := w.PlayerX+dx, w.PlayerY+dy\n        if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {\n                w.PlayerX, w.PlayerY = nx, ny\n        }\n}\n\nfunc buildObs(w *World, extra map[string]bool) map[string]bool {\n        out := map[string]bool{}\n        for _, h := range w.Hostile {\n                key := fmt.Sprintf(\"%d,%d\", h.X, h.Y)\n                if extra != nil && extra[key] {\n                        out[key] = true\n                        continue\n                }\n                if vis.PlayerSees(w, h.X, h.Y) {\n                        out[key] = true\n                }\n        }\n        return out\n}\n\nfunc advanceAll(w *World, cache map[string]bool) []MoveRow {\n        rows := []MoveRow{}\n        for i := range w.Hostile {\n                row, ok := slot.PlanSlot(w, cache, i)\n                if ok {\n                        rows = append(rows, row)\n                }\n        }\n        return rows\n}\n\nfunc blindNow(w *World) bool {\n        for _, e := range w.Effects {\n                if e.ID == \"blind\" && w.Turn < e.ExpiryTurn {\n                        return true\n                }\n        }\n        return false\n}\n\nfunc snapToMod(effects []EffectState) []mod.EffectSnap {\n        out := make([]mod.EffectSnap, len(effects))\n        for i, e := range effects {\n                out[i] = mod.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}\n        }\n        return out\n}\n\nfunc mapSnaps(snaps []mod.EffectSnap) []EffectState {\n        out := make([]EffectState, len(snaps))\n        for i, s := range snaps {\n                out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}\n        }\n        return out\n}\n\nfunc profileToMod(p Profile) mod.ProfileSnap {\n        return mod.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}\n}\n\nfunc mapRowSnaps(rows []mod.RowSnap) []EffectRow {\n        out := make([]EffectRow, len(rows))\n        for i, r := range rows {\n                out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}\n        }\n        return out\n}\n\nfunc packWorld(w *World, obs map[string]bool) store.ItemY {\n        effects := make([]store.EffectSnap, len(w.Effects))\n        for i, e := range w.Effects {\n                effects[i] = store.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}\n        }\n        hostiles := make([]store.HostileSnap, len(w.Hostile))\n        for i, h := range w.Hostile {\n                hostiles[i] = store.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}\n        }\n        item := store.ItemY{\n                Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,\n                Effects: effects, Width: w.Width, Height: w.Height,\n                PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,\n        }\n        return store.PackItem(item)\n}\n\nfunc applyWorld(w *World, item store.ItemY) {\n        w.Width = item.Width\n        w.Height = item.Height\n        w.PlayerX = item.PlayerX\n        w.PlayerY = item.PlayerY\n        w.Turn = item.Turn\n        w.Lit = append([]bool(nil), item.Lit...)\n        w.Seen = append([]bool(nil), item.Seen...)\n        w.Hostile = make([]Hostile, len(item.Hostiles))\n        for i, h := range item.Host\n[... output limited to 10000 bytes; 70 interior bytes omitted ...]\nt@ccbd9cc473ba:/app# sed -n '1,220p' /app/internal/slot/plan.go\npackage slot\n\nimport (\n        \"fog.local/resume/internal/sim\"\n        \"fog.local/resume/internal/vis\"\n)\n\ntype tokenX string\n\ntype nodeX struct {\n        Cache map[string]bool\n}\n\nfunc bind_d(a *nodeX, _ tokenX, c []int) (int, int, bool) {\n        if len(c) < 4 {\n                return 0, 0, false\n        }\n        px, py, hx, hy := c[0], c[1], c[2], c[3]\n        bestX, bestY := hx, hy\n        best := 1 << 30\n        for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {\n                nx, ny := hx+delta[0], hy+delta[1]\n                d := (nx-px)*(nx-px) + (ny-py)*(ny-py)\n                if d <= best {\n                        best = d\n                        bestX, bestY = nx, ny\n                }\n        }\n        return bestX, bestY, best < 1<<29\n}\n\nfunc PlanSlot(w *sim.World, cache map[string]bool, idx int) (sim.MoveRow, bool) {\n        if idx >= len(w.Hostile) {\n                return sim.MoveRow{}, false\n        }\n        h := w.Hostile[idx]\n        if !vis.PlayerSees(w, h.X, h.Y) {\n                return sim.MoveRow{}, false\n        }\n        node := &nodeX{Cache: cache}\n        tx, ty, ok := bind_d(node, tokenX(h.ID), []int{w.PlayerX, w.PlayerY, h.X, h.Y})\n        if !ok {\n                return sim.MoveRow{}, false\n        }\n        if w.IsWall(tx, ty) {\n                return sim.MoveRow{}, false\n        }\n        legal := vis.StepLegal(w, h.X, h.Y, tx, ty) && vis.PlayerSees(w, tx, ty)\n        row := sim.MoveRow{\n                Turn: w.Turn, Actor: h.ID,\n                FromX: h.X, FromY: h.Y, ToX: tx, ToY: ty,\n                Kind: \"step\", Legal: legal,\n        }\n        h.X, h.Y = tx, ty\n        w.Hostile[idx] = h\n        return row, true\n}\nroot@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/vis/sight.go\npackage vis\n\nimport \"fog.local/resume/internal/sim\"\n\nfunc ApplyLit(w *sim.World, radius int, blind bool) {\n        size := w.Width * w.Height\n        if len(w.Lit) != size {\n                w.Lit = make([]bool, size)\n        }\n        for i := range w.Lit {\n                w.Lit[i] = false\n        }\n        if blind {\n                return\n        }\n        type point struct{ x, y int }\n        queue := []point{{w.PlayerX, w.PlayerY}}\n        dist := make([]int, size)\n        for i := range dist {\n                dist[i] = -1\n        }\n        start := w.Idx(w.PlayerX, w.PlayerY)\n        dist[start] = 0\n        w.Lit[start] = true\n        for len(queue) > 0 {\n                p := queue[0]\n                queue = queue[1:]\n                d := dist[w.Idx(p.x, p.y)]\n                if d >= radius {\n                        continue\n                }\n                for _, delta := range [][2]int{{1, 0}, {-1, 0}, {0, 1}, {0, -1}} {\n                        nx, ny := p.x+delta[0], p.y+delta[1]\n                        if !w.InBounds(nx, ny) || w.IsWall(nx, ny) {\n                                continue\n                        }\n                        idx := w.Idx(nx, ny)\n                        if dist[idx] >= 0 {\n                                continue\n                        }\n                        dist[idx] = d + 1\n                        w.Lit[idx] = true\n                        queue = append(queue, point{nx, ny})\n                }\n        }\n        if len(w.Seen) != size {\n                w.Seen = make([]bool, size)\n        }\n        for i := 0; i < size; i++ {\n                if w.Lit[i] {\n                        w.Seen[i] = true\n                }\n        }\n}\n\nfunc CountSeen(w *sim.World) int {\n        n := 0\n        for _, v := range w.Seen {\n                if v {\n                        n++\n                }\n        }\n        return n\n}\n\nfunc PlayerSees(w *sim.World, x, y int) bool {\n        if !w.InBounds(x, y) {\n                return false\n        }\n        idx := w.Idx(x, y)\n        if idx >= len(w.Seen) || idx >= len(w.Lit) {\n                return false\n        }\n        litIdx := idx\n        if y == w.Height-1 && y > 0 {\n                litIdx = w.Idx(x, y-1)\n        }\n        return w.Seen[idx] && w.Lit[litIdx]\n}\nroot@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/vis/native.go\npackage vis\n\n/*\n#cgo CFLAGS: -I${SRCDIR}/../../probe\n#include <stdlib.h>\n#include \"legality.h\"\n#include \"../../probe/legality.c\"\n*/\nimport \"C\"\nimport (\n        \"fog.local/resume/internal/sim\"\n        \"unsafe\"\n)\n\nfunc StepLegal(w *sim.World, x0, y0, x1, y1 int) bool {\n        n := w.Width * w.Height\n        buf := C.malloc(C.size_t(n) * C.size_t(unsafe.Sizeof(C.int(0))))\n        if buf == nil {\n                return false\n        }\n        defer C.free(buf)\n        grid := (*[1 << 30]C.int)(buf)[:n:n]\n        for i, wall := range w.Walls {\n                if wall {\n                        grid[i] = 1\n                }\n        }\n        ctx := C.struct_qx{width: C.int(w.Width), height: C.int(w.Height), grid: (*C.int)(buf)}\n        return C.walk_e(&ctx, C.int(x0), C.int(y0), C.int(x1), C.int(y1)) == 1\n}\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 10387,
+        "completion_tokens": 560,
+        "cost_usd": 0.052034499999999984
+      }
+    },
+    {
+      "step_id": 9,
+      "timestamp": "2026-05-28T17:13:09.429406+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: vis.ApplyLit updates Seen based on current Lit each step; thus visibility mismatch implies on resume we are not applying the same sequence of ApplyLit calls or we start with different Seen/Lit. packWorld includes Lit and Seen in the stored item, so persistence exists, but perhaps the resume run loads a snapshot then immediately zeroes Lit/Seen via cloneWorld (len mismatch) or ApplyLit (which clears Lit and, if blind, returns without marking Seen). Another glaring issue: exec/run.go constructs allMoves by concatenating freshMoves and resumeMoves into one array, guaranteeing duplicates whenever resume reproduces the same moves. Also ok ignores visibility. To satisfy 'clean' definition, we should: (a) make audit JSON moves list match the resolved moves for the run (likely fresh only, and separately resume only), or include a run tag; simplest: store only fresh moves in moves and rely on sig for equality. (b) include visibility equality in ok calculation and align resume_seen with fresh_seen by fixing Seen restoration or recomputation.\nGiven mismatches are small (e.g., 9 vs 8), likely a specific edge tile is marked seen in fresh but not in resume due to the PlayerSees litIdx hack (y==height-1 uses y-1 for Lit) combined with ApplyLit clearing Lit before use; if resume starts with a loaded Lit that differs, CountSeen should still match though. More likely: when loading snapshot, Seen slice is assigned, but later cloneWorld size check may reset seen to zeros because len(seen)!=size due to size mismatch when Width/Height not yet set at clone time or when packed item uses stale dims. Need to inspect applyWorld and runLoaded/runFresh logic in exec/run.go (rest of file) to see ordering.\nPlan: 1) View the remainder of exec/run.go (applyWorld onward, and runFresh/runLoaded) to find where width/height/seen/lit are initialized and whether cloneWorld is called before dimensions are set. 2) Identify why resume_seen differs: likely applyWorld sets w.Seen but later cloneWorld resets it due to len mismatch, or ApplyLit early-returns on blind without preserving loaded Seen. Fix by ensuring World dimensions are set before cloning, and ensure ApplyLit does not wipe Lit/Seen incorrectly on resume (e.g., don\u2019t clear Seen when blind, only skip lighting). 3) Fix audit output: change CaseResult moves to include only fresh moves (and maybe keep resume moves in separate field if schema allows, but simplest per description is that moves/effects collections described by CaseResult should represent resolved moves in order\u2014should be identical for fresh/resume). So store freshMoves only, and compare sidecars against that.\n4) Update ok to require visibility fresh_seen==resume_seen.\n5) Re-run one-case for knight/rook and full matrix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_7_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '220,520p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_7_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '520,820p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# sed -n '220,520p' /app/internal/exec/run.go\n                if step.Action == \"save\" {\n                        pastSave = true\n                        continue\n                }\n                if !pastSave {\n                        continue\n                }\n                w.Turn = step.Turn\n                if step.Actor == \"P\" {\n                        applyPlayer(w, step.Arg)\n                        vis.ApplyLit(w, radius, blindNow(w))\n                }\n                if step.Actor == \"H\" {\n                        moves = append(moves, advanceAll(w, merged)...)\n                }\n        }\n        return moves\n}\n\nfunc RunRow(root, name string) (CaseResult, error) {\n        profile := ProfileFor(name)\n        radius, _ := LoadRadius(root, name)\n        if radius == 0 {\n                radius = profile.Radius\n        }\n        base, err := LoadLayout(root, name)\n        if err != nil {\n                return CaseResult{}, err\n        }\n        steps, err := LoadScript(root, name)\n        if err != nil {\n                return CaseResult{}, err\n        }\n\n        wFresh := cloneWorld(base)\n        wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))\n        blob, stale := playUntilSave(wFresh, steps, profile, radius)\n        freshMoves := runDirect(wFresh, steps, profile, radius)\n\n        wResume := cloneWorld(base)\n        wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))\n        playUntilSave(wResume, steps, profile, radius)\n        resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)\n\n        freshIllegal, resumeIllegal := 0, 0\n        for _, m := range freshMoves {\n                if !m.Legal {\n                        freshIllegal++\n                }\n        }\n        for _, m := range resumeMoves {\n                if !m.Legal {\n                        resumeIllegal++\n                }\n        }\n        allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n        caseDir := filepath.Join(root, \"workspace\", name)\n        _ = os.MkdirAll(caseDir, 0o755)\n        recPath := filepath.Join(caseDir, \"records.jsonl\")\n        logPath := filepath.Join(caseDir, \"trace.tsv\")\n        flushRows(recPath, logPath, name, allMoves)\n\n        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n        ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n\n        return CaseResult{\n                Name:       name,\n                OK:         ok,\n                Fresh:      fresh,\n                Resume:     resume,\n                Moves:      allMoves,\n                Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n                Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),\n                Records:    recPath,\n                Log:        logPath,\n        }, nil\n}\n\nfunc flushRows(recPath, logPath, name string, moves []MoveRow) {\n        rec, _ := os.Create(recPath)\n        defer rec.Close()\n        for _, m := range moves {\n                b, _ := json.Marshal(m)\n                _, _ = rec.Write(append(b, '\\n'))\n        }\n        log, _ := os.Create(logPath)\n        defer log.Close()\n        for _, m := range moves {\n                fmt.Fprintf(log, \"%s\\t%d\\t%s\\t%d\\t%d\\t%d\\t%d\\t%v\\n\",\n                        name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)\n        }\n}\nroot@ccbd9cc473ba:/app# sed -n '520,820p' /app/internal/exec/run.go\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 13706,
+        "completion_tokens": 688,
+        "cached_tokens": 10752,
+        "cost_usd": 0.03336620000000001
+      }
+    },
+    {
+      "step_id": 10,
+      "timestamp": "2026-05-28T17:13:17.538947+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: Bug cause for visibility mismatch: wFresh is advanced through the whole script by runDirect, applying vis.ApplyLit after player steps. wResume is only advanced through playUntilSave and then runLoaded; runLoaded likely replays only post-save steps and may miss some ApplyLit calls or not restore Seen/Lit correctly from blob/stale. However, the audit counts vis.CountSeen(wFresh) and vis.CountSeen(wResume) after these runs; since wResume differs, resume_seen is smaller.\nAlso audit duplicates moves because it concatenates fresh+resume into allMoves and flushes them to sidecars; that guarantees sidecars contain both runs, violating \u201csame resolved moves in order\u201d expectation. The simplest repair: store only freshMoves in moves/sidecars (since sig equality ensures resume matches), and calculate ok to also require visibility equality. Then fix resume visibility by ensuring runLoaded applies ApplyLit at the same points and/or after loading state.\nWe need to inspect playUntilSave/runDirect/runLoaded definitions earlier in file (not yet viewed due to truncation in applyWorld). We'll open around applyWorld and those functions.\nPlan: 1) Print exec/run.go from applyWorld through runLoaded to locate missing ApplyLit calls / incorrect world application. 2) Fix runLoaded to call vis.ApplyLit immediately after applyWorld(load) and after every player move, matching runDirect. Also ensure seen slice length matches after load.\n3) Fix RunRow to write only one canonical move stream (freshMoves) to JSON/sidecars, and optionally keep resumeMoves separate out of band; align with CaseResult schema in sim/types.go.\n4) Update ok to include visibility equality.\n5) Re-run one-case and matrix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_8_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "grep -n \"func applyWorld\" -n /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_8_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '120,260p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_8_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '260,360p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_8_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,120p' /app/internal/exec/run.go\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# grep -n \"func applyWorld\" -n /app/internal/exec/run.go\n145:func applyWorld(w *World, item store.ItemY) {\nroot@ccbd9cc473ba:/app# sed -n '120,260p' /app/internal/exec/run.go\nfunc mapRowSnaps(rows []mod.RowSnap) []EffectRow {\n        out := make([]EffectRow, len(rows))\n        for i, r := range rows {\n                out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}\n        }\n        return out\n}\n\nfunc packWorld(w *World, obs map[string]bool) store.ItemY {\n        effects := make([]store.EffectSnap, len(w.Effects))\n        for i, e := range w.Effects {\n                effects[i] = store.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}\n        }\n        hostiles := make([]store.HostileSnap, len(w.Hostile))\n        for i, h := range w.Hostile {\n                hostiles[i] = store.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}\n        }\n        item := store.ItemY{\n                Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,\n                Effects: effects, Width: w.Width, Height: w.Height,\n                PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,\n        }\n        return store.PackItem(item)\n}\n\nfunc applyWorld(w *World, item store.ItemY) {\n        w.Width = item.Width\n        w.Height = item.Height\n        w.PlayerX = item.PlayerX\n        w.PlayerY = item.PlayerY\n        w.Turn = item.Turn\n        w.Lit = append([]bool(nil), item.Lit...)\n        w.Seen = append([]bool(nil), item.Seen...)\n        w.Hostile = make([]Hostile, len(item.Hostiles))\n        for i, h := range item.Hostiles {\n                w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}\n        }\n        w.Effects = make([]EffectState, len(item.Effects))\n        for i, e := range item.Effects {\n                w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}\n        }\n}\n\nfunc playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (store.ItemY, map[string]bool) {\n        visStale := map[string]bool{}\n        var blob store.ItemY\n        for _, step := range steps {\n                w.Turn = step.Turn\n                if step.Action == \"save\" {\n                        vis := buildObs(w, nil)\n                        for k, v := range visStale {\n                                vis[k] = v\n                        }\n                        blob = packWorld(w, vis)\n                        break\n                }\n                if step.Actor == \"P\" {\n                        applyPlayer(w, step.Arg)\n                        vis.ApplyLit(w, radius, blindNow(w))\n                        visStale = buildObs(w, nil)\n                }\n        }\n        return blob, visStale\n}\n\nfunc runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {\n        moves := []MoveRow{}\n        pastSave := false\n        for _, step := range steps {\n                if step.Action == \"save\" {\n                        pastSave = true\n                        continue\n                }\n                if !pastSave {\n                        continue\n                }\n                w.Turn = step.Turn\n                if step.Actor == \"P\" {\n                        applyPlayer(w, step.Arg)\n                        vis.ApplyLit(w, radius, blindNow(w))\n                }\n                if step.Actor == \"H\" {\n                        moves = append(moves, advanceAll(w, buildObs(w, nil))...)\n                }\n        }\n        return moves\n}\n\nfunc runLoaded(w *World, steps []ScriptStep, blob store.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {\n        applyWorld(w, blob)\n        cache := &mem.CacheX{Obs: map[string]bool{}}\n        mem.Merge(cache, blob)\n        merged := mem.Snapshot(cache)\n        for k, v := range stale {\n                merged[k] = v\n        }\n        w.Effects = mapSnaps(mod.SyncBoundary(snapToMod(w.Effects), blob.Turn, w.Turn))\n        moves := []MoveRow{}\n        pastSave := false\n        for _, step := range steps {\n                if step.Action == \"save\" {\n                        pastSave = true\n                        continue\n                }\n                if !pastSave {\n                        continue\n                }\n                w.Turn = step.Turn\n                if step.Actor == \"P\" {\n                        applyPlayer(w, step.Arg)\n                        vis.ApplyLit(w, radius, blindNow(w))\n                }\n                if step.Actor == \"H\" {\n                        moves = append(moves, advanceAll(w, merged)...)\n                }\n        }\n        return moves\n}\n\nfunc RunRow(root, name string) (CaseResult, error) {\n        profile := ProfileFor(name)\n        radius, _ := LoadRadius(root, name)\n        if radius == 0 {\n                radius = profile.Radius\n        }\n        base, err := LoadLayout(root, name)\n        if err != nil {\n                return CaseResult{}, err\n        }\n        steps, err := LoadScript(root, name)\n        if err != nil {\n                retur\n[... output limited to 10000 bytes; 70 interior bytes omitted ...]\n\n\n        fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n        resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n        ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n\n        return CaseResult{\n                Name:       name,\n                OK:         ok,\n                Fresh:      fresh,\n                Resume:     resume,\n                Moves:      allMoves,\n                Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n                Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),\n                Records:    recPath,\n                Log:        logPath,\n        }, nil\n}\n\nfunc flushRows(recPath, logPath, name string, moves []MoveRow) {\n        rec, _ := os.Create(recPath)\n        defer rec.Close()\n        for _, m := range moves {\n                b, _ := json.Marshal(m)\n                _, _ = rec.Write(append(b, '\\n'))\n        }\n        log, _ := os.Create(logPath)\n        defer log.Close()\n        for _, m := range moves {\n                fmt.Fprintf(log, \"%s\\t%d\\t%s\\t%d\\t%d\\t%d\\t%d\\t%v\\n\",\n                        name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)\n        }\n}\nroot@ccbd9cc473ba:/app# sed -n '1,120p' /app/internal/exec/run.go\npackage exec\n\nimport (\n        \"encoding/json\"\n        \"fmt\"\n        \"os\"\n        \"path/filepath\"\n        \"strconv\"\n        \"strings\"\n\n        \"fog.local/resume/internal/mem\"\n        \"fog.local/resume/internal/mod\"\n        \"fog.local/resume/internal/slot\"\n        \"fog.local/resume/internal/store\"\n        \"fog.local/resume/internal/vis\"\n)\n\nfunc sigFor(moves []MoveRow) string {\n        acc := int64(2166136261)\n        for _, m := range moves {\n                acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)\n                for _, ch := range m.Actor + m.Kind {\n                        acc ^= int64(ch)\n                        acc = (acc * 16777619) & 0x7fffffff\n                }\n        }\n        return fmt.Sprintf(\"%x\", acc)\n}\n\nfunc cloneWorld(w *World) *World {\n        size := w.Width * w.Height\n        seen := append([]bool(nil), w.Seen...)\n        lit := append([]bool(nil), w.Lit...)\n        if len(seen) != size {\n                seen = make([]bool, size)\n        }\n        if len(lit) != size {\n                lit = make([]bool, size)\n        }\n        return &World{\n                Width: w.Width, Height: w.Height,\n                Walls:   append([]bool(nil), w.Walls...),\n                PlayerX: w.PlayerX, PlayerY: w.PlayerY,\n                Hostile: append([]Hostile(nil), w.Hostile...),\n                Turn:    w.Turn,\n                Seen:    seen,\n                Lit:     lit,\n                Effects: append([]EffectState(nil), w.Effects...),\n        }\n}\n\nfunc applyPlayer(w *World, arg string) {\n        parts := strings.Split(arg, \",\")\n        if len(parts) != 2 {\n                return\n        }\n        dx, _ := strconv.Atoi(parts[0])\n        dy, _ := strconv.Atoi(parts[1])\n        nx, ny := w.PlayerX+dx, w.PlayerY+dy\n        if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {\n                w.PlayerX, w.PlayerY = nx, ny\n        }\n}\n\nfunc buildObs(w *World, extra map[string]bool) map[string]bool {\n        out := map[string]bool{}\n        for _, h := range w.Hostile {\n                key := fmt.Sprintf(\"%d,%d\", h.X, h.Y)\n                if extra != nil && extra[key] {\n                        out[key] = true\n                        continue\n                }\n                if vis.PlayerSees(w, h.X, h.Y) {\n                        out[key] = true\n                }\n        }\n        return out\n}\n\nfunc advanceAll(w *World, cache map[string]bool) []MoveRow {\n        rows := []MoveRow{}\n        for i := range w.Hostile {\n                row, ok := slot.PlanSlot(w, cache, i)\n                if ok {\n                        rows = append(rows, row)\n                }\n        }\n        return rows\n}\n\nfunc blindNow(w *World) bool {\n        for _, e := range w.Effects {\n                if e.ID == \"blind\" && w.Turn < e.ExpiryTurn {\n                        return true\n                }\n        }\n        return false\n}\n\nfunc snapToMod(effects []EffectState) []mod.EffectSnap {\n        out := make([]mod.EffectSnap, len(effects))\n        for i, e := range effects {\n                out[i] = mod.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}\n        }\n        return out\n}\n\nfunc mapSnaps(snaps []mod.EffectSnap) []EffectState {\n        out := make([]EffectState, len(snaps))\n        for i, s := range snaps {\n                out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}\n        }\n        return out\n}\n\nfunc profileToMod(p Profile) mod.ProfileSnap {\n        return mod.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}\n}\n\nfunc mapRowSnaps(rows []mod.RowSnap) []EffectRow {\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 15271,
+        "completion_tokens": 533,
+        "cached_tokens": 14208,
+        "cost_usd": 0.023617300000000008
+      }
+    },
+    {
+      "step_id": 11,
+      "timestamp": "2026-05-28T17:13:29.247273+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: runLoaded appliesWorld(w, blob) but does not recompute lighting/seen after load. In the direct path, playUntilSave calls ApplyLit after each player move prior to save, so at save time Lit/Seen are consistent with last player action. However, packWorld stores Lit/Seen; applyWorld restores them, so counts should match. The mismatch suggests that in resume path we call playUntilSave(wResume, steps, ...) before runLoaded; playUntilSave mutates wResume up to save, including Seen. Then runLoaded immediately overwrites wResume with blob from wFresh. That blob\u2019s Seen/Lit reflect wFresh at save. So far so good. Then runLoaded proceeds post-save; it calls ApplyLit on player moves, same as runDirect. So why mismatch? The key difference is buildObs cache: runDirect uses buildObs(w,nil) each hostile step; runLoaded uses merged (snapshot obs at save) for all hostile steps, not updating it as player moves. That means hostiles may plan/move differently (but sig matches so moves end up same), but visibility counts differ because w.Seen is updated only via ApplyLit, independent of cache. So mismatch must come from ApplyLit behavior: it clears w.Lit to false every call; if blindNow(w) is true, it returns early, leaving Seen unchanged but Lit all false. PlayerSees requires both Seen and Lit[litIdx]. If at end of script Lit is all false due to last ApplyLit called during blindness, then buildObs would see fewer, but CountSeen counts Seen not Lit. Still mismatch is in Seen counts, meaning some Seen updates in fresh not happening in resume. That can happen if fresh path calls ApplyLit more times than resume path. Indeed: wFresh is used by playUntilSave then runDirect starting after save; wFresh continues from pre-save state (already advanced) and runDirect only applies lit for post-save player steps. wResume: playUntilSave advances to save, then runLoaded loops post-save applying lit similarly. Call counts match. Unless runLoaded misses a lit application right after loading blob: if the first post-save step is hostile (H) without an intervening P step, then wFresh has Lit from before save (in blob) but wResume after applyWorld has Lit from blob too, so fine. Yet mismatch persists.\nLikely root: store.PackItem compresses and drops the last element of Seen/Lit due to packing bug, yielding length size-1, causing cloneWorld earlier to zero-fill? But applyWorld uses item.Width/Height etc; CountSeen sees shorter slice maybe missing last true cells, reducing count by small amount (exactly 3 for knight/lancer; 1 for others). So pack/unpack likely truncates bool slices due to base64/bitpacking.\nWe should inspect internal/store packing.\nPlan: Inspect /app/internal/store implementation of PackItem/Unpack and ItemY definitions for Lit/Seen handling. Fix packing to preserve full-length bool slices deterministically. Then adjust audit: set ok to include visibility equality and avoid concatenated moves; write sidecars for fresh moves only. Finally rerun matrix.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_9_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "ls -la /app/internal/store\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_9_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,240p' /app/internal/store/*.go\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_9_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "sed -n '1,260p' /app/internal/mem/cache.go\n",
+            "duration": 0.1
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# ls -la /app/internal/store\ntotal 4\ndrwxr-xr-x  2 root root  21 May 28 17:09 .\ndrwxr-xr-x 11 root root 107 May 28 17:09 ..\n-rw-r--r--  1 root root 887 May 28 17:09 pack.go\nroot@ccbd9cc473ba:/app# sed -n '1,240p' /app/internal/store/*.go\npackage store\n\ntype stateX struct {\n        Lit  []bool\n        Seen []bool\n        Turn int\n}\n\ntype EffectSnap struct {\n        ID         string\n        ExpiryTurn int\n        Active     bool\n}\n\ntype HostileSnap struct {\n        ID string\n        X  int\n        Y  int\n}\n\ntype ItemY struct {\n        Lit      []bool\n        Seen     []bool\n        Turn     int\n        Obs      map[string]bool\n        Effects  []EffectSnap\n        Width    int\n        Height   int\n        PlayerX  int\n        PlayerY  int\n        Hostiles []HostileSnap\n}\n\nfunc phase_a(a *stateX, b ItemY) error {\n        a.Lit = append([]bool(nil), b.Lit...)\n        a.Seen = append([]bool(nil), b.Seen...)\n        a.Turn = b.Turn\n        return nil\n}\n\nfunc PackItem(b ItemY) ItemY {\n        st := &stateX{}\n        _ = phase_a(st, b)\n        out := b\n        out.Seen = append([]bool(nil), st.Lit...)\n        if len(out.Seen) < len(b.Seen) {\n                out.Seen = append(out.Seen, make([]bool, len(b.Seen)-len(out.Seen))...)\n        } else if len(out.Seen) > len(b.Seen) {\n                out.Seen = out.Seen[:len(b.Seen)]\n        }\n        return out\n}\nroot@ccbd9cc473ba:/app# sed -n '1,260p' /app/internal/mem/cache.go\npackage mem\n\nimport \"fog.local/resume/internal/store\"\n\ntype CacheX struct {\n        Obs     map[string]bool\n        Version uint64\n}\n\nfunc fold_b(a *CacheX, b store.ItemY) error {\n        if a.Obs == nil {\n                a.Obs = map[string]bool{}\n        }\n        if a.Version != 0 && a.Version != uint64(b.Turn) {\n                for key, val := range b.Obs {\n                        if val {\n                                a.Obs[key] = true\n                        }\n                }\n                a.Version = uint64(b.Turn)\n                return nil\n        }\n        for key, val := range b.Obs {\n                a.Obs[key] = val\n        }\n        for key, val := range a.Obs {\n                if !val && b.Obs[key] {\n                        a.Obs[key] = true\n                }\n        }\n        a.Version = uint64(b.Turn)\n        return nil\n}\n\nfunc Merge(a *CacheX, blob store.ItemY) {\n        _ = fold_b(a, blob)\n}\n\nfunc Snapshot(a *CacheX) map[string]bool {\n        out := map[string]bool{}\n        for k, v := range a.Obs {\n                out[k] = v\n        }\n        return out\n}\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 18293,
+        "completion_tokens": 784,
+        "cached_tokens": 15616,
+        "cost_usd": 0.03678710000000002
+      }
+    },
+    {
+      "step_id": 12,
+      "timestamp": "2026-05-28T17:14:06.738907+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: Found the root cause: store.PackItem is wrong. It sets out.Seen = st.Lit (copying Lit into Seen), then resizes to match b.Seen length. This corrupts Seen on save/load: after packing, Seen becomes Lit (which is only the currently lit cells, not cumulative seen), and likely loses some truths, causing resume_seen smaller than fresh_seen. This exactly explains systematic fresh_seen > resume_seen after resuming from a save blob. Fix: PackItem should not overwrite Seen with Lit. It likely intended to pack state but currently mangles. Since there is no actual encoding/decoding, simplest is to just return b (or deep-copy slices) without altering fields. Implement PackItem to copy Lit/Seen (and other fields as needed) but preserve values. After that, resume_seen should match fresh_seen.\nAdditionally, audit concatenates moves and ok ignores visibility. We'll fix RunRow: write only freshMoves to Moves/sidecars, and set ok to also require visibility equality and signature match etc.\nPlan: 1) Fix /app/internal/store/pack.go PackItem to preserve Seen and Lit (no swapping). Remove stateX/phase_a if unnecessary, or make it a pure deep-copy. 2) Fix /app/internal/exec/run.go: set ok to include vis.CountSeen(wFresh)==vis.CountSeen(wResume); set Moves to freshMoves (or both separated; but schema has only Moves so use freshMoves), and flushRows with freshMoves so sidecars match JSON moves list. 3) Run gofmt. 4) Re-run one-case knight and matrix, verify visibility matches and duplicates gone.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_10_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/store/pack.go\n@@\n package store\n \n-type stateX struct {\n-        Lit  []bool\n-        Seen []bool\n-        Turn int\n-}\n-\n@@\n type ItemY struct {\n@@\n }\n-\n-func phase_a(a *stateX, b ItemY) error {\n-        a.Lit = append([]bool(nil), b.Lit...)\n-        a.Seen = append([]bool(nil), b.Seen...)\n-        a.Turn = b.Turn\n-        return nil\n-}\n-\n func PackItem(b ItemY) ItemY {\n-        st := &stateX{}\n-        _ = phase_a(st, b)\n-        out := b\n-        out.Seen = append([]bool(nil), st.Lit...)\n-        if len(out.Seen) < len(b.Seen) {\n-                out.Seen = append(out.Seen, make([]bool, len(b.Seen)-len(out.Seen))...)\n-        } else if len(out.Seen) > len(b.Seen) {\n-                out.Seen = out.Seen[:len(b.Seen)]\n-        }\n-        return out\n+\t// PackItem is used as the \u201csave blob\u201d passed across the resume boundary.\n+\t// It must preserve all state exactly; in particular Seen must remain the\n+\t// cumulative exploration map, not the current Lit mask.\n+\tout := b\n+\tout.Lit = append([]bool(nil), b.Lit...)\n+\tout.Seen = append([]bool(nil), b.Seen...)\n+\treturn out\n }\n*** End Patch\nPATCH\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_10_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/exec/run.go\n@@\n \t\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n \t\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n-\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n+\t\tfreshSeen := vis.CountSeen(wFresh)\n+\t\tresumeSeen := vis.CountSeen(wResume)\n+\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\n@@\n-\t\t\tMoves:      allMoves,\n-\t\t\tVisibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n+\t\t\t// Moves are the resolved move list for the case. Fresh and resumed runs\n+\t\t\t// must agree, so we publish the fresh path and validate via signature.\n+\t\t\tMoves:      freshMoves,\n+\t\t\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\n*** End Patch\nPATCH\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_10_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/exec/run.go\n@@\n-\t\tallMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n+\t\t// Sidecars should list the resolved moves in order (same list as JSON).\n+\t\t// Since fresh/resume must match, write the fresh path only.\n+\t\tallMoves := freshMoves\n*** End Patch\nPATCH\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_10_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_10_5",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/one-case.sh knight\n",
+            "duration": 5.0
+          }
+        },
+        {
+          "tool_call_id": "call_10_6",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/single-knight.json'\nwith open(p) as f:\n    data=json.load(f)\nc=data['cases'][0]\nprint('ok',c['ok'])\nprint('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])\nprint('moves',len(c['moves']))\nPY\n",
+            "duration": 0.5
+          }
+        },
+        {
+          "tool_call_id": "call_10_7",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+            "duration": 10.0
+          }
+        },
+        {
+          "tool_call_id": "call_10_8",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfail=[]\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('resume_seen'):\n        fail.append(c['name'])\nprint('fail',fail)\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))\nPY\n",
+            "duration": 1.0
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# apply_patch <<'PATCH'\n> *** Begin Patch\n> *** Update File: internal/store/pack.go\n> @@\n>  package store\n>\n> -type stateX struct {\n> -        Lit  []bool\n> -        Seen []bool\n> -        Turn int\n> -}\n> -\n> @@\n>  type ItemY struct {\n> @@\n>  }\n> -\n> -func phase_a(a *stateX, b ItemY) error {\n> -        a.Lit = append([]bool(nil), b.Lit...)\n> -        a.Seen = append([]bool(nil), b.Seen...)\n> -        a.Turn = b.Turn\n> -        return nil\n> -}\n> -\n>  func PackItem(b ItemY) ItemY {\n> -        st := &stateX{}\n> -        _ = phase_a(st, b)\n> -        out := b\n> -        out.Seen = append([]bool(nil), st.Lit...)\n> -        if len(out.Seen) < len(b.Seen) {\n> -                out.Seen = append(out.Seen, make([]bool, len(b.Seen)-len(out.Seen))...)\n> -        } else if len(out.Seen) > len(b.Seen) {\n> -                out.Seen = out.Seen[:len(b.Seen)]\n> -        }\n> -        return out\n> +// PackItem is used as the \u201csave blob\u201d passed across the resume boundary.\n> +// It must preserve all state exactly; in particular Seen must remain the\n> +// cumulative exploration map, not the current Lit mask.\n> +out := b\n> +out.Lit = append([]bool(nil), b.Lit...)\n> +out.Seen = append([]bool(nil), b.Seen...)\n> +return out\n>  }\n> *** End Patch\n> PATCH\nbash: apply_patch: command not found\nroot@ccbd9cc473ba:/app# apply_patch <<'PATCH'\n> *** Begin Patch\n> *** Update File: internal/exec/run.go\n> @@\n>\nMakefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/   workspace/\n>  fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n>\nMakefile   README.md  bin/       cmd/       config/    data/      docs/      go.mod     internal/  output/    probe/     scripts/   workspace/\n>  resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n> -ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n> +freshSeen := vis.CountSeen(wFresh)\n> +resumeSeen := vis.CountSeen(wResume)\n> +ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\n> @@\n> -Moves:      allMoves,\n> -Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n> +// Moves are the resolved move list for the case. Fresh and resumed runs\n> +// must agree, so we publish the fresh path and validate via signature.\n> +Moves:      freshMoves,\n> +Visibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\n> *** End Patch\n> PATCH\nbash: apply_patch: command not found\nroot@ccbd9cc473ba:/app# apply_patch <<'PATCH'\n> *** Begin Patch\n> *** Update File: internal/exec/run.go\n> @@\n> -allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n> +// Sidecars should list the resolved moves in order (same list as JSON).\n> +// Since fresh/resume must match, write the fresh path only.\n> +allMoves := freshMoves\n> *** End Patch\n> PATCH\nbash: apply_patch: command not found\nroot@ccbd9cc473ba:/app# gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go\nroot@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/single-knight.json'\n> with open(p) as f:\n>     data=json.load(f)\n> c=data['cases'][0]\n> print('ok',c['ok'])\n> print('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])\n> print('moves',len(c['moves']))\n> PY\nok True\nfresh_seen 7 resume_seen 4\nmoves 0\nroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> fail=[]\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('\nresume_seen'):\n>         fail.append(c['name'])\n> print('fail',fail)\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))\n> PY\nfail ['knight', 'lancer', 'ranger', 'rook', 'sentinel']\nbishop ok= True sig= 811c9dc5 seen= 0 0 moves= 0\nknight ok= True sig= 811c9dc5 seen= 7 4 moves= 0\nlancer ok= True sig= 811c9dc5 seen= 18 15 moves= 0\nranger ok= True sig= 5c4ed3de seen= 9 8 moves= 4\nrook ok= True sig= 7d3f56fa seen= 9 8 moves= 2\nsentinel ok= True sig= 9a98d68 seen= 9 8 moves= 2\nwarden ok= True sig= 811c9dc5 seen= 0 0 moves= 0\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 19822,
+        "completion_tokens": 1641,
+        "cached_tokens": 9216,
+        "cost_usd": 0.0862946
+      }
+    },
+    {
+      "step_id": 13,
+      "timestamp": "2026-05-28T17:14:39.122596+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: apply_patch is not available, so none of the intended code changes were applied. gofmt ran but on unchanged sources. Visibility mismatches remain. We need to edit files using available tools (e.g., sed/heredoc with cat) to implement the fixes manually: correct internal/store/pack.go PackItem, and adjust internal/exec/run.go to (1) compute ok including visibility equality, and (2) write only freshMoves to Moves and sidecars (no concatenation). After edits, run gofmt, rerun one-case and matrix.\nPlan: 1) Overwrite /app/internal/store/pack.go with corrected content using cat <<'EOF' > file. 2) Edit /app/internal/exec/run.go using a small python script to perform targeted replacements (safer than sed for multi-line), or rewrite the RunRow tail region. We'll use python to patch specific substrings: replace allMoves concatenation block, ok computation, and CaseResult fields for Moves/Visibility. 3) gofmt the modified files. 4) Re-run one-case knight and matrix and validate that visibility matches and that moves are not duplicated.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_11_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "cat > /app/internal/store/pack.go <<'EOF'\npackage store\n\ntype EffectSnap struct {\n\tID         string\n\tExpiryTurn int\n\tActive     bool\n}\n\ntype HostileSnap struct {\n\tID string\n\tX  int\n\tY  int\n}\n\ntype ItemY struct {\n\tLit      []bool\n\tSeen     []bool\n\tTurn     int\n\tObs      map[string]bool\n\tEffects  []EffectSnap\n\tWidth    int\n\tHeight   int\n\tPlayerX  int\n\tPlayerY  int\n\tHostiles []HostileSnap\n}\n\n// PackItem produces the \u201csave blob\u201d passed across the resume boundary.\n// It must preserve all state exactly.\nfunc PackItem(b ItemY) ItemY {\n\tout := b\n\tout.Lit = append([]bool(nil), b.Lit...)\n\tout.Seen = append([]bool(nil), b.Seen...)\n\treturn out\n}\nEOF\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_11_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np=Path('/app/internal/exec/run.go')\ns=p.read_text()\n# 1) ensure sidecars/moves are fresh-only\ns=s.replace(\n\"\\t\\tallMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\\n\",\n\"\\t\\t// Sidecars should list the resolved moves in order (same list as JSON).\\n\\t\\t// Since fresh/resume must match, write the fresh path only.\\n\\t\\tallMoves := freshMoves\\n\",\n)\n# 2) compute seen and include in ok\ns=s.replace(\n\"\\t\\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\\n\\t\\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\\n\\t\\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\\n\",\n\"\\t\\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\\n\\t\\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\\n\\t\\tfreshSeen := vis.CountSeen(wFresh)\\n\\t\\tresumeSeen := vis.CountSeen(wResume)\\n\\t\\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\\n\",\n)\n# 3) publish fresh moves + reuse seen vars\ns=s.replace(\n\"\\t\\t\\tMoves:      allMoves,\\n\\t\\t\\tVisibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\\n\",\n\"\\t\\t\\t// Moves are the resolved move list for the case. Fresh and resumed runs\\n\\t\\t\\t// must agree, so we publish the fresh path and validate via signature.\\n\\t\\t\\tMoves:      freshMoves,\\n\\t\\t\\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\\n\",\n)\n# sanity check: did we actually change?\nif 'freshSeen := vis.CountSeen(wFresh)' not in s:\n    raise SystemExit('patch failed: ok/seen block not updated')\np.write_text(s)\nprint('patched', p)\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_11_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_11_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/one-case.sh knight\n",
+            "duration": 5.0
+          }
+        },
+        {
+          "tool_call_id": "call_11_5",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/single-knight.json'\nwith open(p) as f:\n    c=json.load(f)['cases'][0]\nprint('ok',c['ok'])\nprint('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])\nPY\n",
+            "duration": 0.5
+          }
+        },
+        {
+          "tool_call_id": "call_11_6",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+            "duration": 10.0
+          }
+        },
+        {
+          "tool_call_id": "call_11_7",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nfail=[]\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('resume_seen'):\n        fail.append(c['name'])\nprint('fail',fail)\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))\nPY\n",
+            "duration": 1.0
+          }
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app# cat > /app/internal/store/pack.go <<'EOF'\n> package store\n>\n> type EffectSnap struct {\n> ID         string\n> ExpiryTurn int\n> Active     bool\n> }\n>\n> type HostileSnap struct {\n> ID string\n> X  int\n> Y  int\n> }\n>\n> type ItemY struct {\n> Lit      []bool\n> Seen     []bool\n> Turn     int\n> Obs      map[string]bool\n> Effects  []EffectSnap\n> Width    int\n> Height   int\n> PlayerX  int\n> PlayerY  int\n> Hostiles []HostileSnap\n> }\n>\n> // PackItem produces the \u201csave blob\u201d passed across the resume boundary.\n> // It must preserve all state exactly.\n> func PackItem(b ItemY) ItemY {\n> out := b\n> out.Lit = append([]bool(nil), b.Lit...)\n> out.Seen = append([]bool(nil), b.Seen...)\n> return out\n> }\n> EOF\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> from pathlib import Path\n> p=Path('/app/internal/exec/run.go')\n> s=p.read_text()\n> # 1) ensure sidecars/moves are fresh-only\n> s=s.replace(\n> \"\\t\\tallMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\\n\",\n> \"\\t\\t// Sidecars should list the resolved moves in order (same list as JSON).\\n\\t\\t// Since fresh/resume must match, write the fresh path only.\\n\\t\\tallMoves\n:= freshMoves\\n\",\n> )\n> # 2) compute seen and include in ok\n> s=s.replace(\n> \"\\t\\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\\n\\t\\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal\n: resumeIllegal, Steps: len(resumeMoves)}\\n\\t\\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\\n\",\n> \"\\t\\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\\n\\t\\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal\n: resumeIllegal, Steps: len(resumeMoves)}\\n\\t\\tfreshSeen := vis.CountSeen(wFresh)\\n\\t\\tresumeSeen := vis.CountSeen(wResume)\\n\\t\\tok := freshIllegal == 0 && resu\nmeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\\n\",\n> )\n> # 3) publish fresh moves + reuse seen vars\n> s=s.replace(\n> \"\\t\\t\\tMoves:      allMoves,\\n\\t\\t\\tVisibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\\n\",\n> \"\\t\\t\\t// Moves are the resolved move list for the case. Fresh and resumed runs\\n\\t\\t\\t// must agree, so we publish the fresh path and validate via signature.\n\\n\\t\\t\\tMoves:      freshMoves,\\n\\t\\t\\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\\n\",\n> )\n> # sanity check: did we actually change?\n> if 'freshSeen := vis.CountSeen(wFresh)' not in s:\n>     raise SystemExit('patch failed: ok/seen block not updated')\n> p.write_text(s)\n> print('patched', p)\n> PY\npatch failed: ok/seen block not updated\nroot@ccbd9cc473ba:/app# gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go\nroot@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/single-knight.json'\n> with open(p) as f:\n>     c=json.load(f)['cases'][0]\n> print('ok',c['ok'])\n> print('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])\n> PY\nok True\nfresh_seen 7 resume_seen 7\nroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> fail=[]\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('\nresume_seen'):\n>         fail.append(c['name'])\n> print('fail',fail)\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))\n> PY\nfail []\nbishop ok= True sig= 811c9dc5 seen= 0 0 moves= 0\nknight ok= True sig= 811c9dc5 seen= 7 7 moves= 0\nlancer ok= True sig= 811c9dc5 seen= 18 18 moves= 0\nranger ok= True sig= 5c4ed3de seen= 9 9 moves= 4\nrook ok= True sig= 7d3f56fa seen= 9 9 moves= 2\nsentinel ok= True sig= 9a98d68 seen= 9 9 moves= 2\nwarden ok= True sig= 811c9dc5 seen= 0 0 moves= 0\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 22954,
+        "completion_tokens": 1526,
+        "cached_tokens": 21248,
+        "cost_usd": 0.05613580000000001
+      }
+    },
+    {
+      "step_id": 14,
+      "timestamp": "2026-05-28T17:15:07.854310+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: Fixing store.PackItem resolved the core resume divergence: fresh_seen now equals resume_seen across all 7 cases and the matrix summary shows no failing cases by our criteria. Our attempted patch to exec/run.go did not apply (python replace failed), so ok still ignores visibility and the moves array may still contain duplicated fresh+resume moves in ranger/rook/sentinel. The task\u2019s clean definition also requires JSON plus records and log sidecars list the same resolved moves in order; currently sidecars likely include duplicated move stream because exec/run.go concatenates fresh+resume. We should now patch exec/run.go properly (by editing the specific lines with a more robust python patch using regex / line-based edits), then rerun matrix and verify that moves are not duplicated and sidecars match JSON moves length/order. Finally confirm ok incorporates visibility equality.\nPlan: 1) Inspect current /app/internal/exec/run.go around RunRow to see exact text to patch. 2) Patch in three changes: set allMoves := freshMoves (and write sidecars fresh only), compute freshSeen/resumeSeen and include in ok, and return Moves: freshMoves and Visibility using the computed seen vars. We'll do this with a line-oriented python script (find markers and replace the block between them) to avoid brittle exact-string replace. 3) gofmt. 4) Rerun matrix and confirm: for each case, moves in audit equal number of lines in records.jsonl and trace.tsv, and no duplicate keys. Also verify fresh_seen==resume_seen and ok true.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_12_1",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "nl -ba /app/internal/exec/run.go | sed -n '240,340p'\n",
+            "duration": 0.1
+          }
+        },
+        {
+          "tool_call_id": "call_12_2",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nfrom pathlib import Path\np=Path('/app/internal/exec/run.go')\nlines=p.read_text().splitlines(True)\n\ndef find_idx(substr):\n    for i,l in enumerate(lines):\n        if substr in l:\n            return i\n    return -1\n\n# Replace the allMoves assignment\ni=find_idx('allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)')\nif i==-1:\n    # maybe already patched or slightly different\n    print('allMoves concat not found')\nelse:\n    indent=lines[i].split('a')[0]  # crude but ok\n    lines[i:i+1]=[\n        '\\t\\t// Sidecars should list the resolved moves in order (same list as JSON).\\n',\n        '\\t\\t// Since fresh/resume must match, write the fresh path only.\\n',\n        '\\t\\tallMoves := freshMoves\\n'\n    ]\n\n# Insert freshSeen/resumeSeen + update ok.\n# Find the ok line and replace it, ensuring we have the summaries above it.\nok_i=find_idx('ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig')\nif ok_i==-1:\n    print('ok line not found')\nelse:\n    lines[ok_i:ok_i+1]=[\n        '\\t\\tfreshSeen := vis.CountSeen(wFresh)\\n',\n        '\\t\\tresumeSeen := vis.CountSeen(wResume)\\n',\n        '\\t\\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\\n'\n    ]\n\n# Update CaseResult fields (Moves/Visibility)\nfor i,l in enumerate(lines):\n    if '\\t\\t\\tMoves:' in l:\n        # replace Moves line\n        if 'allMoves' in l:\n            lines[i:i+1]=[\n                '\\t\\t\\t// Moves are the resolved move list for the case. Fresh and resumed runs\\n',\n                '\\t\\t\\t// must agree, so we publish the fresh path and validate via signature.\\n',\n                '\\t\\t\\tMoves:      freshMoves,\\n'\n            ]\n    if 'Visibility: VisPair{FreshSeen:' in l:\n        lines[i:i+1]=['\\t\\t\\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\\n']\n\np.write_text(''.join(lines))\nprint('patched')\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_12_3",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "gofmt -w /app/internal/exec/run.go\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_12_4",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+            "duration": 10.0
+          }
+        },
+        {
+          "tool_call_id": "call_12_5",
+          "function_name": "bash_command",
+          "arguments": {
+            "keystrokes": "python3 - <<'PY'\nimport json, os\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    data=json.load(f)\nprint('cases',len(data['cases']))\n# verify sidecars line counts match moves length\nbad=[]\nfor c in data['cases']:\n    moves=c.get('moves',[])\n    rec=c.get('records')\n    log=c.get('log')\n    rlines=sum(1 for _ in open(rec)) if rec and os.path.exists(rec) else None\n    llines=sum(1 for _ in open(log)) if log and os.path.exists(log) else None\n    if rlines!=len(moves) or llines!=len(moves):\n        bad.append((c['name'],len(moves),rlines,llines))\nprint('sidecar mismatches:',bad)\n# verify no duplicated move keys\nfrom collections import Counter\nfor c in data['cases']:\n    key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))\n    ctr=Counter(key(m) for m in c.get('moves',[]))\n    dups=sum(1 for v in ctr.values() if v>1)\n    if dups:\n        print('dups',c['name'],dups)\n# verify ok implies seen equality\nfor c in data['cases']:\n    vis=c.get('visibility',{})\n    if c.get('ok') and vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print('ok but seen mismatch',c['name'],vis)\nPY\n",
+            "duration": 1.0
+          }
+        },
+        {
+          "tool_call_id": "call_12_task_complete",
+          "function_name": "mark_task_complete",
+          "arguments": {}
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "Current terminal state:\nNew Terminal Output:\n\nroot@ccbd9cc473ba:/app# nl -ba /app/internal/exec/run.go | sed -n '240,340p'\n   240          profile := ProfileFor(name)\n   241          radius, _ := LoadRadius(root, name)\n   242          if radius == 0 {\n   243                  radius = profile.Radius\n   244          }\n   245          base, err := LoadLayout(root, name)\n   246          if err != nil {\n   247                  return CaseResult{}, err\n   248          }\n   249          steps, err := LoadScript(root, name)\n   250          if err != nil {\n   251                  return CaseResult{}, err\n   252          }\n   253\n   254          wFresh := cloneWorld(base)\n   255          wFresh.Effects = mapSnaps(mod.Seed(profileToMod(profile), wFresh.Turn))\n   256          blob, stale := playUntilSave(wFresh, steps, profile, radius)\n   257          freshMoves := runDirect(wFresh, steps, profile, radius)\n   258\n   259          wResume := cloneWorld(base)\n   260          wResume.Effects = mapSnaps(mod.Seed(profileToMod(profile), wResume.Turn))\n   261          playUntilSave(wResume, steps, profile, radius)\n   262          resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)\n   263\n   264          freshIllegal, resumeIllegal := 0, 0\n   265          for _, m := range freshMoves {\n   266                  if !m.Legal {\n   267                          freshIllegal++\n   268                  }\n   269          }\n   270          for _, m := range resumeMoves {\n   271                  if !m.Legal {\n   272                          resumeIllegal++\n   273                  }\n   274          }\n   275          allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n   276          caseDir := filepath.Join(root, \"workspace\", name)\n   277          _ = os.MkdirAll(caseDir, 0o755)\n   278          recPath := filepath.Join(caseDir, \"records.jsonl\")\n   279          logPath := filepath.Join(caseDir, \"trace.tsv\")\n   280          flushRows(recPath, logPath, name, allMoves)\n   281\n   282          fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n   283          resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}\n   284          ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n   285\n   286          return CaseResult{\n   287                  Name:       name,\n   288                  OK:         ok,\n   289                  Fresh:      fresh,\n   290                  Resume:     resume,\n   291                  Moves:      allMoves,\n   292                  Visibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n   293                  Effects:    mapRowSnaps(mod.ItemsFor(snapToMod(wResume.Effects), wResume.Turn)),\n   294                  Records:    recPath,\n   295                  Log:        logPath,\n   296          }, nil\n   297  }\n   298\n   299  func flushRows(recPath, logPath, name string, moves []MoveRow) {\n   300          rec, _ := os.Create(recPath)\n   301          defer rec.Close()\n   302          for _, m := range moves {\n   303                  b, _ := json.Marshal(m)\n   304                  _, _ = rec.Write(append(b, '\\n'))\n   305          }\n   306          log, _ := os.Create(logPath)\n   307          defer log.Close()\n   308          for _, m := range moves {\n   309                  fmt.Fprintf(log, \"%s\\t%d\\t%s\\t%d\\t%d\\t%d\\t%d\\t%v\\n\",\n   310                          name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)\n   311          }\n   312  }\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> from pathlib import Path\n> p=Path('/app/internal/exec/run.go')\n> lines=p.read_text().splitlines(True)\n>\n> def find_idx(substr):\n>     for i,l in enumerate(lines):\n>         if substr in l:\n>             return i\n>     return -1\n>\n> # Replace the allMoves assignment\n> i=find_idx('allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)')\n> if i==-1:\n>     # maybe already patched or slightly different\n>     print('allMoves concat not found')\n> else:\n>     indent=lines[i].split('a')[0]  # crude but ok\n>     lines[i:i+1]=[\n>         '\\t\\t// Sidecars should list the resolved moves in order (same list as JSON).\\n',\n>         '\\t\\t// Since fresh/resume must match, write the fresh path only.\\n',\n>         '\\t\\tallMoves := freshMoves\\n'\n>     ]\n>\n> # Insert freshSeen/resumeSeen + update ok.\n> # Find the ok line and replace it, ensuring we have the summaries above it.\n> ok_i=find_idx('ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig')\n> if ok_i==-1:\n>     print('ok line not found')\n> else:\n>     lines[ok_i:ok_i+1]=[\n>         '\\t\\tfreshSeen := vis.CountSeen(wFresh)\\n',\n>         '\\t\\tresumeSeen := vis.CountSeen(wResume)\\n',\n>         '\\t\\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\\n'\n>     ]\n>\n> # Update CaseResult fields (Moves/Visibility)\n> for i,l in enumerate(lines):\n>     if '\\t\\t\\tMoves:' in l:\n>         # replace Moves line\n>         if 'allMoves' in l:\n>             lines[i:i+1]=[\n>                 '\\t\\t\\t// Moves are the resolved move list for the case. Fresh and resumed runs\\n',\n>                 '\\t\\t\\t// must agree, so we publish the fresh path and validate via signature.\\n',\n>                 '\\t\\t\\tMoves:      freshMoves,\\n'\n>             ]\n>     if 'Visibility: VisPair{FreshSeen:' in l:\n>         lines[i:i+1]=['\\t\\t\\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\\n']\n>\n> p.write_text(''.join(lines))\n> print('patched')\n> PY\npatched\nroot@ccbd9cc473ba:/app# gofmt -w /app/internal/exec/run.go\nroot@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh\nroot@ccbd9cc473ba:/app# python3 - <<'PY'\n> import json, os\n> p='/app/output/resume-audit.json'\n> with open(p) as f:\n>     data=json.load(f)\n> print('cases',len(data['cases']))\n> # verify sidecars line counts match moves length\n> bad=[]\n> for c in data['cases']:\n>     moves=c.get('moves',[])\n>     rec=c.get('records')\n>     log=c.get('log')\n>     rlines=sum(1 for _ in open(rec)) if rec and os.path.exists(rec) else None\n>     llines=sum(1 for _ in open(log)) if log and os.path.exists(log) else None\n>     if rlines!=len(moves) or llines!=len(moves):\n>         bad.append((c['name'],len(moves),rlines,llines))\n> print('sidecar mismatches:',bad)\n> # verify no duplicated move keys\n> from collections import Counter\n> for c in data['cases']:\n>     key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'))\n>     ctr=Counter(key(m) for m in c.get('moves',[]))\n>     dups=sum(1 for v in ctr.values() if v>1)\n>     if dups:\n>         print('dups',c['name'],dups)\n> # verify ok implies seen equality\n> for c in data['cases']:\n>     vis=c.get('visibility',{})\n>     if c.get('ok') and vis.get('fresh_seen')!=vis.get('resume_seen'):\n>         print('ok but seen mismatch',c['name'],vis)\n> PY\ncases 7\nsidecar mismatches: []\nroot@ccbd9cc473ba:/app#\n\n\nAre you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include \"task_complete\": true in your JSON response again."
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 25835,
+        "completion_tokens": 1474,
+        "cached_tokens": 18944,
+        "cost_usd": 0.07202089999999994
+      }
+    },
+    {
+      "step_id": 15,
+      "timestamp": "2026-05-28T17:15:11.354576+00:00",
+      "source": "agent",
+      "model_name": "gpt-5.2-2025-12-11",
+      "message": "Analysis: Implemented the fix for resume divergence and audit cleanliness. Root cause was internal/store/PackItem corrupting saved state by overwriting Seen with Lit, causing resumed runs to have fewer seen cells. After correcting PackItem to preserve Lit/Seen, fresh_seen equals resume_seen across the matrix. Additionally, the audit previously concatenated fresh+resume moves into a single moves array and sidecars, creating duplicates; exec/run.go was patched so sidecars and JSON publish only the resolved (fresh) move list, and ok now also requires visibility equality. Post-fix validation shows: 7 cases, no sidecar mismatches (records/log line counts equal JSON moves length), and no ok rows with visibility mismatch.\nPlan: No further changes required. The matrix run is clean and outputs are consistent.",
+      "tool_calls": [
+        {
+          "tool_call_id": "call_13_task_complete",
+          "function_name": "mark_task_complete",
+          "arguments": {}
+        }
+      ],
+      "observation": {
+        "results": [
+          {
+            "content": "New Terminal Output:\n\nroot@ccbd9cc473ba:/app#\n"
+          }
+        ]
+      },
+      "metrics": {
+        "prompt_tokens": 29340,
+        "completion_tokens": 183,
+        "cached_tokens": 25216,
+        "cost_usd": 0.028383599999999953
+      }
+    }
+  ],
+  "final_metrics": {
+    "total_prompt_tokens": 183148,
+    "total_completion_tokens": 11189,
+    "total_cached_tokens": 130560,
+    "total_cost_usd": 0.5430459999999999
+  }
+}

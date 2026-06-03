@@ -1,0 +1,52 @@
+New Terminal Output:
+root@c1b30d754223:/app# ls -la
+total 4
+drwxr-xr-x 19 root root 257 May 25 13:09 .
+drwxr-xr-x 19 root root 265 May 25 13:10 ..
+-rw-r--r--  1 root root 576 May 25 13:08 Makefile
+drwxr-xr-x  2 root root  48 May 25 13:08 acct_e
+drwxr-xr-x  2 root root  22 May 25 13:09 bin
+drwxr-xr-x  2 root root  25 May 25 13:08 config
+drwxr-xr-x  3 root root  19 May 25 13:08 data
+drwxr-xr-x  2 root root  44 May 25 13:08 docs
+drwxr-xr-x  2 root root  32 May 25 13:08 drive_h
+drwxr-xr-x  2 root root  38 May 25 13:08 flow_g
+drwxr-xr-x  2 root root  81 May 25 13:08 include
+drwxr-xr-x  2 root root  48 May 25 13:08 list_b
+drwxr-xr-x  2 root root  38 May 25 13:08 mirror_j
+drwxr-xr-x  2 root root  48 May 25 13:08 move_d
+drwxr-xr-x  2 root root  45 May 25 13:08 pool_a
+drwxr-xr-x  2 root root  36 May 25 13:08 read_f
+drwxr-xr-x  2 root root  66 May 25 13:08 scripts
+drwxr-xr-x  2 root root  36 May 25 13:08 spill_i
+drwxr-xr-x  2 root root  51 May 25 13:08 split_c
+drwxr-xr-x  2 root root 302 May 25 13:08 src
+root@c1b30d754223:/app# find /app -maxdepth 3 -type f -name 'run-matrix.sh' -o -name 'run-one.sh' -o -name '*audit*' -o -name '*.py' -o -name '*.js' -o -name '*
+.ts' -o -name '*.go' -o -name '*.rs'
+/app/scripts/run-matrix.sh
+/app/scripts/run-one.sh
+root@c1b30d754223:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/allocctl" matrix
+root@c1b30d754223:/app# sed -n '1,200p' /app/scripts/run-one.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+CASE="${1:?case name required}"
+mkdir -p "${APP_ROOT}/output"
+"${APP_ROOT}/bin/allocctl" one "${CASE}"
+root@c1b30d754223:/app# ls -la /app/output || true
+ls: cannot access '/app/output': No such file or directory
+root@c1b30d754223:/app# bash -x /app/scripts/run-matrix.sh
++ set -euo pipefail
++ APP_ROOT=/app
++ OUT=/app/output
++ mkdir -p /app/output
++ bash /app/scripts/clean-room.sh
++ /app/bin/allocctl matrix
+root@c1b30d754223:/app#

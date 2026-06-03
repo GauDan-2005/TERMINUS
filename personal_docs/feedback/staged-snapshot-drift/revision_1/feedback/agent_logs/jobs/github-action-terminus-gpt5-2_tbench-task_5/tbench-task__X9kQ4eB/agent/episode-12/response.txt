@@ -1,0 +1,47 @@
+{
+  "analysis": "probe/measure.c intentionally corrupts size accounting: sets d/* size to 0, halves any path containing 'shared', and adds 1 byte to c/* files. This directly causes diskMatch failures and keeps ok=false even when source/restored match. We must change fsmeasure to report actual st_size for each regular file path (no special casing), matching the contract. Additionally gamma and zeta digest mismatches remain; gamma uses Ordered+Restart and FoldRows reverses rows, breaking final content. We need to remove that reversal so operations apply in Seq order, ensuring final content matches source layout. After fixing measure.c and b1/replay.go, rebuild and rerun matrix; expect all ok=true.",
+  "plan": "1) Patch /app/probe/measure.c: remove all special-case size adjustments; just print rel and st.st_size. 2) Patch /app/internal/b1/replay.go: FoldRows should not reverse when Restart&&Ordered; return rows sorted by Seq only. 3) Rebuild with make build (recompile C helper and Go binary). 4) Run run-matrix.sh and validate restore-audit.json has all six cases ok=true with digestMatch and groupsMatch true.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\s*if \\(strncmp\\(rel, \"d\\/\", 2\\) == 0\\) \\{\\n\\s*size = 0UL;\\n\\s*\\}\\n\\s*if \\(strstr\\(rel, \"shared\"\\) != NULL\\) \\{\\n\\s*size = size \\/ 2UL;\\n\\s*\\}\\n\\s*if \\(strncmp\\(rel, \"c\\/\", 2\\) == 0\\) \\{\\n\\s*size \\+= 1UL;\\n\\s*\\}\\n/\\n/sg' /app/probe/measure.c\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -nE \"d/\\\"|shared\\\"|size \\+= 1|size = 0|/ 2UL\" /app/probe/measure.c || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\n\\s*if \\(b&1 == 1\\) \\{\\n\\s*for left, right := 0, len\\(out\\)-1; left < right; left, right = left\\+1, right-1 \\{\\n\\s*out\\[left\\], out\\[right\\] = out\\[right\\], out\\[left\\]\\n\\s*\\}\\n\\s*\\}\\n/\\n/sg' /app/internal/b1/replay.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/b1/replay.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\n\\s*var flags uint64\\n\\s*if profile\\.Restart && profile\\.Ordered \\{\\n\\s*flags \\|= 1\\n\\s*\\}\\n\\s*return fold_b\\(rows, flags\\)\\n/\\n\\treturn fold_b(rows, 0)\\n/sg' /app/internal/b1/replay.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/b1/replay.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/restore-audit.json'))\nprint('cases:', [c['name'] for c in obj['cases']])\nfor c in obj['cases']:\n    dm = c['digest']['source']==c['digest']['restored']\n    gm = c['groups']['source']==c['groups']['restored']\n    print(c['name'], 'ok='+str(c['ok']), 'digestMatch='+str(dm), 'groupsMatch='+str(gm))\nPY\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('/app/output/restore-audit.json'))\nprint('ALL_OK', all(c['ok'] for c in obj['cases']))\nPY\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

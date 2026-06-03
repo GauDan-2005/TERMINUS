@@ -1,0 +1,51 @@
+{
+  "analysis": "CMake build succeeded, producing /app/build/bin/solverctl, but the scripts expect /app/bin/solverctl and fail. /app/output directory now exists but no solver-audit.json was produced. Next we need to restore run-matrix.sh and run-one.sh to invoke the built binary (either by building into /app/bin, copying/symlinking, or making scripts locate the binary). Then we can run the matrix audit to see the actual solver failures for reordered layouts and fix the solver accordingly.",
+  "plan": "1) Inspect CMakeLists.txt to see intended output path and whether /app/bin is supposed to exist. 2) Fix by creating /app/bin and symlinking or copying /app/build/bin/solverctl to /app/bin/solverctl (quickest), and also update scripts to be robust (prefer built binary if present). 3) Re-run run-matrix.sh to generate /app/output/solver-audit.json; then inspect results and per-case failures. 4) Verify run-one.sh produces matching one-case JSON for a sample name. 5) Add a determinism check by running matrix twice and diffing JSON.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/CMakeLists.txt\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/build/bin\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "mkdir -p /app/bin\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ln -sf /app/build/bin/solverctl /app/bin/solverctl\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/bin/solverctl\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "test -f /app/output/solver-audit.json && jq '.cases | length' /app/output/solver-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "test -f /app/output/solver-audit.json && jq '.cases[] | {name, ok, iterations, final_residual, reported_residual, residual_agrees, hit_limit}' /app/output/solver-audit.json\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /app/output/solver-audit.rerun.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /app/output/solver-audit.json /app/output/solver-audit.rerun.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

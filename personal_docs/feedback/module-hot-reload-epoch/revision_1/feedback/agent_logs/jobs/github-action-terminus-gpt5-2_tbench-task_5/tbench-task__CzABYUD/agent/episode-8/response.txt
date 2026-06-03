@@ -1,0 +1,51 @@
+{
+  "analysis": "Identified multiple spec violations:\n- a1/p.js: carry is set to cycle.base (input) rather than last nativeValue; finalCounter is carry (thus last base), and healthy is hardcoded false.\n- b2/q.js: deferred values are returned from the NEXT slot, meaning deferrals appear one cycle late; spec says deferred numbers listed on a cycle belong to that same cycle.\n- c3/r.js: factor uses a module-level cached `saved`, causing cross-row and cross-scenario caching; spec says factors recomputed per row from that row's descriptor number and position, without cross-row caching.\n- d4/s.js: healthyCount counts acceptedOlder, status always stale; aggregate must be derived from records and be healthy only if all scenarios healthy.\n- Rust src/native/lib.rs: r_d(\"old\") returns primary only, ignoring carry; spec says older native revision markers must normalize like newer ones, incorporating carried state into the native row.\n\nNeed to patch these modules accordingly, then rerun matrix and ensure stable output across repeated runs.",
+  "plan": "1) Patch b2/q.js so q_b returns current cycle deferred (sorted) and stores nothing for next cycle (or stores for same slot only if needed). 2) Patch c3/r.js so k_c computes factor from given descriptor and row index without any module-level caching. 3) Patch Rust r_d so both \"old\" and \"new\" incorporate carry consistently (normalize old like new). Rebuild will happen via cargo run. 4) Patch a1/p.js so carry becomes nativeValue each cycle (native row feeds next), finalCounter equals last nativeValue, and healthy is computed as (acceptedOlder && finalCounter == sum of input bases). Also ensure acceptedOlder check uses the corrected carry progression. 5) Patch d4/s.js so aggregate fields are derived from records: totals from records, healthyCount from record.healthy, and status is healthy iff all records healthy. 6) Run `npm run matrix` twice and diff outputs to confirm no drift.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: b2/q.js\n@@\n function q_b(a, b, c) {\n-  const label = `slot-${b}`;\n-  c[label] = (c[label] || []).concat(a);\n-  const next = `slot-${b + 1}`;\n-  const visible = c[next] || [];\n-  c[next] = [];\n-  return visible.slice().sort((left, right) => left - right);\n+  // Deferred numbers listed on a cycle belong to that same cycle's row.\n+  // Keep state per-slot only for debugging/inspection; do not shift visibility\n+  // to the next cycle.\n+  const label = `slot-${b}`;\n+  c[label] = (c[label] || []).concat(a);\n+  return (a || []).slice().sort((left, right) => left - right);\n }\n*** End Patch\nPATCH\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: c3/r.js\n@@\n-let saved = null;\n-\n function k_c(a, b, c) {\n-  if (saved === null) {\n-    saved = Number(a);\n-  }\n-  return saved + b;\n+  // Descriptor factors are recomputed per row from that row's descriptor\n+  // number and position; no cross-row or cross-scenario caching.\n+  return Number(a) + b;\n }\n*** End Patch\nPATCH\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: src/native/src/lib.rs\n@@\n pub fn r_d(a: &str, b: i64, c: i64) -> i64 {\n     match a {\n-        \"old\" => b,\n-        \"new\" => b + c,\n+        // Older revision markers normalize like newer ones: carried state must\n+        // be incorporated into the produced native row.\n+        \"old\" => b + c,\n+        \"new\" => b + c,\n         _ => b,\n     }\n }\n*** End Patch\nPATCH\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: a1/p.js\n@@\n function f_a(a, b, c) {\n   let carry = 0;\n   const rows = [];\n   let accepted = true;\n+  let baseSum = 0;\n   for (let index = 0; index < a.cycles.length; index += 1) {\n     const cycle = a.cycles[index];\n+    baseSum += cycle.base;\n     const owned = q_b(cycle.deferred || [], index, c);\n     const factor = k_c(cycle.dep, index, c);\n     const nativeValue = callNative(b, cycle.native, cycle.base, carry);\n     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);\n-    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {\n+    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {\n       accepted = false;\n     }\n     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });\n-    carry = cycle.base;\n+    // Each cycle's native row feeds the next cycle.\n+    carry = nativeValue;\n   }\n+  const finalCounter = rows.length ? rows[rows.length - 1].nativeValue : 0;\n+  const healthy = accepted && finalCounter === baseSum;\n   return {\n     name: a.name,\n     rows,\n-    finalCounter: carry,\n+    finalCounter,\n     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),\n     acceptedOlder: accepted,\n-    healthy: false\n+    healthy\n   };\n }\n*** End Patch\nPATCH\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: d4/s.js\n@@\n function m_e(a, b) {\n   const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);\n   const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);\n   const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);\n-  const healthyCount = a.filter((row) => row.acceptedOlder).length;\n+  const healthyCount = a.filter((row) => row.healthy).length;\n+  const status = healthyCount === a.length ? 'healthy' : 'stale';\n   return {\n     source: b.source,\n     recordCount: a.length,\n     totalCounter,\n     dependencyTotal,\n     rowTotal,\n     healthyCount,\n-    status: 'stale'\n+    status\n   };\n }\n*** End Patch\nPATCH\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "npm run matrix\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nobj=json.load(open('outcome/report.json'))\nprint(obj['aggregate'])\nfor r in obj['records']:\n  print(r['name'], r['acceptedOlder'], r['finalCounter'], r['dependencyTotal'], r['healthy'])\n  for row in r['rows']:\n    if row['deferred']:\n      print('  deferred', row['index'], row['deferred'])\nPY\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "cp outcome/report.json /tmp/report_after1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "npm run matrix\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np1=json.load(open('/tmp/report_after1.json'))\np2=json.load(open('outcome/report.json'))\nprint('stable=', json.dumps(p1, sort_keys=True)==json.dumps(p2, sort_keys=True))\nPY\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "diff -u /tmp/report_after1.json outcome/report.json || true\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

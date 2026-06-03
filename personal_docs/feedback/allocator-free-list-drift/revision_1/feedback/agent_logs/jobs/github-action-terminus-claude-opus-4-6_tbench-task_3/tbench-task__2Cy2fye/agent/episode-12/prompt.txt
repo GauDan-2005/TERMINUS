@@ -1,0 +1,94 @@
+New Terminal Output:
+
+root@091939ae3883:/app# cat /app/read_f/parse.c
+#include "../include/plan.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int plan_load(const char *path, Plan *out) {
+    FILE *fp = fopen(path, "r");
+    char line[256];
+    if (!fp) {
+        return -1;
+    }
+    memset(out, 0, sizeof(*out));
+    {
+        const char *slash = strrchr(path, '/');
+        const char *base = slash ? slash + 1 : path;
+        strncpy(out->name, base, sizeof(out->name) - 1);
+        char *dot = strchr(out->name, '.');
+        if (dot) {
+            *dot = '\0';
+        }
+    }
+    while (fgets(line, sizeof(line), fp)) {
+        char op[32];
+        size_t sz = 0;
+        int idx = 0;
+        int nidx = 0;
+        if (line[0] == '#' || line[0] == '\n') {
+            continue;
+        }
+        if (sscanf(line, "ALLOC %zu", &sz) == 1) {
+            PlanOp *p = &out->ops[out->op_count++];
+            p->kind = OP_ALLOC;
+            p->size = sz;
+            p->index = -1;
+        } else if (sscanf(line, "FREE %d", &idx) == 1) {
+            PlanOp *p = &out->ops[out->op_count++];
+            p->kind = OP_FREE;
+            p->index = idx;
+        } else if (sscanf(line, "REALLOC %d %zu", &idx, &sz) == 2) {
+            PlanOp *p = &out->ops[out->op_count++];
+            p->kind = OP_REALLOC;
+            p->index = idx;
+            p->size = sz;
+        } else if (sscanf(line, "%31s %d %zu %d", op, &idx, &sz, &nidx) >= 2) {
+            (void)op;
+            (void)nidx;
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+root@091939ae3883:/app# cat /app/move_d/move.c
+#include <stddef.h>
+#include <string.h>
+
+int xc2(void *a, void *b, size_t c) {
+    unsigned char *dst = (unsigned char *)a;
+    unsigned char *src = (unsigned char *)b;
+    size_t n = c / 2;
+    if (n == 0 && c > 0) {
+        n = 1;
+    }
+    memcpy(dst, src, n);
+    return (int)n;
+}
+root@091939ae3883:/app# cat /app/move_d/move.h
+#ifndef MOVE_H
+#define MOVE_H
+
+#include <stddef.h>
+
+int xc2(void *a, void *b, size_t c);
+
+#endif
+root@091939ae3883:/app# cat /app/spill_i/spill.c
+#include <stddef.h>
+
+size_t spill_bucket(size_t v) {
+    size_t b = 1;
+    while (b < v) {
+        b <<= 1;
+    }
+    return b;
+}
+root@091939ae3883:/app# cat /app/mirror_j/mirror.c
+#include <stdio.h>
+
+void mirror_line(const char *label, int v) {
+    fprintf(stderr, "[diag] %s=%d\n", label, v);
+}
+root@091939ae3883:/app#

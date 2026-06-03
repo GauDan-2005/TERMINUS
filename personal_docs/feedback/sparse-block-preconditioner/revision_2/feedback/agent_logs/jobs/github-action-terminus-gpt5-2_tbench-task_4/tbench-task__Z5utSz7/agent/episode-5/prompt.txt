@@ -1,0 +1,43 @@
+New Terminal Output:
+
+root@60c46bae9fb1:/app# rm -f /app/output/solver-audit.json /app/output/solver-audit.1.json /app/output/solver-audit.2.json
+root@60c46bae9fb1:/app# bash /app/scripts/run-matrix.sh && cp /app/output/solver-audit.json /app/output/solver-audit.1.json
+root@60c46bae9fb1:/app# bash /app/scripts/run-matrix.sh && cp /app/output/solver-audit.json /app/output/solver-audit.2.json
+root@60c46bae9fb1:/app# python3 - <<'PY'
+> import json, math
+> for p in ['/app/output/solver-audit.1.json','/app/output/solver-audit.2.json']:
+>     obj=json.load(open(p))
+>     print(p, 'n_cases', len(obj['cases']))
+> PY
+Traceback (most recent call last):
+  File "<stdin>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/solver-audit.1.json'
+root@60c46bae9fb1:/app# diff -u /app/output/solver-audit.1.json /app/output/solver-audit.2.json || true
+diff: /app/output/solver-audit.1.json: No such file or directory
+root@60c46bae9fb1:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/solver-audit.json'))
+> for c in obj['cases']:
+>     if (not c.get('ok')) or (not c.get('residual_agrees')) or c.get('hit_limit'):
+>         print('FAIL', c)
+> PY
+FAIL {'name': 'basalt', 'ok': False, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0.0001, 'residual_agrees': False, 'hit_limit': False}
+FAIL {'name': 'flint', 'ok': False, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0.0001, 'residual_agrees': False, 'hit_limit': False}
+FAIL {'name': 'shale', 'ok': False, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0.0001, 'residual_agrees': False, 'hit_limit': False}
+FAIL {'name': 'garnet', 'ok': False, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0.0001, 'residual_agrees': False, 'hit_limit': False}
+FAIL {'name': 'mica', 'ok': False, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0.0001, 'residual_agrees': False, 'hit_limit': False}
+FAIL {'name': 'opal', 'ok': False, 'iterations': 1, 'final_residual': 0, 'reported_residual': 0.0001, 'residual_agrees': False, 'hit_limit': False}
+root@60c46bae9fb1:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/solver-audit.json'))
+> for c in obj['cases']:
+>     print(c['name'], 'ok=',c['ok'], 'iters=',c['iterations'], 'final=',c['final_residual'], 'reported=',c['reported_residual'], 'agree=',c['residual_agrees'],
+ 'hit_limit=',c['hit_limit'])
+> PY
+basalt ok= False iters= 1 final= 0 reported= 0.0001 agree= False hit_limit= False
+flint ok= False iters= 1 final= 0 reported= 0.0001 agree= False hit_limit= False
+shale ok= False iters= 1 final= 0 reported= 0.0001 agree= False hit_limit= False
+garnet ok= False iters= 1 final= 0 reported= 0.0001 agree= False hit_limit= False
+mica ok= False iters= 1 final= 0 reported= 0.0001 agree= False hit_limit= False
+opal ok= False iters= 1 final= 0 reported= 0.0001 agree= False hit_limit= False
+root@60c46bae9fb1:/app#

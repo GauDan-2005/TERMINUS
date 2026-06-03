@@ -1,0 +1,47 @@
+New Terminal Output:
+
+root@97d4c5b2e7fd:/app# echo $PATH
+/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+root@97d4c5b2e7fd:/app# command -v cargo || true
+root@97d4c5b2e7fd:/app# ls -la /root/.cargo/bin 2>/dev/null || true
+root@97d4c5b2e7fd:/app# find / -maxdepth 4 -type f -name cargo 2>/dev/null | head
+root@97d4c5b2e7fd:/app# bash -lc 'source /etc/profile >/dev/null 2>&1 || true; source ~/.profile >/dev/null 2>&1 || true; command -v cargo; cargo --version'
+bash: line 1: cargo: command not found
+root@97d4c5b2e7fd:/app# bash -lc 'bash -l -c "command -v cargo && cargo --version"'
+root@97d4c5b2e7fd:/app# sed -n '1,120p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@97d4c5b2e7fd:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: tools/run_local.sh
+> @@
+>  #!/bin/bash
+>  set -euo pipefail
+> -cargo --version
+> +# Ensure typical Rust install locations are on PATH in non-login shells.
+> +if ! command -v cargo >/dev/null 2>&1; then
+> +  if [ -d "${HOME:-/root}/.cargo/bin" ]; then
+> +    export PATH="${HOME:-/root}/.cargo/bin:${PATH}"
+> +  fi
+> +fi
+> +
+> +cargo --version
+>  mkdir -p /app/output /app/bin
+>  cargo build --release --quiet --manifest-path /app/Cargo.toml
+>  /app/target/release/local-infer-sandbox /app/output/raw.json
+>  go build -o /app/bin/align /app/cmd/align/main.go
+>  /app/bin/align /app/output/raw.json /app/output/report.json
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@97d4c5b2e7fd:/app# bash -lc '/app/tools/run_local.sh'
+/app/tools/run_local.sh: line 3: cargo: command not found
+root@97d4c5b2e7fd:/app# ls -la /app/output && wc -c /app/output/raw.json /app/output/report.json
+ls: cannot access '/app/output': No such file or directory
+root@97d4c5b2e7fd:/app#

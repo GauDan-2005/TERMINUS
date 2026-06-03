@@ -1,0 +1,51 @@
+{
+  "analysis": "Cargo is available after adding /usr/local/cargo/bin to PATH, and run-matrix.sh now generates /app/output/policy-audit.json. Next we must ensure the report is generated from current trace inputs (not canned) and that grouped replay + inherited subject checks produce consistent authorization rows with correct batch_id/delegated_from semantics, delegation-chain blocking/revocation behavior, epochs monotonic per case, reused marking, and deterministic byte-identical output across reruns. We need to inspect traces, compare multiple runs, and locate the generator code in src/k*.",
+  "plan": "1) Verify determinism: run matrix twice and compare sha256. 2) Inspect full JSON for fields (stale presence, batch_id usage, delegated_from for direct rows). 3) Inspect trace format quickly to understand expected behavior. 4) Locate code paths that build the audit JSON and decisions; use grep (since rg not installed) to find structs/field names like batch_id, delegated_from, stale, decisions, cases. 5) Run cargo test (if any) to see failures; then we can patch logic in the next iteration.",
+  "commands": [
+    {
+      "keystrokes": "export PATH=/usr/local/cargo/bin:$PATH\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sha256sum /app/output/policy-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "sha256sum /app/output/policy-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u <(jq -S . /app/output/policy-audit.json) <(jq -S . /app/output/policy-audit.json) >/dev/null || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "jq '.cases[] | {name, ok, stale_len:(.stale|length), decisions_len:(.decisions|length)}' /app/output/policy-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "jq '.cases[] | select(.stale|length>0) | {name, stale}' /app/output/policy-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "jq '.cases[] | {name, epochs:(.decisions|map(.epoch))} | .epochs as $e | {name, nondecreasing: ([$e[0]] + ($e[1:]//[]) | true)}' /app/output/policy-audit.json 2>/dev/null || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "for f in /app/traces/*.trace; do echo \"--- $f\"; sed -n '1,200p' \"$f\"; done\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RIn --line-number --exclude-dir=target -e 'batch_id' -e 'delegated_from' -e 'policy-audit' -e 'stale' -e 'decisions' /app/src /app/k0 /app/k1 /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8 | head -n 200\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cargo test --quiet\n",
+      "duration": 60.0
+    }
+  ],
+  "task_complete": false
+}

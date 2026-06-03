@@ -1,0 +1,127 @@
+Feedback for Submission: 4e774a51-688e-46e0-b7bc-c56194572f8c
+Assignment ID: 49c16ae8-40f5-41eb-a9ba-0d83914655b6
+Project ID: bfe79c33-8ab0-4061-9849-08d3207c9927
+Project: Terminus-2nd-Edition
+
+================================================================================
+
+Revision Notes
+--------------------------------------------------------------------------------
+AutoEval Execution Summary: AutoEval execution failed. Build status: FAILED. Build ID: CodeExecutionEnvironment:f9009f4a-00b4-43ad-b3f4-abba8e418c15.
+
+Summary (difficulty check)
+--------------------------------------------------------------------------------
+Difficulty: ✅ HARD
+
+Status: ❌ Some tests not passed by any agent run
+
+Agent Performance:
+  • terminus-claude-opus-4-6: 0.0% (0/5 runs)
+  • terminus-gpt5-2: 0.0% (0/5 runs)
+
+Reference Agents:
+  • nop: 0.0% (0/1 runs)
+  • oracle: 100.0% (3/3 runs)
+
+Failure Breakdown:
+  • nop: 1 other
+  • terminus-claude-opus-4-6: 5 other
+  • terminus-gpt5-2: 5 other
+
+Unit Tests Results:
+  • test_alpha_path: 7 passed / 10 runs
+  • test_zeta_path: 7 passed / 10 runs
+  • test_eta_path: 9 passed / 10 runs
+  • test_theta_path: 10 passed / 10 runs
+  • test_iota_path: 9 passed / 10 runs
+  • test_kappa_path: 10 passed / 10 runs
+  • test_lambda_path: 9 passed / 10 runs
+  • test_nu_path: 9 passed / 10 runs
+  • test_mu_path: 10 passed / 10 runs
+  • test_beta_path: 0 passed / 10 runs
+  • test_gamma_path: 0 passed / 10 runs
+  • test_delta_path: 0 passed / 10 runs
+  • test_epsilon_path: 0 passed / 10 runs
+  • test_rust_stage_produces_raw: 0 passed / 10 runs
+
+Analysis on Agent Failures:
+  • Task Instruction Sufficiency: ❌ FAIL, ## Job Summary
+
+### 1. Overall Results
+
+**0 of 10 trials passed** (all received reward 0.0). No trial achieved the required full pass rate. The task required fixing a Rust+Go pipeline; all agents passed some tests but none solved the core bug.
+
+| Trial | Tests Passed | Strategy |
+|-------|-------------|----------|
+| EPtoMry, ALCEXKH, AXEBjwn, VUcivgH, WRbCk6i, KYKpCNF, PXkGeuK | 9/14 | Fixed Go layer; missed Rust bug |
+| JJVxkSK, SiZDomL | 7/14 | Replaced Rust with Go; wrong computation |
+| uoaPnP9 | 3/14 | Wrong case name format (full strings vs. short names) |
+
+---
+
+### 2. Common Failure Patterns
+
+**The single critical missed bug (100% failure rate):** In `src/a0/mod.rs`, the `ax()` function applies a single per-row scale/bias (keyed by row index `c`) to all columns, producing wrong token values for all packed cases (beta, gamma, delta, epsilon). The correct implementation — `ax_ref()` — was present in the *same file as unused dead code*, applying per-column scaling via `enumerate()`. Every agent either missed it entirely or, when replacing Rust with Go, faithfully reproduced the same wrong logic.
+
+**Split strategy — two distinct agent behaviors:**
+
+- **"Fix Go, keep Rust" group** (EPtoMry, ALCEXKH, AXEBjwn, VUcivgH, WRbCk6i): These agents correctly identified and fixed the Go-side bugs — `fold()` deduplication by first character, the length-only `agree` check, and missing `cargo` PATH in `run_local.sh`. They all stalled at the same point: not tracing through the Rust token computation to discover `ax` → `ax_ref`. Result: 9/14 every time, failing `test_{beta,gamma,delta,epsilon}_path` + `test_rust_stage_produces_raw`.
+
+- **"Replace Rust with Go" group** (KYKpCNF, JJVxkSK, PXkGeuK, SiZDomL, uoaPnP9): These agents incorrectly concluded `cargo` was unavailable and bypassed the Rust stage entirely with a new Go binary. Because they never read the Rust submodule files carefully, they couldn't derive the correct `SCALES=[2,3,5]`, `BIASES=[1,-1,2]` constants and introduced additional bugs. This also guaranteed failure on `test_rust_stage_produces_raw`, which explicitly invokes `cargo`. This was a worse strategy — the verifier environment *did* have `cargo` available in several cases (PXkGeuK confirmed this).
+
+---
+
+### 3. Hack Check
+
+**No cheating detected.** All 10 trials passed the `reward_hacking` check. No agent accessed the solution directory, wrote to reward files, or modified test files. All edits were to legitimate target files (`cmd/align/main.go`, `tools/run_local.sh`, `src/main.rs`).
+
+---
+
+### 4. Instruction/Specification Issues
+
+Two trials flagged `task_specification: fail`:
+
+- **JJVxkSK**: The correct SCALES/BIASES constants (`[2,3,5]`, `[1,-1,2]`) appear nowhere in `instruction.md`. Since the Rust source files contain the *wrong* values (that's the bug), an agent reading only the source would find incorrect constants. The only recoverable source of truth was the test file or the unused `ax_ref` function — the latter being a codebase-level hint rather than explicit specification.
+
+- **uoaPnP9**: `instruction.md` says case names come from `/app/config/sets.txt`, which contains full strings like `"alpha:baseline"`. The agent used those full strings, but all tests expect bare short names like `"alpha"`. This is a genuine ambiguity in the spec that directly caused 9/14 test failures for that trial.
+
+The 8 other trials passed spec review — the `ax_ref` dead-code hint was deemed sufficient for a "hard" task.
+
+---
+
+### 5. Progress: How Close Did Agents Get?
+
+The **9/14 cohort** (7 trials) was genuinely close. They solved:
+- ✅ Go `fold()` deduplication bug
+- ✅ Go `agree` field-by-field comparison logic  
+- ✅ `run_local.sh` PATH for cargo
+- ✅ Structural/format tests, alpha (unpacked) path, ordering, flags, idempotency
+- ❌ `ax` → `ax_ref` substitution in Rust (one targeted 2-line change)
+
+The missing fix was minimal in code size but required tracing through the Rust packed-row expansion logic to connect `ax`'s wrong row-uniform behavior to `ax_ref`'s correct per-column behavior. The hint was there — `ax_ref` was literally adjacent dead code — but agents consistently didn't follow the computation through to identify *why* packed cases produced wrong values.
+
+---
+
+### 6. Key Differences Between Agents
+
+No model metadata was provided, so direct model comparison isn't possible. However, the behavioral split is clear:
+
+- **Strategy quality**: Agents that kept the Rust stage and focused on the Go collation layer (9/14) significantly outperformed those that replaced Rust with Go (7/14 or worse). The Rust-replacement approach added complexity, introduced new bugs, and guaranteed failure on the explicit Rust binary test.
+
+- **Worst outcome** (uoaPnP9, 3/14): Uniquely penalized by the spec ambiguity around case name format — a distinct failure mode not seen in any other trial.
+
+- **Consistent ceiling**: The 9/14 plateau across 7 independent trials strongly suggests this is a genuine difficulty cliff — the `ax_ref` hint requires a specific reasoning step (comparing a live function's call site to nearby dead code performing the same conceptual operation differently) that current agents reliably miss.
+
+Quality check summary
+--------------------------------------------------------------------------------
+## Quality Check Results
+✅ pass - behavior_in_task_description: The instruction explicitly names both output files (/app/output/raw.json, /app/output/report.json) and the runner (/app/tools/run_local.sh), enumerates every required JSON field (case, produced, slot_trace, order_used, packed, grouped, reuse), specifies the summary object fields (total, agree), and defines the agree semantics in detail — including the six-field comparison and the prior-report comparison when replacing an existing file. The exact token values tested by expected_tokens() are not spelled out in the instruction, but this is appropriate for a debugging task: the algorithm already lives in main.rs (the token() function) and the agent's job is to repair the helper code rather than implement a new spec. All schema-level behavior that the tests verify is covered.
+✅ pass - behavior_in_tests: Tests cover: correct produced values for each case type (alpha–zeta), correct slot_trace and order_used for shuffled cases, correct packed/grouped/reuse flags (test_lambda_path), full case count in summary.total (test_theta_path), all built-in case names present (test_iota_path), determinism across repeated runs (test_kappa_path), raw-vs-report produced agreement (test_nu_path), agree=true when clean and agree=false after every one of the six specified fields is corrupted including a mid-list index (test_mu_path), and a direct cargo-run check that the Rust binary produces correct raw values independently of the shell script (test_rust_stage_produces_raw). All behavior described in the instruction is exercised.
+✅ pass - informative_test_structure: Every test function carries a concise docstring that states exactly what is being verified (e.g., 'Compressed single-request rows use per-column reconstruction', 'Summary agree is true when aligned and false after any raw field mismatch'). The helper functions (expand, expected_tokens, rows_by_name, raw_by_name, corrupt_raw_field) are clearly named and small. The test file is self-contained and easy to read from top to bottom.
+✅ pass - anti_cheating_measures: The Dockerfile copies only src/, cmd/, internal/, config/, data/, docs/, and tools/ — tests/ and solution/ are not included in the image, so the agent cannot see expected values or working code at runtime. The environment code has four distinct non-trivial bugs: a0/mod.rs applies a single column scale instead of per-column; b1/mod.rs does not actually remap handles; c2/mod.rs accumulates instead of assigning; cmd/align/main.go deduplicates rows by first-character byte key, silently dropping entries whose names share a first letter. Each bug requires understanding the algorithm before fixing it. The construction_manifest's flipping_point_contract confirms no single location can flip a majority of tests. Data files contain only raw input integers, not computed answers.
+✅ pass - structured_data_schema: instruction.md explicitly names every field in both output documents: raw.json has a 'raw' array where each object carries case, produced, slot_trace, order_used, packed, grouped, and reuse; report.json has a 'rows' array of the same shape and a 'summary' object with 'total' and 'agree'. The output_contract.toml reinforces this with instruction_checks lists matching those field names. No schema detail is left to inference from examples.
+✅ pass - pinned_dependencies: The Rust base image is pinned by both tag (rust:1.89-bookworm) and SHA digest. All apt packages carry exact version strings (asciinema=2.2.0-1, golang-go=2:1.19~1, python-is-python3=3.11.2-1+deb12u1, python3-pip=23.0.1+dfsg-1, tmux=3.3a-3). Python packages are pinned with == (pytest==8.4.1, pytest-json-ctrf==0.3.5). The Rust project has no external crate dependencies; go.mod declares no external modules.
+✅ pass - typos: All file paths match between the Dockerfile COPY directives, run_local.sh, test_outputs.py, and instruction.md. The Cargo binary name 'local-infer-sandbox' in Cargo.toml matches the path used in run_local.sh (/app/target/release/local-infer-sandbox). JSON field names are consistent across main.rs, cmd/align/main.go, the solution's patched files, and the test assertions. No apparent typos in paths, commands, or variable names were found.
+✅ pass - tests_or_solution_in_image: The Dockerfile COPY instructions cover only Cargo.toml, Cargo.lock, go.mod, go.sum, docs/, config/, data/, src/, cmd/, internal/, and tools/run_local.sh. Neither the tests/ directory nor the solution/ directory is copied into the image, so the agent has no access to test logic or reference implementations at runtime.
+✅ pass - hardcoded_solution: solution/solve.sh writes corrected implementations to four Rust source files (a0/mod.rs, b1/mod.rs, c2/mod.rs, e4/mod.rs) and the Go collation file (cmd/align/main.go) using heredocs, then executes /app/tools/run_local.sh to rebuild the binaries and regenerate both output files. The outputs are derived through compilation and execution of the fixed code, not by echoing pre-computed JSON.
+✅ pass - file_reference_mentioned: instruction.md explicitly names all three files the agent must produce or modify: /app/tools/run_local.sh (the script to repair), /app/output/raw.json (Rust stage output), and /app/output/report.json (Go collation stage output). These match the paths used in tests/test_outputs.py and output_contract.toml.

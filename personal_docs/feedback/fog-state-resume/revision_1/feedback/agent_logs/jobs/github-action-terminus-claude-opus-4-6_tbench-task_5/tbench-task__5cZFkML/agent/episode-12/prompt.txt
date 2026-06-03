@@ -1,0 +1,44 @@
+New Terminal Output:
+
+root@1b46f24aa981:/app# python3 -c "
+> import re
+>
+> with open('/app/internal/f5/run.go', 'r') as f:
+>     content = f.read()
+>
+> # Find and replace the runLoaded function body
+> old_body = '''\tmoves := []MoveRow{}
+> \tfor _, step := range steps {
+> \t\tif step.Action != \"save\" {
+> \t\t\tcontinue
+> \t\t}
+> \t\tw.Turn = step.Turn
+> \t\te4.ApplyLit(w, radius, blindActive(w))
+> \t\tmoves = append(moves, advanceAll(w, merged)...)
+> \t}'''
+>
+> new_body = '''\tmoves := []MoveRow{}
+> \tpastSave := false
+> \tfor _, step := range steps {
+> \t\tif step.Action == \"save\" {
+> \t\t\tpastSave = true
+> \t\t\tcontinue
+> \t\t}
+> \t\tif !pastSave {
+bash: !pastSave: event not found
+> \t\t\tcontinue
+> \t\t}
+> \t\tw.Turn = step.Turn
+> \t\tif step.Actor == \"P\" {
+> \t\t\tapplyPlayer(w, step.Arg)
+> \t\t\te4.ApplyLit(w, radius, blindActive(w))
+> \t\t}
+> \t\tif step.Actor == \"H\" {
+> \t\t\tmoves = append(moves, advanceAll(w, merged)...)
+> \t\t}
+> \t}'''
+>
+> print('old_body found:', old_body in content)
+> " 2>&1
+old_body found: False
+root@1b46f24aa981:/app#

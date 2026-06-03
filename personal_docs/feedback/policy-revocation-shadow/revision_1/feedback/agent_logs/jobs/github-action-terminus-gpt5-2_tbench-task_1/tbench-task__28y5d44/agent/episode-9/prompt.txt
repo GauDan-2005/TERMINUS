@@ -1,0 +1,88 @@
+Current terminal state:
+New Terminal Output:
+
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/policy-audit.json'))
+> # basic shape
+> assert list(obj.keys())==['cases']
+> for c in obj['cases']:
+>   assert set(c.keys())=={'name','ok','decisions','stale'}
+>   if c['stale']:
+>     print('STALE_NOT_EMPTY',c['name'],c['stale'])
+>   if c['ok'] != (len(c['stale'])==0):
+>     print('OK_MISMATCH',c['name'],c['ok'],c['stale'])
+>   # epoch nondecreasing
+>   epochs=[d['epoch'] for d in c['decisions']]
+>   if any(epochs[i]>epochs[i+1] for i in range(len(epochs)-1)):
+>     print('EPOCH_DECREASE',c['name'],epochs)
+>   for d in c['decisions']:
+>     need={'label','principal','resource','action','verdict','epoch','reused','batch_id','delegated_from'}
+>     if set(d.keys())!=need:
+>       print('DECISION_KEYS',c['name'],d.keys())
+> print('done')
+> PY
+done
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/policy-audit.json'))
+> for name in ['alpha','gamma','delta','beta','epsilon','zeta']:
+>   c=[c for c in obj['cases'] if c['name']==name][0]
+>   print('\nCASE',name)
+>   for d in c['decisions']:
+>     print(d)
+> PY
+
+CASE alpha
+{'label': 'before', 'principal': 'clerk', 'resource': 'vault', 'action': 'read', 'verdict': 'allow', 'epoch': 2, 'reused': False, 'batch_id': '', 'delegated_fro
+m': 'boss'}
+{'label': 'batch', 'principal': 'clerk', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 5, 'reused': False, 'batch_id': 'b1', 'delegated_fro
+m': ''}
+{'label': 'after', 'principal': 'clerk', 'resource': 'vault', 'action': 'read', 'verdict': 'allow', 'epoch': 7, 'reused': False, 'batch_id': '', 'delegated_from
+': ''}
+
+CASE gamma
+{'label': 'batch', 'principal': 'intern', 'resource': 'vault', 'action': 'write', 'verdict': 'deny', 'epoch': 5, 'reused': False, 'batch_id': 'b1', 'delegated_f
+rom': ''}
+
+CASE delta
+{'label': 'first', 'principal': 'alice', 'resource': 'logs', 'action': 'read', 'verdict': 'allow', 'epoch': 1, 'reused': False, 'batch_id': '', 'delegated_from'
+: ''}
+{'label': 'second', 'principal': 'alice', 'resource': 'logs', 'action': 'read', 'verdict': 'allow', 'epoch': 3, 'reused': True, 'batch_id': '', 'delegated_from'
+: ''}
+
+CASE beta
+{'label': 'miss', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 0, 'reused': False, 'batch_id': '', 'delegated_from'
+: ''}
+{'label': 'solo', 'principal': 'intern', 'resource': 'vault', 'action': 'read', 'verdict': 'deny', 'epoch': 2, 'reused': True, 'batch_id': '', 'delegated_from':
+ ''}
+
+CASE epsilon
+{'label': 'check', 'principal': 'leaf', 'resource': 'api', 'action': 'invoke', 'verdict': 'deny', 'epoch': 4, 'reused': False, 'batch_id': '', 'delegated_from':
+ ''}
+
+CASE zeta
+{'label': 'a', 'principal': 'alpha', 'resource': 'secret', 'action': 'read', 'verdict': 'deny', 'epoch': 4, 'reused': False, 'batch_id': 'mix', 'delegated_from'
+: ''}
+{'label': 'b', 'principal': 'beta', 'resource': 'secret', 'action': 'read', 'verdict': 'deny', 'epoch': 5, 'reused': False, 'batch_id': 'mix', 'delegated_from':
+ ''}
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/policy-audit.json'))
+> for c in obj['cases']:
+>   for d in c['decisions']:
+>     # batch_id should be nonempty iff label came from grouped check; in this lab group_active drives it.
+>     if d['batch_id'] and d['label'] not in ('batch','a','b'):
+>       print('UNEXPECTED_BATCH_ID',c['name'],d)
+>     # delegated_from must be empty on denies
+>     if d['verdict']!='allow' and d['delegated_from']:
+>       print('DELEGATED_FROM_ON_DENY',c['name'],d)
+> print('done')
+> PY
+done
+root@bada234ea369:/app# bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json
+113262a18d964fc46fd9597ab8a831e1e1829549898072ef1054621ac6439034  /app/output/policy-audit.json
+root@bada234ea369:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

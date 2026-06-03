@@ -1,0 +1,39 @@
+{
+  "analysis": "Our attempted regex edit corrupted internal/d3/pair.go leaving stray lines after the KeyFor function, breaking the build. We must fix pair.go by rewriting it cleanly. Also accounting logic in c2/roll.go has an intentional bug: when profile.Restart && profile.Roll it flips p1 back to p0, which would make epsilon/zeta accounting differ between source and restored if any restart simulation is applied inconsistently, and also violates the spec (p1 for generated files under d/ when moved into later quota period). That likely contributes to ok=false even when digests match. First priority: repair d3/pair.go to compile and to use dev:ino key for all profiles. Then fix c2/roll.go to not downgrade p1 to p0 on restart.\n\nAfter rebuilding, rerun matrix and re-evaluate ok flags.",
+  "plan": "1) Rewrite /app/internal/d3/pair.go completely with correct, minimal implementation: keep bind_d/nodeX if unused? simplest is to keep existing types/functions but implement KeyFor to always return fmt.Sprintf(\"%d:%d\", row.Dev, row.Ino). Remove the corrupted trailing lines. 2) Patch c2/roll.go: remove the b&1 period flip in mark_c (or stop setting flags) so p1 remains p1. 3) Rebuild and rerun matrix. 4) Check restore-audit.json summary via python; expect all ok=true and restored hardlink groups present for beta/zeta.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/internal/d3/pair.go <<'GO'\npackage d3\n\nimport (\n        \"fmt\"\n\n        \"staged.local/snapshot/internal/f5\"\n)\n\ntype tokenX string\n\ntype nodeX struct {\n        Seen map[tokenX]bool\n}\n\nfunc bind_d(a *nodeX, b tokenX) bool {\n        if a.Seen == nil {\n                a.Seen = map[tokenX]bool{}\n        }\n        if b == \"\" {\n                return false\n        }\n        if a.Seen[b] {\n                return true\n        }\n        a.Seen[b] = true\n        return true\n}\n\n// KeyFor returns a stable identity key for grouping hardlinked files.\n// It must be derived from the backing object (dev+inode), not from the path,\n// so that restores can recreate hardlink groups.\nfunc KeyFor(row f5.Row, profile f5.Profile) string {\n        _ = profile\n        return fmt.Sprintf(\"%d:%d\", row.Dev, row.Ino)\n}\nGO\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "go fmt /app/internal/d3/pair.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\s*if b&1 == 1 && item\\.Period == \"p1\" \\{\\s*item\\.Period = \"p0\"\\s*\\}\\s*//s' /app/internal/c2/roll.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"func mark_c\" -A30 /app/internal/c2/roll.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  print(c['name'], 'ok='+str(c['ok']), 'groups',len(c['groups']['source']),len(c['groups']['restored']))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nbad=[c['name'] for c in d['cases'] if not c['ok']]\nprint('failing:', bad)\nPY\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

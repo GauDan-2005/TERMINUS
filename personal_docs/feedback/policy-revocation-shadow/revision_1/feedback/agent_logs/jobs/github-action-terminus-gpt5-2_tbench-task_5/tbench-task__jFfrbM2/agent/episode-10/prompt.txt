@@ -1,0 +1,160 @@
+New Terminal Output:
+
+root@ddaff815948e:/app# export PATH="/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin:$PATH"
+root@ddaff815948e:/app# perl -0777 -i -pe 's/pub fn slot_key\(object: &str, mode: &str\) -> String \{\s*format!\("\{object\}\\|\{mode\}"\)\s*\}/pub fn slot_key(
+subject: &str, object: &str, mode: &str) -> String {\n        format!("{subject}|{object}|{mode}")\n    }/s' /app/src/model.rs
+root@ddaff815948e:/app# cat > /app/src/io.rs <<'RS'
+> use crate::model::Event;
+> use std::fs;
+> use std::path::Path;
+>
+> pub fn read_trace(path: &Path) -> Result<Vec<Event>, String> {
+>     let text = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+>     let mut events = Vec::new();
+>     for raw in text.lines() {
+>         let line = raw.trim();
+>         if line.is_empty() || line.starts_with('#') {
+>             continue;
+>         }
+>         let parts: Vec<&str> = line.split_whitespace().collect();
+>         if parts.len() != 3 {
+>             return Err(format!("trace {} has malformed row: {line}", path.display()));
+>         }
+>         events.push(Event {
+>             kind: parts[0].to_string(),
+>             left: parts[1].to_string(),
+>             right: parts[2].to_string(),
+>         });
+>     }
+>     Ok(events)
+> }
+>
+> pub fn split_subject_object_mode(value: &str) -> Result<(String, String, String), String> {
+>     let (subject, rest) = value
+>         .split_once(':')
+>         .ok_or_else(|| format!("bad check target {value}"))?;
+>     let (object, mode) = rest
+>         .split_once('/')
+>         .ok_or_else(|| format!("bad check target {value}"))?;
+>     Ok((subject.to_string(), object.to_string(), mode.to_string()))
+> }
+>
+> pub fn split_object_mode(value: &str) -> Result<(String, String), String> {
+>     let (object, mode) = value
+>         .split_once('/')
+>         .ok_or_else(|| format!("bad object/mode {value}"))?;
+>     Ok((object.to_string(), mode.to_string()))
+> }
+> RS
+root@ddaff815948e:/app# cat > /app/k2/c.rs <<'RS'
+> use crate::model::State;
+>
+> pub fn emit_c(a: &State, b: &str, c: &str, d: &str) -> Option<String> {
+>     let key = State::slot_key(b, c, d);
+>     a.store.get(&key).cloned()
+> }
+> RS
+root@ddaff815948e:/app# cat > /app/k3/d.rs <<'RS'
+> use crate::k4_e::mote_e;
+> use crate::model::{Decision, State};
+>
+> pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+>     let slot = State::slot_key(c, d, e);
+>     let tick = a.tick_for(c);
+>
+>     if let Some(outcome) = a.group_slot.get(&slot) {
+>         // Equivalent checks within a batch are reused.
+>         let via = if outcome == "allow" {
+>             mote_e(a, c, d, e).1
+>         } else {
+>             String::new()
+>         };
+>         let mut row = Decision::blank(b, c, d, e, tick);
+>         row.outcome = outcome.clone();
+>         row.group = a.group_active.clone();
+>         row.via = via;
+>         row.reused = true;
+>         return row;
+>     }
+>
+>     let (outcome, via) = mote_e(a, c, d, e);
+>     a.group_slot.insert(slot, outcome.clone());
+>     let mut row = Decision::blank(b, c, d, e, tick);
+>     row.outcome = outcome;
+>     row.group = a.group_active.clone();
+>     row.via = via;
+>     row
+> }
+> RS
+root@ddaff815948e:/app# cat > /app/k4/e.rs <<'RS'
+        }
+
+        match a.chain.get(&current) {
+            Some(parent) => {
+                current = parent.clone();
+                path.push(current.clone());
+            }
+            None => return ("deny".to_string(), String::new()),
+        }
+    }
+}
+RS
+> use crate::model::State;
+>
+> pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+>     // Walk from requesting subject toward grantors following the delegation chain.
+>     // If any subject along this walk is blocked/revoked, delegated access denies.
+>     let mut current = b.to_string();
+>     let mut path: Vec<String> = vec![current.clone()];
+>
+>     loop {
+>         if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+>             let delegated = current != b;
+>             if delegated {
+>                 if path.iter().any(|s| a.blocked.contains(s)) {
+>                     return ("deny".to_string(), String::new());
+>                 }
+>                 if a.blocked.contains(b) {
+>                     return ("deny".to_string(), String::new());
+>                 }
+>                 // delegated_from = grantor
+>                 return ("allow".to_string(), current.clone());
+>             }
+>             // Direct grant
+>             return ("allow".to_string(), String::new());
+>         }
+>
+>         match a.chain.get(&current) {
+>             Some(parent) => {
+>                 current = parent.clone();
+>                 path.push(current.clone());
+>             }
+>             None => return ("deny".to_string(), String::new()),
+>         }
+>     }
+> }
+> RS
+root@ddaff815948e:/app# perl -0777 -i -pe 's/use crate::io::split_subject_object_mode;/use crate::io::{split_object_mode, split_subject_object_mode};/s' /app/k0
+/a.rs
+root@ddaff815948e:/app# perl -0777 -i -pe 's/let \(object, mode\) = b\s*\.right\s*\.split_once\(\x27\/\x27\)\s*\.ok_or_else\(\|\| format!\(\"bad grant row \{\}\
+", b\.right\)\)\?;/let (object, mode) = split_object_mode(&b.right)?;/s' /app/k0/a.rs
+root@ddaff815948e:/app# perl -0777 -i -pe 's/State::slot_key\(object, mode\)/State::slot_key(subject, object, mode)/g' /app/k0/a.rs
+root@ddaff815948e:/app# cargo build -q
+error[E0765]: unterminated double quote string
+  --> src/model.rs:69:43
+   |
+69 |           format!("{subject}|{object}|{mode}")
+   |  ___________________________________________^
+...  |
+87 | | }
+   | |_^
+
+For more information about this error, try `rustc --explain E0765`.
+error: could not compile `policy-revocation-shadow` (lib) due to 1 previous error
+root@ddaff815948e:/app# rm -f /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@ddaff815948e:/app# cp /app/traces/beta.trace /tmp/beta.trace && sed -i 's/check solo/check solo2/' /tmp/beta.trace && /app/target/debug/pollab /tmp/out.jso
+n /app/traces/alpha.trace /tmp/beta.trace /app/traces/gamma.trace /app/traces/delta.trace /app/traces/epsilon.trace /app/traces/zeta.trace && cmp -s /tmp/out.js
+on /app/output/policy-audit.json; echo "cmp_exit=$?"; rm -f /tmp/out.json /tmp/beta.trace
+cmp_exit=1
+root@ddaff815948e:/app#

@@ -1,0 +1,51 @@
+Current terminal state:
+New Terminal Output:
+
+root@334dfe1f3bf9:/app# ls -ლა output
+ls: invalid option -- ''
+Try 'ls --help' for more information.
+root@334dfe1f3bf9:/app# python3 - <<'PY'
+> import json, pathlib, sys
+> names=['cedar','jade','slate','coral','onyx','pearl']
+> req={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> req_step={'op','heap_sig','fl_count','fl_sig','byte_total'}
+> errs=[]
+> for n in names:
+>     p=pathlib.Path('output')/f'{n}-audit.json'
+>     if not p.exists():
+>         errs.append((n,'missing_audit',str(p)))
+>         continue
+>     obj=json.loads(p.read_text())
+>     miss=req-set(obj)
+>     if miss:
+>         errs.append((n,'missing_keys',sorted(miss)))
+>     if obj.get('name')!=n:
+>         errs.append((n,'name_mismatch',obj.get('name')))
+>     steps=obj.get('steps',[])
+>     for i,s in enumerate(steps):
+>         miss=req_step-set(s)
+>         if miss:
+>             errs.append((n,f'missing_step_keys@{i}',sorted(miss)))
+>     led=pathlib.Path(obj.get('ledger',''))
+>     if not led.exists():
+>         errs.append((n,'missing_ledger',str(led)))
+>     else:
+>         lines=sum(1 for _ in led.open('r'))
+>         if lines!=len(steps):
+>             errs.append((n,'ledger_len_mismatch',{'steps':len(steps),'ledger_lines':lines,'path':str(led)}))
+> print('errors',len(errs))
+> for e in errs:
+>     print('ERR',e)
+> sys.exit(1 if errs else 0)
+> PY
+errors 6
+ERR ('cedar', 'missing_audit', 'output/cedar-audit.json')
+ERR ('jade', 'missing_audit', 'output/jade-audit.json')
+ERR ('slate', 'missing_audit', 'output/slate-audit.json')
+ERR ('coral', 'missing_audit', 'output/coral-audit.json')
+ERR ('onyx', 'missing_audit', 'output/onyx-audit.json')
+ERR ('pearl', 'missing_audit', 'output/pearl-audit.json')
+root@334dfe1f3bf9:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

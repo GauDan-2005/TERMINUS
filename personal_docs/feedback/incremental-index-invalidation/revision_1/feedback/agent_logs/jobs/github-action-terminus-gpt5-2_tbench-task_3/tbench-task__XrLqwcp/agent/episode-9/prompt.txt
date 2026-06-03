@@ -1,0 +1,137 @@
+New Terminal Output:
+
+root@01f99625b95f:/app# cat > /app/r4/e.rs <<'EOF'
+> use crate::model::{Entry, Observation, State};
+>
+> #[derive(Clone)]
+> struct Pick {
+>     slot: String,
+>     path: String,
+>     source: String,
+>     line: usize,
+>     epoch: u64,
+>     handle: u64,
+> }
+>
+> fn better(a: &Pick, b: &Pick) -> bool {
+>     // Prefer newer epoch; tie-break deterministically.
+>     (a.epoch, &a.path, a.line) > (b.epoch, &b.path, b.line)
+> }
+>
+> pub fn mote_e(a: &mut State, symbol: &str, expect_found: bool) -> Observation {
+>     let mut best_active: Option<Pick> = None;
+>     let mut best_any: Option<Pick> = None;
+>
+>     for entry in &a.entries {
+>         if entry.symbol != symbol {
+>             continue;
+>         }
+>
+>         let pick = Pick {
+>             slot: entry.slot.clone(),
+>             path: entry.path.clone(),
+>             source: entry.source.clone(),
+>             line: entry.line,
+>             epoch: entry.epoch,
+>             handle: entry.handle,
+>         };
+>
+>         if best_any.as_ref().is_none_or(|old| better(&pick, old)) {
+>             best_any = Some(pick.clone());
+>         }
+>
+>         let is_active = a
+>             .active
+>             .get(&entry.slot)
+>             .is_some_and(|root| entry.path.starts_with(root));
+>         if is_active {
+>             if best_active.as_ref().is_none_or(|old| better(&pick, old)) {
+>                 best_active = Some(pick);
+>             }
+>         }
+>     }
+>
+>     // For misses, only report a hit if it's visible from active roots.
+>     let chosen = if expect_found {
+>         best_active.or(best_any)
+>     } else {
+>         best_active
+>     };
+>
+>     let Some(chosen) = chosen else {
+>         return Observation::missing(symbol, symbol, a.epoch, !expect_found || true);
+>     };
+>
+>     let reused = a
+>         .last_seen
+>         .get(symbol)
+>         .map(|old| *old == chosen.handle)
+>         .unwrap_or(false);
+>     a.last_seen.insert(symbol.to_string(), chosen.handle);
+>
+>     let fresh = a
+>         .active
+>         .get(&chosen.slot)
+>         .map(|root| chosen.path.starts_with(root))
+>         .unwrap_or(false);
+>
+>     Observation {
+>         label: String::new(),
+>         symbol: symbol.to_string(),
+>         found: true,
+>         path: chosen.path,
+>         source: chosen.source,
+>         line: chosen.line,
+>         epoch: a.epoch,
+>         reused,
+>         fresh,
+>     }
+> }
+> EOF
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+warning: unused import: `Entry`
+ --> src/../r4/e.rs:1:20
+  |
+1 | use crate::model::{Entry, Observation, State};
+  |                    ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> for c in obj['cases']:
+>     print(c['name'], 'ok', c['ok'], 'stale', c['stale'])
+> PY
+alpha ok True stale []
+beta ok True stale []
+gamma ok True stale []
+delta ok True stale []
+epsilon ok True stale []
+zeta ok True stale []
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> # check epsilon legacy_after is a miss
+> c=next(x for x in obj['cases'] if x['name']=='epsilon')
+> print([o for o in c['observations'] if o['label']=='epsilon_legacy_after'][0])
+> PY
+{'label': 'epsilon_legacy_after', 'symbol': 'Legacy', 'found': False, 'path': '', 'source': '', 'line': 0, 'epoch': 2, 'reused': False, 'fresh': True}
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json && cp /app/output/index-report.json /app/output/index-report.json.run1
+70807be922db6bab17ad731ce2c047c4109b530c05f3bc6799f30cebcb7ee6f7  /app/output/index-report.json
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+warning: unused import: `Entry`
+ --> src/../r4/e.rs:1:20
+  |
+1 | use crate::model::{Entry, Observation, State};
+  |                    ^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json /app/output/index-report.json.run1
+70807be922db6bab17ad731ce2c047c4109b530c05f3bc6799f30cebcb7ee6f7  /app/output/index-report.json
+70807be922db6bab17ad731ce2c047c4109b530c05f3bc6799f30cebcb7ee6f7  /app/output/index-report.json.run1
+root@01f99625b95f:/app# diff -u /app/output/index-report.json.run1 /app/output/index-report.json || true
+root@01f99625b95f:/app#

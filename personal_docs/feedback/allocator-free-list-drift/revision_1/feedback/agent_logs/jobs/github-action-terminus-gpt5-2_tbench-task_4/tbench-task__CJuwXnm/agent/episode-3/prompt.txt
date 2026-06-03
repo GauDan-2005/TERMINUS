@@ -1,0 +1,73 @@
+New Terminal Output:
+
+root@d6483c51e643:/app# python3 - <<'PY'
+> import json, os
+> p='/app/output/alloc-audit.json'
+> with open(p) as f: data=json.load(f)
+> assert isinstance(data, dict)
+> assert 'cases' in data and isinstance(data['cases'], list)
+> print('cases:', [c.get('name') for c in data['cases']])
+> req_case={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> req_step={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> missing=[]
+> for c in data['cases']:
+>     mc=sorted(req_case - set(c))
+>     if mc: missing.append((c.get('name'), 'case', mc))
+>     if not isinstance(c.get('steps'), list):
+>         missing.append((c.get('name'), 'steps_not_list', []));
+>         continue
+>     for i,s in enumerate(c['steps']):
+>         ms=sorted(req_step - set(s))
+>         if ms:
+>             missing.append((c.get('name'), f'step[{i}]', ms))
+>             break
+>     led=c.get('ledger')
+>     if isinstance(led,str):
+>         if not os.path.exists(led):
+>             missing.append((c.get('name'), 'ledger_missing', [led]))
+>     else:
+>         missing.append((c.get('name'), 'ledger_not_str', []))
+> print('missing:', missing)
+> PY
+cases: ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+missing: []
+root@d6483c51e643:/app# python3 - <<'PY'
+> import json
+> p='/app/output/alloc-audit.json'
+> with open(p) as f: data=json.load(f)
+> for c in data['cases']:
+>     name=c['name']
+>     steps=len(c['steps'])
+>     ledger_path=c['ledger']
+>     with open(ledger_path) as lf:
+>         lines=sum(1 for _ in lf)
+>     print(f"{name}: steps={steps} ledger_lines={lines} ok={c['ok']}")
+> PY
+cedar: steps=5 ledger_lines=5 ok=True
+jade: steps=8 ledger_lines=8 ok=True
+slate: steps=7 ledger_lines=7 ok=True
+coral: steps=3 ledger_lines=3 ok=True
+onyx: steps=7 ledger_lines=7 ok=True
+pearl: steps=9 ledger_lines=9 ok=True
+root@d6483c51e643:/app# bash -lc 'rm -rf /app/output && mkdir -p /app/output'
+root@d6483c51e643:/app# for n in cedar jade slate coral onyx pearl; do echo "== $n =="; bash /app/scripts/run-one.sh "$n"; ls -la "/app/output/${n}-audit.json"
+"/app/output/${n}.ledger.jsonl"; done
+== cedar ==
+-rw-r--r-- 1 root root 979 May 25 13:12 /app/output/cedar-audit.json
+-rw-r--r-- 1 root root 608 May 25 13:12 /app/output/cedar.ledger.jsonl
+== jade ==
+-rw-r--r-- 1 root root 1416 May 25 13:12 /app/output/jade-audit.json
+-rw-r--r-- 1 root root  969 May 25 13:12 /app/output/jade.ledger.jsonl
+== slate ==
+-rw-r--r-- 1 root root 1265 May 25 13:12 /app/output/slate-audit.json
+-rw-r--r-- 1 root root  842 May 25 13:12 /app/output/slate.ledger.jsonl
+== coral ==
+-rw-r--r-- 1 root root 689 May 25 13:12 /app/output/coral-audit.json
+-rw-r--r-- 1 root root 370 May 25 13:12 /app/output/coral.ledger.jsonl
+== onyx ==
+-rw-r--r-- 1 root root 1276 May 25 13:12 /app/output/onyx-audit.json
+-rw-r--r-- 1 root root  853 May 25 13:12 /app/output/onyx.ledger.jsonl
+== pearl ==
+-rw-r--r-- 1 root root 1567 May 25 13:12 /app/output/pearl-audit.json
+-rw-r--r-- 1 root root 1092 May 25 13:12 /app/output/pearl.ledger.jsonl
+root@d6483c51e643:/app#

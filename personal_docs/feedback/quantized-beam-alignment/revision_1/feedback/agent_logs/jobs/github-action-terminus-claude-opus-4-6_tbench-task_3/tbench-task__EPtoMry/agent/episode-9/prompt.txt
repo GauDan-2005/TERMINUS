@@ -1,0 +1,135 @@
+New Terminal Output:
+
+root@f2add2477b9b:/app# cat /app/cmd/align/main.go
+package main
+
+import (
+"encoding/json"
+"os"
+"reflect"
+)
+
+type entry struct {
+Case      string `json:"case"`
+Produced  []int  `json:"produced"`
+Trace     []int  `json:"slot_trace"`
+OrderUsed []int  `json:"order_used"`
+Packed    bool   `json:"packed"`
+Grouped   bool   `json:"grouped"`
+Reuse     bool   `json:"reuse"`
+}
+
+type rawDoc struct {
+Raw []entry `json:"raw"`
+}
+
+type finalDoc struct {
+Rows    []entry        `json:"rows"`
+Summary map[string]any `json:"summary"`
+}
+
+func entriesMatch(a, b entry) bool {
+if !reflect.DeepEqual(a.Produced, b.Produced) {
+return false
+}
+if !reflect.DeepEqual(a.Trace, b.Trace) {
+return false
+}
+if !reflect.DeepEqual(a.OrderUsed, b.OrderUsed) {
+return false
+}
+if a.Packed != b.Packed {
+return false
+}
+if a.Grouped != b.Grouped {
+return false
+}
+if a.Reuse != b.Reuse {
+return false
+}
+return true
+}
+
+func buildMap(rows []entry) map[string]entry {
+m := make(map[string]entry)
+for _, r := range rows {
+m[r.Case] = r
+}
+return m
+}
+
+func main() {
+if len(os.Args) != 3 {
+panic("usage: align raw final")
+}
+rawPath := os.Args[1]
+finalPath := os.Args[2]
+
+buf, err := os.ReadFile(rawPath)
+if err != nil {
+panic(err)
+}
+var raw rawDoc
+if err := json.Unmarshal(buf, &raw); err != nil {
+panic(err)
+}
+
+// Report rows are the same as raw rows
+reportRows := make([]entry, len(raw.Raw))
+copy(reportRows, raw.Raw)
+
+// Compute agree: compare incoming raw against existing report.json if present
+agree := true
+
+// Check if existing report.json exists
+if existingBuf, err := os.ReadFile(finalPath); err == nil {
+var existing finalDoc
+if err := json.Unmarshal(existingBuf, &existing); err == nil {
+// Compare existing report rows against incoming raw rows by case name
+existingMap := buildMap(existing.Rows)
+rawMap := buildMap(raw.Raw)
+
+// Check all cases in raw against existing
+for caseName, rawEntry := range rawMap {
+if existingEntry, ok := existingMap[caseName]; ok {
+if !entriesMatch(rawEntry, existingEntry) {
+agree = false
+break
+}
+} else {
+agree = false
+break
+}
+}
+// Also check if existing has cases not in raw
+if agree {
+for caseName := range existingMap {
+if _, ok := rawMap[caseName]; !ok {
+agree = false
+break
+}
+}
+}
+} else {
+agree = false
+}
+}
+// If no existing report.json, agree stays true (new report rows = raw rows, they match)
+
+doc := finalDoc{
+Rows: reportRows,
+Summary: map[string]any{
+"total": len(reportRows),
+"agree": agree,
+},
+}
+
+out, err := json.MarshalIndent(doc, "", "  ")
+if err != nil {
+panic(err)
+}
+if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
+panic(err)
+}
+}
+root@f2add2477b9b:/app#

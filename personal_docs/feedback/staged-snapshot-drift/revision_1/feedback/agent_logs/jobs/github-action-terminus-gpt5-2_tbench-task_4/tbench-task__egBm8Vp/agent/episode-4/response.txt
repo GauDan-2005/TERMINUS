@@ -1,0 +1,23 @@
+{
+  "analysis": "Found explicit bug: phase_a trims a trailing newline from write rows when Seq%5==0. That directly explains alpha/a/one.txt (seq starts at 0 so it loses newline). Also phase_a forces Nlink=1 for hardlinked files, which will break hardlink groups for beta/zeta. Therefore all cases fail due to intentional-but-wrong mutations in phase_a. Fix: remove newline trimming and preserve Nlink so restore can re-link correctly. After patch, rebuild and rerun matrix to confirm ok=true and restored matches source including hardlinks and accounting.",
+  "plan": "1) Edit internal/a0/core.go: remove the Seq%5 newline trimming and stop overriding Nlink>1 to 1. (phase_a should not corrupt data or link metadata.) 2) Run `go test` if any, or at least `go vet`/`go test ./...` quickly. 3) Rerun `bash /app/scripts/run-matrix.sh`. 4) Inspect /app/output/restore-audit.json summary to ensure all cases ok=true and groups/accounting populated and matching.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch <<'PATCH'\n*** Begin Patch\n*** Update File: internal/a0/core.go\n@@\n func phase_a(a *stateX, b itemY) error {\n@@\n-        if b.Op == \"write\" && b.Seq%5 == 0 {\n-                b.Data = strings.TrimSuffix(b.Data, \"\\n\")\n-        }\n-        if b.Op == \"write\" && b.Nlink > 1 {\n-                b.Nlink = 1\n-        }\n+        // Materialization must be byte-for-byte faithful to the source tree.\n+        // Do not mutate payloads (e.g. trimming trailing newlines) and do not\n+        // discard hardlink metadata (Nlink) since downstream restore relies on\n+        // this to recreate hardlink groups.\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go test ./...\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/restore-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    d=c.get('digest',{})\n    print(f\"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}\")\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,31 @@
+{
+  "analysis": "Found the bug: store.PackItem overwrites Seen with Lit (out.Seen = st.Lit). This destroys the cumulative Seen history and causes resume runs to restore only currently lit tiles at save time, reducing resume_seen relative to fresh_seen. This exactly matches the persistent mismatch. Fix: PackItem should preserve Seen as st.Seen (or b.Seen), not st.Lit. Likely intended to deep-copy both Lit and Seen only. We'll change PackItem to return b with Lit/Seen deep-copied, and not clobber Seen. After fixing, rebuild and rerun matrix; ok should become true for all cases with matching visibility and signatures, and sidecars should no longer contain duplicates.",
+  "plan": "1) Edit /app/internal/store/pack.go PackItem to not replace Seen with Lit; instead deep copy Seen from st.Seen. 2) Rebuild. 3) Rerun run-matrix.sh and verify bad=0, no VIS_MISMATCH, and no duplicate moves. 4) Spot-check one workspace records/log to ensure single canonical move stream.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -pi -e 's/out\\.Seen = append\\(\\[]bool\\(nil\\), st\\.Lit\\.\\.\\.\\)/out.Seen = append([]bool(nil), st.Seen...)/s' /app/internal/store/pack.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/store/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -C /app\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, collections\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\nprint('cases', len(d['cases']))\nprint('bad', sum(1 for c in d['cases'] if not c.get('ok')))\nfor c in d['cases']:\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print('VIS_MISMATCH', c['name'], vis)\n    moves=c.get('moves',[])\n    key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'),m.get('legal'))\n    ctr=collections.Counter(key(m) for m in moves)\n    if any(v>1 for v in ctr.values()):\n        print('DUPS_IN_JSON', c['name'], 'total', len(moves), 'unique', len(ctr))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "echo '--- rook records'; cat /app/workspace/rook/records.jsonl; echo '--- rook trace'; cat /app/workspace/rook/trace.tsv\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

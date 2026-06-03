@@ -1,0 +1,19 @@
+{
+  "analysis": "d/roll.txt exists and is 19 bytes on disk in both source and restored, but accounting reports bytes 0, so c2.ItemsC is broken for roll.txt (likely not statting, or overwriting size). Also period should likely be p1 for roll.txt in epsilon/zeta (these have Roll=true and Restart=true per ProfileFor). We still need to view c2/roll.go and cmd/ctl/main.go top to patch accordingly.",
+  "plan": "1) Re-run sed to show internal/c2/roll.go and internal/c2/table.go (previous sed output didn’t display due to scroll; run again now). 2) Show cmd/ctl/main.go from line 1-140 to see accountingMatchesDisk and runCase ok computation. 3) Patch c2.ItemsC to compute bytes using os.Stat for every regular file including d/roll.txt, and set period p1 when profile.Roll && profile.Restart && strings.HasPrefix(path, \"d/\"). 4) Ensure any rollup/bitflag logic in c2/roll.go that flips p1->p0 is removed or corrected. 5) Rerun matrix and verify ok true.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,220p' /app/internal/c2/roll.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/c2/table.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,160p' /app/cmd/ctl/main.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,11 @@
+{
+  "analysis": "Both runs produce identical output (no diff), confirming reproducibility. All six scenarios show:\n- `base_match: true` - conservation is maintained through splits, merges, and refluxing\n- `balanced: true` - seam accounting closes out\n- `drift_ratio: 0` (or machine epsilon) - no conservation drift\n- Two clean runs from the same inputs produce equivalent reports\n\nThe three bugs that were fixed:\n1. **`blend.cpp`**: Changed from arithmetic mean (`sum_q / n`) to volume-weighted conservative merge (`sum(vol*q) / sum_vol`)\n2. **`edge_corr.cpp`**: Changed from storing only the first sub-face flux to storing all sub-face fluxes (which sum to zero, maintaining conservation)\n3. **`serial.cpp` + `resume.cpp`**: Extended vault serialization to save/restore coarse structure (`n_coarse`, `coarse_start`, `coarse_len`) and flux bank, so the snapshot round-trip doesn't lose state",
+  "plan": "Let me also check the persistence audit log to confirm the tampered vault is rejected properly.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/output/persistence_audit.log\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": true
+}

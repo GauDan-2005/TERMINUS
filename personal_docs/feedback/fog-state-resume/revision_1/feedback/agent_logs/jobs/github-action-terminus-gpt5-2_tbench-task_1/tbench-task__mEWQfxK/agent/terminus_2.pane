@@ -1,0 +1,1345 @@
+[?2004hroot@6d34054701b6:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@6d34054701b6:/app# clear
+[?2004l[H[J[3J[?2004hroot@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@6d34054701b6:/app# ls -la /app/output
+[?2004ltotal 4
+drwxr-xr-x  2 root root   31 May 25 15:58 .
+drwxr-xr-x 12 root root  188 May 25 15:58 ..
+-rw-r--r--  1 root root 4047 May 25 15:58 resume-audit.json
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> cases=data.get('cases',[])
+[?2004l[?2004h> print('cases:', [c.get('name') for c in cases])
+[?2004l[?2004h> for c in cases:
+[?2004l[?2004h>     name=c.get('name')
+[?2004l[?2004h>     ok=c.get('ok')
+[?2004l[?2004h>     fresh=c.get('fresh',{})
+[?2004l[?2004h>     resume=c.get('resume',{})
+[?2004l[?2004h>     fi=fresh.get('illegal'); ri=resume.get('illegal')
+[?2004l[?2004h>     fs=fresh.get('sig'); rs=resume.get('sig')
+[?2004l[?2004h>     fsteps=fresh.get('steps'); rsteps=resume.get('steps')
+[?2004l[?2004h>     if not ok or fi or ri or (fs!=rs and fs and rs):
+[?2004l[?2004h>         print('\nFAIL:', name)
+[?2004l[?2004h>         print(' ok:', ok)
+[?2004l[?2004h>         print(' fresh illegal/steps/sig:', fi, fsteps, fs)
+[?2004l[?2004h>         print(' resume illegal/steps/sig:', ri, rsteps, rs)
+[?2004l[?2004h>         print(' records:', c.get('records'))
+[?2004l[?2004h>         print(' log:', c.get('log'))
+[?2004l[?2004h>         print(' visibility:', c.get('visibility'))
+[?2004l[?2004h>         print(' effects:', c.get('effects'))
+[?2004l[?2004h> PY
+[?2004lcases: ['bishop', 'knight', 'lancer', 'rook', 'sentinel', 'warden']
+
+FAIL: rook
+ ok: False
+ fresh illegal/steps/sig: 0 1 7d3f56fa
+ resume illegal/steps/sig: 0 1 24ebc3c9
+ records: /app/workspace/rook/records.jsonl
+ log: /app/workspace/rook/trace.tsv
+ visibility: {'fresh_seen': 9, 'resume_seen': 8}
+ effects: []
+
+FAIL: sentinel
+ ok: False
+ fresh illegal/steps/sig: 0 1 9a98d68
+ resume illegal/steps/sig: 0 1 691e8e87
+ records: /app/workspace/sentinel/records.jsonl
+ log: /app/workspace/sentinel/trace.tsv
+ visibility: {'fresh_seen': 9, 'resume_seen': 8}
+ effects: [{'id': 'ward', 'active': True, 'epoch': 7}]
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=next(x for x in data['cases'] if x['name']==name)
+[?2004l[?2004h>     print('\n==',name,'==')
+[?2004l[?2004h>     print('ok',c['ok'])
+[?2004l[?2004h>     print('fresh',c['fresh'])
+[?2004l[?2004h>     print('resume',c['resume'])
+[?2004l[?2004h>     print('moves:', json.dumps(c.get('moves',[]), indent=2))
+[?2004l[?2004h> PY
+[?2004l
+== rook ==
+ok False
+fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+resume {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}
+moves: [
+  {
+    "turn": 3,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  },
+  {
+    "turn": 2,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  }
+]
+
+== sentinel ==
+ok False
+fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+resume {'sig': '691e8e87', 'illegal': 0, 'steps': 1}
+moves: [
+  {
+    "turn": 5,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  },
+  {
+    "turn": 4,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  }
+]
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> 
+[?2004l[?2004h> def load_jsonl(p):
+[?2004l[?2004h>     rows=[]
+[?2004l[?2004h>     for line in Path(p).read_text().splitlines():
+[?2004l[?2004h>         if not line.strip():
+[?2004l[?2004h>             continue
+[?2004l[?2004h>         rows.append(json.loads(line))
+[?2004l[?2004h>     return rows
+[?2004l[?2004h> 
+[?2004l[?2004h> a='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(a) as f: data=json.load(f)
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=next(x for x in data['cases'] if x['name']==name)
+[?2004l[?2004h>     moves=c.get('moves',[])
+[?2004l[?2004h>     recp=c['records']
+[?2004l[?2004h>     logp=c['log']
+[?2004l[?2004h>     recs=load_jsonl(recp)
+[?2004l[?2004h>     print('\n==',name,'==')
+[?2004l[?2004h>     print('moves',len(moves),'records',len(recs))
+[?2004l[?2004h>     print('moves==records:', moves==recs)
+[?2004l[?2004h>     # show log rows count (nonblank)
+[?2004l[?2004h>     log_lines=[ln for ln in Path(logp).read_text().splitlines() if ln.strip()]
+[?2004l[?2004h>     print('log rows:', len(log_lines))
+[?2004l[?2004h>     if moves!=recs:
+[?2004l[?2004h>         for i,(m,r) in enumerate(zip(moves,recs)):
+[?2004l[?2004h>             if m!=r:
+[?2004l[?2004h>                 print('first diff at',i)
+[?2004l[?2004h>                 print(' move',m)
+[?2004l[?2004h>                 print(' rec ',r)
+[?2004l[?2004h>                 break
+[?2004l[?2004h> PY
+[?2004l
+== rook ==
+moves 2 records 2
+moves==records: True
+log rows: 2
+
+== sentinel ==
+moves 2 records 2
+moves==records: True
+log rows: 2
+[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     p=f'/app/output/single-{name}.json'
+[?2004l[?2004h>     with open(p) as f: data=json.load(f)
+[?2004l[?2004h>     c=data['cases'][0]
+[?2004l[?2004h>     print('\n== single',name,'==')
+[?2004l[?2004h>     print('ok',c['ok'])
+[?2004l[?2004h>     print('fresh',c['fresh'])
+[?2004l[?2004h>     print('resume',c['resume'])
+[?2004l[?2004h>     print('visibility',c.get('visibility'))
+[?2004l[?2004h>     print('effects',c.get('effects'))
+[?2004l[?2004h>     print('moves',json.dumps(c.get('moves',[]), indent=2))
+[?2004l[?2004h> PY
+[?2004l
+== single rook ==
+ok False
+fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+resume {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}
+visibility {'fresh_seen': 9, 'resume_seen': 8}
+effects []
+moves [
+  {
+    "turn": 3,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  },
+  {
+    "turn": 2,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  }
+]
+
+== single sentinel ==
+ok False
+fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+resume {'sig': '691e8e87', 'illegal': 0, 'steps': 1}
+visibility {'fresh_seen': 9, 'resume_seen': 8}
+effects [{'id': 'ward', 'active': True, 'epoch': 7}]
+moves [
+  {
+    "turn": 5,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  },
+  {
+    "turn": 4,
+    "actor": "1",
+    "from_x": 3,
+    "from_y": 3,
+    "to_x": 3,
+    "to_y": 2,
+    "kind": "step",
+    "legal": true
+  }
+]
+[?2004hroot@6d34054701b6:/app# rg -n "resume-audit|audit\.json|records\.jsonl|trace\.tsv|\"sig\"|signature" /app | head -n 200
+[?2004lbash: rg: command not found
+[?2004hroot@6d34054701b6:/app# rg -n "def .*sig|sig\s*=|compute_.*sig|signature\(" /app | head -n 200
+[?2004lbash: rg: command not found
+[?2004hroot@6d34054701b6:/app# ls -la /app/bin && file /app/bin/rogctl
+[?2004ltotal 2856
+drwxr-xr-x  2 root root      20 May 25 15:57 .
+drwxr-xr-x 12 root root     188 May 25 15:58 ..
+-rwxr-xr-x  1 root root 2921536 May 25 15:58 rogctl
+bash: file: command not found
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json,hashlib
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> 
+[?2004l[?2004h> def sig(moves):
+[?2004l[?2004h>     # guess canonical signature over JSON-serialized moves
+[?2004l[?2004h>     s=json.dumps(moves, sort_keys=True, separators=(',',':')).encode()
+[?2004l[?2004h>     return hashlib.sha256(s).hexdigest()[:8]
+[?2004l[?2004h> 
+[?2004l[?2004h> a='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(a) as f: data=json.load(f)
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     c=next(x for x in data['cases'] if x['name']==name)
+[?2004l[?2004h>     print(name,'computed',sig(c['moves']),'fresh',c['fresh']['sig'],'resume',c['resume']['sig'])
+[?2004l[?2004h> PY
+[?2004lrook computed 01e7de33 fresh 7d3f56fa resume 24ebc3c9
+sentinel computed 3d882d6a fresh 9a98d68 resume 691e8e87
+[?2004hroot@6d34054701b6:/app# ls -la /app
+[?2004ltotal 12
+drwxr-xr-x 12 root root 188 May 25 15:58 .
+drwxr-xr-x 19 root root 265 May 25 15:58 ..
+-rw-r--r--  1 root root 120 May 25 15:56 Makefile
+-rw-r--r--  1 root root 138 May 25 15:56 README.md
+drwxr-xr-x  2 root root  20 May 25 15:57 bin
+drwxr-xr-x  3 root root  20 May 25 15:56 cmd
+drwxr-xr-x  2 root root  63 May 25 15:56 config
+drwxr-xr-x  4 root root  57 May 25 15:56 data
+drwxr-xr-x  2 root root  50 May 25 15:56 docs
+-rw-r--r--  1 root root  33 May 25 15:56 go.mod
+drwxr-xr-x 11 root root  97 May 25 15:56 internal
+drwxr-xr-x  2 root root  83 May 25 15:58 output
+drwxr-xr-x  2 root root  56 May 25 15:56 probe
+drwxr-xr-x  2 root root  67 May 25 15:56 scripts
+drwxr-xr-x  8 root root  90 May 25 15:58 workspace
+[?2004hroot@6d34054701b6:/app# find /app -maxdepth 3 -type f -name "*.sh" -o -name "*.py" -o -name "*.rs" -o -name "*.go" -o -name "*.js" -o -name "Cargo.toml" -o -name "go.mod" -o -name "package.json" 2>/dev/null | sed 's#^/app/##' | head -n 200
+[?2004lcmd/rogctl/main.go
+go.mod
+internal/a0/pack.go
+internal/b1/cache.go
+internal/c2/effect.go
+internal/d3/plan.go
+internal/e4/native.go
+internal/e4/sight.go
+internal/f5/run.go
+internal/f5/types.go
+internal/g6/render.go
+internal/h7/stats.go
+internal/sim/layout.go
+internal/sim/profile.go
+internal/sim/types.go
+internal/sim/world.go
+scripts/clean-room.sh
+scripts/one-case.sh
+scripts/run-matrix.sh
+[?2004hroot@6d34054701b6:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+out="/app/output/resume-audit.json"
+work=""
+one_case=""
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --out) out="$2"; shift 2 ;;
+    --work) work="$2"; shift 2 ;;
+    --case) one_case="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
+mkdir -p "$(dirname "$out")"
+make -s -C /app build
+args=("--out" "$out")
+if [ -n "$work" ]; then
+  args+=("--root" "$work")
+fi
+if [ -n "$one_case" ]; then
+  args+=("--case" "$one_case")
+fi
+/app/bin/rogctl "${args[@]}"
+[?2004hroot@6d34054701b6:/app# sed -n '1,200p' /app/scripts/one-case.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+if [ "$#" -lt 1 ]; then
+  echo "usage: one-case.sh <name>" >&2
+  exit 2
+fi
+name="$1"
+out="/app/output/single-${name}.json"
+bash /app/scripts/run-matrix.sh --out "$out" --case "$name"
+[?2004hroot@6d34054701b6:/app# grep -RIn --exclude-dir=workspace --exclude-dir=output "resume-audit\|records\.jsonl\|trace\.tsv\|\"sig\"\|signature" /app 2>/dev/null | head -n 200
+[?2004l/app/cmd/rogctl/main.go:14:	outPath := flag.String("out", "/app/output/resume-audit.json", "output path")
+/app/internal/f5/run.go:268:	recPath := filepath.Join(caseDir, "records.jsonl")
+/app/internal/f5/run.go:269:	logPath := filepath.Join(caseDir, "trace.tsv")
+/app/internal/sim/types.go:25:	Sig     string `json:"sig"`
+/app/scripts/run-matrix.sh:3:out="/app/output/resume-audit.json"
+[?2004hroot@6d34054701b6:/app# /app/bin/rogctl --help || true
+[?2004lUsage of /app/bin/rogctl:
+  -case string
+    	single case
+  -out string
+    	output path (default "/app/output/resume-audit.json")
+  -root string
+    	workspace root (default "/app")
+[?2004hroot@6d34054701b6:/app# strings /app/bin/rogctl | grep -Ei "audit|sig|signature|resume|records\.jsonl|trace\.tsv" | head -n 200
+[?2004lpthread_sigmask
+sigaddset
+sigfillset
+sigismember
+sigaction
+sigemptyset
+sigpc
+signed
+gsignal
+sigmask
+assignTo
+sigcode0
+sigcode1
+	regAssign
+	caughtsig
+assignIntN
+goSigStack
+stackAssign
+newSigstack
+AssignableTo
+assignFloatN
+isExtraInSig
+signalPending
+json:"sig"
+*runtime.sigset
+mustBeAssignable
+mustBeAssignableSlow
+Resume
+json:"resume"
+*runtime.gsignalStack
+fog.local/resume/internal/a0
+fog.local/resume/internal/c2
+fog.local/resume/internal/e4
+fog.local/resume/internal/sim
+ResumeSeen
+json:"resume_seen"
+ (scan  MB in pacer: % CPU ( zombie, j0 = head = ,errno=panic:  nmsys= locks= dying= allocsGODEBUGrax    rbx    rcx    rdx    rdi    rsi    rbp    rsp    r8     r9     r10    r11    r12    r13    r14    r15    rip    rflags cs     fs     gs     signal Signal  m->g0= pad1=  pad2=  text= minpc= 	value= (scan)	types : type TuesdayJanuaryOctoberlayoutsscriptsavx512fos/execfips140runtimetls3dessentinelomitzerodurationGoString48828125strconv.parsing ParseIntnil PoolscavengepollDescsynctesttraceBufdeadlockraceFinipanicnilcgocheckrunnable is not  pointer, errno= packed=BAD RANK status unknown(trigger= npages= nalloc= nfreed=) errno=[signal  newval= mcount= bytes, 
+ stack=[ minLC=  maxpc= 	stack=[ minutes status= etypes ThursdaySaturdayFebruaryNovemberDecember%!Month(no anodeoverflowavx512bwavx512vlgo/typesnet/httpgo/buildnetedns0tlsmlkemomitemptyworkspacetrace.tsvcomplex64interfaceinvalid nreflect: funcargs(bad indirInterface244140625ParseUintInheritedtimerSendpollCacheprofBlockstackpoolhchanLeafwbufSpansGC (idle)mSpanDeadinittracescavtracepanicwaitchan sendpreemptedcoroutinesignal 32signal 33signal 34signal 35signal 36signal 37signal 38signal 39signal 40signal 41signal 42signal 43signal 44signal 45signal 46signal 47signal 48signal 49signal 50signal 51signal 52signal 53signal 54signal 55signal 56signal 57signal 58signal 59signal 60signal 61signal 62signal 63signal 64copystackLINUX_2.6 -> node= ms cpu,  (forced) wbuf1.n= wbuf2.n= s.limit= s.state= B work ( B exp.)  marked   unmarked in use)
+, size = bad prune, tail = newosprocrecover:  not in [ctxt != 0, oldval=, newval= threads=: status= blocked= lockedg=atomicor8 runtime= sigcode= m->curg=(unknown)total < 0traceback} stack=[ gp.goid= lockedm=WednesdaySeptemberlocaltimerwxrwxrwxsight.tsvpclmulqdqmath/randtlsrsakex for type /dev/stdinpidfd_openpidfd_waitcomplex128t.Kind == 12207031256103515625notifyListprofInsertstackLargeNot workermSpanInUseGOMAXPROCSstop tracedisablethpinvalidptrschedtracesemacquiredebug call flushGen  MB goal, s.state =  s.base()= heapGoal=GOMEMLIMIT KiB now,  pages at  sweepgen= sweepgen , bound = , limit =  returned ,errno=0}
+ s.sweepgen= allocCount timer_deletens} value: {}, want {r1= [recovered]bad recoveryGOTRACEBACK=bad g statusentersyscallwirep: p->m=) p->status=releasep: m= sysmonwait= preemptoff=cas64 failed m->gsignal=-byte limit
+ (default %q) (default %v)records.jsonl3814697265625invalid base wakeableSleepprofMemActiveprofMemFuturetraceStackTabexecRInternaltestRInternalGC sweep waitsynctest.WaitSIGQUIT: quitSIGKILL: killout of memory is nil, not value method  span.base()=bad flushGen , not pointer != sweepgen  MB globals,  work.nproc=  work.nwait=  nStackRoots= flushedWork double unlock s.spanclass= MB) workers=min too large-byte block (runtime: val=runtime: seq= failed with timer_settimefatal error:  idlethreads= syscalltick=load64 failedxadd64 failedxchg64 failedmp.g0 stack [nil stackbase}
+	sched={pc:, gp->status= pluginpath= : unknown pc  called from runtime: pid=/etc/zoneinfo is too largedalTLDpSugct?level 3 resetexchange fulltimer expiredsrmount errorcrypto/subtlegocacheverifyinstallgoroothtml/templatetlsmaxrsasizeworkspace rootunsafe.Pointer on zero Valueunknown methodinvalid syntax1907348632812595367431640625unexpected EOFuserArenaStateGC (dedicated)read mem statsasynctimerchangcstoptheworldprofstackdepthtraceallocfreeGC assist waitfinalizer waitsync.Cond.WaitSIGABRT: aborts.allocCount= runtime: mmap(nil elem type! to finalizer GC worker initruntime: full=runtime: want=MB; allocated bad restart PC, called from
+	morebuf={pc:: no frame (sp=runtime: frame ts set in timertraceback stuckunexpected kind,M3.2.0,M11.1.0no such processadvertise errornetwork is downno medium foundkey has expiredjstmpllitinterptarinsecurepathx509keypairleafx509usepolicieszipinsecurepath0123456789abcdefafter object key: value of type 23841857910156250123456789ABCDEFinteger overflowgcshrinkstackofftracefpunwindoffGC scavenge waitGC worker (idle)page trace flushSIGNONE: no trap__vdso_getrandom/gc/gogc:percent, not a functiongc: unswept span KiB work (bg),  mheap.sweepgen=runtime: nelems=workbuf is emptymSpanList.removemSpanList.insertbad special kindbad summary dataruntime: addr = runtime: base = runtime: head =  already; errno=
+sigaction failedinvalid argumentinvalid exchangeobject is remotemessage too longno route to hostremote I/O errorGODEBUG: value "reflect.Value.Intin string literalpidfd_send_signal0123456789ABCDEFX0123456789abcdefxunknown type kindreflect: call of reflect.Value.Lenreflect: New(nil)1192092895507812559604644775390625invalid bit size goroutine profileAllThreadsSyscallGC assist markingselect (no cases)sync.RWMutex.Lockwait for GC cycletrace proc statusselect (synctest)SIGINT: interruptSIGBUS: bus errorSIGCONT: continuesync.(*Cond).Wait: missing method notetsleepg on g0bad TinySizeClassruntime: pointer g already scannedmark - bad statusscanobject n == 0swept cached spanmarkBits overflowruntime: summary[runtime: level = , p.searchAddr = futexwakeup addr=, 0, {interval: {ns}}, nil) errno=results: got {r1=runtime/internal/internal/runtime/thread exhaustionlocked m0 woke upentersyscallblock spinningthreads=unknown caller pc, synctest group stack: frame={sp:runtime: nameOff runtime: typeOff runtime: textOff corrupt zip file exec format errorpermission deniedno data availablewrong medium type from a write of multipartmaxpartswinreadlinkvolumereflect.Value.Uintexceeded max depthinvalid character in numeric literalvalue out of rangeflag %q contains =flag redefined: %scannot be negativereflect.Value.Elemreflect.Value.Typereflect: Zero(nil)298023223876953125adaptivestackstartdontfreezetheworldtraceadvanceperiodtracebackancestorsgarbage collectionsync.RWMutex.RLockGC worker (active)stopping the worldwait until GC endsbad lfnode addresssystem page size (  but memory size /gc/pauses:seconds because dotdotdotruntime: npages = invalid skip valueruntime: range = {index out of rangeruntime:   gp: gp=runtime: getg:  g=forEachP: not done in async preempt
+instruction bytes:mp.gsignal stack [bad manualFreeListruntime: textAddr  frames elided...
+, locked to threadTime.MarshalJSON: Time.MarshalText: unknown time zone input/output errorno child processesfile name too longno locks availableidentifier removedmultihop attemptedRFS specific errorstreams pipe errorconnection refusedoperation canceleduse of closed filex509negativeserialreflect.Value.IsNilreflect.Value.Floatafter array elementbad flag syntax: %sreflect.Value.Bytesreflect.Value.Fieldreflect.Value.Index14901161193847656257450580596923828125strongFromWeakQueueGC mark terminationsync.WaitGroup.WaitSIGTRAP: trace trapwait for debug call__vdso_gettimeofdaycgocall unavailablepanicwrap: no ( in panicwrap: no ) in  called using nil *unknown wait reasonnotesleep not on g0GC work not flushedunaligned sysUnused/gc/scan/heap:bytes/gc/heap/goal:bytes/gc/heap/live:bytesbad kind in runfinqmarkroot: bad indexnwait > work.nprocs, gp->atomicstatus=marking free object KiB work (eager),  [controller reset]mspan.sweep: state=sysMemStat overflowbad sequence numberpanic during mallocpanic holding locksmissing deferreturnunexpected gp.parampanic during panic
+mstartm not found in allmstopm holding lockssemaRoot rotateLeftbad notifyList sizeruntime: preempt g0runtime: pcdata is /usr/lib/locale/TZ/skip this directorybad file descriptortoo many open filesdirectory not emptydevice not a streamdisk quota exceededgotestjsonbuildtextmultipartmaxheadersfile already existsfile does not existfile already closedjson: error calling flag: help requestedreflect.Value.IsZero37252902984619140625floating point errorGC sweep terminationResetDebugLog (test)chan send (nil chan)flushing proc cacheschan send (synctest)SIGALRM: alarm clockSIGTERM: termination__vdso_clock_gettimeclose of nil channelinconsistent lockedmnotetsleep not on g0bad system page size to unallocated span/gc/scan/stack:bytes/gc/scan/total:bytes/gc/heap/frees:bytes/gc/gomemlimit:bytesp mcache not flushed markroot jobs done
+pacer: assist ratio=workbuf is not emptybad use of bucket.mpbad use of bucket.bpruntime: double waitpreempt off reason: forcegc: phase errorgopark: bad g statusgo of nil func valuesemaRoot rotateRightreflect.makeFuncStubtrace: out of memorywirep: already in go/usr/share/zoneinfo/invalid request codebad font file formatconnection timed outis a named type filekey has been revokedhttplaxcontentlengthx509usefallbackrootsafter top-level valuein string escape codeflag %q begins with -%s flag redefined: %sreflect.Value.Complex of unexported methodunexpected value stepreflect.Value.Pointer186264514923095703125931322574615478515625unsupported operationnegative shift amountdataindependenttimingsystem goroutine wait/gc/heap/allocs:bytesruntime: work.nwait=  previous allocCount=, levelBits[level] = runtime: searchIdx = defer on system stackpanic on system stackasync stack too large_cgo_unsetenv missingstartm: m is spinningstartlockedm: m has pfindrunnable: wrong ppreempt at unknown pcreleasep: invalid argcheckdead: runnable gruntime: newstack at runtime: newstack sp=runtime: confused by  pcHeader.textStart= timer data corruptionblock device requiredread-only file systempackage not installedlink has been severedstale NFS file handlestate not recoverablebad type in compare: concurrent map writesunexpected method step4656612873077392578125integer divide by zeroCountPagesInUse (test)ReadMetricsSlow (test)trace reader (blocked)trace goroutine statusGC weak to strong waitSIGSTKFLT: stack faultSIGTSTP: keyboard stopsend on closed channelcall not at safe pointgetenv before env initinterface conversion: freeIndex is not valids.freeindex > s.nelemsbad sweepgen in refillspan has no free spaceruntime: out of memory/gc/scan/globals:bytes/gc/heap/frees:objectsruntime: work.nwait = runtime:scanstack: gp=scanstack - bad statusheadTailIndex overflowruntime.main not on m0set_crosscall2 missingbad g->status in readywirep: invalid p stateassembly checks failed received during fork
+stack not a power of 2minpc or maxpc invalidnon-Go function at pc=/lib/time/zoneinfo.zipargument list too longcannot allocate memoryremote address changedprotocol not availableprotocol not supportedaddress already in usenetwork is unreachableexit hook invoked exitunexpected map key type<invalid reflect.Value>reflect.Value.Interfacereflect.Value.NumMethod23283064365386962890625bytes.Buffer: too largeindex out of range [%x]ReadMemStatsSlow (test)runtimecontentionstackschan receive (nil chan)garbage collection scanchan receive (synctest)SIGIO: i/o now possibleSIGSYS: bad system callmakechan: bad alignmentclose of closed channelunlock of unlocked lock) must be a power of 2
+system huge page size (runtime: s.allocCount= s.allocCount > s.nelems/gc/heap/allocs:objectsmissing type in runfinqruntime: internal errorwork.nwait > work.nprocleft over markroot jobsgcDrain phase incorrectMB during sweep; swept bad profile stack countruntime: eventfd failedruntime: netpoll failedpanic during preemptoffnanotime returning zerothe current g is not g0schedule: holding locksprocresize: invalid argmisuse of profBuf.writeunexpected signal valuespan has no free stacksstack growth after forkshrinkstack at bad timereflect.methodValueCalloperation not permittedinterrupted system calldevice or resource busyno space left on deviceoperation not supported", missing CPU support
+lock: lock countbad system huge page sizearena already initialized to unused region of spanunaligned sysNoHugePageOS/sched/gomaxprocs:threadsremaining pointer buffersruntime: epollwait on fd slice bounds out of range_cgo_thread_start missingallgadd: bad status Gidleruntime: program exceeds startm: p has runnable gsstoplockedm: not runnablereleasep: invalid p statecheckdead: no p for timercheckdead: no m for timerunexpected fault address missing stack in newstackbad status in shrinkstackmissing traceGCSweepStart2006-01-02T15:04:05Z07:00no such file or directoryno such device or addressinvalid cross-device linkresource deadlock avoidedsocket type not supportedno buffer space availableoperation now in progressinconsistent poll.fdMutexGODEBUG: can not enable "encountered a cycle via %s using unaddressable valueunknown ABI parameter kind1455191522836685180664062572759576141834259033203125all goroutines stack traceSIGSTOP: stop, unblockableGC background sweeper waitcall from unknown functionnotewakeup - double wakeuppersistentalloc: size == 0/gc/cycles/total:gc-cyclesnegative idle mark workersuse of invalid sweepLockerruntime: bad span s.state=forEachP: P did not run fnwakep: negative nmspinningstartlockedm: locked to meinittask with no functionscorrupted semaphore ticketout of memory (stackalloc)shrinking stack in libcallruntime: pcHeader: magic= traceRegion: out of memoryno message of desired typeno CSI structure availableinvalid request descriptorname not unique on networkrequired key not availableafter object key:value pairinvalid boolean flag %s: %vflag needs an argument: -%sreflect.Value.UnsafePointer is not assignable to type 363797880709171295166015625PageCachePagesLeaked (test)SIGILL: illegal instructionSIGXCPU: cpu limit exceededcgoUse should not be calledmakechan: size out of rangeG waiting list is corruptedM structure uses sizeclass runtime
+unlock: lock countprogToPointerMask: overflow/gc/cycles/forced:gc-cycles/memory/classes/other:bytes/memory/classes/total:bytesfailed to set sweep barrierwork.nwait was > work.nproc not in stack roots range [allocated pages below zero?address not a stack addressmspan.sweep: bad span stateinvalid profile bucket typeruntime: corrupted polldescruntime: netpollinit failedruntime: asyncPreemptStack=runtime: thread ID overflowstopTheWorld: holding locksgcstopm: not waiting for gcruntime: checkdead: nmidle=runtime: checkdead: find g runlock of unlocked rwmutexsignal received during forksigsend: inconsistent statemakeslice: len out of rangemakeslice: cap out of rangegrowslice: len out of rangestack size not a power of 2timer when must be positive: unexpected return pc for channel number out of rangecommunication error on sendnot a XENIX named type filekey was rejected by serviceabi.NewName: tag too long: httpservecontentkeepheaders!#$%&()*+-./:;<=>?@[]^_{|}~ unexpected end of JSON input18189894035458564758300781259094947017729282379150390625SIGHUP: terminal line hangupSIGWINCH: window size changeGC mark assist wait for workcomparing uncomparable type runtime: bad lfnode address notewakeup - double wakeup (region exceeds uintptr range/gc/heap/frees-by-size:bytes/gc/heap/tiny/allocs:objects/sched/goroutines:goroutinesgcBgMarkWorker: mode not setmspan.sweep: m is not lockedfound pointer to free objectmheap.freeSpanLocked - span fatal: morestack on gsignal
+runtime: casgstatus: oldval=gcstopm: negative nmspinningfindrunnable: netpoll with psave on system g not allowednewproc1: newg missing stacknewproc1: new g is not GdeadFixedStack is not power-of-2missing stack in shrinkstack args stack map entries for invalid runtime symbol tableruntime: no module data for mismatched isSending updates[originating from goroutine traceRegion: alloc too largeunsupported compression for protocol driver not attachedfile descriptor in bad statedestination address requiredabi.NewName: name too long: /app/output/resume-audit.jsonreflect: Key of non-map type 45474735088646411895751953125SIGPIPE: write to broken pipeSIGPWR: power failure restartexecuting on Go runtime stackruntime: mmap: access denied
+/cpu/classes/idle:cpu-seconds/cpu/classes/user:cpu-seconds/gc/heap/allocs-by-size:bytes/gc/stack/starting-size:bytesgc done but gcphase != _GCoffruntime: p.gcMarkWorkerMode= scanobject of a noscan objectruntime: marking free object addspecial on invalid pointerruntime: summary max pages = runtime: levelShift[level] = doRecordGoroutineProfile gp1=runtime: eventfd failed with tried to unpin non-Go pointerruntime: sudog with non-nil centersyscall inconsistent bp entersyscall inconsistent sp gfput: bad status (not Gdead)semacquire not on the G stackruntime: split stack overflowstring concatenation too longinvalid function symbol tabletrace: reading after shutdownruntime: traceback stuck. pc=tried to trace dead goroutineruntime: impossible type kindtoo many open files in systemnumerical result out of rangemachine is not on the networkprotocol family not supportedoperation already in progressno XENIX semaphores availablebufio.Scanner: token too longlooking for beginning of valuein exponent of numeric literalcalled entry on non-entry nodeMapIter.Key called before Nextreflect: Elem of invalid type 227373675443232059478759765625assignment to entry in nil mapSIGUSR1: user-defined signal 1SIGUSR2: user-defined signal 2SIGVTALRM: virtual alarm clockSIGPROF: profiling alarm clockruntime: bad g in cgocallback
+ (types from different scopes)failed to get system page sizeruntime: found in object at *( in prepareForSweep; sweepgen /cpu/classes/total:cpu-seconds/gc/cycles/automatic:gc-cycles/sched/pauses/total/gc:seconds/sync/mutex/wait/total:seconds/godebug/non-default-behavior/runtime: epollctl failed with panic called with nil argumentcheckdead: inconsistent countsrunqputslow: queue is not fullruntime: bad pointer in frame invalid pointer found on stack locals stack map entries for abi mismatch detected between runtime: impossible type kind unsafe.Slice: len out of rangeyear outside of range [0,9999]inappropriate ioctl for devicesocket operation on non-socketprotocol wrong type for socketreflect: Len of non-array typeGODEBUG: unknown cpu feature "sync: inconsistent mutex statesync: unlock of unlocked mutexjson: invalid number literal %qin literal true (expecting 'r')in literal true (expecting 'u')in literal true (expecting 'e')in literal null (expecting 'u')in literal null (expecting 'l')fmt: unknown base; can't happenreflect: Len of non-array type 11368683772161602973937988281255684341886080801486968994140625slice bounds out of range [:%x]slice bounds out of range [%x:]SIGSEGV: segmentation violationcall from within the Go runtimeinternal error - misuse of itab) not in usable address space: runtime: cannot allocate memorycheckmark found unmarked object/memory/classes/heap/free:bytes/memory/classes/os-stacks:bytespacer: sweep done at heap size non in-use span in unswept listruntime.Pinner: argument is nilcasgstatus: bad incoming valuesresetspinning: not a spinning mruntime: profBuf already closedfatal: bad g in signal handler
+unsafe.String: len out of rangemalformed time zone information.lib section in a.out corruptedcannot assign requested addressinvalid return from write: got in literal false (expecting 'a')in literal false (expecting 'l')in literal false (expecting 's')in literal false (expecting 'e')MapIter.Value called before Next28421709430404007434844970703125sync: negative WaitGroup counterslice bounds out of range [::%x]slice bounds out of range [:%x:]slice bounds out of range [%x::]SIGFPE: floating-point exceptionSIGTTOU: background write to tty (types from different packages)end outside usable address spaceruntime: fixalloc size too largeinvalid limiter event type foundscanstack: goroutine not stoppedscavenger state is already wiredsweep increased allocation countremovespecial on invalid pointerruntime: root level max pages = _cgo_pthread_key_created missingruntime: sudog with non-nil elemruntime: sudog with non-nil nextruntime: sudog with non-nil prevruntime: mcall function returnednon-Go code disabled sigaltstackruntime: newstack called from g=runtime: stack split at bad timepanic while printing panic valueresource temporarily unavailablenumerical argument out of domainsoftware caused connection abortuse of closed network connectioninitial table capacity too large" not supported for cpu option "invalid value %q for flag -%s: %vreflect: slice index out of range of method on nil interface valuereflect: Field index out of rangereflect: array index out of range142108547152020037174224853515625710542735760100185871124267578125sync: RUnlock of unlocked RWMutexslice bounds out of range [%x:%y]SIGCHLD: child status has changedSIGTTIN: background read from ttySIGXFSZ: file size limit exceededbase outside usable address spaceruntime: memory allocated by OS [misrounded allocation in sysAlloc/cpu/classes/gc/pause:cpu-seconds/cpu/classes/gc/total:cpu-seconds/gc/limiter/last-enabled:gc-cycle/memory/classes/heap/stacks:bytes/memory/classes/heap/unused:bytes/sched/pauses/stopping/gc:seconds/sched/pauses/total/other:secondsmin must be a non-zero power of 2runtime: failed mSpanList.insert runtime: epollcreate failed with runtime: morestack on g0, stack [runtime: castogscanstatus oldval=stoplockedm: inconsistent lockingfindrunnable: negative nmspinningfreeing stack not in a stack spanstackalloc not on scheduler stackruntime: goroutine stack exceeds runtime: text offset out of rangetimer period must be non-negativetoo many concurrent timer firingsruntime: name offset out of rangeruntime: type offset out of rangeskip everything and stop the walktoo many levels of symbolic linkswaiting for unsupported file typeconcurrent map read and map writetable must have positive capacityGODEBUG: no value specified for "in \u hexadecimal character escapeflag provided but not defined: -%sreflect: Field of non-struct type reflect: Field index out of boundsreflect: string index out of range3552713678800500929355621337890625slice bounds out of range [:%x:%y]slice bounds out of range [%x:%y:]SIGURG: urgent condition on socketruntime: standard file descriptor out of memory allocating allArenas/memory/classes/heap/objects:bytesruntime.SetFinalizer: cannot pass too many pages allocated in chunk?mspan.ensureSwept: m is not lockedruntime: netpollBreak write failedforEachP: sched.safePointWait != 0schedule: spinning with local workentersyscallblock inconsistent bp entersyscallblock inconsistent sp runtime: g is running but p is nottoo many references: cannot splice1776356839400250464677810668945312588817841970012523233890533447265625ryuFtoaFixed32 called with prec > 9persistentalloc: align is too large/memory/classes/heap/released:bytesgreyobject: obj not pointer-alignedmismatched begin/end of activeSweepmheap.freeSpanLocked - invalid freeattempt to clear non-empty span setruntime: close polldesc w/o unblockfindrunnable: netpoll with spinningpidleput: P has non-empty run queuetraceback did not unwind completely2006-01-02T15:04:05.999999999Z07:00network dropped connection on resettransport endpoint is not connectedfile type does not support deadlinejson: encoding error for type %q: %qinvalid boolean value %q for -%s: %vmethod ABI and value ABI don't align444089209850062616169452667236328125ryuFtoaFixed64 called with prec > 180123456789abcdefghijklmnopqrstuvwxyzstrings.Builder.Grow: negative countstrings: Join output length overflowlfstack node allocated from the heap) is larger than maximum page size (runtime: invalid typeBitsBulkBarrieruncaching span but s.allocCount == 0/memory/classes/metadata/other:bytes/sched/pauses/stopping/other:secondsuser arena span is on the wrong listruntime: marked free object in span runtime: unblock on closing polldescruntime: netpoll: eventfd ready for runtime: sudog with non-nil waitlinkruntime: mcall called on m->g0 stackfatal: recursive switchToCrashStack
+runtime: bad notifyList size - sync=signal arrived during cgo execution
+startTheWorld: inconsistent mp->nextpruntime: unexpected SPWRITE function all goroutines are asleep - deadlock!timezone hour outside of range [0,23]value too large for defined data typecannot exec a shared library directlyoperation not possible due to RF-killgodebug: unexpected IncNonDefault of bisect.Hash: unexpected argument typeafter decimal point in numeric literalflag %s set at %s before being defined1110223024625156540423631668090820312555511151231257827021181583404541015625index out of range [%x] with length %ym changed unexpectedly in cgocallbackgmakechan: invalid channel element typeunreachable method called. linker bug?gcBgMarkWorker: blackening not enabledcannot read stack of running goroutineruntime: blocked read on free polldescruntime: sudog with non-false isSelectarg size to reflect.call more than 1GBv could not fit in traceBytesPerNumbercan not access a needed shared libraryconcurrent map iteration and map write277555756156289135105907917022705078125mismatched count during itab table copyout of memory allocating heap arena map/cpu/classes/gc/mark/assist:cpu-seconds/cpu/classes/scavenge/total:cpu-seconds/memory/classes/profiling/buckets:bytesmspan.sweep: bad span state after sweepruntime: blocked write on free polldescruntime.Pinner: object already unpinnedsuspendG from non-preemptible goroutineruntime: casfrom_Gscanstatus failed gp=stack growth not allowed in system calltraceback: unexpected SPWRITE function traceRegion: alloc with concurrent drop2006-01-02 15:04:05.999999999 -0700 MSTtransport endpoint is already connectedMapIter.Key called on exhausted iterator13877787807814456755295395851135253906256938893903907228377647697925567626953125ryuFtoaFixed32 called with negative precinvalid span in heapArena for user arenabulkBarrierPreWrite: unaligned argumentsruntime: typeBitsBulkBarrier with type  refill of span with free space remaining/cpu/classes/scavenge/assist:cpu-secondsruntime.SetFinalizer: first argument is failed to acquire lock to reset capacitymarkWorkerStop: unknown mark worker modecannot free workbufs when work.full != 0runtime: out of memory: cannot allocate runtime: netpollBreak write failed with stopTheWorld: broken CPU time accountingglobal runq empty with non-zero runqsizemust be able to track idle limiter eventgoroutine stack size is not a power of 2address family not supported by protocolunexpected call to os.Exit(0) during testcan't call pointer on a non-pointer ValueMapIter.Next called on exhausted iteratorreflect.Value.Addr of unaddressable value34694469519536141888238489627838134765625strconv: illegal AppendInt/FormatInt base closed, unable to open /dev/null, errno=runtime: typeBitsBulkBarrier without type/memory/classes/metadata/mspan/free:bytesruntime.SetFinalizer: second argument is gcSweep being done but phase is not GCoffobjects added out of order or overlappingmheap.freeSpanLocked - invalid stack freemheap.freeSpanLocked - invalid span stateattempted to add zero-sized address rangeruntime: blocked read on closing polldescstopTheWorld: not stopped (stopwait != 0) received on thread with no signal stack
+on a locked thread with no template threadunexpected signal during runtime execution received but handler not on signal stack
+lock: sleeping while lock is availableP has cached GC work at end of mark terminationfailed to acquire lock to start a GC transitionfinishGCTransition called without starting one?tried to sleep scavenger from another goroutineracy sudog adjustment due to parking on channelfunction symbol table not sorted by PC offset: attempted to trace a bad status for a goroutineattempting to link in too many shared librariesstrconv: illegal AppendFloat/FormatFloat bitSizenot enough significant bits after mult64bitPow10slice bounds out of range [:%x] with capacity %yruntime: cannot map pages in arena address spaceruntime: malformed profBuf buffer - invalid sizeattempt to trace invalid or unsupported P statusnot enough significant bits after mult128bitPow10slice bounds out of range [::%x] with capacity %yinvalid memory address or nil pointer dereferencepanicwrap: unexpected string after package name: s.allocCount != s.nelems && freeIndex == s.nelemssweeper left outstanding across sweep generationsfully empty unfreed span set block found in resetcasgstatus: waiting for Gwaiting but is Grunnableinvalid or incomplete multibyte or wide charactercgo argument has Go pointer to unpinned Go pointermallocgc called with gcphase == _GCmarkterminationruntime.Pinner: object was allocated into an arenaruntime.Pinner: decreased non-existing pin counterrecursive call during initialization - linker skewattempt to execute system stack code on user stacklimiterEvent.stop: invalid limiter event type foundpotentially overlapping in-use allocations detectedfatal: systemstack called from unexpected goroutinegodebug: Value of name not listed in godebugs.All: runtime: cannot disable permissions in address spaceruntime.SetFinalizer: pointer not in allocated blockruntime: use of FixAlloc_Alloc before FixAlloc_Init
+reflect: internal error: invalid use of makeMethodValuemheap.freeSpanLocked - invalid free of user arena chunkcasfrom_Gscanstatus:top gp->status is not in scan statebufio.Scanner: SplitFunc returns negative advance countptrEncoder.encode should have emptied ptrSeen via defersstrings: illegal use of non-zero Builder copied by valuenon-empty pointer map passed for non-pointer-size valuesprofilealloc called without a P or outside bootstrappingin gcMark expecting to see gcphase as _GCmarkterminationruntime: netpoll: eventfd ready for something unexpectedsync: WaitGroup misuse: Add called concurrently with Waitruntime: checkmarks found unexpected unmarked object obj=runtime: failed to disable profiling timer; timer_delete(non-Go code set up signal handler without SA_ONSTACK flagreflect: reflect.Value.Elem on an invalid notinheap pointersync: WaitGroup is reused before previous Wait has returnedruntime: mmap: too much locked memory (check 'ulimit -l').
+path	fog.local/resume/cmd/rogctl
+mod	fog.local/resume	(devel)	
+runtime.mapassign_fast32
+runtime.mapassign_fast64
+runtime.mapassign_fast64ptr
+runtime.mapassign_faststr
+runtime.mapassign
+runtime.sigdelset
+runtime.sigaction
+runtime.sigaction.func1
+runtime.sigprocmask
+runtime.setsig
+runtime.sigfillset
+runtime.setsigstack
+runtime.sysSigaction
+runtime.signalM
+runtime.signame
+runtime.shouldPushSigpanic
+runtime.resumeG
+runtime.badmorestackgsignal
+runtime.sigsave
+runtime.msigrestore
+runtime._LostSIGPROFDuringAtomic64
+runtime.sigprof
+runtime.(*sigctxt).rax
+runtime.(*sigctxt).regs
+runtime.(*sigctxt).rbx
+runtime.(*sigctxt).rcx
+runtime.(*sigctxt).rdx
+runtime.(*sigctxt).rdi
+runtime.(*sigctxt).rsi
+runtime.(*sigctxt).rbp
+runtime.(*sigctxt).rsp
+runtime.(*sigctxt).r8
+runtime.(*sigctxt).r9
+runtime.(*sigctxt).r10
+runtime.(*sigctxt).r11
+runtime.(*sigctxt).r12
+runtime.(*sigctxt).r13
+runtime.(*sigctxt).r14
+runtime.(*sigctxt).r15
+runtime.(*sigctxt).rip
+runtime.(*sigctxt).rflags
+runtime.(*sigctxt).cs
+runtime.(*sigctxt).fs
+runtime.(*sigctxt).gs
+runtime.(*sigctxt).preparePanic
+runtime.(*sigctxt).pushCall
+runtime.(*sigctxt).set_rsp
+runtime.(*sigctxt).set_rip
+runtime.initsig
+runtime.getsig
+runtime.sigInstallGoHandler
+runtime.sigInitIgnored
+runtime.sigpipe
+os/signal.signal_ignored
+runtime.doSigPreempt
+runtime.(*sigctxt).sigpc
+runtime.(*sigctxt).sigsp
+runtime.sigtrampgo
+runtime.sigFetchG
+runtime.restoreGsignalStack
+runtime.validSIGPROF
+runtime.(*sigctxt).sigcode
+runtime.signalDuringFork
+runtime.sigprofNonGo
+runtime.sigprofNonGoPC
+runtime.adjustSignalStack
+runtime.setGsignalStack
+runtime.setSignalstackSP
+runtime.adjustSignalStack2
+runtime.noSignalStack
+runtime.sighandler
+runtime.(*sigctxt).sigFromUser
+runtime.(*sigctxt).sigFromSeccomp
+runtime.(*sigctxt).fault
+runtime.(*sigctxt).sigaddr
+runtime.fatalsignal
+runtime.dieFromSignal
+runtime.raisebadsignal
+runtime.sigNotOnStack
+runtime.badsignal
+runtime.sigfwdgo
+runtime.sigblock
+runtime.unblocksig
+runtime.sigaddset
+runtime.minitSignals
+runtime.minitSignalStack
+runtime.minitSignalMask
+runtime.blockableSig
+runtime.unminitSignals
+runtime.signalstack
+runtime.sigsend
+runtime.sysSigaction.func1
+os.sigpipe
+runtime.sigpanic
+runtime.sigpanic0
+runtime.sigprofNonGoWrapper
+runtime.rtsigprocmask
+runtime.rt_sigaction
+runtime.callCgoSigaction
+runtime.sigfwd
+runtime.sigtramp
+runtime.cgoSigtramp
+runtime.sigreturn__sigaction
+runtime.sigaltstack
+runtime.badmorestackgsignal
+strconv.(*decimal).Assign
+reflect.(*abiSeq).stackAssign
+reflect.(*abiSeq).regAssign
+reflect.(*abiSeq).assignFloatN
+reflect.(*abiSeq).assignIntN
+reflect.specialChannelAssignability
+reflect.directlyAssignable
+reflect.flag.mustBeAssignableSlow
+reflect.flag.mustBeAssignable
+reflect.Value.assignTo
+internal/syscall/unix.PidFDSendSignal
+encoding/json.stateESign
+type:.eq.fog.local/resume/internal/a0.EffectSnap
+type:.eq.fog.local/resume/internal/a0.HostileSnap
+fog.local/resume/internal/c2.SyncBoundary
+fog.local/resume/internal/c2.mark_c
+type:.eq.fog.local/resume/internal/c2.EffectSnap
+type:.eq.fog.local/resume/internal/c2.RowSnap
+type:.eq.fog.local/resume/internal/c2.entryX
+fog.local/resume/internal/sim.LoadLayout
+fog.local/resume/internal/sim.(*World).Idx
+fog.local/resume/internal/sim.LoadScript
+fog.local/resume/internal/sim.LoadScript.deferwrap1
+fog.local/resume/internal/sim.LoadRadius
+fog.local/resume/internal/sim.ProfileFor
+type:.eq.fog.local/resume/internal/sim.Hostile
+type:.eq.fog.local/resume/internal/sim.ScriptStep
+type:.eq.fog.local/resume/internal/sim.MoveRow
+type:.eq.fog.local/resume/internal/sim.PathSummary
+type:.eq.fog.local/resume/internal/sim.EffectRow
+type:.eq.fog.local/resume/internal/sim.EffectState
+fog.local/resume/internal/e4.ApplyLit
+[?2004hroot@6d34054701b6:/app# sed -n '1,200p' /app/internal/sim/types.go
+[?2004lpackage sim
+
+type Profile struct {
+	Name      string
+	Radius    int
+	Blind     bool
+	Dense     bool
+	Epoch     bool
+	Mixed     bool
+	CheckTurn int
+}
+
+type MoveRow struct {
+	Turn  int    `json:"turn"`
+	Actor string `json:"actor"`
+	FromX int    `json:"from_x"`
+	FromY int    `json:"from_y"`
+	ToX   int    `json:"to_x"`
+	ToY   int    `json:"to_y"`
+	Kind  string `json:"kind"`
+	Legal bool   `json:"legal"`
+}
+
+type PathSummary struct {
+	Sig     string `json:"sig"`
+	Illegal int    `json:"illegal"`
+	Steps   int    `json:"steps"`
+}
+
+type VisPair struct {
+	FreshSeen  int `json:"fresh_seen"`
+	ResumeSeen int `json:"resume_seen"`
+}
+
+type EffectRow struct {
+	ID     string `json:"id"`
+	Active bool   `json:"active"`
+	Epoch  int    `json:"epoch"`
+}
+
+type CaseResult struct {
+	Name       string      `json:"name"`
+	OK         bool        `json:"ok"`
+	Fresh      PathSummary `json:"fresh"`
+	Resume     PathSummary `json:"resume"`
+	Moves      []MoveRow   `json:"moves"`
+	Visibility VisPair     `json:"visibility"`
+	Effects    []EffectRow `json:"effects"`
+	Records    string      `json:"records"`
+	Log        string      `json:"log"`
+}
+
+type Report struct {
+	Cases []CaseResult `json:"cases"`
+}
+[?2004hroot@6d34054701b6:/app# sed -n '200,420p' /app/internal/f5/run.go
+[?2004l		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &b1.CacheX{Obs: map[string]bool{}}
+	b1.Merge(cache, blob)
+	merged := b1.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+		}
+		w.Turn = step.Turn
+		e4.ApplyLit(w, radius, blindActive(w))
+		moves = append(moves, advanceAll(w, merged)...)
+	}
+	return moves
+}
+
+func RunRow(root, name string) (CaseResult, error) {
+	profile := ProfileFor(name)
+	radius, _ := LoadRadius(root, name)
+	if radius == 0 {
+		radius = profile.Radius
+	}
+	base, err := LoadLayout(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+	steps, err := LoadScript(root, name)
+	if err != nil {
+		return CaseResult{}, err
+	}
+
+	wFresh := cloneWorld(base)
+	wFresh.Effects = snapFromC2(c2.Seed(profileToC2(profile), wFresh.Turn))
+	blob, stale := playUntilSave(wFresh, steps, profile, radius)
+	freshMoves := runDirect(wFresh, steps, profile, radius)
+
+	wResume := cloneWorld(base)
+	wResume.Effects = snapFromC2(c2.Seed(profileToC2(profile), wResume.Turn))
+	playUntilSave(wResume, steps, profile, radius)
+	resumeMoves := runLoaded(wResume, steps, blob, stale, profile, radius)
+
+	freshIllegal, resumeIllegal := 0, 0
+	for _, m := range freshMoves {
+		if !m.Legal {
+			freshIllegal++
+		}
+	}
+	for _, m := range resumeMoves {
+		if !m.Legal {
+			resumeIllegal++
+		}
+	}
+	allMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)
+	caseDir := filepath.Join(root, "workspace", name)
+	_ = os.MkdirAll(caseDir, 0o755)
+	recPath := filepath.Join(caseDir, "records.jsonl")
+	logPath := filepath.Join(caseDir, "trace.tsv")
+	flushRows(recPath, logPath, name, allMoves)
+
+	fresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}
+	resume := PathSummary{Sig: sigFor(resumeMoves), Illegal: resumeIllegal, Steps: len(resumeMoves)}
+	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+
+	return CaseResult{
+		Name:       name,
+		OK:         ok,
+		Fresh:      fresh,
+		Resume:     resume,
+		Moves:      allMoves,
+		Visibility: VisPair{FreshSeen: e4.CountSeen(wFresh), ResumeSeen: e4.CountSeen(wResume)},
+		Effects:    rowsFromC2(c2.ItemsFor(snapToC2(wResume.Effects), wResume.Turn)),
+		Records:    recPath,
+		Log:        logPath,
+	}, nil
+}
+
+func flushRows(recPath, logPath, name string, moves []MoveRow) {
+	rec, _ := os.Create(recPath)
+	defer rec.Close()
+	for _, m := range moves {
+		b, _ := json.Marshal(m)
+		_, _ = rec.Write(append(b, '\n'))
+	}
+	log, _ := os.Create(logPath)
+	defer log.Close()
+	for _, m := range moves {
+		fmt.Fprintf(log, "%s\t%d\t%s\t%d\t%d\t%d\t%d\t%v\n",
+			name, m.Turn, m.Actor, m.FromX, m.FromY, m.ToX, m.ToY, m.Legal)
+	}
+}
+[?2004hroot@6d34054701b6:/app# grep -RIn "\.Sig" /app/internal /app/cmd 2>/dev/null | head -n 200
+[?2004l/app/internal/f5/run.go:274:	ok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig
+[?2004hroot@6d34054701b6:/app# grep -RIn "Sig\s*string\|type PathSummary\|type MoveRow\|func .*Sig\|signature" /app/internal 2>/dev/null | head -n 200
+[?2004l/app/internal/f5/types.go:9:type MoveRow = sim.MoveRow
+/app/internal/f5/types.go:10:type PathSummary = sim.PathSummary
+/app/internal/sim/types.go:13:type MoveRow struct {
+/app/internal/sim/types.go:24:type PathSummary struct {
+/app/internal/sim/types.go:25:	Sig     string `json:"sig"`
+[?2004hroot@6d34054701b6:/app# grep -RIn "func sigFor" /app/internal 2>/dev/null
+[?2004l/app/internal/f5/run.go:18:func sigFor(moves []MoveRow) string {
+[?2004hroot@6d34054701b6:/app# grep -RIn "sigFor\(" /app/internal 2>/dev/null | head -n 200
+[?2004l[?2004hroot@6d34054701b6:/app# sed -n '1,220p' /app/internal/f5/run.go
+[?2004lpackage f5
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"fog.local/resume/internal/a0"
+	"fog.local/resume/internal/b1"
+	"fog.local/resume/internal/c2"
+	"fog.local/resume/internal/d3"
+	"fog.local/resume/internal/e4"
+)
+
+func sigFor(moves []MoveRow) string {
+	acc := int64(2166136261)
+	for _, m := range moves {
+		acc ^= int64(m.Turn*31 + m.FromX*7 + m.FromY*11 + m.ToX*13 + m.ToY*17)
+		for _, ch := range m.Actor + m.Kind {
+			acc ^= int64(ch)
+			acc = (acc * 16777619) & 0x7fffffff
+		}
+	}
+	return fmt.Sprintf("%x", acc)
+}
+
+func cloneWorld(w *World) *World {
+	size := w.Width * w.Height
+	seen := append([]bool(nil), w.Seen...)
+	lit := append([]bool(nil), w.Lit...)
+	if len(seen) != size {
+		seen = make([]bool, size)
+	}
+	if len(lit) != size {
+		lit = make([]bool, size)
+	}
+	return &World{
+		Width: w.Width, Height: w.Height,
+		Walls:   append([]bool(nil), w.Walls...),
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY,
+		Hostile: append([]Hostile(nil), w.Hostile...),
+		Turn:    w.Turn,
+		Seen:    seen,
+		Lit:     lit,
+		Effects: append([]EffectState(nil), w.Effects...),
+	}
+}
+
+func applyPlayer(w *World, arg string) {
+	parts := strings.Split(arg, ",")
+	if len(parts) != 2 {
+		return
+	}
+	dx, _ := strconv.Atoi(parts[0])
+	dy, _ := strconv.Atoi(parts[1])
+	nx, ny := w.PlayerX+dx, w.PlayerY+dy
+	if w.InBounds(nx, ny) && !w.IsWall(nx, ny) {
+		w.PlayerX, w.PlayerY = nx, ny
+	}
+}
+
+func buildObs(w *World, extra map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, h := range w.Hostile {
+		key := fmt.Sprintf("%d,%d", h.X, h.Y)
+		if extra != nil && extra[key] {
+			out[key] = true
+			continue
+		}
+		if e4.PlayerSees(w, h.X, h.Y) {
+			out[key] = true
+		}
+	}
+	return out
+}
+
+func advanceAll(w *World, cache map[string]bool) []MoveRow {
+	rows := []MoveRow{}
+	for i := range w.Hostile {
+		row, ok := d3.PlanSlot(w, cache, i)
+		if ok {
+			rows = append(rows, row)
+		}
+	}
+	return rows
+}
+
+func blindActive(w *World) bool {
+	for _, e := range w.Effects {
+		if e.ID == "blind" && w.Turn < e.ExpiryTurn {
+			return true
+		}
+	}
+	return false
+}
+
+func snapToC2(effects []EffectState) []c2.EffectSnap {
+	out := make([]c2.EffectSnap, len(effects))
+	for i, e := range effects {
+		out[i] = c2.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	return out
+}
+
+func snapFromC2(snaps []c2.EffectSnap) []EffectState {
+	out := make([]EffectState, len(snaps))
+	for i, s := range snaps {
+		out[i] = EffectState{ID: s.ID, ExpiryTurn: s.ExpiryTurn, Active: s.Active}
+	}
+	return out
+}
+
+func profileToC2(p Profile) c2.ProfileSnap {
+	return c2.ProfileSnap{Blind: p.Blind, Epoch: p.Epoch, CheckTurn: p.CheckTurn}
+}
+
+func rowsFromC2(rows []c2.RowSnap) []EffectRow {
+	out := make([]EffectRow, len(rows))
+	for i, r := range rows {
+		out[i] = EffectRow{ID: r.ID, Active: r.Active, Epoch: r.Epoch}
+	}
+	return out
+}
+
+func packWorld(w *World, obs map[string]bool) a0.ItemY {
+	effects := make([]a0.EffectSnap, len(w.Effects))
+	for i, e := range w.Effects {
+		effects[i] = a0.EffectSnap{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+	hostiles := make([]a0.HostileSnap, len(w.Hostile))
+	for i, h := range w.Hostile {
+		hostiles[i] = a0.HostileSnap{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	item := a0.ItemY{
+		Lit: w.Lit, Seen: w.Seen, Turn: w.Turn, Obs: obs,
+		Effects: effects, Width: w.Width, Height: w.Height,
+		PlayerX: w.PlayerX, PlayerY: w.PlayerY, Hostiles: hostiles,
+	}
+	return a0.PackItem(item)
+}
+
+func applyWorld(w *World, item a0.ItemY) {
+	w.Width = item.Width
+	w.Height = item.Height
+	w.PlayerX = item.PlayerX
+	w.PlayerY = item.PlayerY
+	w.Turn = item.Turn
+	w.Lit = append([]bool(nil), item.Lit...)
+	w.Seen = append([]bool(nil), item.Seen...)
+	w.Hostile = make([]Hostile, len(item.Hostiles))
+	for i, h := range item.Hostiles {
+		w.Hostile[i] = Hostile{ID: h.ID, X: h.X, Y: h.Y}
+	}
+	w.Effects = make([]EffectState, len(item.Effects))
+	for i, e := range item.Effects {
+		w.Effects[i] = EffectState{ID: e.ID, ExpiryTurn: e.ExpiryTurn, Active: e.Active}
+	}
+}
+
+func playUntilSave(w *World, steps []ScriptStep, profile Profile, radius int) (a0.ItemY, map[string]bool) {
+	visStale := map[string]bool{}
+	var blob a0.ItemY
+	for _, step := range steps {
+		w.Turn = step.Turn
+		if step.Action == "save" {
+			vis := buildObs(w, nil)
+			for k, v := range visStale {
+				vis[k] = v
+			}
+			blob = packWorld(w, vis)
+			break
+		}
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+			visStale = buildObs(w, nil)
+		}
+	}
+	return blob, visStale
+}
+
+func runDirect(w *World, steps []ScriptStep, profile Profile, radius int) []MoveRow {
+	moves := []MoveRow{}
+	pastSave := false
+	for _, step := range steps {
+		if step.Action == "save" {
+			pastSave = true
+			continue
+		}
+		if !pastSave {
+			continue
+		}
+		w.Turn = step.Turn
+		if step.Actor == "P" {
+			applyPlayer(w, step.Arg)
+			e4.ApplyLit(w, radius, blindActive(w))
+		}
+		if step.Actor == "H" {
+			moves = append(moves, advanceAll(w, buildObs(w, nil))...)
+		}
+	}
+	return moves
+}
+
+func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+	applyWorld(w, blob)
+	cache := &b1.CacheX{Obs: map[string]bool{}}
+	b1.Merge(cache, blob)
+	merged := b1.Snapshot(cache)
+	for k, v := range stale {
+		merged[k] = v
+	}
+	w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+	moves := []MoveRow{}
+	for _, step := range steps {
+		if step.Action != "save" {
+			continue
+[?2004hroot@6d34054701b6:/app# ls -la /app/internal/f5
+[?2004ltotal 12
+drwxr-xr-x  2 root root   36 May 25 15:56 .
+drwxr-xr-x 11 root root   97 May 25 15:56 ..
+-rw-r--r--  1 root root 7877 May 25 15:56 run.go
+-rw-r--r--  1 root root  780 May 25 15:56 types.go
+[?2004hroot@6d34054701b6:/app# sed -n '1,220p' /app/internal/f5/types.go
+[?2004lpackage f5
+
+import "fog.local/resume/internal/sim"
+
+type World = sim.World
+type Hostile = sim.Hostile
+type EffectState = sim.EffectState
+type Profile = sim.Profile
+type MoveRow = sim.MoveRow
+type PathSummary = sim.PathSummary
+type VisPair = sim.VisPair
+type EffectRow = sim.EffectRow
+type CaseResult = sim.CaseResult
+type Report = sim.Report
+type ScriptStep = sim.ScriptStep
+
+func ProfileFor(name string) Profile { return sim.ProfileFor(name) }
+func AllCases() []string             { return sim.AllCases() }
+func LoadLayout(root, name string) (*World, error) {
+	return sim.LoadLayout(root, name)
+}
+func LoadScript(root, name string) ([]ScriptStep, error) {
+	return sim.LoadScript(root, name)
+}
+func LoadRadius(root, name string) (int, error) { return sim.LoadRadius(root, name) }
+[?2004hroot@6d34054701b6:/app# sed -n '1,200p' /app/data/scripts/rook.json
+[?2004lsed: can't read /app/data/scripts/rook.json: No such file or directory
+[?2004hroot@6d34054701b6:/app# sed -n '1,200p' /app/data/scripts/sentinel.json
+[?2004lsed: can't read /app/data/scripts/sentinel.json: No such file or directory
+[?2004hroot@6d34054701b6:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: internal/f5/run.go
+[?2004l[?2004h> @@
+[?2004l[?2004h>  func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+[?2004l[?2004h>          applyWorld(w, blob)
+[?2004l[?2004h>          cache := &b1.CacheX{Obs: map[string]bool{}}
+[?2004l[?2004h>          b1.Merge(cache, blob)
+[?2004l[?2004h>          merged := b1.Snapshot(cache)
+[?2004l[?2004h>          for k, v := range stale {
+[?2004l[?2004h>                  merged[k] = v
+[?2004l[?2004h>          }
+[?2004l[?2004h>          w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+[?2004l[?2004h> -        moves := []MoveRow{}
+[?2004l[?2004h> -        for _, step := range steps {
+[?2004l[?2004h> -                if step.Action != "save" {
+[?2004l[?2004h> -                        continue
+[?2004l[?2004h> -                }
+[?2004l[?2004h> -                w.Turn = step.Turn
+[?2004l[?2004h> -                e4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h> -                moves = append(moves, advanceAll(w, merged)...)
+[?2004l[?2004h> -        }
+[?2004l[?2004h> -        return moves
+[?2004l[?2004h> +
+[?2004l[?2004h> +        // Resume path should replay the same post-save script steps as the fresh
+[?2004l[?2004h> +        // (direct) path. The loaded snapshot already contains the state at the
+[?2004l[?2004h> +        // save boundary, including any cached visibility observations.
+[?2004l[?2004h> +        moves := []MoveRow{}
+[?2004l[?2004h> +        pastSave := false
+[?2004l[?2004h> +        obs := merged
+[?2004l[?2004h> +        for _, step := range steps {
+[?2004l[?2004h> +                if step.Action == "save" {
+[?2004l[?2004h> +                        pastSave = true
+[?2004l[?2004h> +                        continue
+[?2004l[?2004h> +                }
+[?2004l[?2004h> +                if !pastSave {
+[?2004l[?2004h> +                        continue
+[?2004l[?2004h> +                }
+[?2004l[?2004h> +                w.Turn = step.Turn
+[?2004l[?2004h> +                if step.Actor == "P" {
+[?2004l[?2004h> +                        applyPlayer(w, step.Arg)
+[?2004l[?2004h> +                        e4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h> +                        // After player movement, refresh observations from the
+[?2004l[?2004h> +                        // current world state.
+[?2004l[?2004h> +                        obs = buildObs(w, nil)
+[?2004l[?2004h> +                }
+[?2004l[?2004h> +                if step.Actor == "H" {
+[?2004l[?2004h> +                        moves = append(moves, advanceAll(w, obs)...)
+[?2004l[?2004h> +                }
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +        return moves
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@6d34054701b6:/app# make -s -C /app build
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     p=f'/app/output/single-{name}.json'
+[?2004l[?2004h>     with open(p) as f: data=json.load(f)
+[?2004l[?2004h>     c=data['cases'][0]
+[?2004l[?2004h>     print(name,'ok',c['ok'],'fresh',c['fresh'],'resume',c['resume'],'vis',c['visibility'])
+[?2004l[?2004h> PY
+[?2004lrook ok False fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} resume {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 8}
+sentinel ok False fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1} resume {'sig': '691e8e87', 'illegal': 0, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 8}
+[?2004hroot@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> fail=[]
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     if not c.get('ok'):
+[?2004l[?2004h>         fail.append((c['name'], c['fresh'], c['resume'], c.get('visibility')))
+[?2004l[?2004h> print('failures:', len(fail))
+[?2004l[?2004h> for x in fail:
+[?2004l[?2004h>     print(x)
+[?2004l[?2004h> PY
+[?2004lfailures: 2
+('rook', {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}, {'sig': '24ebc3c9', 'illegal': 0, 'steps': 1}, {'fresh_seen': 9, 'resume_seen': 8})
+('sentinel', {'sig': '9a98d68', 'illegal': 0, 'steps': 1}, {'sig': '691e8e87', 'illegal': 0, 'steps': 1}, {'fresh_seen': 9, 'resume_seen': 8})
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> start=s.find('func runLoaded(')
+[?2004l[?2004h> if start==-1:
+[?2004l[?2004h>     raise SystemExit('runLoaded not found')
+[?2004l[?2004h> # crude parse: find matching closing brace for function by counting braces
+[?2004l[?2004h> i=s.find('{', start)
+[?2004l[?2004h> brace=0
+[?2004l[?2004h> j=i
+[?2004l[?2004h> while j < len(s):
+[?2004l[?2004h>     if s[j]=='{': brace+=1
+[?2004l[?2004h>     elif s[j]=='}':
+[?2004l[?2004h>         brace-=1
+[?2004l[?2004h>         if brace==0:
+[?2004l[?2004h>             end=j+1
+[?2004l[?2004h>             break
+[?2004l[?2004h>     j+=1
+[?2004l[?2004h> else:
+[?2004l[?2004h>     raise SystemExit('could not find end')
+[?2004l[?2004h> old=s[start:end]
+[?2004l[?2004h> new='''func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+[?2004l[?2004h>         applyWorld(w, blob)
+[?2004l[?2004h>         cache := &b1.CacheX{Obs: map[string]bool{}}
+[?2004l[?2004h>         b1.Merge(cache, blob)
+[?2004l[?2004h>         merged := b1.Snapshot(cache)
+[?2004l[?2004h>         for k, v := range stale {
+[?2004l[?2004h>                 merged[k] = v
+[?2004l[?2004h>         }
+[?2004l[?2004h>         w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Resume path should replay the same post-save script steps as the fresh
+[?2004l[?2004h>         // (direct) path. The loaded snapshot already contains the state at the
+[?2004l[?2004h>         // save boundary, including any cached visibility observations.
+[?2004l[?2004h>         moves := []MoveRow{}
+[?2004l[?2004h>         pastSave := false
+[?2004l[?2004h>         obs := merged
+[?2004l[?2004h>         for _, step := range steps {
+[?2004l[?2004h>                 if step.Action == "save" {
+[?2004l[?2004h>                         pastSave = true
+[?2004l[?2004h>                         continue
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 if !pastSave {
+[?2004l[?2004h>                         continue
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 w.Turn = step.Turn
+[?2004l[?2004h>                 if step.Actor == "P" {
+[?2004l[?2004h>                         applyPlayer(w, step.Arg)
+[?2004l[?2004h>                         e4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h>                         // After player movement, refresh observations from the
+[?2004l[?2004h>                         // current world state.
+[?2004l[?2004h>                         obs = buildObs(w, nil)
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 if step.Actor == "H" {
+[?2004l[?2004h>                         moves = append(moves, advanceAll(w, obs)...)
+[?2004l[?2004h>                 }
+[?2004l[?2004h>         }
+[?2004l[?2004h>         return moves
+[?2004l[?2004h> }'''
+[?2004l[?2004h> if old==new:
+[?2004l[?2004h>     print('runLoaded already patched')
+[?2004l[?2004h> else:
+[?2004l[?2004h>     p.write_text(s[:start]+new+s[end:])
+[?2004l[?2004h>     print('patched runLoaded')
+[?2004l[?2004h> PY
+[?2004lpatched runLoaded
+[?2004hroot@6d34054701b6:/app# make -s -C /app build
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     p=f'/app/output/single-{name}.json'
+[?2004l[?2004h>     with open(p) as f: data=json.load(f)
+[?2004l[?2004h>     c=data['cases'][0]
+[?2004l[?2004h>     print(name,'ok',c['ok'])
+[?2004l[?2004h>     print(' fresh',c['fresh'])
+[?2004l[?2004h>     print(' resume',c['resume'])
+[?2004l[?2004h>     print(' visibility',c['visibility'])
+[?2004l[?2004h> PY
+[?2004lrook ok False
+ fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1}
+ resume {'sig': '7d3f56fa', 'illegal': 1, 'steps': 1}
+ visibility {'fresh_seen': 9, 'resume_seen': 0}
+sentinel ok False
+ fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1}
+ resume {'sig': '9a98d68', 'illegal': 1, 'steps': 1}
+ visibility {'fresh_seen': 9, 'resume_seen': 0}
+[?2004hroot@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> print('all ok:', all(c.get('ok') for c in data.get('cases',[])))
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     if not c.get('ok'):
+[?2004l[?2004h>         print('FAIL',c['name'],c['fresh'],c['resume'],c.get('visibility'))
+[?2004l[?2004h> PY
+[?2004lall ok: False
+FAIL rook {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} {'sig': '7d3f56fa', 'illegal': 1, 'steps': 1} {'fresh_seen': 9, 'resume_seen': 0}
+FAIL sentinel {'sig': '9a98d68', 'illegal': 0, 'steps': 1} {'sig': '9a98d68', 'illegal': 1, 'steps': 1} {'fresh_seen': 9, 'resume_seen': 0}
+[?2004hroot@6d34054701b6:/app# find /app/data -maxdepth 3 -type f -name "*rook*" -o -name "*sentinel*" | sed 's#^/app/##'
+[?2004ldata/layouts/rook.map
+data/layouts/sentinel.map
+data/scripts/rook.tsv
+data/scripts/sentinel.tsv
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text().splitlines(True)
+[?2004l[?2004h> # Patch playUntilSave: inject ApplyLit before packing on save
+[?2004l[?2004h> out=[]
+[?2004l[?2004h> for i,line in enumerate(s):
+[?2004l[?2004h>     out.append(line)
+[?2004l[?2004h>     if line.strip()=="if step.Action == \"save\" {":
+[?2004l[?2004h>         # look ahead to ensure we patch only once at correct spot
+[?2004l[?2004h>         pass
+[?2004l[?2004h> # do a simpler text replace
+[?2004l[?2004h> text=''.join(s)
+[?2004l[?2004h> needle='\t\tif step.Action == "save" {\n\t\t\tvis := buildObs(w, nil)\n'
+[?2004l[?2004h> if needle in text:
+[?2004l[?2004h>     text=text.replace(needle,'\t\tif step.Action == "save" {\n\t\t\t// Ensure snapshot carries the same lighting/visibility baseline as a direct run.\n\t\t\te4.ApplyLit(w, radius, blindActive(w))\n\t\t\tvis := buildObs(w, nil)\n')
+[?2004l[?2004h> else:
+[?2004l[?2004h>     print('playUntilSave needle not found')
+[?2004l[?2004h> # Patch runLoaded: after SyncBoundary, apply lit; init obs via buildObs then merge stale
+[?2004l[?2004h> needle2='\tw.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\n\n\t// Resume path should replay the same post-save script steps as the fresh\n'
+[?2004l[?2004h> if needle2 in text:
+[?2004l[?2004h>     text=text.replace(needle2,'\tw.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\n\t// Recompute lighting after loading so planning/visibility matches fresh runs.\n\te4.ApplyLit(w, radius, blindActive(w))\n\n\t// Resume path should replay the same post-save script steps as the fresh\n')
+[?2004l[?2004h> else:
+[?2004l[?2004h>     print('runLoaded sync needle not found')
+[?2004l[?2004h> needle3='\tpastSave := false\n\tobs := merged\n'
+[?2004l[?2004h> if needle3 in text:
+[?2004l[?2004h>     text=text.replace(needle3,'\tpastSave := false\n\tobs := buildObs(w, nil)\n\tfor k, v := range merged {\n\t\tif v {\n\t\t\tobs[k] = true\n\t\t}\n\t}\n')
+[?2004l[?2004h> else:
+[?2004l[?2004h>     print('obs init needle not found')
+[?2004l[?2004h> p.write_text(text)
+[?2004l[?2004h> print('patched playUntilSave + runLoaded lit/obs init')
+[?2004l[?2004h> PY
+[?2004lrunLoaded sync needle not found
+obs init needle not found
+patched playUntilSave + runLoaded lit/obs init
+[?2004hroot@6d34054701b6:/app# make -s -C /app build
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     p=f'/app/output/single-{name}.json'
+[?2004l[?2004h>     with open(p) as f: data=json.load(f)
+[?2004l[?2004h>     c=data['cases'][0]
+[?2004l[?2004h>     print(name,'ok',c['ok'], 'fresh',c['fresh'], 'resume',c['resume'], 'vis',c['visibility'])
+[?2004l[?2004h> PY
+[?2004lrook ok False fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} resume {'sig': '7d3f56fa', 'illegal': 1, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 0}
+sentinel ok False fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1} resume {'sig': '9a98d68', 'illegal': 1, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 0}
+[?2004hroot@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> print('all ok:', all(c.get('ok') for c in data.get('cases',[])))
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     if not c.get('ok'):
+[?2004l[?2004h>         print('FAIL',c['name'],c['fresh'],c['resume'],c.get('visibility'))
+[?2004l[?2004h> PY
+[?2004lall ok: False
+FAIL rook {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} {'sig': '7d3f56fa', 'illegal': 1, 'steps': 1} {'fresh_seen': 9, 'resume_seen': 0}
+FAIL sentinel {'sig': '9a98d68', 'illegal': 0, 'steps': 1} {'sig': '9a98d68', 'illegal': 1, 'steps': 1} {'fresh_seen': 9, 'resume_seen': 0}
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> from pathlib import Path
+[?2004l[?2004h> p=Path('/app/internal/f5/run.go')
+[?2004l[?2004h> s=p.read_text()
+[?2004l[?2004h> start=s.find('func runLoaded(')
+[?2004l[?2004h> if start==-1:
+[?2004l[?2004h>     raise SystemExit('runLoaded not found')
+[?2004l[?2004h> i=s.find('{', start)
+[?2004l[?2004h> brace=0
+[?2004l[?2004h> j=i
+[?2004l[?2004h> while j < len(s):
+[?2004l[?2004h>     if s[j]=='{': brace+=1
+[?2004l[?2004h>     elif s[j]=='}':
+[?2004l[?2004h>         brace-=1
+[?2004l[?2004h>         if brace==0:
+[?2004l[?2004h>             end=j+1
+[?2004l[?2004h>             break
+[?2004l[?2004h>     j+=1
+[?2004l[?2004h> else:
+[?2004l[?2004h>     raise SystemExit('could not find end')
+[?2004l[?2004h> new='''func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {
+[?2004l[?2004h>         applyWorld(w, blob)
+[?2004l[?2004h>         cache := &b1.CacheX{Obs: map[string]bool{}}
+[?2004l[?2004h>         b1.Merge(cache, blob)
+[?2004l[?2004h>         merged := b1.Snapshot(cache)
+[?2004l[?2004h>         for k, v := range stale {
+[?2004l[?2004h>                 merged[k] = v
+[?2004l[?2004h>         }
+[?2004l[?2004h> 
+[?2004l[?2004h>         w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))
+[?2004l[?2004h>         // Ensure we resume with the same lighting/visibility baseline as a fresh run.
+[?2004l[?2004h>         e4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Start from current world-derived observations, then overlay the loaded
+[?2004l[?2004h>         // (cached) observations from the snapshot/stale map.
+[?2004l[?2004h>         obs := buildObs(w, nil)
+[?2004l[?2004h>         for k, v := range merged {
+[?2004l[?2004h>                 if v {
+[?2004l[?2004h>                         obs[k] = true
+[?2004l[?2004h>                 }
+[?2004l[?2004h>         }
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Replay post-save script steps to match the direct path.
+[?2004l[?2004h>         moves := []MoveRow{}
+[?2004l[?2004h>         pastSave := false
+[?2004l[?2004h>         for _, step := range steps {
+[?2004l[?2004h>                 if step.Action == "save" {
+[?2004l[?2004h>                         pastSave = true
+[?2004l[?2004h>                         continue
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 if !pastSave {
+[?2004l[?2004h>                         continue
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 w.Turn = step.Turn
+[?2004l[?2004h>                 if step.Actor == "P" {
+[?2004l[?2004h>                         applyPlayer(w, step.Arg)
+[?2004l[?2004h>                         e4.ApplyLit(w, radius, blindActive(w))
+[?2004l[?2004h>                         obs = buildObs(w, nil)
+[?2004l[?2004h>                 }
+[?2004l[?2004h>                 if step.Actor == "H" {
+[?2004l[?2004h>                         moves = append(moves, advanceAll(w, obs)...)
+[?2004l[?2004h>                 }
+[?2004l[?2004h>         }
+[?2004l[?2004h>         return moves
+[?2004l[?2004h> }'''
+[?2004l[?2004h> p.write_text(s[:start]+new+s[end:])
+[?2004l[?2004h> print('rewrote runLoaded')
+[?2004l[?2004h> PY
+[?2004lrewrote runLoaded
+[?2004hroot@6d34054701b6:/app# make -s -C /app build
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh rook
+[?2004l[?2004hroot@6d34054701b6:/app# bash /app/scripts/one-case.sh sentinel
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     p=f'/app/output/single-{name}.json'
+[?2004l[?2004h>     with open(p) as f: data=json.load(f)
+[?2004l[?2004h>     c=data['cases'][0]
+[?2004l[?2004h>     print(name,'ok',c['ok'], 'fresh',c['fresh'], 'resume',c['resume'], 'vis',c['visibility'])
+[?2004l[?2004h> PY
+[?2004lrook ok True fresh {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} resume {'sig': '7d3f56fa', 'illegal': 0, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 8}
+sentinel ok True fresh {'sig': '9a98d68', 'illegal': 0, 'steps': 1} resume {'sig': '9a98d68', 'illegal': 0, 'steps': 1} vis {'fresh_seen': 9, 'resume_seen': 8}
+[?2004hroot@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/resume-audit.json'
+[?2004l[?2004h> with open(p) as f: data=json.load(f)
+[?2004l[?2004h> print('all ok:', all(c.get('ok') for c in data.get('cases',[])))
+[?2004l[?2004h> for c in data.get('cases',[]):
+[?2004l[?2004h>     if not c.get('ok'):
+[?2004l[?2004h>         print('FAIL',c['name'],c['fresh'],c['resume'],c.get('visibility'))
+[?2004l[?2004h> PY
+[?2004lall ok: True
+[?2004hroot@6d34054701b6:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> 
+[?2004l[?2004h> def load(path):
+[?2004l[?2004h>     with open(path) as f:
+[?2004l[?2004h>         return json.load(f)
+[?2004l[?2004h> 
+[?2004l[?2004h> matrix=load('/app/output/resume-audit.json')
+[?2004l[?2004h> for name in ['rook','sentinel']:
+[?2004l[?2004h>     single=load(f'/app/output/single-{name}.json')['cases'][0]
+[?2004l[?2004h>     row=next(c for c in matrix['cases'] if c['name']==name)
+[?2004l[?2004h>     # compare everything except records/log paths (they can be the same, but keep robust)
+[?2004l[?2004h>     def norm(c):
+[?2004l[?2004h>         c=dict(c)
+[?2004l[?2004h>         c.pop('records',None)
+[?2004l[?2004h>         c.pop('log',None)
+[?2004l[?2004h>         return c
+[?2004l[?2004h>     print(name,'matches:', norm(single)==norm(row))
+[?2004l[?2004h> PY
+[?2004lrook matches: True
+sentinel matches: True
+[?2004hroot@6d34054701b6:/app# 

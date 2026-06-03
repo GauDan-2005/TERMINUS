@@ -1,0 +1,27 @@
+{
+  "analysis": "Fixes improved results: plume and spire now conserve (drift_ratio 0, base_match true). storm and canyon still drift, so another operation path is non-conservative—likely the flux/reflux correction path (op_m/op_c in acc_m/edge_corr.cpp) used when spec->do_flux is enabled (storm/canyon probably enable do_flux). Also, run-matrix.sh appears to wipe /app/output each run (or calls clean-room.sh), which is why conservation_audit.run1.json disappears after the second run; we need to store comparisons outside /app/output (e.g., /tmp). Next: inspect config/cases.toml to confirm which scenarios use do_flux/do_collapse, inspect acc_m/edge_corr.cpp and swp_t/sweep.cpp for conservation, and fix the flux bank application to be conservative (likely missing division by volume or double-counting). Then rerun matrix and snapshot replay.",
+  "plan": "1) View /app/config/cases.toml to see per-scenario toggles, especially do_flux and do_collapse. 2) Inspect acc_m/edge_corr.cpp (flux correction) and swp_t/sweep.cpp to find where fluxes are accumulated/applied and ensure they conserve totals across refined seams. 3) Patch the incorrect flux application: make sure flux values represent integrated amounts and are added/subtracted to conserved moments consistently (volume-weighted). 4) Rebuild and rerun matrix. 5) For determinism comparison, copy audit json to /tmp between runs and diff/sha256.",
+  "commands": [
+    {
+      "keystrokes": "cat /app/config/cases.toml\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/acc_m/edge_corr.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/swp_t/sweep.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drv_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /tmp\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

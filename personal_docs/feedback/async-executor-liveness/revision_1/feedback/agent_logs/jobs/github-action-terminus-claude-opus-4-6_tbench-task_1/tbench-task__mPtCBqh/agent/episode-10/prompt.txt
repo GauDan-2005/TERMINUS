@@ -1,0 +1,263 @@
+New Terminal Output:
+
+root@499c45b4a0bb:/app# export PATH="/usr/local/cargo/bin:$PATH"
+root@499c45b4a0bb:/app# cat > /app/host_d/host.rs << 'EOF'
+> use std::collections::BTreeMap;
+>
+> use crate::core_a::E0;
+> use crate::types_f::Item;
+>
+> pub struct S2 {
+>     pub items: BTreeMap<String, Item>,
+> }
+>
+> pub struct R1 {
+>     pub item: Item,
+> }
+>
+> pub struct R2 {
+>     pub item: Item,
+> }
+>
+> impl S2 {
+>     pub fn new() -> Self {
+>         Self { items: BTreeMap::new() }
+>     }
+> }
+>
+> pub fn bind_d(a: &mut S2, b: R1) -> Result<R2, E0> {
+>     let item = b.item;
+>     a.items.insert(item.ident.clone(), item.clone());
+>     Ok(R2 { item })
+> }
+> EOF
+root@499c45b4a0bb:/app# cat > /app/gate_c/gate.rs << 'EOF'
+> use std::collections::BTreeSet;
+>
+> use crate::core_a::R0;
+>
+> pub struct S1 {
+>     pub removed: BTreeSet<String>,
+> }
+>
+> impl S1 {
+>     pub fn new(removed: BTreeSet<String>) -> Self {
+>         Self { removed }
+>     }
+> }
+>
+> pub fn mark_c(a: &S1, b: &R0) -> bool {
+>     // Check if this item or any of its ancestors is in the removed set
+>     for ancestor in &b.chain {
+>         if a.removed.contains(ancestor) {
+>             return false;
+>         }
+>     }
+>     true
+> }
+> EOF
+root@499c45b4a0bb:/app# cat > /app/flow_e/flow.rs << 'EOF'
+> use std::fs::{self, File};
+> use std::io::{self, Write};
+> use std::path::Path;
+>
+> use crate::serde_f::row_json;
+> use crate::types_f::Record;
+>
+> pub struct S3 {
+>     pub count: usize,
+> }
+>
+> pub fn walk_e(a: &[Record], b: &mut S3) {
+>     b.count += a.len();
+> }
+>
+> pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
+>     if let Some(parent) = a.parent() {
+>         fs::create_dir_all(parent)?;
+>     }
+>     let mut file = File::create(a)?;
+>     for row in b {
+>         writeln!(file, "{}", row_json(row))?;
+>     }
+>     Ok(())
+> }
+>
+> pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
+>     if let Some(parent) = a.parent() {
+>         fs::create_dir_all(parent)?;
+>     }
+>     let mut file = File::create(a)?;
+>     for row in b {
+>         writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
+>     }
+>     Ok(())
+> }
+> EOF
+root@499c45b4a0bb:/app# cat > /app/book_b/book.rs << 'EOF'
+> use std::collections::BTreeMap;
+>
+> use crate::core_a::R0;
+>
+> /// Process items through multi-turn CAP scheduling.
+> /// Items become ready at their base_turn. Each turn, each lane can accept up to `cap` items.
+> /// Overflow items remain for subsequent turns.
+> /// Returns items in acceptance order: by accepted turn, then lane name, then plan-file seq.
+> pub fn fold_b(a: &[R0], cap: usize) -> Vec<R0> {
+>     let cap = cap.max(1);
+>
+>     // Find max base_turn to know where items first become ready
+>     let max_base = a.iter().map(|r| r.base_turn).max().unwrap_or(0);
+>
+>     // Collect all items, grouped by lane
+>     let mut pending_by_lane: BTreeMap<String, Vec<R0>> = BTreeMap::new();
+>     for row in a.iter() {
+>         pending_by_lane.entry(row.lane_name.clone()).or_default().push(row.clone());
+>     }
+>     // Sort each lane's pending by seq (plan-file order)
+>     for items in pending_by_lane.values_mut() {
+>         items.sort_by_key(|r| r.seq);
+>     }
+>
+>     let mut result: Vec<R0> = Vec::new();
+>     let mut accepted: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+>
+>     // Process turn by turn
+>     let mut turn = 0u64;
+>     loop {
+>         let mut accepted_this_round = false;
+>
+>         for (_lane, items) in pending_by_lane.iter() {
+>             // Count how many ready and not-yet-accepted items exist in this lane for this turn
+>             let ready_count = items.iter()
+>                 .filter(|r| r.base_turn <= turn && !accepted.contains(&r.task_name))
+>                 .count();
+>             if ready_count > 0 {
+>                 accepted_this_round = true;
+>                 break;
+>             }
+>         }
+>
+>         if !accepted_this_round && turn > max_base {
+>             break;
+>         }
+>
+>         // For each lane (in alphabetical order due to BTreeMap), accept up to cap items
+>         let lanes: Vec<String> = pending_by_lane.keys().cloned().collect();
+>         for lane in &lanes {
+>             let items = pending_by_lane.get(lane).unwrap();
+>             let mut count = 0;
+>             for row in items.iter() {
+>                 if count >= cap {
+>                     break;
+>                 }
+>                 if row.base_turn <= turn && !accepted.contains(&row.task_name) {
+>                     let mut accepted_row = row.clone();
+>                     accepted_row.turn = turn;
+>                     result.push(accepted_row);
+>                     accepted.insert(row.task_name.clone());
+>                     count += 1;
+>                 }
+>             }
+>         }
+>
+>         turn += 1;
+>
+>         // Safety: if all items have been accepted, stop
+>         if accepted.len() == a.len() {
+>             break;
+>         }
+>
+>         // Prevent infinite loops
+>         if turn > max_base + a.len() as u64 + 10 {
+>             break;
+>         }
+>     }
+>
+>     result
+> }
+> EOF
+root@499c45b4a0bb:/app# cat > /app/drive_g/drive.rs << 'EOF'
+> use std::collections::{BTreeMap, BTreeSet};
+> use std::io;
+> use std::path::{Path, PathBuf};
+>
+> use crate::book_b::fold_b;
+> use crate::core_a::{op_a, R0, S0};
+> use crate::flow_e::{emit_e, note_e};
+> use crate::gate_c::{mark_c, S1};
+> use crate::host_d::{bind_d, R1, S2};
+> use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
+>
+> fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
+>     (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
+> }
+>
+> pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
+>     let mut host = S2::new();
+>     let mut removed: BTreeSet<String> = BTreeSet::new();
+>     // Use Vec to preserve plan-file insertion order, with deduplication
+>     let mut raw_order: Vec<Item> = Vec::new();
+>     let mut seen_idents: BTreeSet<String> = BTreeSet::new();
+>
+>     for entry in &a.entries {
+>         match entry {
+>             Entry::Root { ident, lane, at, seq } => {
+>                 if seen_idents.contains(ident) {
+>                     continue; // skip duplicate
+>                 }
+>                 let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()]
+};
+>                 let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+>                 seen_idents.insert(ident.clone());
+>                 raw_order.push(moved.item);
+>             }
+>             Entry::Child { from, ident, lane, at, seq } => {
+>                 if seen_idents.contains(ident) {
+>                     continue; // skip duplicate
+>                 }
+>                 let parent = raw_order.iter().find(|i| i.ident == *from).cloned();
+>                 let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
+>                 let mut chain = parent.as_ref().map(|p| p.chain.clone()).unwrap_or_default();
+>                 chain.push(ident.clone());
+>                 let parent_name = if parent.is_some() { from.clone() } else { "-".to_string() };
+>                 let item = Item { ident: ident.clone(), parent: parent_name, lane: lane.clone(), at: *at, seq: *seq, depth, chain };
+>                 let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
+>                 seen_idents.insert(ident.clone());
+>                 raw_order.push(moved.item);
+>             }
+>             Entry::Drop { ident } => {
+>                 removed.insert(ident.clone());
+>             }
+>         }
+>     }
+>
+>     let gate = S1::new(removed);
+>     let mut state = S0::new();
+>     for item in &raw_order {
+>         let row = R0::from_item(&a.name, item);
+>         if mark_c(&gate, &row) {
+>             op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
+>         }
+>     }
+>
+>     let ordered = fold_b(&state.rows, a.cap);
+>     let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
+>     let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
+>     let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
+>     pending.sort();
+>
+>     let (ledger, journal) = out_paths(b, &a.name);
+>     emit_e(&ledger, &trace)?;
+>     note_e(&journal, &trace)?;
+>
+>     let finished = pending.is_empty();
+>     Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string()
+ })
+> }
+> EOF
+root@499c45b4a0bb:/app# cat /app/scripts/clean-room.sh
+#!/bin/bash
+rm -rf /app/output
+mkdir -p /app/output
+root@499c45b4a0bb:/app#

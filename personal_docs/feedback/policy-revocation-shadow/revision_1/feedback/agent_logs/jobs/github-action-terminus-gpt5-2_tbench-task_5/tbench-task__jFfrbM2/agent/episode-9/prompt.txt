@@ -1,0 +1,197 @@
+New Terminal Output:
+
+root@ddaff815948e:/app# find /usr/local/rustup/toolchains -maxdepth 3 -type f -name cargo -o -name rustc 2>/dev/null | head -n 50
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/rustc
+root@ddaff815948e:/app# ls -la /usr/local/rustup/toolchains
+total 0
+drwxrwxrwx 3 root root 45 Mar 18  2025 .
+drwxrwxrwx 6 root root 94 Mar 18  2025 ..
+drwxrwxrwx 7 root root 67 Mar 18  2025 1.85.0-x86_64-unknown-linux-gnu
+root@ddaff815948e:/app# for tc in /usr/local/rustup/toolchains/*; do echo "TC=$tc"; ls -la "$tc/bin" 2>/dev/null | head; done
+TC=/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu
+total 47624
+drwxrwxrwx 2 root root       99 Mar 18  2025 .
+drwxrwxrwx 7 root root       67 Mar 18  2025 ..
+-rwxrwxrwx 1 root root 35355128 Mar 18  2025 cargo
+-rwxrwxrwx 1 root root      980 Mar 18  2025 rust-gdb
+-rwxrwxrwx 1 root root     2160 Mar 18  2025 rust-gdbgui
+-rwxrwxrwx 1 root root     1072 Mar 18  2025 rust-lldb
+-rwxrwxrwx 1 root root   643784 Mar 18  2025 rustc
+-rwxrwxrwx 1 root root 12747536 Mar 18  2025 rustdoc
+root@ddaff815948e:/app# export PATH="/usr/local/rustup/toolchains/$(ls /usr/local/rustup/toolchains | head -n1)/bin:$PATH"; command -v cargo; cargo --version; r
+ustc --version
+/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+rustc 1.85.0 (4d91de4e4 2025-02-17)
+root@ddaff815948e:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: src/model.rs
+> @@
+>  pub struct State {
+> @@
+> -    pub store: BTreeMap<String, String>,
+> -    pub group_slot: BTreeMap<String, String>,
+> +    // Memoized outcomes for non-batch checks, keyed by full principal+resource+action.
+> +    pub store: BTreeMap<String, String>,
+> +    // Memoized outcomes for batch checks, keyed by full principal+resource+action.
+> +    pub group_slot: BTreeMap<String, String>,
+> @@
+>  impl State {
+> @@
+> -    pub fn slot_key(object: &str, mode: &str) -> String {
+> -        format!("{object}|{mode}")
+> -    }
+> +    pub fn slot_key(subject: &str, object: &str, mode: &str) -> String {
+> +        format!("{subject}|{object}|{mode}")
+> +    }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@ddaff815948e:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: src/io.rs
+> @@
+>  pub fn split_subject_object_mode(value: &str) -> Result<(String, String, String), String> {
+> @@
+>  }
+> +
+> +pub fn split_object_mode(value: &str) -> Result<(String, String), String> {
+> +    let (object, mode) = value
+> +        .split_once('/')
+> +        .ok_or_else(|| format!("bad object/mode {value}"))?;
+> +    Ok((object.to_string(), mode.to_string()))
+> +}
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@ddaff815948e:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: k2/c.rs
+> @@
+>  use crate::model::State;
+>
+> -pub fn emit_c(a: &State, _b: &str, c: &str, d: &str) -> Option<String> {
+> -    let key = State::slot_key(c, d);
+> +pub fn emit_c(a: &State, b: &str, c: &str, d: &str) -> Option<String> {
+> +    let key = State::slot_key(b, c, d);
+>      a.store.get(&key).cloned()
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@ddaff815948e:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: k0/a.rs
+> @@
+> -use crate::io::split_subject_object_mode;
+> +use crate::io::{split_object_mode, split_subject_object_mode};
+> @@
+>          "grant" => {
+> -            let (object, mode) = b
+> -                .right
+> -                .split_once('/')
+> -                .ok_or_else(|| format!("bad grant row {}", b.right))?;
+> +            let (object, mode) = split_object_mode(&b.right)?;
+>              a.direct
+>                  .insert((b.left.clone(), object.to_string(), mode.to_string()));
+>              a.clock += 1;
+>              Ok(())
+>          }
+> @@
+>  fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+> @@
+>      if let Some(outcome) = emit_c(a, subject, object, mode) {
+> @@
+>      }
+>      let (outcome, via) = mote_e(a, subject, object, mode);
+>      a.store.insert(
+> -        crate::model::State::slot_key(object, mode),
+> +        crate::model::State::slot_key(subject, object, mode),
+>          outcome.clone(),
+>      );
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@ddaff815948e:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: k3/d.rs
+> @@
+>  pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+> -    let slot = State::slot_key(d, e);
+> +    let slot = State::slot_key(c, d, e);
+>      let tick = a.tick_for(c);
+> -  if let Some(outcome) = a.group_slot.get(&slot) {
+> -        let via = if outcome == "allow" {
+> -            mote_e(a, c, d, e).1
+> -        } else {
+> -            String::new()
+> -        };
+> +    if let Some(outcome) = a.group_slot.get(&slot) {
+> +        // For grouped checks, equivalent (principal,resource,action) within the same
+> +        // active batch are reused.
+> +        let via = if outcome == "allow" { mote_e(a, c, d, e).1 } else { String::new() };
+>          let mut row = Decision::blank(b, c, d, e, tick);
+>          row.outcome = outcome.clone();
+>          row.group = a.group_active.clone();
+>          row.via = via;
+> +        row.reused = true;
+>          return row;
+>      }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@ddaff815948e:/app# apply_patch <<'PATCH'
+> *** Begin Patch
+> *** Update File: k4/e.rs
+> @@
+>  pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+> -    let mut current = b.to_string();
+> +    // Walk from requesting subject toward grantors following the delegation chain.
+> +    // If any subject along this walk is blocked/revoked, delegated access denies.
+> +    let mut current = b.to_string();
+> +    let mut path: Vec<String> = vec![current.clone()];
+>      loop {
+>          if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+> -            if a.blocked.contains(b) {
+> -                return ("deny".to_string(), String::new());
+> -            }
+> -            let via = if current == b {
+> -                String::new()
+> -            } else {
+> -                current.clone()
+> -            };
+> -            return ("allow".to_string(), via);
+> +            let delegated = current != b;
+> +            if delegated {
+> +                // Any blocked subject on the delegation chain denies inherited access.
+> +                if path.iter().any(|s| a.blocked.contains(s)) {
+> +                    return ("deny".to_string(), String::new());
+> +                }
+> +                // blocked/revoked subjects never receive allow on delegated paths.
+> +                if a.blocked.contains(b) {
+> +                    return ("deny".to_string(), String::new());
+> +                }
+> +                // delegated_from should name the grantor.
+> +                return ("allow".to_string(), current.clone());
+> +            }
+> +            // Direct grant: subject status does not affect direct row in this lab.
+> +            return ("allow".to_string(), String::new());
+>          }
+>          match a.chain.get(&current) {
+> -            Some(parent) => current = parent.clone(),
+> +            Some(parent) => {
+> +                current = parent.clone();
+> +                path.push(current.clone());
+> +            }
+>              None => return ("deny".to_string(), String::new()),
+>          }
+>      }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@ddaff815948e:/app# cargo build -q
+root@ddaff815948e:/app# rm -f /app/output/policy-audit.json && bash /app/scripts/run-matrix.sh && sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@ddaff815948e:/app#

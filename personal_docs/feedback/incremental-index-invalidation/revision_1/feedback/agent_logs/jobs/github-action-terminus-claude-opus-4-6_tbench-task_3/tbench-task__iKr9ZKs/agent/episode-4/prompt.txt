@@ -1,0 +1,84 @@
+New Terminal Output:
+
+root@5a47b69ad599:/app# cat /app/r1/b.rs
+use crate::io::{app_path, collect_entries};
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let root = app_path(c);
+    a.active.insert(b.to_string(), root);
+    let mut found = collect_entries(a, b, c, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+root@5a47b69ad599:/app# cat /app/r2/c.rs
+use crate::io::{app_path, collect_entries};
+use crate::model::State;
+
+pub fn emit_c(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let root = app_path(c);
+    a.active.insert(b.to_string(), root);
+    let mut found = collect_entries(a, b, c, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+root@5a47b69ad599:/app# cat /app/r3/d.rs
+use crate::io::{app_path, collect_entries, resolve_target_root};
+use crate::model::State;
+
+pub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let shown = app_path(c);
+    let actual = resolve_target_root(c)?;
+    a.active.insert(b.to_string(), shown);
+    let mut found = collect_entries(a, b, &actual, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+root@5a47b69ad599:/app# cat /app/r4/e.rs
+use crate::model::{Observation, State};
+
+pub fn mote_e(a: &mut State, b: &str, c: bool) -> Observation {
+    if let Some(entry) = a.entries.iter().find(|entry| entry.symbol == b) {
+        let reused = a.last_seen.get(b).map(|old| *old == entry.handle).unwrap_or(false);
+        a.last_seen.insert(b.to_string(), entry.handle);
+        let fresh = a
+            .active
+            .get(&entry.slot)
+            .map(|root| entry.path.starts_with(root))
+            .unwrap_or(false);
+        Observation {
+            label: String::new(),
+            symbol: b.to_string(),
+            found: true,
+            path: entry.path.clone(),
+            source: entry.source.clone(),
+            line: entry.line,
+            epoch: entry.epoch,
+            reused,
+            fresh,
+        }
+    } else {
+        Observation::missing(b, b, a.epoch, !c)
+    }
+}
+root@5a47b69ad599:/app# cat /app/r5/f.rs
+use crate::model::{Observation, State};
+
+pub fn cast_f(_a: &State, b: Observation, c: bool) -> (Observation, Option<String>) {
+    if c {
+        if b.found && b.fresh {
+            (b, None)
+        } else {
+            let label = b.label.clone();
+            (b, Some(label))
+        }
+    } else if b.found && b.path.starts_with("/app/") {
+        (b, None)
+    } else {
+        (b, None)
+    }
+}
+root@5a47b69ad599:/app#

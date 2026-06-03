@@ -1,0 +1,147 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ⚠️ WARNING
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires debugging a multi-language (Rust + Go) inference sandbox
+where compressed integer path handling has drifted. The agent must repair
+several Rust modules (per-column scale/bias expansion, slot tracking,
+accumulation logic) and the Go collation stage to produce correct raw.json
+and report.json outputs. The test suite includes 14 well-structured test
+functions that verify token computation, flag correctness, determinism, and
+the agree-comparison logic across all six built-in cases.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Installed in Dockerfile Instead of test.sh
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 31-34)
+Problem: pytest and pytest-json-ctrf are installed in the Docker image. The
+         standard approach requires test.sh to install its own dependencies
+         so the agent environment stays clean of test tooling.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN mkdir -p /opt/uv-cache \                                               │
+│      && uv venv /opt/tbench-testing \                                       │
+│      && VENV=/opt/tbench-testing \                                          │
+│      && uv pip install --python "$VENV/bin/python" pytest==8.4.1 \          │
+│         pytest-json-ctrf==0.3.5                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Suggested fix: Move pytest installation into tests/test.sh and remove from
+the Dockerfile:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  # In test.sh, before running pytest:                                       │
+│  uv venv .tbench-testing                                                    │
+│  source .tbench-testing/bin/activate                                        │
+│  uv pip install pytest==8.4.1 pytest-json-ctrf==0.3.5                       │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Installing test dependencies in the image makes them visible to
+the agent and bloats the build. test.sh should be self-contained per the
+standard format.
+
+--------------------------------------------------------------------------------
+2. test.sh Does Not Install Its Own Dependencies
+--------------------------------------------------------------------------------
+
+File:    tbench-task/tests/test.sh (lines 1-19)
+Problem: test.sh invokes `python -m pytest` directly without installing
+         pytest or uv. It relies entirely on the Dockerfile having pre-
+         installed pytest into a venv on PATH, deviating from the standard
+         test runner format.
+
+Current approach: test.sh assumes pytest is pre-installed via Dockerfile.
+
+Suggested fix:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  #!/bin/bash                                                                │
+│  apt-get update && apt-get install -y curl                                  │
+│  curl -LsSf https://astral.sh/uv/0.7.13/install.sh | sh                    │
+│  source $HOME/.local/bin/env                                                │
+│                                                                             │
+│  if [ "$PWD" = "/" ]; then                                                  │
+│    echo "Error: No working directory set."                                  │
+│    exit 1                                                                   │
+│  fi                                                                         │
+│                                                                             │
+│  uv venv .tbench-testing                                                    │
+│  source .tbench-testing/bin/activate                                        │
+│  uv pip install pytest==8.4.1 pytest-json-ctrf==0.3.5                       │
+│                                                                             │
+│  uv run pytest /tests/test_outputs.py -rA \                                 │
+│    --ctrf /logs/verifier/ctrf.json                                          │
+│                                                                             │
+│  if [ $? -eq 0 ]; then                                                      │
+│    echo 1 > /logs/verifier/reward.txt                                       │
+│  else                                                                       │
+│    echo 0 > /logs/verifier/reward.txt                                       │
+│  fi                                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: A self-contained test.sh ensures portability across different
+harness environments where the base image may not include pytest.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Instruction Clarity for a Debugging Task
+--------------------------------------------------------------------------------
+
+File:    tbench-task/instruction.md (lines 1-9)
+
+Current approach: The instructions describe the desired output behavior in a
+single dense paragraph without explicitly stating which modules are broken
+or what symptoms the drift produces. For a "hard" task this is acceptable,
+but the phrase "drifting on sequence outputs from its compressed integer
+paths" is vague.
+
+Rationale: Adding one sentence such as "Run /app/tools/run_local.sh to
+observe the current incorrect output, then trace the bug through the Rust
+and Go stages" would help agents orient without reducing difficulty, since
+understanding which code is wrong remains the core challenge.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a well-constructed hard debugging task that exercises multi-language
+code comprehension across Rust and Go. The buggy environment code is
+meaningfully different from the solution, test coverage is thorough, and the
+anti-cheating posture is strong since the agent must understand semantic
+behavior to produce correct fixes.
+
+Key Strengths:
+  ✓ 14 comprehensive tests with clear docstrings covering all cases
+  ✓ Strong anti-cheating: requires understanding per-column semantics,
+    slot mapping, and agree-comparison logic
+  ✓ Solution is non-trivial and computationally sound (no hardcoded values)
+  ✓ Pinned dependencies and reproducible Dockerfile with SHA256 digest
+
+Key Weaknesses:
+  ✗ Test dependencies pre-installed in Dockerfile rather than in test.sh
+  ✗ test.sh deviates from standard self-contained format
+
+Evaluates: multi-language debugging (Rust + Go), numerical computation
+           understanding, JSON schema conformance, code tracing
+
+================================================================================
+  RECOMMENDATION: ⚠️ NEEDS REVISION
+
+  The task is high quality but test.sh should be made self-contained by
+  moving pytest installation from the Dockerfile into test.sh per the
+  standard Terminal-Bench format.
+================================================================================

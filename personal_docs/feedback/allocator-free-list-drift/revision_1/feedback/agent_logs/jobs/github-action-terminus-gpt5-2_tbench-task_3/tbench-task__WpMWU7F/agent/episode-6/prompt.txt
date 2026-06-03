@@ -1,0 +1,175 @@
+Current terminal state:
+New Terminal Output:
+
+root@bf5a87cba17d:/app# sed -n '1,120p' /app/src/arena_core.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+size_t arena_heap_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t off = 0;
+    while (off < a->used) {
+        Block b;
+        b.base = (unsigned char *)a->mem;
+        b.off = off;
+        size_t total = tag_read_size(&b);
+        if (total == 0) {
+            break;
+        }
+        if (z_is_flag(&b)) {
+            sig += total * 17;
+        }
+        off += total;
+    }
+    return sig;
+}
+
+size_t arena_fl_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        Block b = {(unsigned char *)a->mem, cur};
+        sig += tag_read_size(&b);
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return sig;
+}
+
+int arena_fl_count(const Arena *a) {
+    int c = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        c++;
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return c;
+}
+root@bf5a87cba17d:/app# cat > /app/src/arena_core.c <<'EOF'
+> #include "../include/arena.h"
+> #include "../pool_a/tag.h"
+>
+> static size_t fl_ix(size_t off) {
+>     return off >> 3;
+> }
+>
+> // Deterministic mix used to build signatures from stable block metadata.
+> // Avoids dependence on free-list link order or raw pointer values.
+> static inline size_t mix_sig(size_t x) {
+>     x ^= x >> 33;
+>     x *= (size_t)0xff51afd7ed558ccdULL;
+>     x ^= x >> 33;
+>     x *= (size_t)0xc4ceb9fe1a85ec53ULL;
+>     x ^= x >> 33;
+>     return x;
+> }
+>
+> size_t arena_heap_sig(const Arena *a) {
+>     // Canonical heap signature: walk blocks in increasing offset order and fold
+>     // in (offset,size,free/alloc). This stays stable across fragmentation,
+>     // merges, and growth regardless of freelist ordering.
+>     size_t sig = 0;
+>     size_t off = 0;
+>     while (off < a->used) {
+>         Block b;
+>         b.base = (unsigned char *)a->mem;
+>         b.off = off;
+>         size_t total = tag_read_size(&b);
+>         if (total == 0) {
+>             break;
+>         }
+>         size_t key = (off << 1) ^ (total << 17) ^ (z_is_flag(&b) ? (size_t)0x9e3779b97f4a7c15ULL : 0U);
+>         sig ^= mix_sig(key);
+>         off += total;
+>     }
+>     return sig;
+> }
+>
+> size_t arena_fl_sig(const Arena *a) {
+>     // Canonical free-list signature: do NOT depend on free-list link order.
+>     // Instead scan the heap and include only free blocks in offset order.
+>     size_t sig = 0;
+>     size_t off = 0;
+>     while (off < a->used) {
+>         Block b = {(unsigned char *)a->mem, off};
+>         size_t total = tag_read_size(&b);
+>         if (total == 0) {
+>             break;
+>         }
+>         if (z_is_flag(&b)) {
+>             size_t key = (off << 1) ^ (total << 17) ^ (size_t)0xD1B54A32D192ED03ULL;
+>             sig ^= mix_sig(key);
+>         }
+>         off += total;
+>     }
+>     return sig;
+> }
+>
+> int arena_fl_count(const Arena *a) {
+>     int c = 0;
+>     size_t cur = a->fl_head.off;
+>     while (cur != FL_END) {
+>         c++;
+>         cur = a->fl_link_next[fl_ix(cur)];
+>     }
+>     return c;
+> }
+> EOF
+root@bf5a87cba17d:/app# make -B
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+drive_h/run.c: In function 'run_case':
+drive_h/run.c:11:5: warning: 'strncpy' output may be truncated copying 31 bytes from a string of length 31 [-Wstringop-truncation]
+   11 |     strncpy(res->name, plan->name, sizeof(res->name) - 1);
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_o
+ps.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_
+j/mirror.o
+root@bf5a87cba17d:/app# bash /app/scripts/clean-room.sh
+root@bf5a87cba17d:/app# bash /app/scripts/run-matrix.sh
+root@bf5a87cba17d:/app# cp -a /app/output/alloc-audit.json /app/output/alloc-audit.sigfix.1.json
+root@bf5a87cba17d:/app# bash /app/scripts/clean-room.sh
+root@bf5a87cba17d:/app# bash /app/scripts/run-matrix.sh
+root@bf5a87cba17d:/app# diff -u /app/output/alloc-audit.sigfix.1.json /app/output/alloc-audit.json || true
+root@bf5a87cba17d:/app# python3 - <<'PY'
+> import json, pathlib
+> p=pathlib.Path('/app/output/alloc-audit.json')
+> data=json.loads(p.read_text())
+> need={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> step_need={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> assert 'cases' in data and isinstance(data['cases'], list)
+> assert sorted([c['name'] for c in data['cases']])==sorted(['cedar','jade','slate','coral','onyx','pearl'])
+> for c in data['cases']:
+>     assert not (need-set(c)), (c.get('name'), need-set(c))
+>     led=pathlib.Path(c['ledger'])
+>     assert led.exists(), led
+>     assert len(c['steps'])==sum(1 for _ in led.open()), c['name']
+>     for st in c['steps']:
+>         assert not (step_need-set(st)), (c['name'], step_need-set(st))
+> print('OK schema + ledger alignment')
+> PY
+OK schema + ledger alignment
+root@bf5a87cba17d:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

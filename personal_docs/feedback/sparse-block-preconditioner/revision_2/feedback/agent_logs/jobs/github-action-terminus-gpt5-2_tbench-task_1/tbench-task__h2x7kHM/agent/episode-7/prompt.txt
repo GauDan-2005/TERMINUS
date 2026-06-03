@@ -1,0 +1,44 @@
+New Terminal Output:
+
+root@f3c44f310304:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+root@f3c44f310304:/app# ls -la /app/output || true
+total 8
+drwxr-xr-x  2 root root   61 May 28 16:13 .
+drwxr-xr-x 21 root root  289 May 28 16:12 ..
+-rw-r--r--  1 root root 1160 May 28 16:12 solver-audit.json
+-rw-r--r--  1 root root 1160 May 28 16:13 solver-audit.run2.json
+root@f3c44f310304:/app# perl -i -pe 's/^\s*rm\s+-rf\s+"\$\{OUT\}"\s*$/# rm -rf "${OUT}"  # keep audit outputs; only remove transient files/;/' /app/scripts/clea
+n-room.sh
+Search pattern not terminated at -e line 1.
+root@f3c44f310304:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+rm -rf "${APP_ROOT}/output"
+mkdir -p "${APP_ROOT}/output"
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /tmp/solver-audit.matrix.json
+root@f3c44f310304:/app# bash /app/scripts/run-one.sh basalt
+root@f3c44f310304:/app# cp -f /app/output/basalt-audit.json /tmp/basalt-audit.one.json
+root@f3c44f310304:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/tmp/solver-audit.matrix.json'))['cases']
+> one=json.load(open('/tmp/basalt-audit.one.json'))['cases'][0]
+> mx=[c for c in m if c['name']=='basalt'][0]
+> print(mx==one)
+> if mx!=one:
+>     print('matrix',mx)
+>     print('one',one)
+> PY
+True
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /tmp/solver-audit.run1.json
+root@f3c44f310304:/app# bash /app/scripts/run-matrix.sh
+root@f3c44f310304:/app# cp -f /app/output/solver-audit.json /tmp/solver-audit.run2.json
+root@f3c44f310304:/app# diff -u /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json || true
+root@f3c44f310304:/app#

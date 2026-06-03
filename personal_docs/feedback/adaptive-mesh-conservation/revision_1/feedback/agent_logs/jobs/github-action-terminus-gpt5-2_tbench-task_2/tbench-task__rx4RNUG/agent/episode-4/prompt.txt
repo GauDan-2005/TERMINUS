@@ -1,0 +1,180 @@
+New Terminal Output:
+
+root@fb196c8d4778:/app# sed -n '1,260p' /app/include/topo_link.h
+#ifndef TOPO_LINK_H
+#define TOPO_LINK_H
+
+#include "cell_view.h"
+
+struct TopoLink {
+    int n_faces;
+    int face_left[MAX_FACES];
+    int face_right[MAX_FACES];
+    int face_level[MAX_FACES];
+    int parent[MAX_CELLS];
+    int child0[MAX_CELLS];
+    int child_count[MAX_CELLS];
+};
+
+int step_n(CellGrid *a, const int *b, int c, TopoLink *d);
+void op_b(CellPatch *a, const CellPatch *b, int c, int d);
+
+#endif
+root@fb196c8d4778:/app# sed -n '1,260p' /app/lnk_n/relate.cpp
+#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+int step_n(CellGrid *a, const int *b, int c, TopoLink *d) {
+    if (!a || !d) return -1;
+    int n = a->n;
+    for (int i = 0; i < n; i++) {
+        d->parent[i] = a->cells[i].parent;
+    }
+    if (b && c > 0) {
+        for (int i = 0; i < c && i < n; i++) {
+            int idx = b[i];
+            if (idx >= 0 && idx < n) {
+                d->parent[idx] = a->cells[idx].parent;
+            }
+        }
+    }
+    return 0;
+}
+root@fb196c8d4778:/app# sed -n '1,260p' /app/include/flow_record.h
+#ifndef FLOW_RECORD_H
+#define FLOW_RECORD_H
+
+#include "cell_view.h"
+
+struct EdgePulse {
+    int base_idx;
+    int subfaces;
+    double flux_vals[MAX_LEAVES * NVAR];
+};
+
+struct FluxBank {
+    int n_pending;
+    int leaf[MAX_FACES];
+    double flux[MAX_FACES * NVAR];
+};
+
+void op_m(const EdgePulse *a, FluxBank *b);
+
+#endif
+root@fb196c8d4778:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: drv_u/run_refine.cpp
+> @@
+>  void phase_grow(SimState *st, const ScenarioSpec *spec) {
+>      CellGrid coarse = st->grid;
+>      CellGrid leaves;
+>      leaves.n = 0;
+>      st->n_coarse = spec->n_coarse;
+>      for (int c = 0; c < spec->n_coarse; c++) {
+>          int k = spec->leaf_count[c];
+>          if (k < 1) k = 1;
+> @@
+>          double jbar = (vtot > 0.0) ? jw / vtot : 0.0;
+> +
+> +        // Conservative split: distribute the parent's integrated quantities
+> +        // (vol*q) across children. We allow a small shape perturbation via f,
+> +        // but renormalize so the sum of child masses matches the parent.
+> +        double parent_mass[NVAR];
+> +        for (int v = 0; v < NVAR; v++) parent_mass[v] = coarse.cells[c].vol * coarse.cells[c].q[v];
+> +
+> +        double fsum_vol = 0.0;
+> +        for (int j = 0; j < k; j++) {
+> +            double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+> +            // Avoid negative/degenerate weights.
+> +            if (f < 0.0) f = 0.0;
+> +            fsum_vol += vj[j] * f;
+> +        }
+> +        if (fsum_vol <= 0.0) fsum_vol = vtot;
+> +
+>          for (int j = 0; j < k; j++) {
+>              int gi = leaves.n++;
+>              leaves.cells[gi].idx = gi;
+>              leaves.cells[gi].vol = vj[j];
+>              double f = (k > 1) ? (1.0 + LEAF_SPREAD * ((double)j - jbar)) : 1.0;
+> -            for (int v = 0; v < NVAR; v++) {
+> -                leaves.cells[gi].q[v] = coarse.cells[c].q[v] * f;
+> -            }
+> +            if (f < 0.0) f = 0.0;
+> +            for (int v = 0; v < NVAR; v++) {
+> +                // Mass assigned to this child for variable v.
+> +                double m_child = parent_mass[v] * (vj[j] * f) / fsum_vol;
+> +                leaves.cells[gi].q[v] = (vj[j] > 0.0) ? (m_child / vj[j]) : 0.0;
+> +            }
+>              leaves.cells[gi].tier = (k > 1) ? 1 : 0;
+>              leaves.cells[gi].parent = (k > 1) ? c : -1;
+>          }
+>      }
+> @@
+>      st->bank.n_pending = 0;
+>      if (!spec->do_flux) return;
+>      for (int c = 0; c < spec->n_coarse; c++) {
+>          int k = st->coarse_len[c];
+>          if (k < 2) continue;
+>          int start = st->coarse_start[c];
+> @@
+> -        EdgePulse ep;
+> -        ep.base_idx = start;
+> -        ep.subfaces = k;
+> -        for (int j = 0; j < k; j++) {
+> -            const CellView *cell = &st->grid.cells[start + j];
+> -            for (int v = 0; v < NVAR; v++) {
+> -                ep.flux_vals[j * NVAR + v] =
+> -                    REFLUX_RATE * cell->vol * (qbar[v] - cell->q[v]);
+> -            }
+> -        }
+> -        op_m(&ep, &st->bank);
+> +        // Enqueue one conservative correction per leaf. (apply_reflux operates
+> +        // on a single leaf slot with NVAR entries.)
+> +        for (int j = 0; j < k; j++) {
+> +            const CellView *cell = &st->grid.cells[start + j];
+> +            EdgePulse ep;
+> +            memset(&ep, 0, sizeof(ep));
+> +            ep.base_idx = start + j;
+> +            ep.subfaces = 1;
+> +            for (int v = 0; v < NVAR; v++) {
+> +                ep.flux_vals[v] = REFLUX_RATE * cell->vol * (qbar[v] - cell->q[v]);
+> +            }
+> +            op_m(&ep, &st->bank);
+> +        }
+>      }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@fb196c8d4778:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: drv_u/run.cpp
+> @@
+>      int expected = 0;
+>      if (spec->do_flux) {
+>          for (int c = 0; c < spec->n_coarse; c++) {
+> -            if (spec->leaf_count[c] > 1) expected += spec->leaf_count[c];
+> +            // phase_grow enqueues one correction per refined leaf.
+> +            if (spec->leaf_count[c] > 1) expected += spec->leaf_count[c];
+>          }
+>      }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@fb196c8d4778:/app# cmake --build /app/build -j"$(nproc)"
+[100%] Built target sim_run
+root@fb196c8d4778:/app# bash /app/scripts/run-matrix.sh
+root@fb196c8d4778:/app# python3 - <<'PY'
+> import json
+> p='/app/output/conservation_audit.json'
+> obj=json.load(open(p))
+> for c in obj['cases']:
+>     print(c['name'], 'drift', c['drift_ratio'], 'balanced', c['balanced'], 'base_match', c['base_match'], 'adj', c['adjacency'])
+> PY
+storm drift 0.0039160714285715005 balanced False base_match False adj 0
+canyon drift 0.0048689341421142614 balanced False base_match False adj 0
+plume drift 0.011862633181126228 balanced True base_match False adj 0
+spire drift 0.010442857142857167 balanced True base_match False adj 0
+basin drift 0 balanced False base_match True adj 0
+dune drift 0 balanced False base_match True adj 0
+root@fb196c8d4778:/app#

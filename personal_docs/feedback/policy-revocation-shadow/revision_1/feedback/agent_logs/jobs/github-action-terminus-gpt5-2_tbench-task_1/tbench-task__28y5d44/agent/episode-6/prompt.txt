@@ -1,0 +1,335 @@
+New Terminal Output:
+
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> p='/app/output/policy-audit.json'
+> obj=json.load(open(p))
+> for c in obj['cases']:
+>     print(c['name'], 'ok=',c['ok'], 'decisions=',len(c['decisions']), 'stale=',c['stale'])
+> PY
+alpha ok= True decisions= 3 stale= []
+beta ok= True decisions= 2 stale= []
+gamma ok= True decisions= 1 stale= []
+delta ok= True decisions= 2 stale= []
+epsilon ok= True decisions= 1 stale= []
+zeta ok= True decisions= 2 stale= []
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/policy-audit.json'))
+> for c in obj['cases']:
+>   epochs=[d['epoch'] for d in c['decisions']]
+>   nondec=all(epochs[i]<=epochs[i+1] for i in range(len(epochs)-1))
+>   bad=[(i,epochs[i],epochs[i+1]) for i in range(len(epochs)-1) if epochs[i]>epochs[i+1]]
+>   if not nondec:
+>     print('EPOCH_DECREASE',c['name'],bad)
+>   # delegated_from should be empty if verdict row is direct; we don't know direct vs delegated,
+>   # but we can flag suspicious: delegated_from set while label indicates a direct check.
+>   sus=[d for d in c['decisions'] if d.get('delegated_from') and d.get('batch_id','')=='']
+>   if sus:
+>     print('HAS_DELEGATED_FROM_OUTSIDE_BATCH',c['name'],[(d['label'],d['principal'],d['delegated_from']) for d in sus])
+> PY
+HAS_DELEGATED_FROM_OUTSIDE_BATCH alpha [('before', 'clerk', 'boss')]
+HAS_DELEGATED_FROM_OUTSIDE_BATCH epsilon [('check', 'leaf', 'root')]
+EPOCH_DECREASE zeta [(0, 1, 0)]
+root@bada234ea369:/app# ls -la /app/traces && for f in /app/traces/*.trace; do echo "--- $f"; sed -n '1,200p' "$f"; done
+total 24
+drwxr-xr-x  2 root root 120 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 164 May 25 11:26 alpha.trace
+-rw-r--r--  1 root root  82 May 25 11:26 beta.trace
+-rw-r--r--  1 root root  92 May 25 11:26 delta.trace
+-rw-r--r--  1 root root  99 May 25 11:26 epsilon.trace
+-rw-r--r--  1 root root 129 May 25 11:26 gamma.trace
+-rw-r--r--  1 root root 133 May 25 11:26 zeta.trace
+--- /app/traces/alpha.trace
+grant boss vault/read
+delegate boss clerk
+check before clerk:vault/read
+revoke clerk -
+batch b1 -
+check batch clerk:vault/read
+end - -
+check after clerk:vault/read
+--- /app/traces/beta.trace
+check miss intern:vault/read
+grant intern vault/read
+check solo intern:vault/read
+--- /app/traces/delta.trace
+grant alice logs/read
+check first alice:logs/read
+revoke bob -
+check second alice:logs/read
+--- /app/traces/epsilon.trace
+grant root api/invoke
+delegate root mid
+delegate mid leaf
+revoke mid -
+check check leaf:api/invoke
+--- /app/traces/gamma.trace
+grant boss vault/write
+delegate boss clerk
+delegate clerk intern
+revoke boss -
+batch b1 -
+check batch intern:vault/write
+end - -
+--- /app/traces/zeta.trace
+grant alpha secret/read
+grant beta secret/read
+revoke alpha -
+batch mix -
+check a alpha:secret/read
+check b beta:secret/read
+end - -
+root@bada234ea369:/app# sed -n '1,260p' /app/src/model.rs
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub kind: String,
+    pub left: String,
+    pub right: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Decision {
+    pub label: String,
+    pub subject: String,
+    pub object: String,
+    pub mode: String,
+    pub outcome: String,
+    pub tick: u64,
+    pub reused: bool,
+    pub group: String,
+    pub via: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub decisions: Vec<Decision>,
+    pub stale: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub direct: BTreeSet<(String, String, String)>,
+    pub chain: BTreeMap<String, String>,
+    pub ticks: BTreeMap<String, u64>,
+    pub blocked: BTreeSet<String>,
+    pub store: BTreeMap<String, String>,
+    pub group_slot: BTreeMap<String, String>,
+    pub group_active: String,
+    pub seen: BTreeMap<String, String>,
+    pub clock: u64,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            direct: BTreeSet::new(),
+            chain: BTreeMap::new(),
+            ticks: BTreeMap::new(),
+            blocked: BTreeSet::new(),
+            store: BTreeMap::new(),
+            group_slot: BTreeMap::new(),
+            group_active: String::new(),
+            seen: BTreeMap::new(),
+            clock: 0,
+        }
+    }
+
+    pub fn tick_for(&self, subject: &str) -> u64 {
+        *self.ticks.get(subject).unwrap_or(&0)
+    }
+
+    pub fn slot_key(object: &str, mode: &str) -> String {
+        format!("{object}|{mode}")
+    }
+
+    pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+        format!("{subject}|{object}|{mode}")
+    }
+}
+
+impl Decision {
+    pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+        Self {
+            label: label.to_string(),
+            subject: subject.to_string(),
+            object: object.to_string(),
+            mode: mode.to_string(),
+            outcome: String::new(),
+            tick,
+            reused: false,
+            group: Stri
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+te {
+                c.stale.push(note);
+            }
+            Ok(())
+        }
+        other => Err(format!("unknown trace row {other}")),
+    }
+}
+
+fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+    use crate::k2_c::emit_c;
+    use crate::k4_e::mote_e;
+
+    let tick = a.tick_for(subject);
+    if let Some(outcome) = emit_c(a, subject, object, mode) {
+        let via = if outcome == "allow" {
+            mote_e(a, subject, object, mode).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(label, subject, object, mode, tick);
+        row.outcome = outcome;
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, subject, object, mode);
+    a.store.insert(
+        crate::model::State::slot_key(object, mode),
+        outcome.clone(),
+    );
+    let mut row = Decision::blank(label, subject, object, mode, tick);
+    row.outcome = outcome;
+    row.via = via;
+    row
+}
+=== /app/k1
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 231 May 25 11:26 b.rs
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str) -> Result<(), String> {
+    let next = a.tick_for(b) + 1;
+    a.ticks.insert(b.to_string(), next);
+    a.blocked.insert(b.to_string());
+    a.clock += 1;
+    Ok(())
+}
+=== /app/k2
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 169 May 25 11:26 c.rs
+use crate::model::State;
+
+pub fn emit_c(a: &State, _b: &str, c: &str, d: &str) -> Option<String> {
+    let key = State::slot_key(c, d);
+    a.store.get(&key).cloned()
+}
+=== /app/k3
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 821 May 25 11:26 d.rs
+use crate::k4_e::mote_e;
+use crate::model::{Decision, State};
+
+pub fn lift_d(a: &mut State, b: &str, c: &str, d: &str, e: &str) -> Decision {
+    let slot = State::slot_key(d, e);
+    let tick = a.tick_for(c);
+  if let Some(outcome) = a.group_slot.get(&slot) {
+        let via = if outcome == "allow" {
+            mote_e(a, c, d, e).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(b, c, d, e, tick);
+        row.outcome = outcome.clone();
+        row.group = a.group_active.clone();
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, c, d, e);
+    a.group_slot.insert(slot, outcome.clone());
+    let mut row = Decision::blank(b, c, d, e, tick);
+    row.outcome = outcome;
+    row.group = a.group_active.clone();
+    row.via = via;
+    row
+}
+=== /app/k4
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 711 May 25 11:26 e.rs
+use crate::model::State;
+
+pub fn mote_e(a: &State, b: &str, c: &str, d: &str) -> (String, String) {
+    let mut current = b.to_string();
+    loop {
+        if a.direct.contains(&(current.clone(), c.to_string(), d.to_string())) {
+            if a.blocked.contains(b) {
+                return ("deny".to_string(), String::new());
+            }
+            let via = if current == b {
+                String::new()
+            } else {
+                current.clone()
+            };
+            return ("allow".to_string(), via);
+        }
+        match a.chain.get(&current) {
+            Some(parent) => current = parent.clone(),
+            None => return ("deny".to_string(), String::new()),
+        }
+    }
+}
+=== /app/k5
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 563 May 25 11:26 f.rs
+use crate::model::{Decision, State};
+
+pub fn cast_f(a: &mut State, mut b: Decision, _c: bool) -> (Decision, Option<String>) {
+    let track = State::track_key(&b.subject, &b.object, &b.mode);
+    let reused = a
+        .seen
+        .get(&track)
+        .map(|old| old == &b.outcome)
+        .unwrap_or(false);
+    b.reused = reused;
+    a.seen.insert(track, b.outcome.clone());
+    if b.outcome == "allow" && a.blocked.contains(&b.subject) && !b.via.is_empty() {
+        let note = b.label.clone();
+        (b, Some(note))
+    } else {
+        (b, None)
+    }
+}
+=== /app/k6
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root 107 May 25 11:26 g.rs
+use crate::model::State;
+
+pub fn tally_g(_a: &State, rows: usize) -> String {
+    format!("rows={rows}")
+}
+=== /app/k7
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root  72 May 25 11:26 h.rs
+pub fn hint_h(label: &str) -> String {
+    label.to_ascii_lowercase()
+}
+=== /app/k8
+total 4
+drwxr-xr-x  2 root root  18 May 25 11:26 .
+drwxr-xr-x 18 root root 245 May 25 11:30 ..
+-rw-r--r--  1 root root  86 May 25 11:26 i.rs
+pub fn order_i(left: &str, right: &str) -> std::cmp::Ordering {
+    left.cmp(right)
+}
+root@bada234ea369:/app#

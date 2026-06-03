@@ -1,0 +1,35 @@
+{
+  "analysis": "We inspected scripts: rook/bishop have save at turn 2 and hostile at turn 3; sentinel has save at turn 4 and hostile at turn 5. So runLoaded should mirror runDirect after the save, not execute only at save. That mismatch likely causes sig differences. Attempt to patch runLoaded via perl failed due to quoting/syntax, so code unchanged and failures persist. Next, we should edit /app/internal/f5/run.go using a reliable method (rewrite the runLoaded function via awk/cat). We'll replace the existing runLoaded implementation with one matching runDirect semantics but starting from loaded world and using merged obs cache. Then rebuild and rerun matrix to confirm rook/sentinel pass.",
+  "plan": "1) Locate exact line range of func runLoaded in /app/internal/f5/run.go. 2) Rewrite the file by printing everything up to before runLoaded, then our corrected runLoaded function, then the remainder after the old runLoaded. Use awk to do this deterministically. 3) Rebuild and rerun matrix; verify all 6 cases ok=true and fresh/resume sigs match.",
+  "commands": [
+    {
+      "keystrokes": "grep -n \"^func runLoaded\" -n /app/internal/f5/run.go\ngrep -n \"^func RunRow\" -n /app/internal/f5/run.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "awk 'NR==1{start=0}\n/^func runLoaded\\(/{start=NR}\n/^func RunRow\\(/{end=NR}\n{print NR\":\"$0}' /app/internal/f5/run.go | sed -n '150,260p'\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "awk 'BEGIN{infunc=0}\n/^func runLoaded\\(/{infunc=1; next}\n/^func RunRow\\(/{infunc=0}\n{ if(!infunc) print }' /app/internal/f5/run.go > /tmp/run.go.noloaded\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "awk 'BEGIN{printed=0}\n{print}\n/^func runDirect\\(/{printed=0}\n/^func RunRow\\(/{ if(!printed){ printed=1 } }\n' /tmp/run.go.noloaded > /dev/null\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport re, pathlib\np=pathlib.Path('/app/internal/f5/run.go')\ns=p.read_text()\n# Replace the entire runLoaded function body (from its signature to the closing brace before func RunRow)\npat=re.compile(r\"func runLoaded\\(w \\*World, steps \\[\\]ScriptStep, blob a0\\.ItemY, stale map\\[string\\]bool, profile Profile, radius int\\) \\[\\]MoveRow \\{.*?\\n\\}\\n\\nfunc RunRow\\(\", re.S)\nm=pat.search(s)\nif not m:\n    raise SystemExit('runLoaded block not found')\nreplacement = \"\"\"func runLoaded(w *World, steps []ScriptStep, blob a0.ItemY, stale map[string]bool, profile Profile, radius int) []MoveRow {\n        applyWorld(w, blob)\n\n        cache := &b1.CacheX{Obs: map[string]bool{}}\n        b1.Merge(cache, blob)\n        merged := b1.Snapshot(cache)\n        for k, v := range stale {\n                merged[k] = v\n        }\n\n        // Effects were restored from the saved blob; keep them stable across resume.\n        w.Effects = snapFromC2(c2.SyncBoundary(snapToC2(w.Effects), blob.Turn, w.Turn))\n\n        moves := []MoveRow{}\n        pastSave := false\n        for _, step := range steps {\n                if step.Action == \"save\" {\n                        pastSave = true\n                        continue\n                }\n                if !pastSave {\n                        continue\n                }\n                w.Turn = step.Turn\n                if step.Actor == \"P\" {\n                        applyPlayer(w, step.Arg)\n                        e4.ApplyLit(w, radius, blindActive(w))\n                }\n                if step.Actor == \"H\" {\n                        moves = append(moves, advanceAll(w, merged)...)\n                }\n        }\n        return moves\n}\n\nfunc RunRow(\"\"\"\nout = s[:m.start()] + replacement + s[m.end():]\np.write_text(out)\nprint('patched runLoaded')\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "make -s -C /app build\nbash /app/scripts/run-matrix.sh\n",
+      "duration": 15.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    print(c['name'], 'ok=', c['ok'], 'fresh.sig=', c['fresh']['sig'], 'resume.sig=', c['resume']['sig'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

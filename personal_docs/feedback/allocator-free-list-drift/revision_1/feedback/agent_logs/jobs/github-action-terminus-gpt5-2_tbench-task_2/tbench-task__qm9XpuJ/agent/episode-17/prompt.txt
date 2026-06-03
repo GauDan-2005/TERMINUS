@@ -1,0 +1,54 @@
+Current terminal state:
+New Terminal Output:
+
+root@334dfe1f3bf9:/app# python3 - <<'PY'
+> import json, pathlib, sys
+> names=['cedar','jade','slate','coral','onyx','pearl']
+> req_case={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+> req_step={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+> errs=[]
+> for n in names:
+>     p=pathlib.Path('output')/f'{n}-audit.json'
+>     if not p.exists():
+>         errs.append((n,'missing_audit'))
+>         continue
+>     obj=json.loads(p.read_text())
+>     if 'cases' not in obj or not isinstance(obj['cases'], list) or len(obj['cases'])!=1:
+>         errs.append((n,'bad_top_level'))
+>         continue
+>     c=obj['cases'][0]
+>     miss=req_case-set(c)
+>     if miss:
+>         errs.append((n,'missing_case_keys',sorted(miss)))
+>     if c.get('name')!=n:
+>         errs.append((n,'name_mismatch',c.get('name')))
+>     led=c.get('ledger')
+>     if not (isinstance(led,str) and led):
+>         errs.append((n,'bad_ledger_field',led))
+>     else:
+>         lp=pathlib.Path(led)
+>         if not lp.is_file():
+>             errs.append((n,'ledger_not_file',led))
+>     steps=c.get('steps',[])
+>     for i,s in enumerate(steps):
+>         miss=req_step-set(s)
+>         if miss:
+>             errs.append((n,f'missing_step_keys@{i}',sorted(miss)))
+>     if isinstance(led,str) and led and pathlib.Path(led).is_file():
+>         lines=sum(1 for _ in open(led,'r'))
+>         if lines!=len(steps):
+>             errs.append((n,'ledger_len_mismatch',{'steps':len(steps),'ledger_lines':lines}))
+> print('errors',len(errs))
+> for e in errs[:50]:
+>     print('ERR',e)
+> sys.exit(1 if errs else 0)
+> PY
+errors 0
+root@334dfe1f3bf9:/app# cp -f output/alloc-audit.json /tmp/alloc-audit.1.json
+root@334dfe1f3bf9:/app# bash scripts/run-matrix.sh
+root@334dfe1f3bf9:/app# cp -f output/alloc-audit.json /tmp/alloc-audit.2.json
+root@334dfe1f3bf9:/app# diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json | sed -n '1,120p'
+root@334dfe1f3bf9:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

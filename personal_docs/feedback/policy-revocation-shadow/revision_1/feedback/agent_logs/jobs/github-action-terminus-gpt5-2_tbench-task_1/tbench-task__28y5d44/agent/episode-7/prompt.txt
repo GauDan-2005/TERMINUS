@@ -1,0 +1,110 @@
+New Terminal Output:
+
+root@bada234ea369:/app# cat /app/target/.rustc_info.json
+{"rustc_fingerprint":4077248204696801460,"outputs":{"13331785392996375709":{"success":true,"status":"","code":0,"stdout":"___\nlib___.rlib\nlib___.so\nlib___.so
+\nlib___.a\nlib___.so\n/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu\noff\npacked\nunpacked\n___\ndebug_assertions\npanic=\"unwind\"\nproc_macro\
+ntarget_abi=\"\"\ntarget_arch=\"x86_64\"\ntarget_endian=\"little\"\ntarget_env=\"gnu\"\ntarget_family=\"unix\"\ntarget_feature=\"fxsr\"\ntarget_feature=\"sse\"\
+ntarget_feature=\"sse2\"\ntarget_has_atomic=\"16\"\ntarget_has_atomic=\"32\"\ntarget_has_atomic=\"64\"\ntarget_has_atomic=\"8\"\ntarget_has_atomic=\"ptr\"\ntarg
+et_os=\"linux\"\ntarget_pointer_width=\"64\"\ntarget_vendor=\"unknown\"\nunix\n","stderr":""},"17747080675513052775":{"success":true,"status":"","code":0,"stdou
+t":"rustc 1.85.0 (4d91de4e4 2025-02-17)\nbinary: rustc\ncommit-hash: 4d91de4e48198da2e33413efdcd9cd2cc0c46688\ncommit-date: 2025-02-17\nhost: x86_64-unknown-lin
+ux-gnu\nrelease: 1.85.0\nLLVM version: 19.1.7\n","stderr":""}},"successes":{}}root@bada234ea369:/app# find /app/target -maxdepth 3 -type f -name rustc -o -name
+cargo -o -name rustlib 2>/dev/null | head -n 50
+root@bada234ea369:/app# grep -n "fn phase_a" -n /app/src/model.rs /app/k0/*.rs /app/src/*.rs 2>/dev/null || true
+/app/k0/a.rs:7:pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+root@bada234ea369:/app# sed -n '1,260p' /app/k0/*.rs
+use crate::io::split_subject_object_mode;
+use crate::k1_b::fold_b;
+use crate::k3_d::lift_d;
+use crate::k5_f::cast_f;
+use crate::model::{CaseReport, Decision, Event, State};
+
+pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+    match b.kind.as_str() {
+        "grant" => {
+            let (object, mode) = b
+                .right
+                .split_once('/')
+                .ok_or_else(|| format!("bad grant row {}", b.right))?;
+            a.direct
+                .insert((b.left.clone(), object.to_string(), mode.to_string()));
+            a.clock += 1;
+            Ok(())
+        }
+        "delegate" => {
+            a.chain.insert(b.right.clone(), b.left.clone());
+            a.clock += 1;
+            Ok(())
+        }
+        "revoke" => fold_b(a, &b.left),
+        "batch" => {
+            a.group_active = b.left.clone();
+            a.group_slot.clear();
+            Ok(())
+        }
+        "end" => {
+            a.group_active.clear();
+            a.group_slot.clear();
+            Ok(())
+        }
+        "check" => {
+            let (subject, object, mode) = split_subject_object_mode(&b.right)?;
+            let row = if a.group_active.is_empty() {
+                wrap_g(a, &b.left, &subject, &object, &mode)
+            } else {
+                lift_d(a, &b.left, &subject, &object, &mode)
+            };
+            let (row, note) = cast_f(a, row, true);
+            c.decisions.push(row);
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+            Ok(())
+        }
+        other => Err(format!("unknown trace row {other}")),
+    }
+}
+
+fn wrap_g(a: &mut State, label: &str, subject: &str, object: &str, mode: &str) -> Decision {
+    use crate::k2_c::emit_c;
+    use crate::k4_e::mote_e;
+
+    let tick = a.tick_for(subject);
+    if let Some(outcome) = emit_c(a, subject, object, mode) {
+        let via = if outcome == "allow" {
+            mote_e(a, subject, object, mode).1
+        } else {
+            String::new()
+        };
+        let mut row = Decision::blank(label, subject, object, mode, tick);
+        row.outcome = outcome;
+        row.via = via;
+        return row;
+    }
+    let (outcome, via) = mote_e(a, subject, object, mode);
+    a.store.insert(
+        crate::model::State::slot_key(object, mode),
+        outcome.clone(),
+    );
+    let mut row = Decision::blank(label, subject, object, mode, tick);
+    row.outcome = outcome;
+    row.via = via;
+    row
+}
+root@bada234ea369:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('/app/output/policy-audit.json'))
+> for c in obj['cases']:
+>   if c['name']=='epsilon' or c['name']=='zeta':
+>     print('CASE',c['name'])
+>     for d in c['decisions']:
+>       print(d)
+> PY
+CASE epsilon
+{'label': 'check', 'principal': 'leaf', 'resource': 'api', 'action': 'invoke', 'verdict': 'allow', 'epoch': 0, 'reused': False, 'batch_id': '', 'delegated_from'
+: 'root'}
+CASE zeta
+{'label': 'a', 'principal': 'alpha', 'resource': 'secret', 'action': 'read', 'verdict': 'deny', 'epoch': 1, 'reused': False, 'batch_id': 'mix', 'delegated_from'
+: ''}
+{'label': 'b', 'principal': 'beta', 'resource': 'secret', 'action': 'read', 'verdict': 'deny', 'epoch': 0, 'reused': False, 'batch_id': 'mix', 'delegated_from':
+ ''}
+root@bada234ea369:/app#

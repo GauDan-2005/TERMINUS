@@ -1,0 +1,123 @@
+New Terminal Output:
+
+root@d6952a1bc71b:/app# ls -la /app/output && (head -n 5 /app/output/raw.json; head -n 20 /app/output/report.json)
+total 8
+drwxr-xr-x  2 root root   41 May 28 16:29 .
+drwxr-xr-x 12 root root  198 May 28 16:29 ..
+-rw-r--r--  1 root root  824 May 28 16:29 raw.json
+-rw-r--r--  1 root root 1656 May 28 16:29 report.json
+{"raw":[{"case":"alpha","produced":[40,41],"slot_trace":[0,1],"order_used":[0,1],"packed":false,"grouped":true,"reuse":false,"selected":[0,1]},{"case":"beta","p
+roduced":[36],"slot_trace":[0],"order_used":[0],"packed":true,"grouped":false,"reuse":false,"selected":[0]},{"case":"gamma","produced":[37,48],"slot_trace":[0,1
+],"order_used":[0,1],"packed":true,"grouped":true,"reuse":false,"selected":[0,1]},{"case":"delta","produced":[54,37],"slot_trace":[1,0],"order_used":[1,0],"pack
+ed":true,"grouped":true,"reuse":false,"selected":[1,0]},{"case":"epsilon","produced":[65,48,99],"slot_trace":[1,0,2],"order_used":[1,0,2],"packed":true,"grouped
+":true,"reuse":true,"selected":[1,0,2]},{"case":"zeta","produced":[54,42,52],"slot_trace":[2,0,1],"order_used":[2,0,1],"packed":false,"grouped":true,"reuse":tru
+e,"selected":[2,0,1]}]}
+{
+  "rows": [
+    {
+      "case": "alpha",
+      "produced": [
+        40,
+        41
+      ],
+      "slot_trace": [
+        0,
+        1
+      ],
+      "order_used": [
+        0,
+        1
+      ],
+      "packed": false,
+      "grouped": true,
+      "reuse": false
+    },
+root@d6952a1bc71b:/app# cat > /app/src/a0/mod.rs <<'RS'
+> pub struct A0 {
+>     pub s: Vec<i32>,
+>     pub z: Vec<i32>,
+> }
+>
+> impl A0 {
+>     pub fn new() -> Self {
+>         Self {
+>             s: vec![2, 3, 5],
+>             z: vec![1, -1, 2],
+>         }
+>     }
+> }
+>
+> // Packed path transform.
+> // Each column position gets its own scale and bias (not one shared scale across the whole row).
+> pub fn ax(a: &A0, b: &[i32], _row_idx: usize) -> Vec<i32> {
+>     let sl = a.s.len().max(1);
+>     let zl = a.z.len().max(1);
+>     b.iter()
+>         .enumerate()
+>         .map(|(i, v)| v * a.s[i%sl] + a.z[i%zl])
+>         .collect()
+> }
+> RS
+root@d6952a1bc71b:/app# export PATH="/usr/local/cargo/bin:$PATH"; cargo build --release --quiet --manifest-path /app/Cargo.toml
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@d6952a1bc71b:/app# bash -lc '/app/tools/run_local.sh'
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` on by default
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@d6952a1bc71b:/app# python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))
+> rep=json.load(open('/app/output/report.json'))
+> print('raw keys',raw.keys())
+> print('report keys',rep.keys())
+> print('raw rows',len(raw['raw']))
+> print('report rows',len(rep['rows']))
+> print('summary',rep['summary'])
+> # quick per-case check produced equality
+> rm={r['case']:r for r in raw['raw']}
+> pm={r['case']:r for r in rep['rows']}
+> miss=set(rm)-set(pm)
+> extra=set(pm)-set(rm)
+> print('missing',miss,'extra',extra)
+> for k in sorted(rm):
+>   ok = all(rm[k][f]==pm[k][f] for f in ['produced','slot_trace','order_used','packed','grouped','reuse'])
+>   print(k,'match' if ok else 'MISMATCH')
+> PY
+raw keys dict_keys(['raw'])
+report keys dict_keys(['rows', 'summary'])
+raw rows 6
+report rows 6
+summary {'agree': False, 'total': 6}
+missing set() extra set()
+alpha match
+beta match
+delta match
+epsilon match
+gamma match
+zeta match
+root@d6952a1bc71b:/app#

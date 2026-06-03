@@ -1,0 +1,105 @@
+New Terminal Output:
+
+root@24f176b92b01:/app# sed -n '1,120p' /app/internal/b1/replay.go
+package b1
+
+import (
+        "sort"
+
+        "staged.local/snapshot/internal/f5"
+)
+
+type rowX = f5.Row
+
+func fold_b(a []rowX, b uint64) ([]rowX, error) {
+        out := make([]rowX, len(a))
+        copy(out, a)
+        sort.SliceStable(out, func(i, j int) bool {
+                return out[i].Seq < out[j].Seq
+        })
+        if b&1 == 1 {
+                for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
+                        out[left], out[right] = out[right], out[left]
+                }
+        }
+        return out, nil
+}
+
+func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
+        var flags uint64
+        if profile.Restart && profile.Ordered {
+                flags |= 1
+        }
+        return fold_b(rows, flags)
+}
+root@24f176b92b01:/app# perl -0777 -i -pe 's/\n\s*if b&1 == 1 \{\n\s*for left, right := 0, len\(out\)-1; left < right; left, right = left\+1, right-1 \{\n\s*out
+\[left\], out\[right\] = out\[right\], out\[left\]\n\s*\}\n\s*\}\n/\n\n        \/\/ Rows represent an append-only history. Even when simulating a restart,\n
+    \/\/ we must preserve sequence order so that the last write wins and the\n        \/\/ restored tree matches the final on-disk source state.\n        \/\/\n
+        \/\/ Reversing row order causes older content to overwrite newer content\n        \/\/ (and can also break hardlink materialization by rewriting only on
+e\n        \/\/ member of a link group).\n        _ = b\n/s' /app/internal/b1/replay.go
+root@24f176b92b01:/app# sed -n '1,120p' /app/internal/b1/replay.go
+package b1
+
+import (
+        "sort"
+
+        "staged.local/snapshot/internal/f5"
+)
+
+type rowX = f5.Row
+
+func fold_b(a []rowX, b uint64) ([]rowX, error) {
+        out := make([]rowX, len(a))
+        copy(out, a)
+        sort.SliceStable(out, func(i, j int) bool {
+                return out[i].Seq < out[j].Seq
+        })
+
+        // Rows represent an append-only history. Even when simulating a restart,
+        // we must preserve sequence order so that the last write wins and the
+        // restored tree matches the final on-disk source state.
+        //
+        // Reversing row order causes older content to overwrite newer content
+        // (and can also break hardlink materialization by rewriting only one
+        // member of a link group).
+        _ = b
+        return out, nil
+}
+
+func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
+        var flags uint64
+        if profile.Restart && profile.Ordered {
+                flags |= 1
+        }
+        return fold_b(rows, flags)
+}
+root@24f176b92b01:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f:
+>   d=json.load(f)
+> for c in d['cases']:
+>   print(c['name'], c['ok'], 'src_groups',len(c['groups']['source']),'res_groups',len(c['groups']['restored']))
+> PY
+alpha False src_groups 0 res_groups 0
+beta False src_groups 1 res_groups 0
+delta False src_groups 0 res_groups 0
+epsilon False src_groups 0 res_groups 0
+gamma False src_groups 0 res_groups 0
+zeta False src_groups 1 res_groups 0
+root@24f176b92b01:/app#

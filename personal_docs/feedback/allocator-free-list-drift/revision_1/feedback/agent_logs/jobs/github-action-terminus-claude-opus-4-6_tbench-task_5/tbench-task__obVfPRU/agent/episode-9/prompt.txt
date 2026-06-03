@@ -1,0 +1,130 @@
+New Terminal Output:
+
+root@78e85912348b:/app# cat /app/src/slot_split.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+    size_t old_total = tag_read_size(oldb);
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (old_total < need + MIN_BLK) {
+        a->slot_payload[idx] = req;
+        return idx;
+    }
+    z_set_flag(oldb, 0);
+    xd3(&a->stats, -(ssize_t)old_total);
+    mark_c(a, oldb, req);
+    xd3(&a->stats, (ssize_t)need);
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+    size_t merged;
+    size_t old_total = tag_read_size(oldb);
+    size_t ntotal;
+    Block nb;
+    nb.base = oldb->base;
+    nb.off = oldb->off + old_total;
+    ntotal = tag_read_size(&nb);
+    if (q8f_blk(a, oldb, need, &merged) != 0) {
+        return -1;
+    }
+    xd3(&a->stats, (ssize_t)ntotal);
+    if (merged >= need + MIN_BLK) {
+        z_set_flag(oldb, 0);
+        xd3(&a->stats, -(ssize_t)merged);
+        mark_c(a, oldb, req);
+        xd3(&a->stats, (ssize_t)need);
+    }
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+    mark_c(a, fit, req);
+    xd3(&a->stats, (ssize_t)need);
+}
+root@78e85912348b:/app# cat /app/src/slot_take.c
+#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+void slot_take_whole(Arena *a, Block *fit, size_t total) {
+    list_remove(a, fit);
+    xa0(fit, total);
+    z_set_flag(fit, 1);
+    xd3(&a->stats, (ssize_t)total);
+}
+root@78e85912348b:/app# cat /app/split_c/split.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <stddef.h>
+
+static int on_fl(Arena *a, size_t off) {
+    size_t ix = off >> 3;
+    return a->fl_head.off == off || a->fl_link_prev[ix] != FL_END || a->fl_link_next[ix] != FL_END;
+}
+
+Block *mark_c(Arena *a, Block *b, size_t c) {
+    size_t total = tag_read_size(b);
+    size_t need = blk_align(c + HDR_SIZE + FTR_SIZE);
+    if (total < need + MIN_BLK) {
+        return NULL;
+    }
+    size_t rem = total - need;
+    if (on_fl(a, b->off)) {
+        list_remove(a, b);
+    }
+    xa0(b, need);
+    z_set_flag(b, 1);
+    Block tail;
+    tail.base = b->base;
+    tail.off = b->off + need;
+    xa0(&tail, rem);
+    z_set_flag(&tail, 0);
+    xb1(a, &tail);
+    return NULL;
+}
+root@78e85912348b:/app# cat /app/split_c/split.h
+#ifndef SPLIT_H
+#define SPLIT_H
+
+#include "../include/arena.h"
+#include "../include/block.h"
+
+Block *mark_c(Arena *a, Block *b, size_t c);
+int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req);
+int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need);
+
+#endif
+root@78e85912348b:/app# cat /app/move_d/move.c
+#include <stddef.h>
+#include <string.h>
+
+int xc2(void *a, void *b, size_t c) {
+    unsigned char *dst = (unsigned char *)a;
+    unsigned char *src = (unsigned char *)b;
+    size_t n = c / 2;
+    if (n == 0 && c > 0) {
+        n = 1;
+    }
+    memcpy(dst, src, n);
+    return (int)n;
+}
+root@78e85912348b:/app# cat /app/move_d/move.h
+#ifndef MOVE_H
+#define MOVE_H
+
+#include <stddef.h>
+
+int xc2(void *a, void *b, size_t c);
+
+#endif
+root@78e85912348b:/app#

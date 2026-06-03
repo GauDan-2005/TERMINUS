@@ -1,0 +1,298 @@
+New Terminal Output:
+
+root@eca5a5f6d31b:/app# python3 - <<'PY'
+> import json
+> p='outcome/report.json'
+> d=json.load(open(p))
+> print('top keys:', list(d.keys()))
+> print('aggregate:', d.get('aggregate'))
+> print('recordCount:', len(d.get('records', [])))
+> for r in d.get('records', []):
+>   print('\nSCENARIO', r.get('name'))
+>   print(' finalCounter', r.get('finalCounter'), 'dependencyTotal', r.get('dependencyTotal'), 'acceptedOlder', r.get('acceptedOlder'), 'healthy', r.get('health
+y'))
+>   rows=r.get('rows',[])
+>   print(' rows', len(rows))
+>   for row in rows:
+>     print('  ', row)
+> PY
+top keys: ['records', 'aggregate']
+aggregate: {'source': 'local', 'recordCount': 6, 'totalCounter': 20, 'dependencyTotal': 38, 'rowTotal': 109, 'healthyCount': 3, 'status': 'stale'}
+recordCount: 6
+
+SCENARIO alpha
+ finalCounter 5 dependencyTotal 5 acceptedOlder True healthy False
+ rows 2
+   {'index': 0, 'value': 6, 'factor': 2, 'nativeValue': 4, 'deferred': []}
+   {'index': 1, 'value': 12, 'factor': 3, 'nativeValue': 9, 'deferred': []}
+
+SCENARIO beta
+ finalCounter 1 dependencyTotal 9 acceptedOlder False healthy False
+ rows 3
+   {'index': 0, 'value': 4, 'factor': 2, 'nativeValue': 2, 'deferred': []}
+   {'index': 1, 'value': 6, 'factor': 3, 'nativeValue': 3, 'deferred': []}
+   {'index': 2, 'value': 8, 'factor': 4, 'nativeValue': 4, 'deferred': []}
+
+SCENARIO gamma
+ finalCounter 2 dependencyTotal 5 acceptedOlder False healthy False
+ rows 2
+   {'index': 0, 'value': 8, 'factor': 2, 'nativeValue': 6, 'deferred': []}
+   {'index': 1, 'value': 5, 'factor': 3, 'nativeValue': 2, 'deferred': []}
+
+SCENARIO delta
+ finalCounter 8 dependencyTotal 5 acceptedOlder True healthy False
+ rows 2
+   {'index': 0, 'value': 3, 'factor': 2, 'nativeValue': 1, 'deferred': []}
+   {'index': 1, 'value': 12, 'factor': 3, 'nativeValue': 9, 'deferred': []}
+
+SCENARIO epsilon
+ finalCounter 3 dependencyTotal 9 acceptedOlder False healthy False
+ rows 3
+   {'index': 0, 'value': 5, 'factor': 2, 'nativeValue': 3, 'deferred': []}
+   {'index': 1, 'value': 6, 'factor': 3, 'nativeValue': 3, 'deferred': []}
+   {'index': 2, 'value': 10, 'factor': 4, 'nativeValue': 6, 'deferred': []}
+
+SCENARIO zeta
+ finalCounter 1 dependencyTotal 5 acceptedOlder True healthy False
+ rows 2
+   {'index': 0, 'value': 11, 'factor': 2, 'nativeValue': 9, 'deferred': []}
+   {'index': 1, 'value': 13, 'factor': 3, 'nativeValue': 10, 'deferred': []}
+root@eca5a5f6d31b:/app# sed -n '1,200p' b2/q.js
+function q_b(a, b, c) {
+  const label = `slot-${b}`;
+  c[label] = (c[label] || []).concat(a);
+  const next = `slot-${b + 1}`;
+  const visible = c[next] || [];
+  c[next] = [];
+  return visible.slice().sort((left, right) => left - right);
+}
+
+function scan_b(a) {
+  return Object.keys(a).sort();
+}
+
+module.exports = { q_b, scan_b };
+root@eca5a5f6d31b:/app# sed -n '1,200p' c3/r.js
+let saved = null;
+
+function k_c(a, b, c) {
+  if (saved === null) {
+    saved = Number(a);
+  }
+  return saved + b;
+}
+
+function lens_c(a) {
+  return String(a).length;
+}
+
+module.exports = { k_c, lens_c };
+root@eca5a5f6d31b:/app# sed -n '1,260p' d4/s.js
+function m_e(a, b) {
+  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+  const healthyCount = a.filter((row) => row.acceptedOlder).length;
+  return {
+    source: b.source,
+    recordCount: a.length,
+    totalCounter,
+    dependencyTotal,
+    rowTotal,
+    healthyCount,
+    status: 'stale'
+  };
+}
+
+function view_e(a) {
+  return a.map((row) => row.name).join(',');
+}
+
+module.exports = { m_e, view_e };
+root@eca5a5f6d31b:/app# find src/native/src -type f -maxdepth 2 -print -exec sed -n '1,220p' {} \;
+find: warning: you have specified the global option -maxdepth after the argument -type, but global options are not positional, i.e., -maxdepth affects tests spe
+cified before it as well as those specified after it.  Please specify global options before other arguments.
+src/native/src/lib.rs
+pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
+    match a {
+        "old" => b,
+        "new" => b + c,
+        _ => b,
+    }
+}
+
+pub fn aux_r(a: i64) -> i64 {
+    a * 2
+}
+src/native/src/main.rs
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        eprintln!("usage: mhre_native <rev> <primary> <carry>");
+        std::process::exit(2);
+    }
+    let rev = &args[1];
+    let primary: i64 = args[2].parse().expect("primary number");
+    let carry: i64 = args[3].parse().expect("carry number");
+    println!("{}", mhre_native::r_d(rev, primary, carry));
+}
+src/native/src/view.rs
+pub fn panel_v(a: &[i64]) -> String {
+    a.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
+}
+root@eca5a5f6d31b:/app# sed -n '1,220p' src/native/src/main.rs
+use std::env;
+
+fn main() {
+    let args: Vec<String> = env::args().collect();
+    if args.len() != 4 {
+        eprintln!("usage: mhre_native <rev> <primary> <carry>");
+        std::process::exit(2);
+    }
+    let rev = &args[1];
+    let primary: i64 = args[2].parse().expect("primary number");
+    let carry: i64 = args[3].parse().expect("carry number");
+    println!("{}", mhre_native::r_d(rev, primary, carry));
+}
+root@eca5a5f6d31b:/app# cat fixtures/scenarios.json
+{
+  "scenarios": [
+    {
+      "name": "alpha",
+      "cycles": [
+        {
+          "base": 4,
+          "dep": 2,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 5,
+          "dep": 3,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "beta",
+      "cycles": [
+        {
+          "base": 2,
+          "dep": 4,
+          "deferred": [
+            5,
+            1
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 4,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 5,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "gamma",
+      "cycles": [
+        {
+          "base": 6,
+          "dep": 1,
+          "deferred": [],
+          "native": "new"
+        },
+        {
+          "base": 2,
+          "dep": 6,
+          "deferred": [
+            4
+          ],
+          "native": "old"
+        }
+      ]
+    },
+    {
+      "name": "delta",
+      "cycles": [
+        {
+          "base": 1,
+          "dep": 7,
+          "deferred": [
+            2,
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 8,
+          "dep": 2,
+          "deferred": [
+            1
+          ],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "epsilon",
+      "cycles": [
+        {
+          "base": 3,
+          "dep": 3,
+          "deferred": [
+            3
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 8,
+          "deferred": [
+            2
+          ],
+          "native": "old"
+        },
+        {
+          "base": 3,
+          "dep": 2,
+          "deferred": [],
+          "native": "new"
+        }
+      ]
+    },
+    {
+      "name": "zeta",
+      "cycles": [
+        {
+          "base": 9,
+          "dep": 2,
+          "deferred": [],
+          "native": "old"
+        },
+        {
+          "base": 1,
+          "dep": 9,
+          "deferred": [
+            3
+          ],
+          "native": "new"
+        }
+      ]
+    }
+  ]
+}
+root@eca5a5f6d31b:/app#

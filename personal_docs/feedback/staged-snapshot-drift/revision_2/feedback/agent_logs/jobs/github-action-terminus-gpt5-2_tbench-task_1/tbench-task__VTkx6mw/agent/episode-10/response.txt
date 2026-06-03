@@ -1,0 +1,39 @@
+{
+  "analysis": "The perl patch for KeyFor failed (syntax error), so file unchanged. Interestingly, digests now match for all cases (src_digest_eq=True), meaning source/restored contents and directory shape now match. Remaining failures are due to groups mismatch (beta/zeta hardlinks) and likely accounting mismatch/diskMatch for all cases. Since digest matches, main remaining issues: (1) hardlink groups not matching (dense cases), and (2) accountingMatch/diskMatch failing for all cases even when digests match. We need to: fix KeyFor to group by dev:ino always; then inspect c2 accounting logic for period/bytes sorting, because ok is still false even for alpha/delta/etc with no hardlinks.",
+  "plan": "1) Patch internal/d3/pair.go by rewriting KeyFor function using a safer approach (ed/heredoc rewrite of the whole file section) to remove the path-based key. 2) Rebuild and rerun matrix; expect beta/zeta restored_groups to become 1. 3) If ok still false for non-dense cases, inspect internal/c2/table.go and roll.go and h7/rollup.go (accounting). Determine why accounting differs between source and restored even when digests match; likely ItemsC uses NativeBytes map iteration order (nondeterministic) or period assignment differs by root path. Ensure accounting entries are sorted and bytes use on-disk sizes, and period logic matches profile.Roll + later quota period (p1 under d/ when moved later).",
+  "commands": [
+    {
+      "keystrokes": "perl -i -0pe 's/func KeyFor\\(row f5\\.Row, profile f5\\.Profile\\) string \\{[^}]*\\}/func KeyFor(row f5.Row, profile f5.Profile) string {\\n        _ = profile\\n        return fmt.Sprintf(\"%d:%d\", row.Dev, row.Ino)\\n}/s' /app/internal/d3/pair.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -n \"func KeyFor\" -A20 /app/internal/d3/pair.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/output/restore-audit.json') as f:\n  d=json.load(f)\nfor c in d['cases']:\n  print(c['name'], 'ok='+str(c['ok']), 'groups',len(c['groups']['source']),len(c['groups']['restored']))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,240p' /app/internal/c2/table.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/c2/roll.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/internal/h7/rollup.go\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

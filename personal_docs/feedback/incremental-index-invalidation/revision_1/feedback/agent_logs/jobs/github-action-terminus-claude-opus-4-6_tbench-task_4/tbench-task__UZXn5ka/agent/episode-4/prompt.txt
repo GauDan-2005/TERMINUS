@@ -1,0 +1,79 @@
+New Terminal Output:
+
+root@d97cb216d7f2:/app# cat /app/r0/a.rs
+use crate::model::{CaseReport, Event, State};
+use crate::r1_b::fold_b;
+use crate::r2_c::emit_c;
+use crate::r3_d::lift_d;
+use crate::r4_e::mote_e;
+use crate::r5_f::cast_f;
+
+pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+    match b.kind.as_str() {
+        "slot" => {
+            if b.left == "gen" {
+                emit_c(a, &b.left, &b.right)?;
+            } else if b.left == "pkg" {
+                lift_d(a, &b.left, &b.right)?;
+            } else {
+                fold_b(a, &b.left, &b.right)?;
+            }
+        }
+        "query" => {
+            let item = mote_e(a, &b.right, true);
+            let (item, note) = cast_f(a, item, true);
+            c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+        }
+        "miss" => {
+            let item = mote_e(a, &b.right, false);
+            let (item, note) = cast_f(a, item, false);
+            c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+        }
+        other => return Err(format!("unknown trace row {other}")),
+    }
+    Ok(())
+}
+root@d97cb216d7f2:/app# cat /app/r1/b.rs
+use crate::io::{app_path, collect_entries};
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let root = app_path(c);
+    a.active.insert(b.to_string(), root);
+    let mut found = collect_entries(a, b, c, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+root@d97cb216d7f2:/app# cat /app/r2/c.rs
+use crate::io::{app_path, collect_entries};
+use crate::model::State;
+
+pub fn emit_c(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let root = app_path(c);
+    a.active.insert(b.to_string(), root);
+    let mut found = collect_entries(a, b, c, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+root@d97cb216d7f2:/app# cat /app/r3/d.rs
+use crate::io::{app_path, collect_entries, resolve_target_root};
+use crate::model::State;
+
+pub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let shown = app_path(c);
+    let actual = resolve_target_root(c)?;
+    a.active.insert(b.to_string(), shown);
+    let mut found = collect_entries(a, b, &actual, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+root@d97cb216d7f2:/app#

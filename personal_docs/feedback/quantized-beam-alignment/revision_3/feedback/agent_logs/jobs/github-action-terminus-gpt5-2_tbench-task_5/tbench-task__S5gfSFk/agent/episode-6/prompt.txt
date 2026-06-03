@@ -1,0 +1,53 @@
+New Terminal Output:
+
+root@98695ffcd7ff:/app# mv -f /app/tools/run_local.sh.bak /app/tools/run_local.sh
+root@98695ffcd7ff:/app# perl -0777 -i -pe 's@#!/bin/bash\n@#!/bin/bash\nexport PATH=/usr/local/cargo/bin:\$PATH\n@' /app/tools/run_local.sh
+root@98695ffcd7ff:/app# head -n 5 /app/tools/run_local.sh
+#!/bin/bash
+export PATH=/usr/local/cargo/bin:$PATH
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+root@98695ffcd7ff:/app# /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:17:8
+   |
+17 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@98695ffcd7ff:/app# ls -la /app/output && python3 - <<'PY'
+> import json
+> raw=json.load(open('/app/output/raw.json'))
+> rep=json.load(open('/app/output/report.json'))
+> print('raw keys',raw.keys())
+> print('raw len',len(raw.get('raw',[])))
+> print('report keys',rep.keys())
+> print('rows len',len(rep.get('rows',[])))
+> print('summary',rep.get('summary'))
+> PY
+total 8
+drwxr-xr-x  2 root root   41 May 29 06:51 .
+drwxr-xr-x 12 root root  198 May 29 06:51 ..
+-rw-r--r--  1 root root  824 May 29 06:51 raw.json
+-rw-r--r--  1 root root 1656 May 29 06:51 report.json
+raw keys dict_keys(['raw'])
+raw len 6
+report keys dict_keys(['rows', 'summary'])
+rows len 6
+summary {'agree': True, 'total': 6}
+root@98695ffcd7ff:/app#

@@ -1,0 +1,31 @@
+{
+  "analysis": "The scripts run successfully: `run-one.sh cedar` produced `/app/output/cedar-audit.json` and a ledger JSONL, and `run-matrix.sh` produced `/app/output/alloc-audit.json` plus ledgers for cedar/coral/jade/onyx/pearl/slate. However the task mentions combined audit drift and requires determinism: two matrix runs from unchanged inputs must produce equivalent JSON. Next we need to verify the matrix audit contains all required case fields, that each case ok/steps surfaces match ledger rows, and then run the matrix twice and diff outputs to check for drift. If there is drift, we’ll inspect which fields differ and trace to nondeterministic iteration (free list order, hash/signature computation, etc.).",
+  "plan": "1) Validate alloc-audit.json structure and presence of all cases and required fields. 2) Sanity-check that each case’s `steps` count matches ledger row count. 3) Run `run-matrix.sh` twice with a clean output dir and diff the resulting JSON to see if nondeterminism exists; if it does, capture a focused diff and identify which fields drift (likely fl_sig/fl_count/heap_sig or ledger contents).",
+  "commands": [
+    {
+      "keystrokes": "jq -r '.cases|map(.name)|join(\" \")' /app/output/alloc-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "jq -c '.cases[] | {name, ok, steps:(.steps|length), heap_sig, fl_count, fl_sig, byte_total, ledger}' /app/output/alloc-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash -lc 'jq -r \".cases[] | .name + \\\"\\t\\\" + ((.steps|length)|tostring) + \\\"\\t\\\" + (.ledger)\" /app/output/alloc-audit.json | while IFS=$\"\\t\" read -r n s l; do c=$(wc -l < \"$l\"); echo \"$n steps=$s ledger_lines=$c\"; done'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash -lc 'rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json'\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "bash -lc 'rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json'\n",
+      "duration": 30.0
+    },
+    {
+      "keystrokes": "diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json | sed -n '1,200p'\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

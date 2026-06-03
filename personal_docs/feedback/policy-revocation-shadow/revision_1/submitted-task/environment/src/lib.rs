@@ -1,0 +1,23 @@
+pub mod io;
+pub mod model;
+pub mod report;
+pub mod runner;
+
+#[path = "../k0/a.rs"]
+pub mod k0_a;
+#[path = "../k1/b.rs"]
+pub mod k1_b;
+#[path = "../k2/c.rs"]
+pub mod k2_c;
+#[path = "../k3/d.rs"]
+pub mod k3_d;
+#[path = "../k4/e.rs"]
+pub mod k4_e;
+#[path = "../k5/f.rs"]
+pub mod k5_f;
+#[path = "../k6/g.rs"]
+pub mod k6_g;
+#[path = "../k7/h.rs"]
+pub mod k7_h;
+#[path = "../k8/i.rs"]
+pub mod k8_i;

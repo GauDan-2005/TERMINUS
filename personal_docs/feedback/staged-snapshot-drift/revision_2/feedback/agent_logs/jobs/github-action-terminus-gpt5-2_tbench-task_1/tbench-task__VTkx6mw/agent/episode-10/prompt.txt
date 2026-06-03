@@ -1,0 +1,76 @@
+New Terminal Output:
+
+root@24f176b92b01:/app# perl -0777 -i -pe 's/func KeyFor\(row f5\.Row, profile f5\.Profile\) string \{.*?\n\}/func KeyFor(row f5.Row, profile f5.Profile) string
+ {\n        _ = profile\n        // Hardlink identity must be derived from the backing object, not the path.\n        // Using the path here prevents hardlink r
+econstruction on restore.\n        return fmt.Sprintf("%d:%d", row.Dev, row.Ino)\n}\n/sm' /app/internal/d3/pair.go
+syntax error at -e line 1, near "n        return"
+Execution of -e aborted due to compilation errors.
+root@24f176b92b01:/app# sed -n '1,120p' /app/internal/d3/pair.go
+package d3
+
+import (
+        "fmt"
+
+        "staged.local/snapshot/internal/f5"
+)
+
+type tokenX string
+
+type nodeX struct {
+        Seen map[tokenX]bool
+}
+
+func bind_d(a *nodeX, b tokenX) bool {
+        if a.Seen == nil {
+                a.Seen = map[tokenX]bool{}
+        }
+        if b == "" {
+                return false
+        }
+        if a.Seen[b] {
+                return true
+        }
+        a.Seen[b] = true
+        return true
+}
+
+func KeyFor(row f5.Row, profile f5.Profile) string {
+        if profile.Restart && profile.Dense {
+                return row.Path
+        }
+        key := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))
+        state := &nodeX{}
+        _ = bind_d(state, key)
+        return string(key)
+}
+root@24f176b92b01:/app# make -s -C /app build
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
+/app/probe/measure.c: In function ‘scan_dir’:
+/app/probe/measure.c:56:56: warning: ‘snprintf’ output may be truncated before the last format character [-Wformat-truncation=]
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |                                                        ^
+/app/probe/measure.c:56:9: note: ‘snprintf’ output 2 or more bytes (assuming 4097) into a destination of size 4096
+   56 |         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+root@24f176b92b01:/app# python3 - <<'PY'
+> import json
+> with open('/app/output/restore-audit.json') as f:
+>   d=json.load(f)
+> for c in d['cases']:
+>   print(c['name'], 'ok='+str(c['ok']), 'src_groups='+str(len(c['groups']['source'])), 'res_groups='+str(len(c['groups']['restored'])), 'src_digest_eq='+str(c[
+'digest']['source']==c['digest']['restored']))
+> PY
+alpha ok=False src_groups=0 res_groups=0 src_digest_eq=True
+beta ok=False src_groups=1 res_groups=0 src_digest_eq=True
+delta ok=False src_groups=0 res_groups=0 src_digest_eq=True
+epsilon ok=False src_groups=0 res_groups=0 src_digest_eq=True
+gamma ok=False src_groups=0 res_groups=0 src_digest_eq=True
+zeta ok=False src_groups=1 res_groups=0 src_digest_eq=True
+root@24f176b92b01:/app#

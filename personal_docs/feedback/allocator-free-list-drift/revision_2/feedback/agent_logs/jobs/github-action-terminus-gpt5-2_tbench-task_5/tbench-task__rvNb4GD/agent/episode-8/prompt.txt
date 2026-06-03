@@ -1,0 +1,165 @@
+New Terminal Output:
+
+root@167e824d180e:/app# grep -n '"name": "pearl"' -A120 output/alloc-audit.json | sed -n '1,140p'
+89:      "name": "pearl",
+90-      "ok": false,
+91-      "heap_sig": 9520,
+92-      "fl_count": 3,
+93-      "fl_sig": 64976,
+94-      "byte_total": 488,
+95-      "ledger": "/app/output/pearl.ledger.jsonl",
+96-      "steps": [
+97-        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 40},
+98-        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 240},
+99-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 200},
+100-        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 272},
+101-        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 344},
+102-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 272},
+103-        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 392},
+104-        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 392},
+105-        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 3, "fl_sig": 64976, "byte_total": 488}
+106-      ]
+107-    }
+108-  ]
+109-}
+root@167e824d180e:/app# wc -l output/pearl.ledger.jsonl && sed -n '1,200p' output/pearl.ledger.jsonl
+9 output/pearl.ledger.jsonl
+{"seq":0,"op":"alloc","index":-1,"size":40,"result_index":0,"heap_sig":1088,"fl_count":1,"fl_sig":65472,"byte_total":40}
+{"seq":1,"op":"alloc","index":-1,"size":200,"result_index":1,"heap_sig":4896,"fl_count":1,"fl_sig":65248,"byte_total":240}
+{"seq":2,"op":"free","index":0,"size":0,"result_index":0,"heap_sig":3808,"fl_count":2,"fl_sig":65312,"byte_total":200}
+{"seq":3,"op":"alloc","index":-1,"size":72,"result_index":2,"heap_sig":5440,"fl_count":2,"fl_sig":65216,"byte_total":272}
+{"seq":4,"op":"alloc","index":-1,"size":72,"result_index":3,"heap_sig":7072,"fl_count":2,"fl_sig":65120,"byte_total":344}
+{"seq":5,"op":"free","index":2,"size":0,"result_index":0,"heap_sig":5440,"fl_count":3,"fl_sig":65216,"byte_total":272}
+{"seq":6,"op":"realloc","index":1,"size":320,"result_index":4,"heap_sig":7480,"fl_count":3,"fl_sig":65096,"byte_total":392}
+{"seq":7,"op":"free","index":1,"size":0,"result_index":-1,"heap_sig":7480,"fl_count":3,"fl_sig":65096,"byte_total":392}
+{"seq":8,"op":"alloc","index":-1,"size":96,"result_index":5,"heap_sig":9520,"fl_count":3,"fl_sig":64976,"byte_total":488}
+root@167e824d180e:/app# sed -n '1,220p' data/cases/pearl.plan
+# pearl mixed
+ALLOC 40
+ALLOC 200
+FREE 0
+ALLOC 72
+ALLOC 72
+FREE 2
+REALLOC 1 320
+FREE 1
+ALLOC 96
+root@167e824d180e:/app# sed -n '1,260p' list_b/list.c
+#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <stddef.h>
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+static void fl_clear(Arena *a, size_t off) {
+    size_t ix = fl_ix(off);
+    a->fl_link_next[ix] = FL_END;
+    a->fl_link_prev[ix] = FL_END;
+}
+
+void xb1(Arena *a, Block *b) {
+    size_t off = b->off;
+    size_t ix = fl_ix(off);
+    size_t old = a->fl_head.off;
+    a->fl_link_next[ix] = old;
+    a->fl_link_prev[ix] = FL_END;
+    if (old != FL_END) {
+        a->fl_link_prev[fl_ix(old)] = off;
+    }
+    a->fl_head.base = b->base;
+    a->fl_head.off = off;
+}
+
+void list_remove(Arena *a, Block *b) {
+    size_t off = b->off;
+    size_t ix = fl_ix(off);
+    size_t nxt = a->fl_link_next[ix];
+    size_t prv = a->fl_link_prev[ix];
+    if (nxt != FL_END) {
+        a->fl_link_prev[fl_ix(nxt)] = prv;
+    } else if (a->fl_head.off == off) {
+        a->fl_head.off = FL_END;
+    }
+    if (prv != FL_END) {
+        a->fl_link_next[fl_ix(prv)] = nxt;
+    } else {
+        a->fl_head.off = nxt;
+    }
+    fl_clear(a, off);
+}
+
+void list_coalesce(Arena *a, Block *b) {
+    size_t total = tag_read_size(b);
+    size_t off = b->off + total;
+    if (off < a->used) {
+        Block nb = {b->base, off};
+        if (!z_is_flag(&nb)) {
+            list_remove(a, &nb);
+            total += tag_read_size(&nb);
+            xa0(b, total);
+            off = b->off + total;
+        }
+    }
+    xb1(a, b);
+}
+
+int q8f_blk(Arena *a, Block *oldb, size_t need, size_t *merged_out) {
+    size_t old_total = tag_read_size(oldb);
+    size_t next_off = oldb->off + old_total;
+    size_t ntotal;
+    Block nb;
+    if (next_off >= a->used) {
+        return -1;
+    }
+    nb.base = oldb->base;
+    nb.off = next_off;
+    if (z_is_flag(&nb)) {
+        return -1;
+    }
+    ntotal = tag_read_size(&nb);
+    if (old_total + ntotal < need) {
+        return -1;
+    }
+    list_remove(a, &nb);
+    *merged_out = old_total + ntotal;
+    xa0(oldb, *merged_out);
+    z_set_flag(oldb, 1);
+    return 0;
+}
+root@167e824d180e:/app# sed -n '1,320p' split_c/split.c
+#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <stddef.h>
+
+static int on_fl(Arena *a, size_t off) {
+    size_t ix = off >> 3;
+    return a->fl_head.off == off || a->fl_link_prev[ix] != FL_END || a->fl_link_next[ix] != FL_END;
+}
+
+Block *mark_c(Arena *a, Block *b, size_t c) {
+    size_t total = tag_read_size(b);
+    size_t need = blk_align(c + HDR_SIZE + FTR_SIZE);
+    if (total < need + MIN_BLK) {
+        return NULL;
+    }
+    size_t rem = total - need;
+    if (on_fl(a, b->off)) {
+        list_remove(a, b);
+    }
+    xa0(b, need);
+    z_set_flag(b, 1);
+    Block tail;
+    tail.base = b->base;
+    tail.off = b->off + need;
+    xa0(&tail, rem);
+    z_set_flag(&tail, 0);
+    xb1(a, &tail);
+    return NULL;
+}
+root@167e824d180e:/app#

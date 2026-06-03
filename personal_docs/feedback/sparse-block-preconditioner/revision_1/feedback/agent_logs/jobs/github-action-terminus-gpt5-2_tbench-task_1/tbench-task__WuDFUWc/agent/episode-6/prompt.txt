@@ -1,0 +1,46 @@
+Current terminal state:
+New Terminal Output:
+
+root@ed67e0da6cd3:/app# bash /app/scripts/run-matrix.sh
+root@ed67e0da6cd3:/app# cp /app/output/solver-audit.json /tmp/solver-audit.run1.json
+root@ed67e0da6cd3:/app# bash /app/scripts/run-matrix.sh
+root@ed67e0da6cd3:/app# cp /app/output/solver-audit.json /tmp/solver-audit.run2.json
+root@ed67e0da6cd3:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+>
+> def canon_text(p: Path):
+>     d = json.loads(p.read_text())
+>     return json.dumps(d, sort_keys=True, separators=(',',':'))
+>
+> p1=Path('/tmp/solver-audit.run1.json')
+> p2=Path('/tmp/solver-audit.run2.json')
+> print('equivalent', canon_text(p1)==canon_text(p2))
+> PY
+equivalent True
+root@ed67e0da6cd3:/app# bash /app/scripts/run-matrix.sh
+root@ed67e0da6cd3:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.json'))
+> case=[c for c in m.get('cases',[]) if c.get('name')=='basalt']
+> if not case:
+>     raise SystemExit('no basalt case in matrix')
+> json.dump({'cases':[case[0]]}, open('/tmp/basalt-from-matrix.json','w'), indent=2, sort_keys=True)
+> print('wrote /tmp/basalt-from-matrix.json')
+> PY
+wrote /tmp/basalt-from-matrix.json
+root@ed67e0da6cd3:/app# bash /app/scripts/run-one.sh basalt
+root@ed67e0da6cd3:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/tmp/basalt-from-matrix.json'))
+> one=json.load(open('/app/output/basalt-audit.json'))
+> print('match', m==one)
+> if m!=one:
+>     print('matrix_case', m)
+>     print('one_case', one)
+> PY
+match True
+root@ed67e0da6cd3:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

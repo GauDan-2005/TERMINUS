@@ -1,0 +1,23 @@
+{
+  "analysis": "We attempted to patch internal/a0/pack.go but apply_patch is not available, so no code change was applied; rebuild/rerun kept the same failing results (rook/sentinel sig mismatch, resume_seen one less). We need to edit the file using available tools (e.g., sed/heredoc with cat > file, or perl -0777 -pe) to implement the PackItem fix. After applying the edit, rebuild and rerun matrix. If rook/sentinel still fail, next likely fix is c2.SyncBoundary which currently forces effects Active=true and bumps ExpiryTurn, ignoring savedTurn/currentTurn.",
+  "plan": "1) Use a safe overwrite approach to modify /app/internal/a0/pack.go: rewrite PackItem to deep-copy Lit and Seen and not zero Seen. 2) Rebuild and rerun matrix; re-check rook/sentinel ok and visibility. 3) If still failing, adjust c2.SyncBoundary to be a no-op passthrough (return effects unchanged) or properly reconcile using savedTurn/currentTurn without mutating expiry/active, then rebuild and rerun.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,120p' /app/internal/a0/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/internal/a0/pack.go <<'EOF'\npackage a0\n\ntype stateX struct {\n        Lit  []bool\n        Seen []bool\n        Turn int\n}\n\ntype EffectSnap struct {\n        ID         string\n        ExpiryTurn int\n        Active     bool\n}\n\ntype HostileSnap struct {\n        ID string\n        X  int\n        Y  int\n}\n\ntype ItemY struct {\n        Lit      []bool\n        Seen     []bool\n        Turn     int\n        Obs      map[string]bool\n        Effects  []EffectSnap\n        Width    int\n        Height   int\n        PlayerX  int\n        PlayerY  int\n        Hostiles []HostileSnap\n}\n\nfunc phase_a(a *stateX, b ItemY) error {\n        a.Lit = append([]bool(nil), b.Lit...)\n        a.Seen = append([]bool(nil), b.Seen...)\n        a.Turn = b.Turn\n        return nil\n}\n\nfunc PackItem(b ItemY) ItemY {\n        st := &stateX{}\n        _ = phase_a(st, b)\n\n        // Return a packed snapshot that is safe to persist/resume from.\n        // The resume path expects Seen/Lit contents to be preserved.\n        out := b\n        out.Lit = append([]bool(nil), b.Lit...)\n        out.Seen = append([]bool(nil), b.Seen...)\n        return out\n}\nEOF\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "make -s -C /app build\nbash /app/scripts/run-matrix.sh\n",
+      "duration": 15.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/resume-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    print(c['name'], c['ok'], c['fresh']['sig'], c['resume']['sig'], c['visibility'])\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

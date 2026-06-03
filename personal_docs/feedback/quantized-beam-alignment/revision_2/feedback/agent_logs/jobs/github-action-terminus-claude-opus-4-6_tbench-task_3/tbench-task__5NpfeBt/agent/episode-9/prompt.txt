@@ -1,0 +1,38 @@
+New Terminal Output:
+
+root@f58f1763d536:/app# cat > /app/tools/run_local.sh << 'EOF'
+> #!/bin/bash
+> set -euo pipefail
+> export PATH="/usr/local/cargo/bin:$PATH"
+> cargo --version
+> mkdir -p /app/output /app/bin
+> cargo build --release --quiet --manifest-path /app/Cargo.toml
+> /app/target/release/local-infer-sandbox /app/output/raw.json
+> go build -o /app/bin/align /app/cmd/align/main.go
+> /app/bin/align /app/output/raw.json /app/output/report.json
+> EOF
+root@f58f1763d536:/app# chmod +x /app/tools/run_local.sh
+root@f58f1763d536:/app# rm -f /app/output/raw.json /app/output/report.json
+root@f58f1763d536:/app# bash /app/tools/run_local.sh
+cargo 1.85.0 (d73d2caf9 2024-12-31)
+warning: function `ax_ref` is never used
+  --> src/a0/mod.rs:16:8
+   |
+16 | pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
+   |        ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: function `tag` is never used
+ --> src/d3/mod.rs:5:8
+  |
+5 | pub fn tag(a: &str, b: usize) -> String {
+  |        ^^^
+
+warning: function `lens` is never used
+ --> src/f5/mod.rs:5:8
+  |
+5 | pub fn lens(a: &[i32]) -> usize {
+  |        ^^^^
+
+root@f58f1763d536:/app#

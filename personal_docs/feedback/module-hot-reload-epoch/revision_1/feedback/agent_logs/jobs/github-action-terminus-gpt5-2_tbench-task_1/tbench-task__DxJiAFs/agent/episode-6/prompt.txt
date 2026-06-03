@@ -1,0 +1,280 @@
+New Terminal Output:
+
+root@48d0f83bfd0b:/app# ls -la outcome
+total 4
+drwxr-xr-x  2 root root   25 May 25 12:24 .
+drwxr-xr-x 13 root root  240 May 25 12:24 ..
+-rw-r--r--  1 root root 3179 May 25 12:24 report.json
+root@48d0f83bfd0b:/app# sed -n '1,200p' outcome/report.json
+{
+  "records": [
+    {
+      "name": "alpha",
+      "rows": [
+        {
+          "index": 0,
+          "value": 6,
+          "factor": 2,
+          "nativeValue": 4,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 12,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 5,
+      "dependencyTotal": 5,
+      "acceptedOlder": true,
+      "healthy": false
+    },
+    {
+      "name": "beta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 4,
+          "factor": 2,
+          "nativeValue": 2,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 6,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": []
+        },
+        {
+          "index": 2,
+          "value": 8,
+          "factor": 4,
+          "nativeValue": 4,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 1,
+      "dependencyTotal": 9,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "gamma",
+      "rows": [
+        {
+          "index": 0,
+          "value": 8,
+          "factor": 2,
+          "nativeValue": 6,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 5,
+          "factor": 3,
+          "nativeValue": 2,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 2,
+      "dependencyTotal": 5,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "delta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 3,
+          "factor": 2,
+          "nativeValue": 1,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 12,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 8,
+      "dependencyTotal": 5,
+      "acceptedOlder": true,
+      "healthy": false
+    },
+    {
+      "name": "epsilon",
+      "rows": [
+        {
+          "index": 0,
+          "value": 5,
+          "factor": 2,
+          "nativeValue": 3,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 6,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": []
+        },
+        {
+          "index": 2,
+          "value": 10,
+          "factor": 4,
+          "nativeValue": 6,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 3,
+      "dependencyTotal": 9,
+      "acceptedOlder": false,
+      "healthy": false
+    },
+    {
+      "name": "zeta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 11,
+          "factor": 2,
+          "nativeValue": 9,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 3,
+          "nativeValue": 10,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 1,
+      "dependencyTotal": 5,
+      "acceptedOlder": true,
+      "healthy": false
+    }
+  ],
+  "aggregate": {
+    "source": "local",
+    "recordCount": 6,
+    "totalCounter": 20,
+    "dependencyTotal": 38,
+    "rowTotal": 109,
+    "healthyCount": 3,
+    "status": "stale"
+  }
+}
+root@48d0f83bfd0b:/app# python3 - <<'PY'
+> import json
+> p='/app/outcome/report.json'
+> with open(p) as f: data=json.load(f)
+> agg=data.get('aggregate',{})
+> recs=data.get('records',[])
+> print('aggregate:', agg)
+> print('recordCount:', len(recs))
+> for r in recs:
+>     name=r.get('scenario') or r.get('name')
+>     rows=r.get('rows') or []
+>     print('\n',name, 'healthy=',r.get('healthy'),'acceptedOlder=',r.get('acceptedOlder'),'finalCounter=',r.get('finalCounter'),'dependencyTotal=',r.get('depen
+dencyTotal'),'rows=',len(rows))
+>     for row in rows:
+>         print('  row', row.get('index'), 'value', row.get('value'), 'factor', row.get('factor'), 'nativeValue', row.get('nativeValue'), 'deferred', row.get('d
+eferred'))
+> PY
+aggregate: {'source': 'local', 'recordCount': 6, 'totalCounter': 20, 'dependencyTotal': 38, 'rowTotal': 109, 'healthyCount': 3, 'status': 'stale'}
+recordCount: 6
+
+ alpha healthy= False acceptedOlder= True finalCounter= 5 dependencyTotal= 5 rows= 2
+  row 0 value 6 factor 2 nativeValue 4 deferred []
+  row 1 value 12 factor 3 nativeValue 9 deferred []
+
+ beta healthy= False acceptedOlder= False finalCounter= 1 dependencyTotal= 9 rows= 3
+  row 0 value 4 factor 2 nativeValue 2 deferred []
+  row 1 value 6 factor 3 nativeValue 3 deferred []
+  row 2 value 8 factor 4 nativeValue 4 deferred []
+
+ gamma healthy= False acceptedOlder= False finalCounter= 2 dependencyTotal= 5 rows= 2
+  row 0 value 8 factor 2 nativeValue 6 deferred []
+  row 1 value 5 factor 3 nativeValue 2 deferred []
+
+ delta healthy= False acceptedOlder= True finalCounter= 8 dependencyTotal= 5 rows= 2
+  row 0 value 3 factor 2 nativeValue 1 deferred []
+  row 1 value 12 factor 3 nativeValue 9 deferred []
+
+ epsilon healthy= False acceptedOlder= False finalCounter= 3 dependencyTotal= 9 rows= 3
+  row 0 value 5 factor 2 nativeValue 3 deferred []
+  row 1 value 6 factor 3 nativeValue 3 deferred []
+  row 2 value 10 factor 4 nativeValue 6 deferred []
+
+ zeta healthy= False acceptedOlder= True finalCounter= 1 dependencyTotal= 5 rows= 2
+  row 0 value 11 factor 2 nativeValue 9 deferred []
+  row 1 value 13 factor 3 nativeValue 10 deferred []
+root@48d0f83bfd0b:/app# sha256sum outcome/report.json
+58f25be7e7c88aa8a97782e9fc92af3cd9291ebc109f320cd6f4894f2d485a51  outcome/report.json
+root@48d0f83bfd0b:/app# npm run matrix
+
+> local-runtime-matrix@1.0.0 matrix
+> node tools/run_matrix.js
+
+root@48d0f83bfd0b:/app# sha256sum outcome/report.json
+58f25be7e7c88aa8a97782e9fc92af3cd9291ebc109f320cd6f4894f2d485a51  outcome/report.json
+root@48d0f83bfd0b:/app# sed -n '1,200p' b2/q.js
+function q_b(a, b, c) {
+  const label = `slot-${b}`;
+  c[label] = (c[label] || []).concat(a);
+  const next = `slot-${b + 1}`;
+  const visible = c[next] || [];
+  c[next] = [];
+  return visible.slice().sort((left, right) => left - right);
+}
+
+function scan_b(a) {
+  return Object.keys(a).sort();
+}
+
+module.exports = { q_b, scan_b };
+root@48d0f83bfd0b:/app# sed -n '1,200p' c3/r.js
+let saved = null;
+
+function k_c(a, b, c) {
+  if (saved === null) {
+    saved = Number(a);
+  }
+  return saved + b;
+}
+
+function lens_c(a) {
+  return String(a).length;
+}
+
+module.exports = { k_c, lens_c };
+root@48d0f83bfd0b:/app# sed -n '1,200p' d4/s.js
+function m_e(a, b) {
+  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
+  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
+  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
+  const healthyCount = a.filter((row) => row.acceptedOlder).length;
+  return {
+    source: b.source,
+    recordCount: a.length,
+    totalCounter,
+    dependencyTotal,
+    rowTotal,
+    healthyCount,
+    status: 'stale'
+  };
+}
+
+function view_e(a) {
+  return a.map((row) => row.name).join(',');
+}
+
+module.exports = { m_e, view_e };
+root@48d0f83bfd0b:/app#

@@ -1,0 +1,59 @@
+{
+  "analysis": "solverctl already implements writing /app/output/solver-audit.json for matrix and /app/output/<name>-audit.json for one via emit_matrix/emit_t. The current failure is scripts pointing to /app/bin/solverctl instead of the built /app/build/bin/solverctl. Also, reported_residual is intentionally wrong: norm_q adds 1e-4, causing residual_agrees false and ok false. That explains residual column disagreements and cases not marked settled. Fix needed in metric helper (scale_q/metric.cpp) to compute true L2 norm without bias. Then rebuild with CMake and update scripts to call the correct solverctl path. Finally verify determinism by running matrix twice and diff JSON, and verify per-case matches matrix slice.",
+  "plan": "1) Patch /app/scale_q/metric.cpp to remove the +1e-4 bias so reported_residual matches independently computed L2 norm.\n2) Patch /app/scripts/run-matrix.sh and run-one.sh to invoke solverctl from the CMake build tree (/app/build/bin/solverctl) with a fallback search, since /app/bin doesn’t exist.\n3) Rebuild with CMake.\n4) Run run-matrix.sh to generate /app/output/solver-audit.json and inspect for ok/residual_agrees.\n5) Run run-one.sh basalt and compare its JSON case entry to the corresponding entry in solver-audit.json.\n6) Run matrix twice with clean-room between and diff outputs to ensure equivalent JSON.",
+  "commands": [
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scale_q/metric.cpp\n@@\n double norm_q(const double *a, int b) {\n     double s = 0.0;\n     for (int i = 0; i < b; i++) {\n         s += a[i] * a[i];\n     }\n-    return sqrt(s) + 1.0e-4;\n+    // Metric helper must report the true L2 norm so it matches the\n+    // independently computed residual used for auditing.\n+    return sqrt(s);\n }\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-matrix.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" matrix\n+\n+SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+if [ ! -x \"${SOLVERCTL}\" ]; then\n+  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+fi\n+\"${SOLVERCTL}\" matrix\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "apply_patch<<'PATCH'\n*** Begin Patch\n*** Update File: scripts/run-one.sh\n@@\n APP_ROOT=\"${APP_ROOT:-/app}\"\n NAME=\"${1:?case name required}\"\n OUT=\"${APP_ROOT}/output\"\n mkdir -p \"${OUT}\"\n bash \"${APP_ROOT}/scripts/clean-room.sh\"\n-\"${APP_ROOT}/bin/solverctl\" one \"${NAME}\"\n+\n+SOLVERCTL=\"${APP_ROOT}/build/bin/solverctl\"\n+if [ ! -x \"${SOLVERCTL}\" ]; then\n+  SOLVERCTL=\"${APP_ROOT}/bin/solverctl\"\n+fi\n+\"${SOLVERCTL}\" one \"${NAME}\"\n*** End Patch\nPATCH\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cat /app/output/solver-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cat /app/output/basalt-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))\no=json.load(open('/app/output/basalt-audit.json'))\nname='basalt'\nmc=[c for c in m['cases'] if c['name']==name][0]\noc=o['cases'][0]\nprint('matrix:', mc)\nprint('one   :', oc)\nprint('equal :', mc==oc)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cp /app/output/solver-audit.json /app/output/solver-audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

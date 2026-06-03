@@ -1,0 +1,99 @@
+============================= test session starts ==============================
+platform linux -- Python 3.13.13, pytest-8.4.1, pluggy-1.6.0
+cachedir: /tmp/pytest_cache
+rootdir: /tests
+plugins: json-ctrf-0.3.5
+collected 14 items
+
+../tests/test_outputs.py .F...F.F......                                  [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_rook_row _________________________________
+
+matrix_data = {'cases': [{'effects': [{'active': True, 'epoch': 5, 'id': 'blind'}], 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'step..., 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0}, 'log': '/app/workspace/warden/trace.tsv', 'moves': [], ...}]}
+
+    def test_rook_row(matrix_data):
+        """Baseline uninterrupted and restored paths stay clean for rook."""
+>       assert_case_clean(case_by_name(matrix_data, "rook"))
+
+/tests/test_outputs.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'effects': [], 'fresh': {'illegal': 0, 'sig': '7d3f56fa', 'steps': 1}, 'log': '/app/workspace/rook/trace.tsv', 'moves...', 'from_x': 3, 'from_y': 3, 'kind': 'step', ...}, {'actor': '1', 'from_x': 3, 'from_y': 3, 'kind': 'step', ...}], ...}
+
+    def assert_case_clean(case: dict) -> None:
+        assert set(case) >= {
+            "name",
+            "ok",
+            "fresh",
+            "resume",
+            "moves",
+            "visibility",
+            "effects",
+            "records",
+            "log",
+        }
+>       assert case["ok"] is True
+E       assert False is True
+
+/tests/test_outputs.py:124: AssertionError
+______________________________ test_sentinel_row _______________________________
+
+matrix_data = {'cases': [{'effects': [{'active': True, 'epoch': 5, 'id': 'blind'}], 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'step..., 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0}, 'log': '/app/workspace/warden/trace.tsv', 'moves': [], ...}]}
+
+    def test_sentinel_row(matrix_data):
+        """Epoch-boundary scenario row reports zero illegal steps on both paths."""
+>       assert_case_clean(case_by_name(matrix_data, "sentinel"))
+
+/tests/test_outputs.py:167: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+case = {'effects': [{'active': True, 'epoch': 7, 'id': 'ward'}], 'fresh': {'illegal': 0, 'sig': '9a98d68', 'steps': 1}, 'log'...', 'from_x': 3, 'from_y': 3, 'kind': 'step', ...}, {'actor': '1', 'from_x': 3, 'from_y': 3, 'kind': 'step', ...}], ...}
+
+    def assert_case_clean(case: dict) -> None:
+        assert set(case) >= {
+            "name",
+            "ok",
+            "fresh",
+            "resume",
+            "moves",
+            "visibility",
+            "effects",
+            "records",
+            "log",
+        }
+>       assert case["ok"] is True
+E       assert False is True
+
+/tests/test_outputs.py:124: AssertionError
+____________________________ test_path_parity_rook _____________________________
+
+matrix_data = {'cases': [{'effects': [{'active': True, 'epoch': 5, 'id': 'blind'}], 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'step..., 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0}, 'log': '/app/workspace/warden/trace.tsv', 'moves': [], ...}]}
+
+    def test_path_parity_rook(matrix_data):
+        """Rook fresh and restored summaries must match when the row is clean."""
+        case = case_by_name(matrix_data, "rook")
+>       assert case["fresh"]["sig"] == case["resume"]["sig"]
+E       AssertionError: assert '7d3f56fa' == '24ebc3c9'
+E         
+E         - 24ebc3c9
+E         + 7d3f56fa
+
+/tests/test_outputs.py:178: AssertionError
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED ../tests/test_outputs.py::test_run_harness_produces_output
+PASSED ../tests/test_outputs.py::test_bishop_row
+PASSED ../tests/test_outputs.py::test_knight_row
+PASSED ../tests/test_outputs.py::test_lancer_row
+PASSED ../tests/test_outputs.py::test_warden_row
+PASSED ../tests/test_outputs.py::test_no_wall_steps_knight
+PASSED ../tests/test_outputs.py::test_no_hidden_hit_bishop
+PASSED ../tests/test_outputs.py::test_effect_epoch_sentinel
+PASSED ../tests/test_outputs.py::test_sidecar_order_lancer
+PASSED ../tests/test_outputs.py::test_trace_sidecar_warden
+PASSED ../tests/test_outputs.py::test_binary_exists
+FAILED ../tests/test_outputs.py::test_rook_row - assert False is True
+FAILED ../tests/test_outputs.py::test_sentinel_row - assert False is True
+FAILED ../tests/test_outputs.py::test_path_parity_rook - AssertionError: asse...
+========================= 3 failed, 11 passed in 0.16s =========================

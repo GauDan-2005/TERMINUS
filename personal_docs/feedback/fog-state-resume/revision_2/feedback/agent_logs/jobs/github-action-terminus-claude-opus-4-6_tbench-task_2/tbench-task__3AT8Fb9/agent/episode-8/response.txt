@@ -1,0 +1,18 @@
+{
+  "analysis": "Looking at the output, all cases show `ok: true` but there are visibility mismatches (fresh_seen ≠ resume_seen for knight, lancer, rook, sentinel, ranger). This indicates the `store/pack.go` bug is corrupting the Seen array during save/restore. The `PlayerSees` function in `vis/sight.go` also has a buggy litIdx adjustment for the bottom row. And `mod/effect.go` has an off-by-one in SyncBoundary.\n\nLet me fix the bugs:\n1. `store/pack.go`: `out.Seen` should copy `st.Seen` not `st.Lit`\n2. `vis/sight.go`: Remove the wrong litIdx adjustment for bottom row\n3. `mod/effect.go`: Fix the off-by-one (`currentTurn + rem - 1` → `currentTurn + rem`)",
+  "plan": "Fix all three bugs and re-run the matrix to verify.",
+  "commands": [
+    {
+      "keystrokes": "sed -i 's/out.Seen = append(\\[\\]bool(nil), st.Lit...)/out.Seen = append([]bool(nil), st.Seen...)/' /app/internal/store/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/internal/store/pack.go\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat /app/internal/vis/sight.go\n",
+      "duration": 0.1
+    }
+  ]
+}

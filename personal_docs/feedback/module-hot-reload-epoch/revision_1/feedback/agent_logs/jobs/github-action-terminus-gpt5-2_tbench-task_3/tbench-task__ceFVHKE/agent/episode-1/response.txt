@@ -1,0 +1,31 @@
+{
+  "analysis": "`npm run matrix` fails immediately with `Error: native worker failed` thrown from `/app/a1/p.js` in `callNative`. No `outcome/` directory or `report.json` is produced. We need to inspect how Node invokes the Rust helper (likely via `cargo run`) and capture the underlying stderr/stdout from that native invocation to fix the root cause (could be cargo invocation path/args, missing manifest path, JSON protocol mismatch, panic, etc.).",
+  "plan": "1) Open `/app/a1/p.js` and the matrix runner to see how native is invoked and with what inputs. 2) Re-run the native invocation directly (or add temporary logging) to capture stderr from `cargo run`. 3) Inspect Rust crate `Cargo.toml` and `src` to understand expected args/stdin and output protocol. 4) Run `cargo run` manually to reproduce the failure with visible stderr, then fix either Node invocation or Rust error handling/protocol. After native is working, re-run `npm run matrix` to generate `outcome/report.json` and proceed to logic drift fixes.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' a1/p.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,200p' tools/run_matrix.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la src\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find src -maxdepth 3 -type f -print -exec sed -n '1,200p' {} \\;\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat Cargo.toml\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cargo run\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

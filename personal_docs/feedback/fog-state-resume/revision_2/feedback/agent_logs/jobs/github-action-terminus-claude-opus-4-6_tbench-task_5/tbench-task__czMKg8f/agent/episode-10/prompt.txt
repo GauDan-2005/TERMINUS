@@ -1,0 +1,72 @@
+New Terminal Output:
+0 resume_steps=0
+root@e3b61ed64090:/app# cat /app/internal/sim/profile.go
+package sim
+
+func ProfileFor(name string) Profile {
+        switch name {
+        case "rook":
+                return Profile{Name: "rook", Radius: 3, CheckTurn: 2}
+        case "bishop":
+                return Profile{Name: "bishop", Radius: 3, Blind: true, CheckTurn: 2}
+        case "knight":
+                return Profile{Name: "knight", Radius: 2, Dense: true, CheckTurn: 2}
+        case "lancer":
+                return Profile{Name: "lancer", Radius: 3, Dense: true, CheckTurn: 2}
+        case "sentinel":
+                return Profile{Name: "sentinel", Radius: 3, Epoch: true, CheckTurn: 4}
+        case "warden":
+                return Profile{Name: "warden", Radius: 3, Blind: true, Dense: true, Epoch: true, Mixed: true, CheckTurn: 4}
+        case "ranger":
+                return Profile{Name: "ranger", Radius: 3, Epoch: true, CheckTurn: 4}
+        default:
+                return Profile{Name: name, Radius: 3, CheckTurn: 2}
+        }
+}
+
+func AllCases() []string {
+        return []string{"rook", "bishop", "knight", "lancer", "sentinel", "warden", "ranger"}
+}
+root@e3b61ed64090:/app# python3 -c "import json; d=json.load(open('/app/output/resume-audit.json')); [print(f'{c[\"name\"]:12s} vis={c[\"visibility\"]}') for c
+in d['cases']]"
+bishop       vis={'fresh_seen': 0, 'resume_seen': 0}
+knight       vis={'fresh_seen': 7, 'resume_seen': 4}
+lancer       vis={'fresh_seen': 18, 'resume_seen': 15}
+ranger       vis={'fresh_seen': 9, 'resume_seen': 8}
+rook         vis={'fresh_seen': 9, 'resume_seen': 8}
+sentinel     vis={'fresh_seen': 9, 'resume_seen': 8}
+warden       vis={'fresh_seen': 0, 'resume_seen': 0}
+root@e3b61ed64090:/app# python3 -c "
+> import json
+> d=json.load(open('/app/output/resume-audit.json'))
+> for c in d['cases']:
+>     moves_json = c['moves']
+>     rec_file = c['records']
+>     log_file = c['log']
+>     # Read records
+>     with open(rec_file) as f:
+>         rec_moves = [json.loads(l) for l in f if l.strip()]
+>     # Read log
+>     with open(log_file) as f:
+>         log_lines = [l.strip() for l in f if l.strip()]
+>     match_rec = len(moves_json) == len(rec_moves)
+>     match_log = len(moves_json) == len(log_lines)
+>     if not match_rec or not match_log:
+>         print(f'{c[\"name\"]}: MISMATCH json={len(moves_json)} rec={len(rec_moves)} log={len(log_lines)}')
+>     else:
+>         # Check order matches
+>         for i,(mj,mr) in enumerate(zip(moves_json, rec_moves)):
+>             if mj != mr:
+>                 print(f'{c[\"name\"]}: move {i} differs json={mj} rec={mr}')
+>                 break
+>         else:
+>             print(f'{c[\"name\"]}: OK ({len(moves_json)} moves)')
+> " 2>&1
+bishop: OK (0 moves)
+knight: OK (0 moves)
+lancer: OK (0 moves)
+ranger: OK (4 moves)
+rook: OK (2 moves)
+sentinel: OK (2 moves)
+warden: OK (0 moves)
+root@e3b61ed64090:/app#

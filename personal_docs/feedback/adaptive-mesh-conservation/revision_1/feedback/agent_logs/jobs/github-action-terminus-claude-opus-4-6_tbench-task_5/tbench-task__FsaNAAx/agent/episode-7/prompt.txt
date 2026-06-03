@@ -1,0 +1,98 @@
+New Terminal Output:
+
+root@3854d6db4558:/app# cat /app/drv_u/run_sync.cpp
+#include "phases.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static int copy_with_flip(const char *src_path, const char *dst_path) {
+    FILE *in = fopen(src_path, "rb");
+    if (!in) return -1;
+    FILE *out = fopen(dst_path, "wb");
+    if (!out) { fclose(in); return -2; }
+    unsigned char buf[8192];
+    size_t total = 0;
+    size_t r;
+    while ((r = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (total == 0 && r > 8) {
+            buf[8] ^= 0xFFu;
+        }
+        fwrite(buf, 1, r, out);
+        total += r;
+    }
+    fclose(in);
+    fclose(out);
+    return 0;
+}
+
+int phase_persist(SimState *st, const char *vault_path, const char *tamper_path,
+                  const char *log_path, VaultAudit *resume_aud) {
+    if (emit_p(st, vault_path) != 0) return -1;
+
+    FILE *log = fopen(log_path, "a");
+    if (copy_with_flip(vault_path, tamper_path) == 0) {
+        SimState probe = *st;
+        VaultAudit taud;
+        memset(&taud, 0, sizeof(taud));
+        load_k(tamper_path, &probe, &taud);
+        if (log) {
+            if (taud.reason == REASON_FINGERPRINT) {
+                fprintf(log, "REJECTED reason=SIGNATURE_MISMATCH path=%s\n", tamper_path);
+            } else {
+                fprintf(log, "ACCEPTED reason=%d path=%s\n", taud.reason, tamper_path);
+            }
+        }
+    }
+
+    int rc = load_k(vault_path, st, resume_aud);
+    if (log) {
+        if (resume_aud->reason == REASON_OK) {
+            fprintf(log, "ACCEPTED reason=OK path=%s\n", vault_path);
+        } else {
+            fprintf(log, "REJECTED reason=%d path=%s\n", resume_aud->reason, vault_path);
+        }
+        fclose(log);
+    }
+    return rc;
+}
+root@3854d6db4558:/app# cat /app/lnk_n/relate.cpp
+#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+int step_n(CellGrid *a, const int *b, int c, TopoLink *d) {
+    if (!a || !d) return -1;
+    int n = a->n;
+    for (int i = 0; i < n; i++) {
+        d->parent[i] = a->cells[i].parent;
+    }
+    if (b && c > 0) {
+        for (int i = 0; i < c && i < n; i++) {
+            int idx = b[i];
+            if (idx >= 0 && idx < n) {
+                d->parent[idx] = a->cells[idx].parent;
+            }
+        }
+    }
+    return 0;
+}
+root@3854d6db4558:/app# cat /app/sync_b/halo.cpp
+#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+void op_b(CellPatch *a, const CellPatch *b, int c, int d) {
+    if (!a || !b) return;
+    int width = (b->n < 8) ? b->n : 8;
+    a->n = width;
+    for (int i = 0; i < width; i++) {
+        int src = i + d;
+        if (src < 0) src = 0;
+        if (src >= b->n) src = b->n - 1;
+        a->vol[i] = b->vol[src];
+        for (int v = 0; v < NVAR; v++) {
+            a->q[i * NVAR + v] = b->q[src * NVAR + v];
+        }
+    }
+    (void)c;
+}
+root@3854d6db4558:/app#

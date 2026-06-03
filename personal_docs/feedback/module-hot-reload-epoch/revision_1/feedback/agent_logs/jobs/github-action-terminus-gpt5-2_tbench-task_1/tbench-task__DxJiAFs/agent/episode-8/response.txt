@@ -1,0 +1,31 @@
+{
+  "analysis": "Edits are now applied. npm run matrix succeeds and produces a stable report.json across repeated runs (hash unchanged). Deferred lists now appear on the same cycle and are sorted. Factors vary per row based on dep+index without cross-row caching. Native values now incorporate carry for both old/new, and carry chaining uses prior nativeValue so finalCounter reflects the last native row produced. acceptedOlder is true everywhere and healthy is true when finalCounter equals sum of input bases; aggregate totals/status are derived from records and now show healthy when all records are healthy.",
+  "plan": "Do a final verification against the required report shape: ensure each record carries scenario name (spec says scenario name; current uses name), ordered rows, finalCounter, dependencyTotal, acceptedOlder, healthy; each row has index,value,factor,nativeValue,deferred sorted; aggregate has required keys. If the spec strictly requires the record field to be named `scenario` (not `name`), adjust record output to include `scenario` while keeping backwards compatibility. Then rerun matrix and confirm stability.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/outcome/report.json'\nwith open(p) as f: data=json.load(f)\nreq_agg=['source','recordCount','totalCounter','dependencyTotal','rowTotal','healthyCount','status']\nprint('aggregate missing:', [k for k in req_agg if k not in data.get('aggregate',{})])\nfor r in data.get('records',[]):\n    missing=[k for k in ['rows','finalCounter','dependencyTotal','acceptedOlder','healthy'] if k not in r]\n    if 'scenario' not in r and 'name' not in r:\n        missing.append('scenario/name')\n    if missing:\n        print('record missing', missing)\n    for row in r.get('rows',[]):\n        rm=[k for k in ['index','value','factor','nativeValue','deferred'] if k not in row]\n        if row.get('deferred')!=sorted(row.get('deferred',[])):\n            rm.append('deferred_not_sorted')\n        if rm:\n            print('row issues', r.get('name') or r.get('scenario'), row.get('index'), rm)\nPY\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "grep -n \"name: a.name\" -n a1/p.js\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -0777 -i -pe 's/\\n\\s*return \\{\\n\\s*name: a\\.name,/\\n  return {\\n    scenario: a.name,\\n    name: a.name,/s' a1/p.js\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "npm run matrix\n",
+      "duration": 60
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nwith open('/app/outcome/report.json') as f: data=json.load(f)\nprint('record name keys example:', {k: data['records'][0].get(k) for k in ['scenario','name']})\nPY\n",
+      "duration": 1
+    },
+    {
+      "keystrokes": "sha256sum outcome/report.json\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": true
+}

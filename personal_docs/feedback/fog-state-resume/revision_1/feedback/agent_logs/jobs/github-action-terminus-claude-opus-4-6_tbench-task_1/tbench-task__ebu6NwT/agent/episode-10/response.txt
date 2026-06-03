@@ -1,0 +1,14 @@
+{
+  "analysis": "The bug is clear. In `runLoaded`, the loop only processes \"save\" steps (using `if step.Action != \"save\" { continue }`), which means it uses the save step's turn number. It should instead skip until after the save step, then process subsequent steps (just like `runDirect` does), using the merged cache for observations.",
+  "plan": "Replace lines 218-226 in run.go with the correct post-save iteration logic that mirrors runDirect but uses the merged observation cache.",
+  "commands": [
+    {
+      "keystrokes": "sed -i '218,226c\\\t\\tpastSave := false\\n\\t\\tfor _, step := range steps {\\n\\t\\t\\tif step.Action == \"save\" {\\n\\t\\t\\t\\tpastSave = true\\n\\t\\t\\t\\tcontinue\\n\\t\\t\\t}\\n\\t\\t\\tif !pastSave {\\n\\t\\t\\t\\tcontinue\\n\\t\\t\\t}\\n\\t\\t\\tw.Turn = step.Turn\\n\\t\\t\\tif step.Actor == \"P\" {\\n\\t\\t\\t\\tapplyPlayer(w, step.Arg)\\n\\t\\t\\t\\te4.ApplyLit(w, radius, blindActive(w))\\n\\t\\t\\t}\\n\\t\\t\\tif step.Actor == \"H\" {\\n\\t\\t\\t\\tmoves = append(moves, advanceAll(w, merged)...)\\n\\t\\t\\t}\\n\\t\\t}\\n\\t\\treturn moves' /app/internal/f5/run.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '215,240p' /app/internal/f5/run.go\n",
+      "duration": 0.5
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+New Terminal Output:
+
+root@3b3cdaca49ea:/app# src=/tmp/staged-snapshot-1425437382/alpha/source; rst=/tmp/staged-snapshot-1425437382/alpha/restored; echo '--- alpha a/one.txt (source)
+'; (cd "$src" && wc -c a/one.txt && sed -n '1,5p' a/one.txt && tail -c 20 a/one.txt | xxd); echo '--- alpha a/one.txt (restored)'; (cd "$rst" && wc -c a/one.txt
+ && sed -n '1,5p' a/one.txt && tail -c 20 a/one.txt | xxd)
+--- alpha a/one.txt (source)
+10 a/one.txt
+alpha:one
+bash: xxd: command not found
+--- alpha a/one.txt (restored)
+9 a/one.txt
+alpha:onebash: xxd: command not found
+root@3b3cdaca49ea:/app# src=/tmp/staged-snapshot-1425437382/beta/source; rst=/tmp/staged-snapshot-1425437382/beta/restored; for p in a/one.txt c/three.txt a/sha
+red-a.dat; do echo "--- $p"; (cd "$src" && echo -n 'src ' && wc -c "$p" && sha256sum "$p"); (cd "$rst" && echo -n 'rst ' && wc -c "$p" && sha256sum "$p"); done
+--- a/one.txt
+src 9 a/one.txt
+a75085a88ac73d2a57aa1deae56dd1768da53ddaa07c3d5e4be1cf98375da787  a/one.txt
+rst 8 a/one.txt
+381112dcf1e2becdfcc756d2edc0350cc196af0457d35c57dc20c2cb2b2e926e  a/one.txt
+--- c/three.txt
+src 11 c/three.txt
+242bb315dc8708b172884d09eb4c5619db8af08ce56c5cb58b619ff8388a9edf  c/three.txt
+rst 10 c/three.txt
+ec7a59a06ff2fb09b47d72fb42342b69d50b7fad31346d431016f747a132fbce  c/three.txt
+--- a/shared-a.dat
+src 20 a/shared-a.dat
+201eb5d88b072c34ca62b13760fe9cc8241cef00b3a6045f1170fe7a6094805a  a/shared-a.dat
+rst 20 a/shared-a.dat
+201eb5d88b072c34ca62b13760fe9cc8241cef00b3a6045f1170fe7a6094805a  a/shared-a.dat
+root@3b3cdaca49ea:/app# src=/tmp/staged-snapshot-1425437382/zeta/source; rst=/tmp/staged-snapshot-1425437382/zeta/restored; echo '--- zeta hardlinks (source)';
+(cd "$src" && find . -type f -printf '%i %n %s %P\n' | sort -n | tail -n 30); echo '--- zeta hardlinks (restored)'; (cd "$rst" && find . -type f -printf '%i %n
+%s %P\n' | sort -n | tail -n 30)
+--- zeta hardlinks (source)
+384811053 1 9 a/one.txt
+384811054 1 9 b/two.txt
+384811055 1 11 c/three.txt
+384811056 4 20 a/shared-a.dat
+384811056 4 20 b/shared-b.dat
+384811056 4 20 c/shared-c.dat
+384811056 4 20 deep/x/shared.dat
+384811057 1 7 a/flow.txt
+384811058 1 16 d/roll.txt
+--- zeta hardlinks (restored)
+384810912 1 20 b/shared-b.dat
+384810913 1 20 a/shared-a.dat
+384810914 1 8 a/one.txt
+384811060 1 6 a/flow.txt
+384811064 1 20 deep/x/shared.dat
+384811066 1 16 d/roll.txt
+384811068 1 10 c/three.txt
+384811069 1 20 c/shared-c.dat
+384811071 1 9 b/two.txt
+root@3b3cdaca49ea:/app# grep -RIn --line-number --no-messages "os\.Link\|hardlink\|nlink\|WriteFile\|io\.Copy\|checkpoint\|replay\|restore" /app/internal /app/c
+md | head -n 200
+/app/internal/a0/core.go:51:    return os.WriteFile(path, []byte(data), 0o644)
+/app/internal/a0/core.go:84:                    if err := os.Link(shared, alias); err != nil {
+/app/internal/a0/core.go:137:           dev, ino, nlink, err := statIdentity(path)
+/app/internal/a0/core.go:145:           if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink})
+; err != nil {
+/app/internal/a0/core.go:152:           dev, ino, nlink, err := statIdentity(flow)
+/app/internal/a0/core.go:157:                   {Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
+/app/internal/a0/core.go:158:                   {Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
+/app/internal/a0/core.go:159:                   {Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
+/app/internal/a0/core.go:170:   replayRows, err := b1.FoldRows(rows, profile)
+/app/internal/a0/core.go:175:   for _, row := range replayRows {
+/app/internal/a0/core.go:192:                   if err := os.Link(existing, target); err != nil {
+/app/internal/b1/checkpoint.go:3:func checkpointB(rows []rowX) int {
+/app/internal/f5/types.go:45:   Restored string `json:"restored"`
+/app/internal/f5/types.go:50:   Restored [][]string `json:"restored"`
+/app/internal/f5/types.go:56:   Restored   string        `json:"restored"`
+/app/cmd/ctl/main.go:53:        restored := filepath.Join(caseDir, "restored")
+/app/cmd/ctl/main.go:57:        if err := os.MkdirAll(restored, 0o755); err != nil {
+/app/cmd/ctl/main.go:67:        if err := a0.Materialize(rows, restored, profile); err != nil {
+/app/cmd/ctl/main.go:74:        restoredDigest, err := e4.Digest(restored)
+/app/cmd/ctl/main.go:82:        restoredGroups, err := e4.Groups(restored)
+/app/cmd/ctl/main.go:90:        restoredAccounting, err := c2.ItemsC(restored, profile)
+/app/cmd/ctl/main.go:94:        digestsMatch := sourceDigest == restoredDigest
+/app/cmd/ctl/main.go:95:        groupsMatch := fmt.Sprint(sourceGroups) == fmt.Sprint(restoredGroups)
+/app/cmd/ctl/main.go:96:        accountingMatch := accountingEqual(accounting, restoredAccounting)
+/app/cmd/ctl/main.go:97:        diskMatch := accountingMatchesDisk(source, accounting) && accountingMatchesDisk(restored, restoredAccounting)
+/app/cmd/ctl/main.go:102:               Restored:   restored,
+/app/cmd/ctl/main.go:104:               Digest:     f5.DigestPair{Source: sourceDigest, Restored: restoredDigest},
+/app/cmd/ctl/main.go:105:               Groups:     f5.GroupPair{Source: sourceGroups, Restored: restoredGroups},
+/app/cmd/ctl/main.go:111:       outPath := flag.String("out", "/app/output/restore-audit.json", "audit output")
+/app/cmd/ctl/main.go:147:       if err := os.WriteFile(*outPath, append(encoded, '\n'), 0o644); err != nil {
+root@3b3cdaca49ea:/app# ls -la /app/internal && find /app/internal -maxdepth 3 -type f -name '*.go' -print
+total 0
+drwxr-xr-x 10 root root  86 May 25 12:02 .
+drwxr-xr-x 11 root root 171 May 25 12:04 ..
+drwxr-xr-x  2 root root  51 May 25 12:02 a0
+drwxr-xr-x  2 root root  58 May 25 12:02 b1
+drwxr-xr-x  2 root root  37 May 25 12:02 c2
+drwxr-xr-x  2 root root  35 May 25 12:02 d3
+drwxr-xr-x  2 root root  34 May 25 12:02 e4
+drwxr-xr-x  2 root root  39 May 25 12:02 f5
+drwxr-xr-x  2 root root  22 May 25 12:02 g6
+drwxr-xr-x  2 root root  23 May 25 12:02 h7
+/app/internal/a0/core.go
+/app/internal/a0/pack.go
+/app/internal/a0/scan.go
+/app/internal/b1/checkpoint.go
+/app/internal/b1/log.go
+/app/internal/b1/replay.go
+/app/internal/c2/roll.go
+/app/internal/c2/table.go
+/app/internal/d3/map.go
+/app/internal/d3/pair.go
+/app/internal/e4/io.go
+/app/internal/e4/walk.go
+/app/internal/f5/encode.go
+/app/internal/f5/types.go
+/app/internal/g6/cache.go
+/app/internal/h7/rollup.go
+root@3b3cdaca49ea:/app#

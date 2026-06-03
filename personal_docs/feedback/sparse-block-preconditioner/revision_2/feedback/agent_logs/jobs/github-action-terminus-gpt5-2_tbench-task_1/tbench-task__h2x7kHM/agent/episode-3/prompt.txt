@@ -1,0 +1,103 @@
+New Terminal Output:
+
+root@f3c44f310304:/app# ls -la /app/output && wc -c /app/output/solver-audit.json && head -n 40 /app/output/solver-audit.json
+total 8
+drwxr-xr-x  2 root root   62 May 28 16:10 .
+drwxr-xr-x 21 root root  289 May 28 16:09 ..
+-rw-r--r--  1 root root 1202 May 28 16:09 solver-audit.json
+-rw-r--r--  1 root root 1202 May 28 16:10 solver-audit.rerun.json
+1202 /app/output/solver-audit.json
+{
+  "cases": [
+    {
+      "name": "basalt",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "flint",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "shale",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "garnet",
+      "ok": false,
+      "iterations": 1,
+      "final_residual": 0,
+      "reported_residual": 0.0001,
+      "residual_agrees": false,
+      "hit_limit": false
+    },
+    {
+      "name": "mica",
+root@f3c44f310304:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> with open(p) as f: data=json.load(f)
+> cases=data.get('cases',[])
+> print('cases',len(cases))
+> fail=[c for c in cases if not c.get('ok',False)]
+> ra=[c for c in cases if not c.get('residual_agrees',False)]
+> hl=[c for c in cases if c.get('hit_limit',False)]
+> print('ok_false',len(fail))
+> print('residual_disagree',len(ra))
+> print('hit_limit',len(hl))
+> for title,arr in [('OK_FALSE',fail),('RESIDUAL_DISAGREE',ra),('HIT_LIMIT',hl)]:
+>     if arr:
+>         print('\n'+title)
+>         for c in arr:
+>             print(c.get('name'), 'it',c.get('iterations'), 'final',c.get('final_residual'), 'reported',c.get('reported_residual'), 'agree',c.get('residual_agr
+ees'), 'hit',c.get('hit_limit'))
+> PY
+cases 6
+ok_false 6
+residual_disagree 6
+hit_limit 0
+
+OK_FALSE
+basalt it 1 final 0 reported 0.0001 agree False hit False
+flint it 1 final 0 reported 0.0001 agree False hit False
+shale it 1 final 0 reported 0.0001 agree False hit False
+garnet it 1 final 0 reported 0.0001 agree False hit False
+mica it 1 final 0 reported 0.0001 agree False hit False
+opal it 1 final 0 reported 0.0001 agree False hit False
+
+RESIDUAL_DISAGREE
+basalt it 1 final 0 reported 0.0001 agree False hit False
+flint it 1 final 0 reported 0.0001 agree False hit False
+shale it 1 final 0 reported 0.0001 agree False hit False
+garnet it 1 final 0 reported 0.0001 agree False hit False
+mica it 1 final 0 reported 0.0001 agree False hit False
+opal it 1 final 0 reported 0.0001 agree False hit False
+root@f3c44f310304:/app# python3 - <<'PY'
+> import json
+> m=json.load(open('/app/output/solver-audit.json'))['cases']
+> # print compact table for all cases
+> for c in m:
+>     print(f"{c['name']:10s} ok={c['ok']} it={c['iterations']:4d} final={c['final_residual']:.6g} reported={c['reported_residual']:.6g} agree={c['residual_agre
+es']} hit={c['hit_limit']}")
+> PY
+basalt     ok=False it=   1 final=0 reported=0.0001 agree=False hit=False
+flint      ok=False it=   1 final=0 reported=0.0001 agree=False hit=False
+shale      ok=False it=   1 final=0 reported=0.0001 agree=False hit=False
+garnet     ok=False it=   1 final=0 reported=0.0001 agree=False hit=False
+mica       ok=False it=   1 final=0 reported=0.0001 agree=False hit=False
+opal       ok=False it=   1 final=0 reported=0.0001 agree=False hit=False
+root@f3c44f310304:/app#

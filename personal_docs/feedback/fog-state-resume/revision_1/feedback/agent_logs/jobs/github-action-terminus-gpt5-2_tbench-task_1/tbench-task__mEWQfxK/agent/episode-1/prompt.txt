@@ -1,0 +1,51 @@
+New Terminal Output:
+root@6d34054701b6:/app# bash /app/scripts/run-matrix.sh
+root@6d34054701b6:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root   31 May 25 15:58 .
+drwxr-xr-x 12 root root  188 May 25 15:58 ..
+-rw-r--r--  1 root root 4047 May 25 15:58 resume-audit.json
+root@6d34054701b6:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> cases=data.get('cases',[])
+> print('cases:', [c.get('name') for c in cases])
+> for c in cases:
+>     name=c.get('name')
+>     ok=c.get('ok')
+>     fresh=c.get('fresh',{})
+>     resume=c.get('resume',{})
+>     fi=fresh.get('illegal'); ri=resume.get('illegal')
+>     fs=fresh.get('sig'); rs=resume.get('sig')
+>     fsteps=fresh.get('steps'); rsteps=resume.get('steps')
+>     if not ok or fi or ri or (fs!=rs and fs and rs):
+>         print('\nFAIL:', name)
+>         print(' ok:', ok)
+>         print(' fresh illegal/steps/sig:', fi, fsteps, fs)
+>         print(' resume illegal/steps/sig:', ri, rsteps, rs)
+>         print(' records:', c.get('records'))
+>         print(' log:', c.get('log'))
+>         print(' visibility:', c.get('visibility'))
+>         print(' effects:', c.get('effects'))
+> PY
+cases: ['bishop', 'knight', 'lancer', 'rook', 'sentinel', 'warden']
+
+FAIL: rook
+ ok: False
+ fresh illegal/steps/sig: 0 1 7d3f56fa
+ resume illegal/steps/sig: 0 1 24ebc3c9
+ records: /app/workspace/rook/records.jsonl
+ log: /app/workspace/rook/trace.tsv
+ visibility: {'fresh_seen': 9, 'resume_seen': 8}
+ effects: []
+
+FAIL: sentinel
+ ok: False
+ fresh illegal/steps/sig: 0 1 9a98d68
+ resume illegal/steps/sig: 0 1 691e8e87
+ records: /app/workspace/sentinel/records.jsonl
+ log: /app/workspace/sentinel/trace.tsv
+ visibility: {'fresh_seen': 9, 'resume_seen': 8}
+ effects: [{'id': 'ward', 'active': True, 'epoch': 7}]
+root@6d34054701b6:/app#

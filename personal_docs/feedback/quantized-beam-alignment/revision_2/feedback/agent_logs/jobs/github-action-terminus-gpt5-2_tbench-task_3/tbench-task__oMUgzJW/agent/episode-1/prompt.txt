@@ -1,0 +1,72 @@
+New Terminal Output:
+root@962ef33851fd:/app# cd /app
+root@962ef33851fd:/app# ls -la
+total 12
+drwxr-xr-x  9 root root 159 May 28 16:26 .
+drwxr-xr-x 19 root root 265 May 28 16:27 ..
+-rw-r--r--  1 root root 122 May 28 16:24 Cargo.lock
+-rw-r--r--  1 root root  90 May 28 16:24 Cargo.toml
+drwxr-xr-x  3 root root  19 May 28 16:24 cmd
+drwxr-xr-x  2 root root  41 May 28 16:24 config
+drwxr-xr-x  2 root root  73 May 28 16:24 data
+drwxr-xr-x  2 root root  50 May 28 16:24 docs
+-rw-r--r--  1 root root  30 May 28 16:24 go.mod
+-rw-r--r--  1 root root   0 May 28 16:24 go.sum
+drwxr-xr-x  3 root root  21 May 28 16:24 internal
+drwxr-xr-x  9 root root  91 May 28 16:24 src
+drwxr-xr-x  2 root root  26 May 28 16:26 tools
+root@962ef33851fd:/app# find . -maxdepth 3 -type f -name 'run_local.sh' -o -name 'Cargo.toml' -o -name 'go.mod' -o -name 'sets.txt'
+./Cargo.toml
+./config/sets.txt
+./go.mod
+./tools/run_local.sh
+root@962ef33851fd:/app# sed -n '1,200p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+cargo --version
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@962ef33851fd:/app# sed -n '1,200p' /app/config/sets.txt
+alpha
+beta
+gamma
+delta
+epsilon
+zeta
+root@962ef33851fd:/app# ls -la /app/output || true
+ls: cannot access '/app/output': No such file or directory
+root@962ef33851fd:/app# for f in /app/output/raw.json /app/output/report.json; do echo "--- $f"; [ -f "$f" ] && head -c 2000 "$f" && echo; done
+--- /app/output/raw.json
+--- /app/output/report.json
+root@962ef33851fd:/app# /app/tools/run_local.sh
+/app/tools/run_local.sh: line 3: cargo: command not found
+root@962ef33851fd:/app# ls -la /app/output
+ls: cannot access '/app/output': No such file or directory
+root@962ef33851fd:/app# python3 - <<'PY'
+> import json
+> for p in ['/app/output/raw.json','/app/output/report.json']:
+>     print('==',p)
+>     with open(p) as f:
+>         data=json.load(f)
+>     if p.endswith('raw.json'):
+>         rows=data.get('raw',[])
+>     else:
+>         rows=data.get('rows',[])
+>         print('summary',data.get('summary'))
+>     print('rows',len(rows))
+>     if rows:
+>         print('first keys',list(rows[0].keys()))
+>         print('first name',rows[0].get('name') or rows[0].get('case') or rows[0].get('case_name'))
+> PY
+== /app/output/raw.json
+Traceback (most recent call last):
+  File "<stdin>", line 4, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/app/output/raw.json'
+root@962ef33851fd:/app# rg -n "scale|bias|packed|compress|quant" -S .
+bash: rg: command not found
+root@962ef33851fd:/app# rg -n "agree" -S .
+bash: rg: command not found
+root@962ef33851fd:/app#

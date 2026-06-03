@@ -1,0 +1,120 @@
+New Terminal Output:
+
+root@924dc32e4576:/app# sed -n '1,200p' /app/scale_q/metric.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s) + 1.0e-4;
+}
+root@924dc32e4576:/app# sed -n '1,260p' /app/include/matrix_view.h
+#pragma once
+
+#include "case_spec.h"
+
+#define MAX_DIM 32
+
+typedef struct {
+    int n;
+    int bs;
+    int nblocks;
+    int reorder;
+    int perm[MAX_BLOCKS];
+    double a[MAX_DIM * MAX_DIM];
+    double b[MAX_DIM];
+} MatrixView;
+
+typedef struct {
+    int n;
+    int bs;
+    int nblocks;
+    int reorder;
+    int perm[MAX_BLOCKS];
+    int row_ptr[MAX_BLOCKS + 1];
+    int col_idx[MAX_NNZ_BLOCKS];
+    double data[MAX_NNZ_BLOCKS * MAX_BS * MAX_BS];
+    double diag_inv[MAX_DIM];
+} BsrPack;
+
+void matrix_from_case(const CaseSpec *spec, MatrixView *view);
+void bsr_matvec(const BsrPack *pack, const double *x, double *y);
+root@924dc32e4576:/app# sed -n '1,260p' /app/src/case_io.cpp
+#include "../include/case_spec.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static void trim(char *s) {
+    size_t n = strlen(s);
+    while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) {
+        s[--n] = '\0';
+    }
+}
+
+int case_load(const char *path, CaseSpec *spec) {
+    FILE *fp = fopen(path, "r");
+    char line[512];
+    if (!fp) {
+        return -1;
+    }
+    memset(spec, 0, sizeof(*spec));
+    for (int i = 0; i < MAX_BLOCKS; i++) {
+        spec->perm[i] = i;
+    }
+    while (fgets(line, sizeof(line), fp)) {
+        trim(line);
+        if (line[0] == '#' || line[0] == '\0') {
+            continue;
+        }
+        if (strncmp(line, "name ", 5) == 0) {
+            strncpy(spec->name, line + 5, CASE_NAME_LEN - 1);
+        } else if (strncmp(line, "nblocks ", 8) == 0) {
+            spec->nblocks = atoi(line + 8);
+        } else if (strncmp(line, "bs ", 3) == 0) {
+            spec->bs = atoi(line + 3);
+        } else if (strncmp(line, "reorder ", 8) == 0) {
+            spec->reorder = atoi(line + 8);
+        } else if (strncmp(line, "perm ", 5) == 0) {
+            char *tok = strtok(line + 5, " ");
+            int ix = 0;
+            while (tok && ix < MAX_BLOCKS) {
+                spec->perm[ix++] = atoi(tok);
+                tok = strtok(NULL, " ");
+            }
+        } else if (strncmp(line, "block ", 6) == 0) {
+            BlockEntry *be = &spec->blocks[spec->block_count++];
+            char *tok = strtok(line + 6, " ");
+            be->rb = atoi(tok);
+            tok = strtok(NULL, " ");
+            be->cb = atoi(tok);
+            for (int k = 0; k < spec->bs * spec->bs; k++) {
+                tok = strtok(NULL, " ");
+                be->vals[k] = tok ? atof(tok) : 0.0;
+            }
+        } else if (strncmp(line, "rhs ", 4) == 0) {
+            char *tok = strtok(line + 4, " ");
+            int ix = 0;
+            while (tok && ix < MAX_BLOCKS * MAX_BS) {
+                spec->rhs[ix++] = atof(tok);
+                tok = strtok(NULL, " ");
+            }
+        }
+    }
+    fclose(fp);
+    return 0;
+}
+root@924dc32e4576:/app# grep -RIn "double norm_q" -n /app
+/app/drive_u/run.cpp:10:double norm_q(const double *a, int b);
+/app/scale_q/metric.cpp:5:double norm_q(const double *a, int b) {
+root@924dc32e4576:/app# bash /app/scripts/run-matrix.sh
+root@924dc32e4576:/app# cp -f /app/output/solver-audit.json /tmp/solver-audit.run1.json
+root@924dc32e4576:/app# bash /app/scripts/run-matrix.sh
+root@924dc32e4576:/app# cp -f /app/output/solver-audit.json /tmp/solver-audit.run2.json
+root@924dc32e4576:/app# diff -u /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json || true
+root@924dc32e4576:/app#

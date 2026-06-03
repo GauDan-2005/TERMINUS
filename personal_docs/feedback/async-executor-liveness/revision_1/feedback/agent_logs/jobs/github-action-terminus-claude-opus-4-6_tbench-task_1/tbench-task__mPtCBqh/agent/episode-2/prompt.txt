@@ -1,0 +1,95 @@
+New Terminal Output:
+
+root@499c45b4a0bb:/app# cat /app/Cargo.toml
+[package]
+name = "executor_liveness_lab"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "executor_liveness_lab"
+path = "src/lib.rs"
+
+[[bin]]
+name = "executor-ctl"
+path = "src/main.rs"
+root@499c45b4a0bb:/app# cat /app/src/main.rs
+use std::env;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+
+use executor_liveness_lab::drive_g::drive_g;
+use executor_liveness_lab::read_h::read_plan;
+use executor_liveness_lab::serde_f::report_json;
+use executor_liveness_lab::types_f::CaseReport;
+
+fn arg_value(args: &[String], key: &str) -> Option<String> {
+    args.windows(2)
+        .find(|w| w[0] == key)
+        .map(|w| w[1].to_string())
+}
+
+fn plan_path(root: &Path, name: &str) -> PathBuf {
+    root.join("data").join("cases").join(format!("{}.plan", name))
+}
+
+fn load_names(args: &[String]) -> Vec<String> {
+    if let Some(name) = arg_value(args, "--case") {
+        vec![name]
+    } else {
+        ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+}
+
+fn drive_x(root: &Path, names: &[String], out: &Path, work: &Path) -> io::Result<Vec<CaseReport>> {
+    let mut reports = Vec::new();
+    for name in names {
+        let plan = read_plan(&plan_path(root, name))?;
+        reports.push(drive_g(&plan, work)?);
+    }
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent)?;
+    }
+    fs::write(out, report_json(&reports))?;
+    Ok(reports)
+}
+
+fn main() -> io::Result<()> {
+    let args: Vec<String> = env::args().collect();
+    let root = PathBuf::from(arg_value(&args, "--root").unwrap_or_else(|| "/app".to_string()));
+    let out = PathBuf::from(arg_value(&args, "--out").unwrap_or_else(|| "/app/output/executor-audit.json".to_string()));
+    let work = PathBuf::from(arg_value(&args, "--work").unwrap_or_else(|| "/app/output/runtime".to_string()));
+    let names = load_names(&args);
+    let _ = drive_x(&root, &names, &out, &work)?;
+    Ok(())
+}
+root@499c45b4a0bb:/app# cat /app/src/lib.rs
+#[path = "../types_f/types.rs"]
+pub mod types_f;
+#[path = "../types_f/serde.rs"]
+pub mod serde_f;
+#[path = "../read_h/parse.rs"]
+pub mod read_h;
+#[path = "../core_a/core.rs"]
+pub mod core_a;
+#[path = "../book_b/book.rs"]
+pub mod book_b;
+#[path = "../gate_c/gate.rs"]
+pub mod gate_c;
+#[path = "../host_d/host.rs"]
+pub mod host_d;
+#[path = "../flow_e/flow.rs"]
+pub mod flow_e;
+#[path = "../drive_g/drive.rs"]
+pub mod drive_g;
+#[path = "../spill_i/spill.rs"]
+pub mod spill_i;
+#[path = "../mirror_j/mirror.rs"]
+pub mod mirror_j;
+#[path = "../note_k/note.rs"]
+pub mod note_k;
+root@499c45b4a0bb:/app#

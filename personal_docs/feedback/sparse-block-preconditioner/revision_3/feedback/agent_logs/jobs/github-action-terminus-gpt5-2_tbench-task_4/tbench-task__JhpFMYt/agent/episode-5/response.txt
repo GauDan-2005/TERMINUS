@@ -1,0 +1,59 @@
+{
+  "analysis": "Found the residual mismatch root cause: norm_q() intentionally adds +1e-4 to the true L2 norm, making reported_residual disagree and residual_agrees false. Also final_residual currently prints as 0, likely because the computed norm is extremely small or because r is zero; but ok requires true_res < 1e-8, so that part is fine—however residual_agrees is forced false. Next we must remove the bias in norm_q so reported_residual matches the independently computed residual. Then rebuild and rerun audits; expect residual_agrees true and ok true (assuming not hitting limit and residual small enough). Also, scripts still wipe output each run; that’s acceptable as long as two runs produce equivalent JSON; determinism check can be done by saving to /tmp, which already showed no diff (good).",
+  "plan": "1) Patch /app/scale_q/metric.cpp to return sqrt(sum) with no added epsilon. 2) Rebuild with CMake. 3) Run matrix audit and confirm residual_agrees and ok are now true for all cases. 4) Run one-case basalt and confirm it matches matrix slice. 5) Perform two matrix runs saving to /tmp and diff to ensure equivalent JSON outputs.",
+  "commands": [
+    {
+      "keystrokes": "perl -0777 -i -pe 's/return\\s+sqrt\\(s\\)\\s*\\+\\s*1\\.0e-4\\s*;/return sqrt(s);/g' /app/scale_q/metric.cpp\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "grep -n \"return\" -n /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cmake --build /app/build -j\"$(nproc)\"\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cat /app/output/solver-audit.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/basalt-audit.json'))\nprint(m)\nPY\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))\nprint([c for c in m['cases'] if c['name']=='basalt'][0])\nPY\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh && cp -f /app/output/solver-audit.json /tmp/solver-audit.run1.json\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh && cp -f /app/output/solver-audit.json /tmp/solver-audit.run2.json\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))\nprint('all_ok', all(c['ok'] for c in m['cases']))\nprint('all_residual_agrees', all(c['residual_agrees'] for c in m['cases']))\nprint('cases', [(c['name'], c['ok'], c['iterations'], c['final_residual'], c['reported_residual'], c['hit_limit']) for c in m['cases']])\nPY\n",
+      "duration": 0.5
+    }
+  ],
+  "task_complete": false
+}

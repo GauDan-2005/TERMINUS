@@ -1,0 +1,27 @@
+{
+  "analysis": "emit_e and emit_matrix are declared in report.h but there is no src file shown that implements them; likely they are in one of the existing src/*.c files but not easily found due to naming mismatch, or they’re compiled from another directory. Also ledger_path exists in CaseResult but is never referenced in src, so run_case likely doesn’t set it and emitters likely don’t serialize it. We need to locate implementations of run_case/emit_e/emit_matrix (maybe in another directory or in a different name), then patch: set res->ledger_path in run_case and include it in JSON output.",
+  "plan": "1) Search the entire repo for definitions of run_case, emit_e, emit_matrix. 2) Open the file(s) containing these functions. 3) Patch to (a) set ledger_path to out_dir/<case>.ledger.jsonl when starting a case, and (b) include \"ledger\": \"<path>\" in emitted JSON for both matrix and one. 4) Rebuild via make. 5) Re-run matrix and run-one, then validate ledger fields are strings and files exist with matching line counts.",
+  "commands": [
+    {
+      "keystrokes": "grep -RIn \"int run_case\" -n .. | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"emit_matrix\" -n . | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"emit_e\" -n . | head -n 50\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"CaseResult\" -n src include | head -n 80\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"\\\"cases\\\"\" -n . | head -n 50\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

@@ -1,0 +1,269 @@
+New Terminal Output:
+
+root@27e9125e8859:/app# sha256sum /app/output/policy-audit.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /app/output/policy-audit.json
+root@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.1.json
+root@27e9125e8859:/app# bash /app/scripts/run-matrix.sh
+root@27e9125e8859:/app# cp -f /app/output/policy-audit.json /tmp/policy-audit.2.json
+root@27e9125e8859:/app# sha256sum /tmp/policy-audit.1.json /tmp/policy-audit.2.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /tmp/policy-audit.1.json
+17d871f15411e25caf8cdd9708183793b49a44c81994836a9d602b5b6f18d2d9  /tmp/policy-audit.2.json
+root@27e9125e8859:/app# diff -u /tmp/policy-audit.1.json /tmp/policy-audit.2.json | sed -n '1,160p'
+root@27e9125e8859:/app# for f in /app/traces/*.trace; do echo "--- $f"; sed -n '1,200p' "$f"; done
+--- /app/traces/alpha.trace
+grant boss vault/read
+delegate boss clerk
+check before clerk:vault/read
+revoke clerk -
+batch b1 -
+check batch clerk:vault/read
+end - -
+check after clerk:vault/read
+--- /app/traces/beta.trace
+check miss intern:vault/read
+grant intern vault/read
+check solo intern:vault/read
+--- /app/traces/delta.trace
+grant alice logs/read
+check first alice:logs/read
+revoke bob -
+check second alice:logs/read
+--- /app/traces/epsilon.trace
+grant root api/invoke
+delegate root mid
+delegate mid leaf
+revoke mid -
+check check leaf:api/invoke
+--- /app/traces/gamma.trace
+grant boss vault/write
+delegate boss clerk
+delegate clerk intern
+revoke boss -
+batch b1 -
+check batch intern:vault/write
+end - -
+--- /app/traces/zeta.trace
+grant alpha secret/read
+grant beta secret/read
+revoke alpha -
+batch mix -
+check a alpha:secret/read
+check b beta:secret/read
+end - -
+root@27e9125e8859:/app# grep -RIn --line-number --exclude-dir target "batch_id\|delegated_from\|delegat\|inherit\|reused\|epoch\|group" /app/src /app/k0 /app/k1
+ /app/k2 /app/k3 /app/k4 /app/k5 /app/k6 /app/k7 /app/k8 | sed -n '1,200p'
+/app/src/model.rs:18:    pub reused: bool,
+/app/src/model.rs:19:    pub group: String,
+/app/src/model.rs:38:    pub group_slot: BTreeMap<String, String>,
+/app/src/model.rs:39:    pub group_active: String,
+/app/src/model.rs:52:            group_slot: BTreeMap::new(),
+/app/src/model.rs:53:            group_active: String::new(),
+/app/src/model.rs:81:            reused: false,
+/app/src/model.rs:82:            group: String::new(),
+/app/src/report.rs:13:    epoch: u64,
+/app/src/report.rs:14:    reused: bool,
+/app/src/report.rs:15:    batch_id: String,
+/app/src/report.rs:16:    delegated_from: String,
+/app/src/report.rs:52:                        epoch: row.tick,
+/app/src/report.rs:53:                        reused: row.reused,
+/app/src/report.rs:54:                        batch_id: row.group.clone(),
+/app/src/report.rs:55:                        delegated_from: row.via.clone(),
+/app/k0/a.rs:19:        "delegate" => {
+/app/k0/a.rs:26:            a.group_active = b.left.clone();
+/app/k0/a.rs:27:            a.group_slot.clear();
+/app/k0/a.rs:31:            a.group_active.clear();
+/app/k0/a.rs:32:            a.group_slot.clear();
+/app/k0/a.rs:37:            let row = if a.group_active.is_empty() {
+/app/k3/d.rs:7:  if let Some(outcome) = a.group_slot.get(&slot) {
+/app/k3/d.rs:15:        row.group = a.group_active.clone();
+/app/k3/d.rs:20:    a.group_slot.insert(slot, outcome.clone());
+/app/k3/d.rs:23:    row.group = a.group_active.clone();
+/app/k5/f.rs:5:    let reused = a
+/app/k5/f.rs:10:    b.reused = reused;
+root@27e9125e8859:/app# sed -n '1,240p' /app/src/report.rs
+use crate::model::CaseReport;
+use serde::Serialize;
+use std::fs;
+use std::path::Path;
+
+#[derive(Serialize)]
+struct RowOut {
+    label: String,
+    principal: String,
+    resource: String,
+    action: String,
+    verdict: String,
+    epoch: u64,
+    reused: bool,
+    batch_id: String,
+    delegated_from: String,
+}
+
+#[derive(Serialize)]
+struct CaseOut {
+    name: String,
+    ok: bool,
+    decisions: Vec<RowOut>,
+    stale: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct RootOut {
+    cases: Vec<CaseOut>,
+}
+
+pub fn write_report(path: &Path, cases: &[CaseReport]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("mkdir {}: {e}", parent.display()))?;
+    }
+    let payload = RootOut {
+        cases: cases
+            .iter()
+            .map(|case| CaseOut {
+                name: case.name.clone(),
+                ok: case.ok,
+                stale: case.stale.clone(),
+                decisions: case
+                    .decisions
+                    .iter()
+                    .map(|row| RowOut {
+                        label: row.label.clone(),
+                        principal: row.subject.clone(),
+                        resource: row.object.clone(),
+                        action: row.mode.clone(),
+                        verdict: row.outcome.clone(),
+                        epoch: row.tick,
+                        reused: row.reused,
+                        batch_id: row.group.clone(),
+                        delegated_from: row.via.clone(),
+                    })
+                    .collect(),
+            })
+            .collect(),
+    };
+    let text = serde_json::to_string_pretty(&payload).map_err(|e| e.to_string())?;
+    fs::write(path, text).map_err(|e| format!("write {}: {e}", path.display()))
+}
+root@27e9125e8859:/app# sed -n '1,260p' /app/src/runner.rs
+use crate::io::read_trace;
+use crate::k0_a::phase_a;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        decisions: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+root@27e9125e8859:/app# sed -n '1,260p' /app/src/model.rs
+use std::collections::{BTreeMap, BTreeSet};
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub kind: String,
+    pub left: String,
+    pub right: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Decision {
+    pub label: String,
+    pub subject: String,
+    pub object: String,
+    pub mode: String,
+    pub outcome: String,
+    pub tick: u64,
+    pub reused: bool,
+    pub group: String,
+    pub via: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub decisions: Vec<Decision>,
+    pub stale: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub direct: BTreeSet<(String, String, String)>,
+    pub chain: BTreeMap<String, String>,
+    pub ticks: BTreeMap<String, u64>,
+    pub blocked: BTreeSet<String>,
+    pub store: BTreeMap<String, String>,
+    pub group_slot: BTreeMap<String, String>,
+    pub group_active: String,
+    pub seen: BTreeMap<String, String>,
+    pub clock: u64,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            direct: BTreeSet::new(),
+            chain: BTreeMap::new(),
+            ticks: BTreeMap::new(),
+            blocked: BTreeSet::new(),
+            store: BTreeMap::new(),
+            group_slot: BTreeMap::new(),
+            group_active: String::new(),
+            seen: BTreeMap::new(),
+            clock: 0,
+        }
+    }
+
+    pub fn tick_for(&self, subject: &str) -> u64 {
+        *self.ticks.get(subject).unwrap_or(&0)
+    }
+
+    pub fn slot_key(object: &str, mode: &str) -> String {
+        format!("{object}|{mode}")
+    }
+
+    pub fn track_key(subject: &str, object: &str, mode: &str) -> String {
+        format!("{subject}|{object}|{mode}")
+    }
+}
+
+impl Decision {
+    pub fn blank(label: &str, subject: &str, object: &str, mode: &str, tick: u64) -> Self {
+        Self {
+            label: label.to_string(),
+            subject: subject.to_string(),
+            object: object.to_string(),
+            mode: mode.to_string(),
+            outcome: String::new(),
+            tick,
+            reused: false,
+            group: String::new(),
+            via: String::new(),
+        }
+    }
+}
+root@27e9125e8859:/app#

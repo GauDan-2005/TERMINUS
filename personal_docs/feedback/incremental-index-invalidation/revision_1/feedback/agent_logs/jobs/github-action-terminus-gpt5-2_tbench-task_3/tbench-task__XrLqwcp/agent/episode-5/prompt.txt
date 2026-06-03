@@ -1,0 +1,183 @@
+New Terminal Output:
+
+root@01f99625b95f:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: /app/r4/e.rs
+> @@
+>  use crate::model::{Observation, State};
+>
+>  pub fn mote_e(a: &mut State, b: &str, c: bool) -> Observation {
+> -    if let Some(entry) = a.entries.iter().find(|entry| entry.symbol == b) {
+> -        let reused = a.last_seen.get(b).map(|old| *old == entry.handle).unwrap_or(false);
+> -        a.last_seen.insert(b.to_string(), entry.handle);
+> -        let fresh = a
+> -            .active
+> -            .get(&entry.slot)
+> -            .map(|root| entry.path.starts_with(root))
+> -            .unwrap_or(false);
+> -        Observation {
+> -            label: String::new(),
+> -            symbol: b.to_string(),
+> -            found: true,
+> -            path: entry.path.clone(),
+> -            source: entry.source.clone(),
+> -            line: entry.line,
+> -            epoch: entry.epoch,
+> -            reused,
+> -            fresh,
+> -        }
+> +    let mut candidates: Vec<_> = a.entries.iter().filter(|entry| entry.symbol == b).collect();
+> +    if candidates.is_empty() {
+> +        return Observation::missing(b, b, a.epoch, !c);
+>      }
+> -    else {
+> -        Observation::missing(b, b, a.epoch, !c)
+> +
+> +    // Prefer the definition visible from currently active roots; otherwise fall back
+> +    // deterministically to the latest indexed definition.
+> +    let in_active = |e: &&crate::model::Entry| {
+> +        a.active
+> +            .get(&e.slot)
+> +            .is_some_and(|root| e.path.starts_with(root))
+> +    };
+> +
+> +    let pick_best = |items: &mut Vec<&crate::model::Entry>| {
+> +        items.sort_by(|l, r| {
+> +            // newest epoch first, then stable by path+line
+> +            r.epoch
+> +                .cmp(&l.epoch)
+> +                .then_with(|| l.path.cmp(&r.path))
+> +                .then_with(|| l.line.cmp(&r.line))
+> +        });
+> +        items[0]
+> +    };
+> +
+> +    let mut active_candidates: Vec<_> = candidates.iter().copied().filter(in_active).collect();
+> +    let entry = if !active_candidates.is_empty() {
+> +        pick_best(&mut active_candidates)
+> +    } else {
+> +        pick_best(&mut candidates)
+> +    };
+> +
+> +    let reused = a
+> +        .last_seen
+> +        .get(b)
+> +        .map(|old| *old == entry.handle)
+> +        .unwrap_or(false);
+> +    a.last_seen.insert(b.to_string(), entry.handle);
+> +    let fresh = a
+> +        .active
+> +        .get(&entry.slot)
+> +        .map(|root| entry.path.starts_with(root))
+> +        .unwrap_or(false);
+> +    Observation {
+> +        label: String::new(),
+> +        symbol: b.to_string(),
+> +        found: true,
+> +        path: entry.path.clone(),
+> +        source: entry.source.clone(),
+> +        line: entry.line,
+> +        // Observation epoch is when the query ran.
+> +        epoch: a.epoch,
+> +        reused,
+> +        fresh,
+>      }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@01f99625b95f:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: /app/r5/f.rs
+> @@
+>  use crate::model::{Observation, State};
+>
+> -pub fn cast_f(_a: &State, b: Observation, c: bool) -> (Observation, Option<String>) {
+> -    if c {
+> -        if b.found && b.fresh {
+> -            (b, None)
+> -        } else {
+> -            let label = b.label.clone();
+> -            (b, Some(label))
+> -        }
+> -    } else if b.found && b.path.starts_with("/app/") {
+> -        (b, None)
+> -    } else {
+> -        (b, None)
+> -    }
+> +pub fn cast_f(_a: &State, label: &str, b: Observation, expect_found: bool) -> (Observation, Option<String>) {
+> +    if expect_found {
+> +        if b.found && b.fresh {
+> +            (b, None)
+> +        } else {
+> +            (b, Some(label.to_string()))
+> +        }
+> +    } else {
+> +        // For misses we only record staleness when the harness incorrectly reports a symbol.
+> +        if b.found {
+> +            (b, Some(label.to_string()))
+> +        } else {
+> +            (b, None)
+> +        }
+> +    }
+>  }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@01f99625b95f:/app# apply_patch<<'PATCH'
+> *** Begin Patch
+> *** Update File: /app/r0/a.rs
+> @@
+>          "query" => {
+>              let item = mote_e(a, &b.right, true);
+> -            let (item, note) = cast_f(a, item, true);
+> +            let (item, note) = cast_f(a, &b.left, item, true);
+>              c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+>              if let Some(note) = note {
+>                  c.stale.push(note);
+>              }
+>          }
+>          "miss" => {
+>              let item = mote_e(a, &b.right, false);
+> -            let (item, note) = cast_f(a, item, false);
+> +            let (item, note) = cast_f(a, &b.left, item, false);
+>              c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+>              if let Some(note) = note {
+>                  c.stale.push(note);
+>              }
+>          }
+> *** End Patch
+> PATCH
+bash: apply_patch: command not found
+root@01f99625b95f:/app# cargo fmt
+error: no such command: `fmt`
+
+        Did you mean `fix`?
+
+        View all installed commands with `cargo --list`
+        Find a package to install `fmt` with `cargo search cargo-fmt`
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+root@01f99625b95f:/app# python3 - <<'PY'
+> import json
+> p='/app/output/index-report.json'
+> obj=json.load(open(p))
+> print('cases',len(obj['cases']))
+> for c in obj['cases']:
+>     print(c['name'],'ok',c['ok'],'stale',c['stale'])
+> PY
+cases 6
+alpha ok False stale ['']
+beta ok False stale ['']
+gamma ok False stale ['', '']
+delta ok False stale ['', '', '']
+epsilon ok True stale []
+zeta ok False stale ['', '', '', '']
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json
+55f70241c7583f0567a9e203085bfb9ba3d11a25e1ca252769aa365bd7a1350a  /app/output/index-report.json
+root@01f99625b95f:/app# cp /app/output/index-report.json /app/output/index-report.json.run1
+root@01f99625b95f:/app# bash /app/scripts/run-matrix.sh
+root@01f99625b95f:/app# sha256sum /app/output/index-report.json /app/output/index-report.json.run1
+55f70241c7583f0567a9e203085bfb9ba3d11a25e1ca252769aa365bd7a1350a  /app/output/index-report.json
+55f70241c7583f0567a9e203085bfb9ba3d11a25e1ca252769aa365bd7a1350a  /app/output/index-report.json.run1
+root@01f99625b95f:/app# diff -u /app/output/index-report.json.run1 /app/output/index-report.json || true
+root@01f99625b95f:/app#

@@ -1,0 +1,91 @@
+Current terminal state:
+New Terminal Output:
+
+root@60c46bae9fb1:/app# sed -n '1,120p' /app/scale_q/metric.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+
+double norm_q(const double *a, int b) {
+    double s = 0.0;
+    for (int i = 0; i < b; i++) {
+        s += a[i] * a[i];
+    }
+    return sqrt(s);
+}
+root@60c46bae9fb1:/app# sed -n '1,160p' /app/scripts/run-matrix.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+bash "${APP_ROOT}/scripts/clean-room.sh"
+
+SOLVERCTL="${SOLVERCTL:-}"
+if [[ -z "${SOLVERCTL}" ]]; then
+  if [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+    SOLVERCTL="${APP_ROOT}/bin/solverctl"
+  elif [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+    SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+  else
+    echo "solverctl not found (looked in ${APP_ROOT}/bin and ${APP_ROOT}/build/bin); set SOLVERCTL=..." >&2
+    exit 127
+  fi
+fi
+
+"${SOLVERCTL}" matrix
+root@60c46bae9fb1:/app# sed -n '1,200p' /app/scripts/run-one.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+NAME="${1:?case name required}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+bash "${APP_ROOT}/scripts/clean-room.sh"
+
+SOLVERCTL="${SOLVERCTL:-}"
+if [[ -z "${SOLVERCTL}" ]]; then
+  if [[ -x "${APP_ROOT}/bin/solverctl" ]]; then
+    SOLVERCTL="${APP_ROOT}/bin/solverctl"
+  elif [[ -x "${APP_ROOT}/build/bin/solverctl" ]]; then
+    SOLVERCTL="${APP_ROOT}/build/bin/solverctl"
+  else
+    echo "solverctl not found (looked in ${APP_ROOT}/bin and ${APP_ROOT}/build/bin); set SOLVERCTL=..." >&2
+    exit 127
+  fi
+fi
+
+"${SOLVERCTL}" one "${NAME}"
+root@60c46bae9fb1:/app# sed -n '1,200p' /app/scripts/clean-room.sh
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+
+# Clean transient solver byproducts but preserve audit JSON artifacts.
+# Keep the canonical solver-audit.json, any solver-audit*.json copies, and per-case *-audit.json.
+shopt -s nullglob
+for f in "${OUT}"/*; do
+  base="$(basename "$f")"
+  case "$base" in
+    solver-audit.json|solver-audit*.json|*-audit.json)
+      ;;
+    *)
+      rm -rf -- "$f"
+      ;;
+  esac
+done
+root@60c46bae9fb1:/app# ls -la /app/output
+total 12
+drwxr-xr-x  2 root root   83 May 28 16:15 .
+drwxr-xr-x 21 root root  289 May 28 16:10 ..
+-rw-r--r--  1 root root  211 May 28 16:15 basalt-audit.json
+-rw-r--r--  1 root root 1160 May 28 16:13 solver-audit.2.json
+-rw-r--r--  1 root root 1160 May 28 16:14 solver-audit.json
+root@60c46bae9fb1:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

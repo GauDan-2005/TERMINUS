@@ -1,0 +1,47 @@
+New Terminal Output:
+root@f8bd583533f9:/app# bash /app/scripts/run-matrix.sh
+root@f8bd583533f9:/app# ls -la /app/output
+total 4
+drwxr-xr-x  2 root root   31 May 25 15:58 .
+drwxr-xr-x 12 root root  188 May 25 15:58 ..
+-rw-r--r--  1 root root 4047 May 25 15:58 resume-audit.json
+root@f8bd583533f9:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> print('exists',p)
+> with open(p) as f: data=json.load(f)
+> print('cases',len(data.get('cases',[])))
+> for c in data.get('cases',[]):
+>     name=c.get('name')
+>     ok=c.get('ok')
+>     fresh=c.get('fresh',{})
+>     resume=c.get('resume',{})
+>     print(f"{name:9s} ok={ok} fresh(illegal={fresh.get('illegal')}, steps={fresh.get('steps')}, sig={fresh.get('sig')}) resume(illegal={resume.get('illegal')}
+, steps={resume.get('steps')}, sig={resume.get('sig')}) records={c.get('records')} log={c.get('log')}")
+> PY
+exists /app/output/resume-audit.json
+cases 6
+bishop    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5) records=/app/workspace/bishop/records.jsonl log=/app/workspac
+e/bishop/trace.tsv
+knight    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5) records=/app/workspace/knight/records.jsonl log=/app/workspac
+e/knight/trace.tsv
+lancer    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5) records=/app/workspace/lancer/records.jsonl log=/app/workspac
+e/lancer/trace.tsv
+rook      ok=False fresh(illegal=0, steps=1, sig=7d3f56fa) resume(illegal=0, steps=1, sig=24ebc3c9) records=/app/workspace/rook/records.jsonl log=/app/workspace
+/rook/trace.tsv
+sentinel  ok=False fresh(illegal=0, steps=1, sig=9a98d68) resume(illegal=0, steps=1, sig=691e8e87) records=/app/workspace/sentinel/records.jsonl log=/app/worksp
+ace/sentinel/trace.tsv
+warden    ok=True fresh(illegal=0, steps=0, sig=811c9dc5) resume(illegal=0, steps=0, sig=811c9dc5) records=/app/workspace/warden/records.jsonl log=/app/workspac
+e/warden/trace.tsv
+root@f8bd583533f9:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f: data=json.load(f)
+> bad=[]
+> for c in data['cases']:
+>     if not c.get('ok') or c.get('fresh',{}).get('illegal') or c.get('resume',{}).get('illegal'):
+>         bad.append(c['name'])
+> print('bad',bad)
+> PY
+bad ['rook', 'sentinel']
+root@f8bd583533f9:/app#

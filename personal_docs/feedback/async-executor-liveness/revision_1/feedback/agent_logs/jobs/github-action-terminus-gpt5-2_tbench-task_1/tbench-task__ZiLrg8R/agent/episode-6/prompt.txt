@@ -1,0 +1,111 @@
+New Terminal Output:
+
+root@88e50440921f:/app# python3 - <<'PY'
+> import json, pathlib
+> p=pathlib.Path('/app/output/executor-audit.json')
+> print('exists',p.exists(),'size',p.stat().st_size)
+> a=json.loads(p.read_text())
+> print('top keys',sorted(a.keys()))
+> cases=a.get('cases',[])
+> print('cases',len(cases),[c.get('name') for c in cases])
+> for c in cases:
+>     print(c['name'],'ok',c.get('ok'),'finished',c.get('finished'),'pending',len(c.get('pending',[])),'trace',len(c.get('trace',[])))
+> PY
+exists True size 2829
+top keys ['cases']
+cases 6 ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
+amber ok True finished True pending 0 trace 4
+cobalt ok False finished False pending 3 trace 2
+drake ok True finished True pending 0 trace 4
+ember ok False finished False pending 2 trace 2
+flint ok True finished True pending 0 trace 3
+graphite ok False finished False pending 1 trace 5
+root@88e50440921f:/app# python3 - <<'PY'
+> import json, pathlib
+> from itertools import zip_longest
+> root=pathlib.Path('/app')
+> a=json.loads((root/'output/executor-audit.json').read_text())
+>
+> def norm_rec(r):
+>     return {k:r.get(k) for k in ['case','task','parent','depth','lane','turn']}
+>
+> bad=False
+> for c in a['cases']:
+>     name=c['name']
+>     ledger_path=root/c['ledger'] if not str(c['ledger']).startswith('/') else pathlib.Path(c['ledger'])
+>     journal_path=root/c['journal'] if not str(c['journal']).startswith('/') else pathlib.Path(c['journal'])
+>     if not ledger_path.exists():
+>         print('MISSING ledger',name,ledger_path); bad=True; continue
+>     if not journal_path.exists():
+>         print('MISSING journal',name,journal_path); bad=True; continue
+>     # load ledger jsonl
+>     ledger=[]
+>     for line in ledger_path.read_text().splitlines():
+>         line=line.strip()
+>         if not line: continue
+>         ledger.append(json.loads(line))
+>     trace=[norm_rec(r) for r in c.get('trace',[])]
+>     ledger_n=[norm_rec(r) for r in ledger]
+>     if trace!=ledger_n:
+>         print('TRACE!=LEDGER',name,'trace',len(trace),'ledger',len(ledger_n))
+>         for i,(t,l) in enumerate(zip_longest(trace,ledger_n)):
+>             if t!=l:
+>                 print(' first diff at',i,'trace',t,'ledger',l)
+>                 break
+>         bad=True
+>     # load journal rows
+>     journal=[]
+>     for line in journal_path.read_text().splitlines():
+>         line=line.strip()
+>         if not line: continue
+>         parts=line.split()
+>         if len(parts)!=6:
+>             print('bad journal row',name,line); bad=True; continue
+>         case,task,parent,depth,lane,turn=parts
+>         journal.append({'case':case,'task':task,'parent':None if parent=='-' else parent,'depth':int(depth),'lane':lane,'turn':int(turn)})
+>     if trace!=journal:
+>         print('TRACE!=JOURNAL',name,'trace',len(trace),'journal',len(journal))
+>         for i,(t,j) in enumerate(zip_longest(trace,journal)):
+>             if t!=j:
+>                 print(' first diff at',i,'trace',t,'journal',j)
+>                 break
+>         bad=True
+>
+> print('OK' if not bad else 'FAIL')
+> PY
+TRACE!=JOURNAL amber trace 4 journal 4
+ first diff at 0 trace {'case': 'amber', 'task': 'amber-left', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'amber', 'task': 'amber-
+side', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
+TRACE!=JOURNAL cobalt trace 2 journal 2
+ first diff at 0 trace {'case': 'cobalt', 'task': 'cobalt-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'cobalt', 'task': 'cob
+alt-tail', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
+TRACE!=JOURNAL drake trace 4 journal 4
+ first diff at 0 trace {'case': 'drake', 'task': 'drake-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'drake', 'task': 'drake-
+shadow', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
+TRACE!=JOURNAL ember trace 2 journal 2
+ first diff at 0 trace {'case': 'ember', 'task': 'ember-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'ember', 'task': 'ember-
+side', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
+TRACE!=JOURNAL flint trace 3 journal 3
+ first diff at 0 trace {'case': 'flint', 'task': 'flint-a', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'flint', 'task': 'flint-b',
+ 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 0}
+TRACE!=JOURNAL graphite trace 5 journal 5
+ first diff at 0 trace {'case': 'graphite', 'task': 'graphite-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'graphite', 'task'
+: 'graphite-e', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
+FAIL
+root@88e50440921f:/app# python3 - <<'PY'
+> import json
+> import pathlib
+> p=pathlib.Path('/app/output/executor-audit.json')
+> a=json.loads(p.read_text())
+> want=['amber','cobalt','drake','ember','flint','graphite']
+> have=[c['name'] for c in a.get('cases',[])]
+> print('want',want)
+> print('have',have)
+> print('missing',[x for x in want if x not in have])
+> print('extra',[x for x in have if x not in want])
+> PY
+want ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
+have ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
+missing []
+extra []
+root@88e50440921f:/app#

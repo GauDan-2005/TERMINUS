@@ -1,0 +1,63 @@
+{
+  "analysis": "CMake builds solverctl into /app/build/bin/solverctl by design; docs/scripts expect /app/bin/solverctl which does not exist. solverctl has minimal help output. Next step is to inspect solverctl behavior/output for matrix/one runs and locate where it writes any JSON or text; then fix scripts to (a) find the correct solverctl path and (b) write the required audit JSON files deterministically to /app/output.",
+  "plan": "1) Run solverctl matrix and one (basalt) directly from /app/build/bin and capture stdout/stderr to see what it emits and what files it writes. 2) List /app/output after runs and inspect any produced files. 3) Inspect source files around reporting/metrics (flow_t/report.cpp, scale_q/metric.cpp, solve_s/driver.cpp, drive_u/run.cpp, src/main.cpp) to understand how to obtain iterations, final residual, reported residual, and settled/limit status. 4) Based on findings, update run-matrix.sh and run-one.sh to call the right binary and to write /app/output/solver-audit.json and /app/output/<name>-audit.json in the exact layout.md schema, ensuring deterministic ordering and stable floating formatting.",
+  "commands": [
+    {
+      "keystrokes": "rm -rf /app/output && mkdir -p /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix > /app/output/matrix.stdout 2> /app/output/matrix.stderr || echo \"exit:$?\"\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "wc -c /app/output/matrix.stdout /app/output/matrix.stderr && sed -n '1,200p' /app/output/matrix.stdout && sed -n '1,200p' /app/output/matrix.stderr\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "find /app/output -maxdepth 1 -type f -print -exec sed -n '1,120p' {} \\;\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt > /app/output/one-basalt.stdout 2> /app/output/one-basalt.stderr || echo \"exit:$?\"\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "wc -c /app/output/one-basalt.stdout /app/output/one-basalt.stderr && sed -n '1,200p' /app/output/one-basalt.stdout && sed -n '1,200p' /app/output/one-basalt.stderr\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "find /app/output -maxdepth 1 -type f -print\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,220p' /app/src/main.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/flow_t/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/solve_s/driver.cpp\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

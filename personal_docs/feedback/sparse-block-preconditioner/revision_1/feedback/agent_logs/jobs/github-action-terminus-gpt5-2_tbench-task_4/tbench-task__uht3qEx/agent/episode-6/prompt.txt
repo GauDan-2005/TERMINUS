@@ -1,0 +1,40 @@
+New Terminal Output:
+
+root@4cc4b56ff70c:/app# mkdir -p /tmp/audit-snap
+root@4cc4b56ff70c:/app# bash /app/scripts/run-matrix.sh
+root@4cc4b56ff70c:/app# cp /app/output/solver-audit.json /tmp/audit-snap/solver-audit.1.json
+root@4cc4b56ff70c:/app# bash /app/scripts/run-one.sh basalt
+root@4cc4b56ff70c:/app# cp /app/output/basalt-audit.json /tmp/audit-snap/basalt-audit.json
+root@4cc4b56ff70c:/app# bash /app/scripts/run-matrix.sh
+root@4cc4b56ff70c:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> M=json.loads(Path('/app/output/solver-audit.json').read_text())
+> O=json.loads(Path('/tmp/audit-snap/basalt-audit.json').read_text())
+> mc={c['name']:c for c in M['cases']}
+> oc={c['name']:c for c in O['cases']}
+> print('slice equals per-case:', mc.get('basalt')==oc.get('basalt'))
+> if mc.get('basalt')!=oc.get('basalt'):
+>   print('matrix basalt:', mc.get('basalt'))
+>   print('one basalt  :', oc.get('basalt'))
+> PY
+slice equals per-case: True
+root@4cc4b56ff70c:/app# cp /app/output/solver-audit.json /tmp/audit-snap/solver-audit.2.json
+root@4cc4b56ff70c:/app# bash /app/scripts/run-matrix.sh
+root@4cc4b56ff70c:/app# cp /app/output/solver-audit.json /tmp/audit-snap/solver-audit.3.json
+root@4cc4b56ff70c:/app# python3 - <<'PY'
+> import json
+> from pathlib import Path
+> p1=Path('/tmp/audit-snap/solver-audit.2.json')
+> p2=Path('/tmp/audit-snap/solver-audit.3.json')
+> a=json.loads(p1.read_text())
+> b=json.loads(p2.read_text())
+> print('exact json equal:', a==b)
+> import json as _j
+> na=_j.dumps(a, sort_keys=True, separators=(',',':'))
+> nb=_j.dumps(b, sort_keys=True, separators=(',',':'))
+> print('normalized equal:', na==nb)
+> PY
+exact json equal: True
+normalized equal: True
+root@4cc4b56ff70c:/app#

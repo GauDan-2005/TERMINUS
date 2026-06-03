@@ -1,0 +1,222 @@
+Current terminal state:
+New Terminal Output:
+
+root@107ddb0bc64d:/app# sed -n '1,220p' outcome/report.json
+{
+  "records": [
+    {
+      "name": "alpha",
+      "rows": [
+        {
+          "index": 0,
+          "value": 9,
+          "factor": 2,
+          "nativeValue": 4,
+          "deferred": [
+            3
+          ]
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 4,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 6,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "beta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 12,
+          "factor": 4,
+          "nativeValue": 2,
+          "deferred": [
+            1,
+            5
+          ]
+        },
+        {
+          "index": 1,
+          "value": 12,
+          "factor": 5,
+          "nativeValue": 5,
+          "deferred": [
+            2
+          ]
+        },
+        {
+          "index": 2,
+          "value": 13,
+          "factor": 7,
+          "nativeValue": 6,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 6,
+      "dependencyTotal": 16,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "gamma",
+      "rows": [
+        {
+          "index": 0,
+          "value": 7,
+          "factor": 1,
+          "nativeValue": 6,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 19,
+          "factor": 7,
+          "nativeValue": 8,
+          "deferred": [
+            4
+          ]
+        }
+      ],
+      "finalCounter": 8,
+      "dependencyTotal": 8,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "delta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 12,
+          "factor": 7,
+          "nativeValue": 1,
+          "deferred": [
+            2,
+            2
+          ]
+        },
+        {
+          "index": 1,
+          "value": 13,
+          "factor": 3,
+          "nativeValue": 9,
+          "deferred": [
+            1
+          ]
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 10,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "epsilon",
+      "rows": [
+        {
+          "index": 0,
+          "value": 9,
+          "factor": 3,
+          "nativeValue": 3,
+          "deferred": [
+            3
+          ]
+        },
+        {
+          "index": 1,
+          "value": 17,
+          "factor": 9,
+          "nativeValue": 6,
+          "deferred": [
+            2
+          ]
+        },
+        {
+          "index": 2,
+          "value": 13,
+          "factor": 4,
+          "nativeValue": 9,
+          "deferred": []
+        }
+      ],
+      "finalCounter": 9,
+      "dependencyTotal": 16,
+      "acceptedOlder": true,
+      "healthy": true
+    },
+    {
+      "name": "zeta",
+      "rows": [
+        {
+          "index": 0,
+          "value": 11,
+          "factor": 2,
+          "nativeValue": 9,
+          "deferred": []
+        },
+        {
+          "index": 1,
+          "value": 23,
+          "factor": 10,
+          "nativeValue": 10,
+          "deferred": [
+            3
+          ]
+        }
+      ],
+      "finalCounter": 10,
+      "dependencyTotal": 12,
+      "acceptedOlder": true,
+      "healthy": true
+    }
+  ],
+  "aggregate": {
+    "source": "local",
+    "recordCount": 6,
+    "totalCounter": 51,
+    "dependencyTotal": 68,
+    "rowTotal": 183,
+    "healthyCount": 6,
+    "status": "healthy"
+  }
+}
+root@107ddb0bc64d:/app# python3 - <<'PY'
+> import json
+> obj=json.load(open('outcome/report.json'))
+> recs=obj['records']
+> agg=obj['aggregate']
+> calc={
+>   'source': agg.get('source'),
+>   'recordCount': len(recs),
+>   'totalCounter': sum(r['finalCounter'] for r in recs),
+>   'dependencyTotal': sum(r['dependencyTotal'] for r in recs),
+>   'rowTotal': sum(row['value'] for r in recs for row in r['rows']),
+>   'healthyCount': sum(1 for r in recs if r['healthy']),
+>   'status': 'healthy' if all(r['healthy'] for r in recs) else 'stale'
+> }
+> print('aggregate_matches=', calc==agg)
+> if calc!=agg:
+>   print('expected', calc)
+>   print('actual  ', agg)
+> # check deferred sorted
+> ok=True
+> for r in recs:
+>   for row in r['rows']:
+>     d=row.get('deferred',[])
+>     if d!=sorted(d):
+>       ok=False
+> print('deferred_sorted=', ok)
+> PY
+aggregate_matches= True
+deferred_sorted= True
+root@107ddb0bc64d:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

@@ -1,0 +1,85 @@
+New Terminal Output:
+root@57abb894ec9d:/app# cd /app
+root@57abb894ec9d:/app# ls -la
+total 12
+drwxr-xr-x  9 root root 159 May 25 15:59 .
+drwxr-xr-x 19 root root 265 May 25 16:00 ..
+-rw-r--r--  1 root root 122 May 25 15:58 Cargo.lock
+-rw-r--r--  1 root root  90 May 25 15:58 Cargo.toml
+drwxr-xr-x  3 root root  19 May 25 15:58 cmd
+drwxr-xr-x  2 root root  41 May 25 15:58 config
+drwxr-xr-x  2 root root  73 May 25 15:58 data
+drwxr-xr-x  2 root root  50 May 25 15:58 docs
+-rw-r--r--  1 root root  30 May 25 15:58 go.mod
+-rw-r--r--  1 root root   0 May 25 15:58 go.sum
+drwxr-xr-x  3 root root  21 May 25 15:58 internal
+drwxr-xr-x  9 root root  91 May 25 15:58 src
+drwxr-xr-x  2 root root  26 May 25 15:59 tools
+root@57abb894ec9d:/app# find /app -maxdepth 3 -type f -name 'run_local.sh' -o -name '*.go' -o -name '*.rs' -o -name 'Cargo.toml' -o -name 'go.mod' -o -name 'set
+s.txt' | sed 's#^/app/##' | sort
+Cargo.toml
+cmd/align/main.go
+config/sets.txt
+go.mod
+internal/collate/table.go
+src/a0/mod.rs
+src/b1/mod.rs
+src/c2/mod.rs
+src/d3/mod.rs
+src/e4/mod.rs
+src/f5/mod.rs
+src/g6/mod.rs
+src/main.rs
+tools/run_local.sh
+root@57abb894ec9d:/app# sed -n '1,200p' /app/config/sets.txt
+alpha:baseline
+beta:compact-single
+gamma:compact-group
+delta:compact-shuffle
+epsilon:compact-reuse
+zeta:plain-shuffle
+root@57abb894ec9d:/app# sed -n '1,200p' /app/tools/run_local.sh
+#!/bin/bash
+set -euo pipefail
+mkdir -p /app/output /app/bin
+cargo build --release --quiet --manifest-path /app/Cargo.toml
+/app/target/release/local-infer-sandbox /app/output/raw.json
+go build -o /app/bin/align /app/cmd/align/main.go
+/app/bin/align /app/output/raw.json /app/output/report.json
+root@57abb894ec9d:/app# ls -la /app/output || true
+ls: cannot access '/app/output': No such file or directory
+root@57abb894ec9d:/app# test -f /app/output/raw.json && (echo '--- raw.json (head)'; head -c 2000 /app/output/raw.json; echo) || echo 'no raw.json'
+no raw.json
+root@57abb894ec9d:/app# test -f /app/output/report.json && (echo '--- report.json (head)'; head -c 2000 /app/output/report.json; echo) || echo 'no report.json'
+no report.json
+root@57abb894ec9d:/app# bash -lc '/app/tools/run_local.sh'
+/app/tools/run_local.sh: line 4: cargo: command not found
+root@57abb894ec9d:/app# ls -la /app/output
+total 0
+drwxr-xr-x  2 root root   6 May 25 16:00 .
+drwxr-xr-x 11 root root 184 May 25 16:00 ..
+root@57abb894ec9d:/app# python3 - <<'PY'
+> import json,sys
+> from pathlib import Path
+> rawp=Path('/app/output/raw.json')
+> repp=Path('/app/output/report.json')
+> print('raw exists',rawp.exists(),'report exists',repp.exists())
+> if rawp.exists():
+>     raw=json.loads(rawp.read_text())
+>     print('raw keys',list(raw)[:10])
+>     arr=raw.get('raw')
+>     print('raw.raw type',type(arr), 'len', len(arr) if isinstance(arr,list) else None)
+>     if isinstance(arr,list) and arr:
+>         print('raw row keys',sorted(arr[0].keys()))
+> if repp.exists():
+>     rep=json.loads(repp.read_text())
+>     print('report keys',list(rep)[:10])
+>     rows=rep.get('rows')
+>     print('report.rows type',type(rows),'len',len(rows) if isinstance(rows,list) else None)
+>     summ=rep.get('summary')
+>     print('summary',summ)
+>     if isinstance(rows,list) and rows:
+>         print('report row keys',sorted(rows[0].keys()))
+> PY
+raw exists False report exists False
+root@57abb894ec9d:/app#

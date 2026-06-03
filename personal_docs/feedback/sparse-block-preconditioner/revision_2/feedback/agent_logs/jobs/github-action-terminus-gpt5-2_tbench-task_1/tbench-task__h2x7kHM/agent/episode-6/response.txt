@@ -1,0 +1,63 @@
+{
+  "analysis": "After fixing norm_q, the matrix audit shows all cases ok=true and residual_agrees=true. However, clean-room.sh appears to delete /app/output contents each time it runs, which caused our saved copy to disappear when we ran run-one.sh (it calls clean-room.sh). Same issue prevented storing run1.json before the next clean-room. We need to save artifacts outside /app/output (e.g., /tmp) for comparisons, or modify clean-room.sh/scripts to not delete audit outputs. The task requires scripts to write to /app/output paths, but they can still clean intermediate files if they preserve audits or we copy them out before another run.",
+  "plan": "1) Inspect clean-room.sh to confirm what it removes. 2) Update clean-room.sh (or the calling scripts) so it does not delete existing *-audit.json files (and solver-audit.json), ensuring run-one doesn’t wipe matrix output and vice versa. Alternative: change run-matrix.sh/run-one.sh to copy audits to temp before cleaning, but requirement is that scripts write outputs; preserving existing outputs is safest. 3) After adjusting, rerun matrix then one and compare equality using copies in /tmp as well. 4) Perform determinism check: run matrix twice and diff saved outputs.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/output || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "perl -i -pe 's/^\\s*rm\\s+-rf\\s+\"\\$\\{OUT\\}\"\\s*$/# rm -rf \"${OUT}\"  # keep audit outputs; only remove transient files/;/' /app/scripts/clean-room.sh\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /tmp/solver-audit.matrix.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/basalt-audit.json /tmp/basalt-audit.one.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/tmp/solver-audit.matrix.json'))['cases']\none=json.load(open('/tmp/basalt-audit.one.json'))['cases'][0]\nmx=[c for c in m if c['name']=='basalt'][0]\nprint(mx==one)\nif mx!=one:\n    print('matrix',mx)\n    print('one',one)\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /tmp/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /tmp/solver-audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /tmp/solver-audit.run1.json /tmp/solver-audit.run2.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

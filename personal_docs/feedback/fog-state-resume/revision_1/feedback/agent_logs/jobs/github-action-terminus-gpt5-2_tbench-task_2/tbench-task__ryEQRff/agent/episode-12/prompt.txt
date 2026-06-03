@@ -1,0 +1,78 @@
+Current terminal state:
+New Terminal Output:
+
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json, pathlib
+> p='/app/output/resume-audit.json'
+> data=json.load(open(p))
+> assert len(data['cases'])==6
+> bad=[]
+> for c in data['cases']:
+>     if not c['ok'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0:
+>         bad.append((c['name'],'ok/illegal'))
+>     if c['fresh']['sig']!=c['resume']['sig']:
+>         bad.append((c['name'],'sig'))
+> print('bad:', bad)
+> PY
+bad: []
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json, pathlib
+> p='/app/output/resume-audit.json'
+> data=json.load(open(p))
+>
+> def load_jsonl(path):
+>     rows=[]
+>     for ln in pathlib.Path(path).read_text().splitlines():
+>         if ln.strip(): rows.append(json.loads(ln))
+>     return rows
+>
+> def norm(m):
+>     return {k:m.get(k) for k in ['turn','actor','from_x','from_y','to_x','to_y','kind','legal']}
+>
+> for c in data['cases']:
+>     moves=[norm(m) for m in c['moves']]
+>     rec=[norm(m) for m in load_jsonl(c['records'])]
+>     ok = moves==rec
+>     print(c['name'], 'records_match=', ok, 'moves=', len(moves), 'records=', len(rec))
+> PY
+bishop records_match= True moves= 0 records= 0
+knight records_match= True moves= 0 records= 0
+lancer records_match= True moves= 0 records= 0
+rook records_match= True moves= 2 records= 2
+sentinel records_match= True moves= 2 records= 2
+warden records_match= True moves= 0 records= 0
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> data=json.load(open(p))
+> for c in data['cases']:
+>     with open(c['log']) as f:
+>         lines=[ln for ln in (x.strip() for x in f) if ln]
+>     print(c['name'], 'log_rows=', len(lines), 'moves=', len(c['moves']))
+> PY
+bishop log_rows= 0 moves= 0
+knight log_rows= 0 moves= 0
+lancer log_rows= 0 moves= 0
+rook log_rows= 2 moves= 2
+sentinel log_rows= 2 moves= 2
+warden log_rows= 0 moves= 0
+root@85b121dde67e:/app# bash /app/scripts/one-case.sh rook
+root@85b121dde67e:/app# bash /app/scripts/one-case.sh sentinel
+root@85b121dde67e:/app# python3 - <<'PY'
+> import json
+> matrix=json.load(open('/app/output/resume-audit.json'))
+>
+> def load_case(path):
+>     return json.load(open(path))['cases'][0]
+>
+> for name in ['rook','sentinel']:
+>     m=next(c for c in matrix['cases'] if c['name']==name)
+>     s=load_case(f'/app/output/single-{name}.json')
+>     print(name, 'single_matches_matrix=', m==s)
+> PY
+rook single_matches_matrix= True
+sentinel single_matches_matrix= True
+root@85b121dde67e:/app#
+
+
+Are you sure you want to mark the task as complete? This will trigger your solution to be graded and you won't be able to make any further corrections. If so, include "task_complete": true in your JSON response again.

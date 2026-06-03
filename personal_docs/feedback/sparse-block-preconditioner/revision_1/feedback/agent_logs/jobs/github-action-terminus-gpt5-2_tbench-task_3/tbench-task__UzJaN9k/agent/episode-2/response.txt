@@ -1,0 +1,47 @@
+{
+  "analysis": "CMake build succeeded but places solverctl at /app/build/bin/solverctl. Scripts call /app/bin/solverctl, which doesn't exist, so audits can't run. Also scripts don't generate required JSON. Case inputs appear to live under /app/data/cases. Next: inspect solverctl CLI behavior using /app/build/bin/solverctl, inspect case list, see current outputs (likely writes some report files), then update scripts to use built binary path and to write deterministic audit JSON files.",
+  "plan": "1) Inspect /app/data/cases to learn available case names (basalt, flint, shale, garnet, mica, opal, etc.). 2) Run solverctl --help and a single case to see stdout/stderr format and any files created in /app/output. 3) Locate where iterations/residuals are reported (stdout, JSON, trace file, etc.). 4) Patch run-matrix.sh/run-one.sh to: pick solverctl from /app/build/bin/solverctl (or fallback), run per case in a fixed order, parse required metrics, and write /app/output/solver-audit.json and /app/output/<name>-audit.json with stable formatting. 5) Validate determinism by running matrix twice and diffing JSON, and ensuring run-one output equals the corresponding case object in matrix output.",
+  "commands": [
+    {
+      "keystrokes": "ls -la /app/data/cases\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app/data/cases -maxdepth 2 -type f -print | sort | sed -n '1,200p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl --help 2>&1 | sed -n '1,200p'\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app/output -type f -maxdepth 2 -print -exec sed -n '1,200p' {} \\; 2>/dev/null | sed -n '1,200p'\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/clean-room.sh\n",
+      "duration": 0.2
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'\n",
+      "duration": 2.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

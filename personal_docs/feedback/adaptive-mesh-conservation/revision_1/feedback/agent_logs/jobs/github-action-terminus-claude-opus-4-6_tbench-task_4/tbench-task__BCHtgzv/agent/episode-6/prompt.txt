@@ -1,0 +1,367 @@
+Previous response had warnings:
+WARNINGS: - Extra text detected before JSON object
+
+New Terminal Output:
+
+root@87f509269b26:/app# cat /app/src/main.cpp
+#include "../include/audit_emit.h"
+#include "../include/case_spec.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static const char *CASE_NAMES[6] = {
+    "storm", "canyon", "plume", "spire", "basin", "dune"
+};
+
+static int load_all_cases(ScenarioSpec specs[6]) {
+    char cfg[256];
+    snprintf(cfg, sizeof(cfg), "%s/config/cases.toml", app_root());
+    for (int i = 0; i < 6; i++) {
+        if (load_case(cfg, CASE_NAMES[i], &specs[i]) != 0) {
+            fprintf(stderr, "failed to load case %s\n", CASE_NAMES[i]);
+            return -1;
+        }
+    }
+    return 0;
+}
+
+static int cmd_matrix(const char *out_path) {
+    ScenarioSpec specs[6];
+    if (load_all_cases(specs) != 0) return 1;
+    ScenarioOutcome out[6];
+    for (int i = 0; i < 6; i++) {
+        if (run_u(&specs[i], "matrix", &out[i]) != 0) {
+            fprintf(stderr, "scenario %s failed\n", specs[i].name);
+            return 2;
+        }
+    }
+    emit_matrix(out, 6, out_path);
+    return 0;
+}
+
+static int cmd_one(const char *name, const char *out_path) {
+    ScenarioSpec specs[6];
+    if (load_all_cases(specs) != 0) return 1;
+    for (int i = 0; i < 6; i++) {
+        if (strcmp(specs[i].name, name) == 0) {
+            ScenarioOutcome res;
+            if (run_u(&specs[i], "one", &res) != 0) return 3;
+            emit_one(&res, out_path);
+            return 0;
+        }
+    }
+    fprintf(stderr, "unknown case: %s\n", name);
+    return 4;
+}
+
+static int cmd_replay(const char *name, const char *out_path) {
+    ScenarioSpec specs[6];
+    if (load_all_cases(specs) != 0) return 1;
+    for (int i = 0; i < 6; i++) {
+        if (strcmp(specs[i].name, name) == 0) {
+            ScenarioOutcome res;
+            if (run_u(&specs[i], "replay", &res) != 0) return 5;
+            emit_one(&res, out_path);
+            return 0;
+        }
+    }
+    fprintf(stderr, "unknown case: %s\n", name);
+    return 6;
+}
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        fprintf(stderr, "usage: sim_run --matrix --out PATH | --one NAME --out PATH | --replay NAME --out PATH\n");
+        return 1;
+    }
+    const char *mode = argv[1];
+    const char *name = NULL;
+    const char *out_path = NULL;
+    for (int k = 2; k < argc; k++) {
+        if (strcmp(argv[k], "--out") == 0 && k + 1 < argc) {
+            out_path = argv[++k];
+        } else if (argv[k][0] != '-') {
+            name = argv[k];
+        }
+    }
+    if (strcmp(mode, "--matrix") == 0) {
+        return cmd_matrix(out_path ? out_path : "/app/output/conservation_audit.json");
+    } else if (strcmp(mode, "--one") == 0 && name) {
+        return cmd_one(name, out_path ? out_path : "/app/output/one.json");
+    } else if (strcmp(mode, "--replay") == 0 && name) {
+        return cmd_replay(name, out_path ? out_path : "/app/output/replay.json");
+    }
+    fprintf(stderr, "unknown mode\n");
+    return 1;
+}
+root@87f509269b26:/app# cat /app/src/case_io.cpp
+#include "../include/case_spec.h"
+#include "../include/ic_loader.h"
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+static void rstrip(char *s) {
+    int n = (int)strlen(s);
+    while (n > 0 && (s[n-1] == '\n' || s[n-1] == '\r' || s[n-1] == ' ' || s[n-1] == '\t')) {
+        s[--n] = 0;
+    }
+}
+
+static void parse_leaves(const char *val, ScenarioSpec *out) {
+    int c = 0;
+    const char *p = val;
+    while (*p && c < MAX_COARSE) {
+        int w = 0;
+        int k = 0;
+        while (*p && *p != '|') {
+            if (*p >= '0' && *p <= '9') {
+                w = w * 10 + (*p - '0');
+            } else if (*p == ',') {
+                if (k < MAX_LEAVES) out->leaf_weight[c][k++] = w;
+                w = 0;
+            }
+            p++;
+        }
+        if (k < MAX_LEAVES) out->leaf_weight[c][k++] = w;
+        out->leaf_count[c] = k;
+        c++;
+        if (*p == '|') p++;
+    }
+}
+
+int load_case(const char *path, const char *section, ScenarioSpec *out) {
+    FILE *fp = fopen(path, "r");
+    if (!fp) return -1;
+    memset(out, 0, sizeof(*out));
+    snprintf(out->name, sizeof(out->name), "%s", section);
+    char want[64];
+    snprintf(want, sizeof(want), "[%s]", section);
+    int in_section = 0;
+    char line[1024];
+    while (fgets(line, sizeof(line), fp)) {
+        char *p = line;
+        while (*p == ' ' || *p == '\t') p++;
+        if (*p == '#' || *p == '\n' || *p == '\r' || *p == 0) continue;
+        rstrip(p);
+        if (*p == '[') {
+            in_section = (strcmp(p, want) == 0) ? 1 : 0;
+            continue;
+        }
+        if (!in_section) continue;
+        char *eq = strchr(p, '=');
+        if (!eq) continue;
+        char key[64];
+        memset(key, 0, sizeof(key));
+        int kl = (int)(eq - p);
+        if (kl >= (int)sizeof(key)) kl = (int)sizeof(key) - 1;
+        memcpy(key, p, kl);
+        char *kt = key + kl - 1;
+        while (kt >= key && (*kt == ' ' || *kt == '\t')) *kt-- = 0;
+        char *v = eq + 1;
+        while (*v == ' ' || *v == '\t') v++;
+        if
+[... output limited to 10000 bytes; 70 interior bytes omitted ...]
+&q2) != 3) continue;
+        int i = out->n;
+        out->cells[i].idx = i;
+        out->cells[i].tier = 0;
+        out->cells[i].parent = -1;
+        out->cells[i].vol = 1.0;
+        out->cells[i].q[0] = q0;
+        out->cells[i].q[1] = q1;
+        out->cells[i].q[2] = q2;
+        out->n++;
+    }
+    fclose(fp);
+    if (out->n != n_coarse) return -3;
+    return 0;
+}
+root@87f509269b26:/app# cat /app/src/audit_emit.cpp
+#include "../include/audit_emit.h"
+
+#include <stdio.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <errno.h>
+
+static void mkpath(const char *path) {
+    char buf[512];
+    snprintf(buf, sizeof(buf), "%s", path);
+    int n = (int)strlen(buf);
+    for (int i = 1; i < n; i++) {
+        if (buf[i] == '/') {
+            buf[i] = 0;
+            mkdir(buf, 0755);
+            buf[i] = '/';
+        }
+    }
+}
+
+static void emit_row(FILE *fp, const ScenarioOutcome *o) {
+    fprintf(fp, "    {\n");
+    fprintf(fp, "      \"name\": \"%s\",\n", o->name);
+    fprintf(fp, "      \"base_total\": [%.17g, %.17g, %.17g],\n",
+        o->base_total[0], o->base_total[1], o->base_total[2]);
+    fprintf(fp, "      \"after_total\": [%.17g, %.17g, %.17g],\n",
+        o->after_total[0], o->after_total[1], o->after_total[2]);
+    fprintf(fp, "      \"resumed_total\": [%.17g, %.17g, %.17g],\n",
+        o->resumed_total[0], o->resumed_total[1], o->resumed_total[2]);
+    fprintf(fp, "      \"drift_ratio\": %.17g,\n", o->drift_ratio);
+    fprintf(fp, "      \"balanced\": %s,\n", o->balanced ? "true" : "false");
+    fprintf(fp, "      \"base_match\": %s,\n", o->base_match ? "true" : "false");
+    fprintf(fp, "      \"adjacency\": %d,\n", o->adjacency);
+    fprintf(fp, "      \"halo_q\": [%.17g, %.17g, %.17g]\n",
+        o->halo_q[0], o->halo_q[1], o->halo_q[2]);
+    fprintf(fp, "    }");
+}
+
+void emit_one(const ScenarioOutcome *a, const char *out_path) {
+    mkpath(out_path);
+    FILE *fp = fopen(out_path, "w");
+    if (!fp) return;
+    fprintf(fp, "{\n");
+    fprintf(fp, "  \"cases\": [\n");
+    emit_row(fp, a);
+    fprintf(fp, "\n  ]\n");
+    fprintf(fp, "}\n");
+    fclose(fp);
+}
+
+void emit_matrix(const ScenarioOutcome *a, int n, const char *out_path) {
+    mkpath(out_path);
+    FILE *fp = fopen(out_path, "w");
+    if (!fp) return;
+    fprintf(fp, "{\n");
+    fprintf(fp, "  \"cases\": [\n");
+    for (int i = 0; i < n; i++) {
+        emit_row(fp, &a[i]);
+        fprintf(fp, "%s\n", (i + 1 == n) ? "" : ",");
+    }
+    fprintf(fp, "  ]\n");
+    fprintf(fp, "}\n");
+    fclose(fp);
+}
+root@87f509269b26:/app# cat /app/include/audit_emit.h
+#ifndef AUDIT_EMIT_H
+#define AUDIT_EMIT_H
+
+#include "cell_view.h"
+
+struct ScenarioOutcome {
+    char name[32];
+    double base_total[NVAR];
+    double after_total[NVAR];
+    double resumed_total[NVAR];
+    double drift_ratio;
+    int balanced;
+    int base_match;
+    int adjacency;
+    double halo_q[NVAR];
+};
+
+void emit_one(const ScenarioOutcome *a, const char *out_path);
+void emit_matrix(const ScenarioOutcome *a, int n, const char *out_path);
+
+#endif
+root@87f509269b26:/app# cat /app/CMakeLists.txt
+cmake_minimum_required(VERSION 3.16)
+project(sim_run LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+if(NOT DEFINED BUILD_STAMP)
+    if(DEFINED ENV{SOURCE_DATE_EPOCH})
+        set(BUILD_STAMP $ENV{SOURCE_DATE_EPOCH})
+    else()
+        set(BUILD_STAMP "0")
+    endif()
+endif()
+add_compile_definitions(BUILD_STAMP=${BUILD_STAMP})
+
+add_executable(sim_run
+    src/main.cpp
+    src/case_io.cpp
+    src/vault_io.cpp
+    src/audit_emit.cpp
+    acc_m/edge_corr.cpp
+    lnk_n/relate.cpp
+    agg_q/blend.cpp
+    srl_p/serial.cpp
+    rsm_k/resume.cpp
+    sync_b/halo.cpp
+    drv_u/run.cpp
+    drv_u/run_refine.cpp
+    drv_u/run_blend.cpp
+    drv_u/run_sync.cpp
+    swp_t/sweep.cpp
+    emt_e/report.cpp
+    prb_v/hist.cpp
+    tap_w/trace.cpp
+    cch_z/ring.cpp
+)
+
+target_include_directories(sim_run PRIVATE include)
+
+set_target_properties(sim_run PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+root@87f509269b26:/app# cat /app/config/cases.toml
+# Per-scenario schedules for the bundled sweep.
+# profile selects the initial-condition table under /app/data/init.
+# leaves is a '|'-separated list (one entry per base cell); each entry is a
+# comma-separated list of integer sub-cell weights for that base cell.
+# do_flux / do_collapse / do_restart toggle the structural phases.
+
+[storm]
+profile = 0
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 0
+leaves = 2,1,1|1|1|1
+
+[canyon]
+profile = 1
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 0
+leaves = 2,1,1|2,2|1|1
+
+[plume]
+profile = 2
+n_coarse = 4
+do_flux = 0
+do_collapse = 1
+do_restart = 0
+leaves = 2,1|3,1|1|1
+
+[spire]
+profile = 0
+n_coarse = 4
+do_flux = 0
+do_collapse = 1
+do_restart = 0
+leaves = 3,1|1|1|1
+
+[basin]
+profile = 1
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 1
+leaves = 2,1,1|1|1|1
+
+[dune]
+profile = 2
+n_coarse = 4
+do_flux = 1
+do_collapse = 0
+do_restart = 1
+leaves = 2,1,1|2,2|1|1
+root@87f509269b26:/app#

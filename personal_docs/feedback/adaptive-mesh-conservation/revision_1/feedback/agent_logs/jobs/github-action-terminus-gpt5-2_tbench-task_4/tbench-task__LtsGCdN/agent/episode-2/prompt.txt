@@ -1,0 +1,222 @@
+New Terminal Output:
+
+root@a48c1a67d572:/app# ls -la /app/scripts && sed -n '1,200p' /app/scripts/run-one.sh && echo '---' && sed -n '1,220p' /app/scripts/run-replay.sh && echo '---'
+ && sed -n '1,260p' /app/scripts/run-matrix.sh
+total 16
+drwxr-xr-x  2 root root  87 May 28 23:38 .
+drwxr-xr-x 23 root root 303 May 28 23:40 ..
+-rwxr-xr-x  1 root root 130 May 28 23:38 clean-room.sh
+-rwxr-xr-x  1 root root 172 May 28 23:38 run-matrix.sh
+-rwxr-xr-x  1 root root 213 May 28 23:38 run-one.sh
+-rwxr-xr-x  1 root root 217 May 28 23:38 run-replay.sh
+#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+NAME="${1:?scenario name required}"
+mkdir -p "${APP}/output" "${APP}/work"
+"${APP}/build/bin/sim_run" --one "${NAME}" --out "${APP}/output/${NAME}-audit.json"
+---
+#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+NAME="${1:?scenario name required}"
+mkdir -p "${APP}/output" "${APP}/work"
+"${APP}/build/bin/sim_run" --replay "${NAME}" --out "${APP}/output/${NAME}-replay.json"
+---
+#!/bin/bash
+set -euo pipefail
+APP="${APP_ROOT:-/app}"
+bash "${APP}/scripts/clean-room.sh"
+"${APP}/build/bin/sim_run" --matrix --out "${APP}/output/conservation_audit.json"
+root@a48c1a67d572:/app# rm -f /app/output/spire-audit.json /app/output/storm-audit.json /app/output/dune-replay.json /app/output/basin-replay.json /app/output/p
+ersistence_audit.log /app/work/vault.bin 2>/dev/null || true
+root@a48c1a67d572:/app# bash /app/scripts/run-one.sh spire
+root@a48c1a67d572:/app# cat /app/output/spire-audit.json
+{
+  "cases": [
+    {
+      "name": "spire",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9903, 1.768275, 1.7481249999999999],
+      "resumed_total": [5.3113000000000001, 3.9472749999999999, 4.5431249999999999],
+      "drift_ratio": 0.010442857142857167,
+      "balanced": true,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.44289999999999996, 0.785825, 0.22037499999999999]
+    }
+  ]
+}
+root@a48c1a67d572:/app# bash /app/scripts/run-one.sh storm
+root@a48c1a67d572:/app# cat /app/output/storm-audit.json
+{
+  "cases": [
+    {
+      "name": "storm",
+      "base_total": [1.98, 1.75, 1.7429999999999999],
+      "after_total": [1.9838624999999999, 1.7568531250000001, 1.7449218750000002],
+      "resumed_total": [8.7781874999999996, 6.5723593749999996, 7.783765625],
+      "drift_ratio": 0.0039160714285715005,
+      "balanced": false,
+      "base_match": false,
+      "adjacency": 0,
+      "halo_q": [0.42229999999999995, 0.74927499999999991, 0.21012499999999998]
+    }
+  ]
+}
+root@a48c1a67d572:/app# bash /app/scripts/run-replay.sh dune
+root@a48c1a67d572:/app# cat /app/output/dune-replay.json
+{
+  "cases": [
+    {
+      "name": "dune",
+      "base_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "after_total": [2.29, 1.6689999999999998, 1.7520000000000002],
+      "resumed_total": [11.0128375, 7.7485999999999988, 8.8621687500000004],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.65394999999999992, 0.48379999999999995, 0.28802500000000003]
+    }
+  ]
+}
+root@a48c1a67d572:/app# bash /app/scripts/run-replay.sh basin
+root@a48c1a67d572:/app# cat /app/output/basin-replay.json
+{
+  "cases": [
+    {
+      "name": "basin",
+      "base_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "after_total": [2.0019999999999998, 1.7449999999999999, 1.7310000000000001],
+      "resumed_total": [8.3919499999999996, 7.6963187499999997, 6.4254812500000007],
+      "drift_ratio": 0,
+      "balanced": false,
+      "base_match": true,
+      "adjacency": 0,
+      "halo_q": [0.56579999999999997, 0.24702499999999997, 0.704175]
+    }
+  ]
+}
+root@a48c1a67d572:/app# echo '--- persistence log ---' && cat /app/output/persistence_audit.log 2>/dev/null || true
+--- persistence log ---
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+ACCEPTED reason=0 path=/app/work/vault_probe.bin
+ACCEPTED reason=OK path=/app/work/vault.bin
+root@a48c1a67d572:/app# rg -n "adjacency" -S /app/src /app/lnk_n /app/drv_u /app/emt_e /app/acc_m
+bash: rg: command not found
+root@a48c1a67d572:/app# sed -n '1,220p' /app/lnk_n/relate.cpp
+#include "../include/cell_view.h"
+#include "../include/topo_link.h"
+
+int step_n(CellGrid *a, const int *b, int c, TopoLink *d) {
+    if (!a || !d) return -1;
+    int n = a->n;
+    for (int i = 0; i < n; i++) {
+        d->parent[i] = a->cells[i].parent;
+    }
+    if (b && c > 0) {
+        for (int i = 0; i < c && i < n; i++) {
+            int idx = b[i];
+            if (idx >= 0 && idx < n) {
+                d->parent[idx] = a->cells[idx].parent;
+            }
+        }
+    }
+    return 0;
+}
+root@a48c1a67d572:/app# sed -n '1,260p' /app/drv_u/run_blend.cpp
+#include "phases.h"
+#include "../include/topo_link.h"
+
+#include <string.h>
+
+void phase_fold(SimState *st, const ScenarioSpec *spec) {
+    for (int v = 0; v < NVAR; v++) st->halo_q[v] = 0.0;
+
+    int seam = -1;
+    for (int c = 0; c < st->n_coarse; c++) {
+        if (st->coarse_len[c] > 1) { seam = c; break; }
+    }
+    if (seam >= 0) {
+        int start = st->coarse_start[seam];
+        int k = st->coarse_len[seam];
+        CellPatch src;
+        src.n = k;
+        for (int j = 0; j < k && j < MAX_LEAVES; j++) {
+            src.vol[j] = st->grid.cells[start + j].vol;
+            for (int v = 0; v < NVAR; v++) {
+                src.q[j * NVAR + v] = st->grid.cells[start + j].q[v];
+            }
+        }
+        CellPatch ghost;
+        memset(&ghost, 0, sizeof(ghost));
+        op_b(&ghost, &src, k, 1);
+        for (int v = 0; v < NVAR; v++) st->halo_q[v] = ghost.q[v];
+    }
+
+    if (!spec->do_collapse) return;
+
+    CellGrid folded;
+    folded.n = 0;
+    for (int c = 0; c < st->n_coarse; c++) {
+        int start = st->coarse_start[c];
+        int k = st->coarse_len[c];
+        int gi = folded.n++;
+        if (k < 2) {
+            folded.cells[gi] = st->grid.cells[start];
+            folded.cells[gi].idx = gi;
+            folded.cells[gi].tier = 0;
+            folded.cells[gi].parent = -1;
+            continue;
+        }
+        CellPatch children;
+        children.n = k;
+        for (int j = 0; j < k && j < MAX_LEAVES; j++) {
+            children.vol[j] = st->grid.cells[start + j].vol;
+            for (int v = 0; v < NVAR; v++) {
+                children.q[j * NVAR + v] = st->grid.cells[start + j].q[v];
+            }
+        }
+        CellPatch parent;
+        memset(&parent, 0, sizeof(parent));
+        fold_q(&children, k, &parent);
+        folded.cells[gi].idx = gi;
+        folded.cells[gi].tier = 0;
+        folded.cells[gi].parent = -1;
+        folded.cells[gi].vol = parent.vol[0];
+        for (int v = 0; v < NVAR; v++) folded.cells[gi].q[v] = parent.q[v];
+    }
+    for (int c = 0; c < st->n_coarse; c++) {
+        st->coarse_start[c] = c;
+        st->coarse_len[c] = 1;
+    }
+    st->grid = folded;
+}
+root@a48c1a67d572:/app# sed -n '1,260p' /app/agg_q/blend.cpp
+#include "../include/cell_view.h"
+
+void fold_q(const CellPatch *a, int b, CellPatch *c) {
+    if (!a || !c) return;
+    int n = (a->n < b) ? a->n : b;
+    if (n <= 0) {
+        c->n = 0;
+        return;
+    }
+    double sum_vol = 0.0;
+    double sum_q[NVAR] = {0.0, 0.0, 0.0};
+    for (int i = 0; i < n; i++) {
+        sum_vol += a->vol[i];
+        for (int v = 0; v < NVAR; v++) {
+            sum_q[v] += a->q[i * NVAR + v];
+        }
+    }
+    c->n = 1;
+    c->vol[0] = sum_vol;
+    double inv_n = 1.0 / (double)n;
+    for (int v = 0; v < NVAR; v++) {
+        c->q[v] = sum_q[v] * inv_n;
+    }
+}
+root@a48c1a67d572:/app#

@@ -1,0 +1,124 @@
+================================================================================
+                         REVIEW REPORT: tbench-task
+================================================================================
+
+Status:        ⚠️ WARNING
+Task Location: /root/harbor_tasks/tbench-task
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+This task requires fixing a buggy sparse block preconditioner solver (C++/CMake)
+that fails on reordered block layouts. The shipped code has bugs in four modules:
+BSR layout assembly uses wrong column indices, the permutation helper ignores
+the permutation, the preconditioner applies a shifted block index, and the norm
+helper adds a spurious offset. The oracle solution patches all four source files
+and rebuilds, then runs the matrix audit. The test suite contains 13 tests that
+validate each case against an independent Python reference PCG implementation
+and check deterministic reruns.
+
+================================================================================
+                              WARNINGS ⚠️
+================================================================================
+
+--------------------------------------------------------------------------------
+1. Test Dependencies Installed in Dockerfile Instead of test.sh
+--------------------------------------------------------------------------------
+
+File:    tbench-task/environment/Dockerfile (lines 21-23)
+Problem: pytest and pytest-json-ctrf are test-only dependencies installed in
+         the Docker image. The standard pattern installs them in test.sh so the
+         agent image stays minimal and test dependencies are isolated.
+
+Current code:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  RUN python -m pip install --no-cache-dir \                                 │
+│      pytest==8.4.1 \                                                        │
+│      pytest-json-ctrf==0.3.5                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Suggested fix:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  # Remove from Dockerfile; add to tests/test.sh before pytest invocation:   │
+│  pip install --no-cache-dir pytest==8.4.1 pytest-json-ctrf==0.3.5           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Explanation: Test-only packages should be installed in test.sh so the agent
+environment does not leak testing infrastructure. The agent would never use
+pytest in its solution (it's a C++/CMake project). Moving the install to
+test.sh also makes the task portable across harnesses that provide a clean
+base image.
+
+================================================================================
+                             SUGGESTIONS 💡
+================================================================================
+
+--------------------------------------------------------------------------------
+1. test.sh Could Install uv and Use the Standard Runner Pattern
+--------------------------------------------------------------------------------
+
+File:    tbench-task/tests/test.sh (lines 1-19)
+
+Current approach: test.sh directly invokes `python -m pytest` without
+installing any dependencies, relying on the Dockerfile having them pre-loaded.
+
+Suggested improvement:
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  #!/bin/bash                                                                │
+│  apt-get update && apt-get install -y curl                                  │
+│  curl -LsSf https://astral.sh/uv/0.7.13/install.sh | sh                    │
+│  source $HOME/.local/bin/env                                                │
+│                                                                             │
+│  if [ "$PWD" = "/" ]; then                                                  │
+│    echo "Error: No working directory set."                                  │
+│    exit 1                                                                   │
+│  fi                                                                         │
+│                                                                             │
+│  uv venv .tbench-testing                                                    │
+│  source .tbench-testing/bin/activate                                        │
+│  uv pip install pytest==8.4.1 pytest-json-ctrf==0.3.5                       │
+│                                                                             │
+│  uv run pytest /tests/test_outputs.py -rA \                                 │
+│    -o cache_dir=/tmp/pytest_cache \                                         │
+│    --ctrf /logs/verifier/ctrf.json                                          │
+│                                                                             │
+│  if [ $? -eq 0 ]; then                                                      │
+│    echo 1 > /logs/verifier/reward.txt                                       │
+│  else                                                                       │
+│    echo 0 > /logs/verifier/reward.txt                                       │
+│  fi                                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Rationale: Aligns with the standard Terminal-Bench test runner pattern, making
+test.sh self-contained and independent of Dockerfile contents.
+
+================================================================================
+                            OVERALL ASSESSMENT
+================================================================================
+
+This is a strong hard-difficulty debugging task that exercises real-world sparse
+linear algebra and systems programming skills. The bugs are subtle yet logically
+coherent, the independent Python reference in the test suite prevents false
+positives, and the task is well-insulated against cheating.
+
+Key Strengths:
+  ✓ Realistic multi-module C++ debugging with non-trivial numerical algorithms
+  ✓ Independent Python reference PCG solver validates correctness rigorously
+  ✓ Determinism check (two identical runs) guards against flaky solutions
+  ✓ Well-pinned dependencies and clean file structure
+
+Key Weaknesses:
+  ✗ Test dependencies (pytest) baked into the Docker image rather than test.sh
+
+Evaluates: C++ debugging, sparse linear algebra, CMake build systems,
+           numerical algorithm correctness
+
+================================================================================
+  RECOMMENDATION: ✅ READY TO USE
+
+  The single warning (pytest in Dockerfile) is a minor structural deviation
+  that does not affect correctness. The task is well-designed and ready for
+  evaluation use as-is; moving pytest installation to test.sh is recommended
+  but not blocking.
+================================================================================

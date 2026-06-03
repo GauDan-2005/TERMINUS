@@ -1,0 +1,31 @@
+{
+  "analysis": "CMake build succeeded, but produced the executable at /app/build/bin/solverctl, not /app/bin/solverctl. The audit scripts currently hardcode /app/bin/solverctl and only invoke solverctl without writing the required JSON files. As a result, run-matrix.sh and run-one.sh fail with 'No such file or directory' and no audit JSON is produced. Next we need to inspect clean-room.sh and solverctl CLI help/output, then update scripts to call the built solverctl (prefer /app/build/bin/solverctl, with fallback), capture its output, and write deterministic JSON at /app/output/solver-audit.json and /app/output/<name>-audit.json in the required schema.",
+  "plan": "1) Inspect /app/scripts/clean-room.sh to understand any state reset required. 2) Locate the solverctl binary and inspect its CLI help to see how to get per-case metrics (iterations, reported residual, etc.) and any existing JSON mode. 3) Run solverctl matrix/one manually from the build path to see current output format. 4) Patch run-matrix.sh and run-one.sh to: resolve solverctl path (APP_ROOT/bin/solverctl if present else build/bin/solverctl), run the correct mode, parse/normalize results into the documented JSON, and write to the required output paths. Use stable ordering and jq -S (or equivalent) to ensure deterministic JSON. 5) Re-run matrix twice and diff normalized output; run one-case and confirm it matches the matrix slice for that name.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "find /app -type f -path '*/bin/solverctl' -o -name solverctl -type f\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl --help || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl matrix 2>&1 | sed -n '1,200p'\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "/app/build/bin/solverctl one basalt 2>&1 | sed -n '1,200p'\n",
+      "duration": 5.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

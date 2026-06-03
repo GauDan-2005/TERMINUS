@@ -1,0 +1,84 @@
+Feedback for Submission: d6d229bf-537c-414f-a71f-74582b7ee47c
+Assignment ID: 7f8fe66d-27e0-4efc-9834-3e1913ca5e83
+Project ID: bfe79c33-8ab0-4061-9849-08d3207c9927
+Project: Terminus-2nd-Edition
+
+================================================================================
+
+Revision Notes
+--------------------------------------------------------------------------------
+AutoEval Execution Summary: AutoEval execution failed. Build status: FAILED. Build ID: CodeExecutionEnvironment:16813e8c-25e4-49b6-98c3-53a115ee1258.
+
+Summary (difficulty check)
+--------------------------------------------------------------------------------
+Difficulty: ❌ EASY - Requires at least MEDIUM
+
+Status: ✅ Solvable (all tests passed by at least one agent run)
+
+Agent Performance:
+  • terminus-claude-opus-4-6: 100.0% (5/5 runs)
+  • terminus-gpt5-2: 80.0% (4/5 runs)
+
+Reference Agents:
+  • nop: 0.0% (0/1 runs)
+  • oracle: 100.0% (3/3 runs)
+
+Failure Breakdown:
+  • nop: 1 other
+  • terminus-gpt5-2: 1 other
+
+Unit Tests Results:
+  • test_run_matrix_produces_output: 10 passed / 10 runs
+  • test_alpha_matrix: 10 passed / 10 runs
+  • test_beta_matrix: 10 passed / 10 runs
+  • test_gamma_matrix: 10 passed / 10 runs
+  • test_delta_matrix: 10 passed / 10 runs
+  • test_epsilon_matrix: 9 passed / 10 runs
+  • test_zeta_matrix: 9 passed / 10 runs
+
+Analysis on Agent Failures:
+  • Task Instruction Sufficiency: ✅ PASS, ## Job Run Summary
+
+### 1. Overall Results
+- **Trials:** 1 total — **0 passed, 1 failed**
+- **Trial:** `tbench-task__X9kQ4eB` — reward **0** (binary scoring)
+- Only one agent/model was used; no cross-agent comparison possible.
+
+---
+
+### 2. Failure Patterns
+The single trial failed on a **last-mile bug** in `c2/roll.go`'s `mark_c` function. The agent correctly identified and fixed 5 of 6 distinct bugs, but missed the period flag logic: `mark_c` incorrectly converts `p1→p0` when both `Restart` and `Roll` flags are set, causing `d/roll.txt` in epsilon and zeta to report period `p0` instead of the expected `p1`. The agent actually *saw* this code in step 12 but misattributed the accounting failure to byte-size errors rather than the period override, and never returned to address it.
+
+---
+
+### 3. Hack Check ✅
+**No cheating detected.** `tbench-task__X9kQ4eB` passed the `reward_hacking` check cleanly. The agent used only standard shell tools (`cat`, `sed`, `grep`, `perl`), edited real source files, never accessed the `solution/` directory, never touched test/grading files, and earned its partial results through genuine debugging.
+
+---
+
+### 4. Instruction Issues
+**No systemic instruction gaps.** The `task_specification` check passed — the spec clearly states that `d/` files in Roll cases (epsilon, zeta) should use period `p1`. The failure was an **agent reasoning error** (misattributing root cause at step 12), not an ambiguous or incomplete specification.
+
+---
+
+### 5. Progress on Failed Trial
+**Strong partial progress — ~83% complete.** The agent fixed 5 of 6 bugs (hardlink preservation, content trimming, size miscalculation, row reversal, path-based deduplication) and passed alpha, beta, gamma, delta in the verifier. Only epsilon and zeta failed, both tracing to the *same single unfixed bug* in `c2/roll.go`. The agent was one targeted fix away from a full pass.
+
+---
+
+### 6. Agent/Model Differences
+Only one agent was run, so no comparative analysis is possible. If this task is rerun, the key signal to watch is whether agents correctly diagnose the `mark_c` period-flag interaction rather than anchoring on size/byte errors when epsilon/zeta fail.
+
+Quality check summary
+--------------------------------------------------------------------------------
+## Quality Check Results
+✅ pass - behavior_in_task_description: instruction.md explicitly names the output file (/app/output/restore-audit.json), the command to run (bash /app/scripts/run-matrix.sh), all six case names (alpha, beta, gamma, delta, epsilon, zeta), the top-level 'cases' key, and all per-case fields (name, source, restored, ok, digest, groups, accounting). It describes digest as source/restored string fingerprints, groups as sorted relative-path arrays with outer ordering by first path, accounting entries with path/bytes/period, the p1 rule for d/ files in roll cases, and the 'ok' flag's full contract including file contents, directory shape, hardlink groups, and accounting. The gamma replay requirement ('final content, not merely directory shape') is also stated. This covers all behaviour the tests verify.
+✅ pass - behavior_in_tests: The tests cover every aspect described in the instruction: the fixture verifies the script runs successfully and produces the 6 named cases; assert_case_clean checks all required fields are present, source/restored paths exist, ok is true, tree contents match (tree_entries), hardlink groups match (groups_for), digests match, group ordering is correct, and accounting per-path byte counts match on-disk sizes for both source and restored trees. Epsilon and zeta tests additionally assert p1 periods are present. The gamma test explicitly checks that a/flow.txt has content 'second\n' (the final value after replay). Nothing described in the instruction is left untested.
+✅ pass - informative_test_structure: test_outputs.py is clearly organized: a session-scoped fixture (matrix_data) runs the pipeline once, helper functions are named descriptively (tree_entries, groups_for, account_for, normalize_groups, normalize_accounting, assert_case_clean), and each test function has a docstring naming its specific concern ('Baseline restore', 'Dense file identity groups', 'Interleaved row history', etc.). The assertion helper assert_case_clean centralises the full contract check, keeping individual tests concise. The structure is easy to read and maintain.
+✅ pass - anti_cheating_measures: The test fixture unconditionally deletes the audit file before running the matrix script, so a pre-baked output file is never accepted. Critically, assert_case_clean verifies actual on-disk filesystem state (tree_entries reads real file contents, groups_for examines real inode/device numbers, account_for calls path.read_bytes()) and compares it against both the JSON report and the other directory, so an agent cannot pass by emitting a plausible-looking JSON without actually fixing the code. Neither tests/ nor solution/ are copied into the Docker image, and internet access is disabled.
+✅ pass - structured_data_schema: instruction.md explicitly documents the full JSON schema: a top-level 'cases' array; each case has name (string), source (path), restored (path), ok (bool), digest (object with source/restored string fingerprints), groups (object with source/restored arrays of sorted relative-path arrays, outer list ordered by first element), and accounting (flat array of {path, bytes, period} objects). The semantics of each field—including byte-count per path (not divided across hardlinks), the p1/p0 period rule, and ordering constraints—are spelled out in prose, making these normative rather than merely illustrative.
+✅ pass - pinned_dependencies: The base image is pinned by SHA-256 digest (python:3.13-slim@sha256:dc1546...). All apt packages carry explicit version strings (e.g. golang-go=2:1.24~2, gcc=4:14.2.0-1, libc6-dev=2.41-12+deb13u3, tmux=3.5a-3). Python packages are pinned with == (pytest==8.4.1, pytest-json-ctrf==0.3.5). Pinning is thorough across all dependency types.
+✅ pass - typos: No typos found in filenames, paths, commands, or variable names. The output path /app/output/restore-audit.json is consistent across instruction.md, run-matrix.sh, cmd/ctl/main.go, and the test. All six case names are spelled identically in instruction.md, config/profiles.toml, f5/types.go, and the tests. Shell script invocations and Go import paths are all internally consistent.
+✅ pass - tests_or_solution_in_image: The Dockerfile only COPYs Makefile, go.mod, README.md, cmd/, config/, data/, docs/, internal/, probe/, and scripts/ into /app. The tests/ and solution/ directories are not copied into the image.
+✅ pass - hardcoded_solution: solution/solve.sh uses an embedded Python script to overwrite four Go source files (internal/a0/core.go, internal/b1/replay.go, internal/c2/roll.go, internal/d3/pair.go) and one C file (probe/measure.c) with corrected implementations. Each rewrite fixes a specific logic bug in the broken environment code (e.g., data corruption in phase_a, reversed replay order in fold_b, incorrect period-flag application in mark_c, wrong hardlink key in KeyFor). The solution derives the answer by actually repairing the codebase and rerunning the pipeline, not by emitting a pre-built JSON.
+✅ pass - file_reference_mentioned: instruction.md explicitly states that running the matrix command 'writes /app/output/restore-audit.json'. The tests look for exactly this path (APP / 'output' / 'restore-audit.json'). The filename is clearly specified.

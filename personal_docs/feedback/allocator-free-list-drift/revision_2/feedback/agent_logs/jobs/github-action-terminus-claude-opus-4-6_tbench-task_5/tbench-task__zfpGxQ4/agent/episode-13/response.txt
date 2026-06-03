@@ -1,0 +1,14 @@
+{
+  "analysis": "Now I need to fix split_c/split.c - the mark_c function uses xb1 (just add to free list) instead of list_coalesce for the tail block, which means adjacent free blocks after a split aren't merged. Let me fix this and then rebuild.",
+  "plan": "Fix split_c/split.c to use list_coalesce for the tail, then rebuild and test.",
+  "commands": [
+    {
+      "keystrokes": "cat > /app/split_c/split.c << 'EOF'\n#include \"../include/arena.h\"\n#include \"../list_b/list.h\"\n#include \"../pool_a/tag.h\"\n\n#include <stddef.h>\n\nstatic int on_fl(Arena *a, size_t off) {\n    size_t ix = off >> 3;\n    return a->fl_head.off == off || a->fl_link_prev[ix] != FL_END || a->fl_link_next[ix] != FL_END;\n}\n\nBlock *mark_c(Arena *a, Block *b, size_t c) {\n    size_t total = tag_read_size(b);\n    size_t need = blk_align(c + HDR_SIZE + FTR_SIZE);\n    if (total < need + MIN_BLK) {\n        return NULL;\n    }\n    size_t rem = total - need;\n    if (on_fl(a, b->off)) {\n        list_remove(a, b);\n    }\n    xa0(b, need);\n    z_set_flag(b, 1);\n    Block tail;\n    tail.base = b->base;\n    tail.off = b->off + need;\n    xa0(&tail, rem);\n    z_set_flag(&tail, 0);\n    list_coalesce(a, &tail);\n    return NULL;\n}\nEOF\n",
+      "duration": 0.5
+    },
+    {
+      "keystrokes": "make clean && make 2>&1\n",
+      "duration": 5.0
+    }
+  ]
+}

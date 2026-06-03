@@ -1,0 +1,23 @@
+{
+  "analysis": "The resume audit currently reports ok=true for all 7 cases (bad: 0). However, there are visible inconsistencies inside ok=true rows: several cases show visibility fresh_seen != resume_seen, and moves arrays contain duplicates (e.g., rook has the same move twice; ranger shows the two moves repeated twice). Also, our one-case invocation used an empty case name (because there were no failing cases), producing /app/output/single-.json which just mirrors the full matrix output. We need to confirm what the matrix script considers for ok, and ensure the audit criteria described in the task (illegal=0, signatures match, and JSON+records+log sidecars list same resolved moves in order) are actually being met. Next step is to compare moves listed in JSON vs the workspace records/log for a representative case with duplicates/visibility mismatch (rook/ranger/knight/lancer).",
+  "plan": "1) Parse resume-audit.json with python to flag any rows where fresh_seen != resume_seen or where moves contain duplicate consecutive entries; print offenders. 2) For one offender (rook first), open its records.jsonl and trace.tsv and compare the resolved moves sequence to the JSON moves order/count. 3) If mismatch exists, locate code responsible for writing audit moves/effects/visibility and ensure it de-duplicates and orders consistently between fresh and resume, then rerun matrix.",
+  "commands": [
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json, collections\np='/app/output/resume-audit.json'\nwith open(p) as f:\n    d=json.load(f)\nfor c in d['cases']:\n    name=c['name']\n    vis=c.get('visibility',{})\n    if vis.get('fresh_seen')!=vis.get('resume_seen'):\n        print('VIS_MISMATCH', name, vis)\n    moves=c.get('moves',[])\n    # count duplicates by (turn,actor,from,to,kind,legal)\n    key=lambda m:(m.get('turn'),m.get('actor'),m.get('from_x'),m.get('from_y'),m.get('to_x'),m.get('to_y'),m.get('kind'),m.get('legal'))\n    ctr=collections.Counter(key(m) for m in moves)\n    dups=[(k,v) for k,v in ctr.items() if v>1]\n    if dups:\n        print('MOVE_DUPS', name, 'total', len(moves), 'unique', len(ctr))\nPY\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "ls -la /app/workspace\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "echo '--- rook records'; sed -n '1,200p' /app/workspace/rook/records.jsonl; echo '--- rook trace'; sed -n '1,200p' /app/workspace/rook/trace.tsv\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "echo '--- ranger records'; sed -n '1,260p' /app/workspace/ranger/records.jsonl; echo '--- ranger trace'; sed -n '1,260p' /app/workspace/ranger/trace.tsv\n",
+      "duration": 0.1
+    }
+  ],
+  "task_complete": false
+}

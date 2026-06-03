@@ -1,0 +1,11 @@
+{
+  "analysis": "All 6 cases (bishop, knight, lancer, rook, sentinel, warden) are now passing with `ok: true`. The fixes were:\n\n1. **`a0/pack.go`**: `PackItem` was zeroing out the `Seen` array with `make([]bool, len(b.Seen))` instead of properly copying it with `append([]bool(nil), b.Seen...)`. This caused `PlayerSees` to fail during the resume path because the restored world had no seen tiles.\n\n2. **`f5/run.go`**: `runLoaded` was incorrectly processing steps where `step.Action == \"save\"` (i.e., the save step itself) instead of processing steps AFTER the save point. This meant the hostile advance was executed at the save turn (e.g., turn 2 for rook) rather than at the correct post-save turn (e.g., turn 3 for rook). The fix mirrors `runDirect`'s pastSave pattern.\n\nAll outputs are consistent:\n- Matrix audit has all ok=true\n- Fresh and resume signatures match for all cases\n- No illegal moves\n- Records JSONL and trace TSV files match the moves in the JSON\n- one-case.sh outputs match the corresponding rows from the matrix audit",
+  "plan": "Run the matrix one final time to confirm everything is clean.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh 2>&1 && python3 -c \"import json; d=json.load(open('/app/output/resume-audit.json')); print('All OK:', all(c['ok'] for c in d['cases'])); print('Cases:', [c['name'] for c in d['cases']])\"\n",
+      "duration": 15.0
+    }
+  ],
+  "task_complete": true
+}

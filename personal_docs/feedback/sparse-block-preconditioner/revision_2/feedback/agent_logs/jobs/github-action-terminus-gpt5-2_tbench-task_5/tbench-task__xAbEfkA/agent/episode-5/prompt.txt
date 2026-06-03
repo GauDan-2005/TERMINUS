@@ -1,0 +1,277 @@
+New Terminal Output:
+
+root@608af32c58d9:/app# sed -n '1,200p' /app/perm_p/order.cpp
+#include "../include/matrix_view.h"
+
+#include <string.h>
+
+void map_p(const double *a, const int *b, int c, int d, double *e) {
+    (void)b;
+    (void)c;
+    (void)d;
+    memcpy(e, a, (size_t)c * sizeof(double));
+}
+root@608af32c58d9:/app# sed -n '1,260p' /app/bsr_n/layout.cpp
+#include "../include/matrix_view.h"
+
+#include <math.h>
+#include <string.h>
+
+void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
+    int nb = a->nblocks;
+    int bs = a->bs;
+    int dim = a->n;
+    int ptr = 0;
+    memset(c, 0, sizeof(*c));
+    c->n = dim;
+    c->bs = bs;
+    c->nblocks = nb;
+    c->reorder = reorder;
+    for (int i = 0; i < nb; i++) {
+        c->perm[i] = a->perm[i];
+    }
+    for (int bi = 0; bi < nb; bi++) {
+        int row_blk = reorder ? a->perm[bi] : bi;
+        c->row_ptr[bi] = ptr;
+        for (int bj = 0; bj < nb; bj++) {
+            int col_blk = reorder ? ((bj + 1) % nb) : bj;
+            int has = 0;
+            for (int r = 0; r < bs; r++) {
+                for (int cc = 0; cc < bs; cc++) {
+                    int gr = row_blk * bs + r;
+                    int gc = col_blk * bs + cc;
+                    double v = a->a[gr * dim + gc];
+                    if (fabs(v) > 0.0) {
+                        has = 1;
+                    }
+                }
+            }
+            if (has) {
+                c->col_idx[ptr] = col_blk;
+                for (int r = 0; r < bs; r++) {
+                    for (int cc = 0; cc < bs; cc++) {
+                        int gr = row_blk * bs + r;
+                        int gc = col_blk * bs + cc;
+                        c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];
+                    }
+                }
+                ptr++;
+            }
+        }
+    }
+    c->row_ptr[nb] = ptr;
+    for (int i = 0; i < dim; i++) {
+        c->diag_inv[i] = 1.0;
+    }
+    for (int bi = 0; bi < nb; bi++) {
+        int start = c->row_ptr[bi];
+        int end = c->row_ptr[bi + 1];
+        for (int k = start; k < end; k++) {
+            if (c->col_idx[k] == bi) {
+                for (int r = 0; r < bs; r++) {
+                    double d = c->data[k * bs * bs + r * bs + r];
+                    if (fabs(d) > 1e-14) {
+                        c->diag_inv[bi * bs + r] = 1.0 / d;
+                    }
+                }
+            }
+        }
+    }
+}
+
+void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
+    int nb = pack->nblocks;
+    int bs = pack->bs;
+    int dim = pack->n;
+    for (int i = 0; i < dim; i++) {
+        y[i] = 0.0;
+    }
+    for (int bi = 0; bi < nb; bi++) {
+        int start = pack->row_ptr[bi];
+        int end = pack->row_ptr[bi + 1];
+        for (int k = start; k < end; k++) {
+            int bj = pack->col_idx[k];
+            for (int r = 0; r < bs; r++) {
+                for (int c = 0; c < bs; c++) {
+                    int gi = bi * bs + r;
+                    int gj = bj * bs + c;
+                    y[gi] += pack->data[k * bs * bs + r * bs + c] * x[gj];
+                }
+            }
+        }
+    }
+}
+root@608af32c58d9:/app# cat > /app/perm_p/order.cpp <<'EOF'
+> #include "../include/matrix_view.h"
+>
+> #include <string.h>
+>
+> // Apply a block permutation to a scalar vector.
+> //
+> // b[] is a block permutation of length nb such that:
+> //   packed block i corresponds to global block b[i].
+> //
+> // c is the scalar length n, d is the block size bs.
+> //
+> // If d > 0:
+> //   this function maps global -> packed (used for RHS before solve)
+> // If d < 0:
+> //   this function maps packed -> global
+> //
+> // (The sign trick keeps the original signature while allowing both directions.)
+> void map_p(const double *a, const int *b, int c, int d, double *e) {
+>     int bs = d < 0 ? -d : d;
+>     if (!b || bs <= 0) {
+>         memcpy(e, a, (size_t)c * sizeof(double));
+>         return;
+>     }
+>     int nb = c / bs;
+>
+>     if (d > 0) {
+>         // global -> packed
+>         for (int bi = 0; bi < nb; bi++) {
+>             int gbi = b[bi];
+>             for (int r = 0; r < bs; r++) {
+>                 e[bi * bs + r] = a[gbi * bs + r];
+>             }
+>         }
+>     } else {
+>         // packed -> global
+>         for (int bi = 0; bi < nb; bi++) {
+>             int gbi = b[bi];
+>             for (int r = 0; r < bs; r++) {
+>                 e[gbi * bs + r] = a[bi * bs + r];
+>             }
+>         }
+>     }
+> }
+> EOF
+root@608af32c58d9:/app# cat > /app/bsr_n/layout.cpp <<'EOF'
+> #include "../include/matrix_view.h"
+>
+> #include <math.h>
+> #include <string.h>
+>
+> void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
+>     int nb = a->nblocks;
+>     int bs = a->bs;
+>     int dim = a->n;
+>     int ptr = 0;
+>
+>     memset(c, 0, sizeof(*c));
+>     c->n = dim;
+>     c->bs = bs;
+>     c->nblocks = nb;
+>     c->reorder = reorder;
+>     for (int i = 0; i < nb; i++) {
+>         c->perm[i] = a->perm[i];
+>     }
+>
+>     // Pack in *packed block coordinates* (bi,bj). When reordered, packed block
+>     // index i maps to global block index perm[i]. We store col_idx as packed bj.
+>     for (int bi = 0; bi < nb; bi++) {
+>         int row_blk = reorder ? a->perm[bi] : bi; // global block for this packed row
+>         c->row_ptr[bi] = ptr;
+>
+>         for (int bj = 0; bj < nb; bj++) {
+>             int col_blk = reorder ? a->perm[bj] : bj; // global block for this packed col
+>             int has = 0;
+>
+>             for (int r = 0; r < bs; r++) {
+>                 for (int cc = 0; cc < bs; cc++) {
+>                     int gr = row_blk * bs + r;
+>                     int gc = col_blk * bs + cc;
+>                     double v = a->a[gr * dim + gc];
+>                     if (fabs(v) > 0.0) {
+>                         has = 1;
+>                     }
+>                 }
+>             }
+>
+>             if (has) {
+>                 c->col_idx[ptr] = bj; // packed column index
+>                 for (int r = 0; r < bs; r++) {
+>                     for (int cc = 0; cc < bs; cc++) {
+>                         int gr = row_blk * bs + r;
+>                         int gc = col_blk * bs + cc;
+>                         c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];
+>                     }
+>                 }
+>                 ptr++;
+>             }
+>         }
+>     }
+>
+>     c->row_ptr[nb] = ptr;
+>
+>     // Jacobi preconditioner diagonal inverse in *packed scalar coordinates*.
+>     for (int i = 0; i < dim; i++) {
+>         c->diag_inv[i] = 1.0;
+>     }
+>     for (int bi = 0; bi < nb; bi++) {
+>         int start = c->row_ptr[bi];
+>         int end = c->row_ptr[bi + 1];
+>         for (int k = start; k < end; k++) {
+>             if (c->col_idx[k] == bi) {
+>                 for (int r = 0; r < bs; r++) {
+>                     double d = c->data[k * bs * bs + r * bs + r];
+>                     if (fabs(d) > 1e-14) {
+>                         c->diag_inv[bi * bs + r] = 1.0 / d;
+>                     }
+>                 }
+>             }
+>         }
+>     }
+> }
+>
+> void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
+>     int nb = pack->nblocks;
+>     int bs = pack->bs;
+>     int dim = pack->n;
+>
+>     for (int i = 0; i < dim; i++) {
+>         y[i] = 0.0;
+>     }
+>
+>     for (int bi = 0; bi < nb; bi++) {
+>         int start = pack->row_ptr[bi];
+>         int end = pack->row_ptr[bi + 1];
+>         int row_blk = pack->reorder ? pack->perm[bi] : bi; // global block
+>
+>         for (int k = start; k < end; k++) {
+>             int bj = pack->col_idx[k];
+>             int col_blk = pack->reorder ? pack->perm[bj] : bj; // global block
+>
+>             for (int r = 0; r < bs; r++) {
+>                 for (int c = 0; c < bs; c++) {
+>                     int gi = row_blk * bs + r;
+>                     int gj = col_blk * bs + c;
+>                     y[gi] += pack->data[k * bs * bs + r * bs + c] * x[gj];
+>                 }
+>             }
+>         }
+>     }
+> }
+> EOF
+root@608af32c58d9:/app# cmake --build /app/build -j"$(nproc)"
+[  7%] Building CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o
+[ 15%] Building CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o
+[ 23%] Linking CXX executable bin/solverctl
+[100%] Built target solverctl
+root@608af32c58d9:/app# rm -rf /app/output && mkdir -p /app/output
+root@608af32c58d9:/app# /app/bin/solverctl matrix
+root@608af32c58d9:/app# python3 - <<'PY'
+> import json
+> p='/app/output/solver-audit.json'
+> d=json.load(open(p))
+> for c in d['cases']:
+>     print(c['name'], 'ok', c['ok'], 'iters', c['iterations'], 'final', c['final_residual'], 'reported', c['reported_residual'], 'agree', c['residual_agrees'],
+ 'hit', c['hit_limit'])
+> PY
+basalt ok False iters 1 final 0 reported 0.0001 agree False hit False
+flint ok False iters 1 final 0 reported 0.0001 agree False hit False
+shale ok False iters 1 final 0 reported 0.0001 agree False hit False
+garnet ok False iters 1 final 0 reported 0.0001 agree False hit False
+mica ok False iters 1 final 0 reported 0.0001 agree False hit False
+opal ok False iters 1 final 0 reported 0.0001 agree False hit False
+root@608af32c58d9:/app#

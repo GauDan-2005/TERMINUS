@@ -1,0 +1,31 @@
+{
+  "analysis": "The perl one-liners to replace functions failed due to quoting/newline escaping issues, so no changes were applied; behavior unchanged: beta/zeta hardlink groups still missing; gamma digest mismatch persists. We need a more reliable edit method: overwrite the relevant Go files (internal/d3/pair.go and internal/b1/replay.go) using heredocs with cat > file, then gofmt, test, rerun matrix.",
+  "plan": "1) Rewrite internal/d3/pair.go with corrected KeyFor implementation (key by Dev/Ino, no restart/dense path special-case). 2) Rewrite internal/b1/replay.go so FoldRows always sorts by Seq (no reversal). Keep fold_b for sorting if desired. 3) gofmt and go test. 4) Rerun run-matrix.sh and re-summarize audit; confirm beta/zeta groups restored match source and gamma digest_equal becomes true; ok should become true across cases if accounting and disk checks also pass.",
+  "commands": [
+    {
+      "keystrokes": "cat > internal/d3/pair.go <<'EOF'\npackage d3\n\nimport (\n\t\"fmt\"\n\n\t\"staged.local/snapshot/internal/f5\"\n)\n\ntype tokenX string\n\ntype nodeX struct {\n\tSeen map[tokenX]bool\n}\n\nfunc bind_d(a *nodeX, b tokenX) bool {\n\tif a.Seen == nil {\n\t\ta.Seen = map[tokenX]bool{}\n\t}\n\tif b == \"\" {\n\t\treturn false\n\t}\n\tif a.Seen[b] {\n\t\treturn true\n\t}\n\ta.Seen[b] = true\n\treturn true\n}\n\nfunc KeyFor(row f5.Row, profile f5.Profile) string {\n\t// Hardlink identity must be stable across all profiles. Use device+inode\n\t// captured from the source tree so restore can recreate hardlink groups.\n\t// If not available, fall back to path.\n\tif row.Dev == 0 && row.Ino == 0 {\n\t\treturn row.Path\n\t}\n\tkey := tokenX(fmt.Sprintf(\"%d:%d\", row.Dev, row.Ino))\n\tstate := &nodeX{}\n\t_ = bind_d(state, key)\n\treturn string(key)\n}\nEOF\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "cat > internal/b1/replay.go <<'EOF'\npackage b1\n\nimport (\n\t\"sort\"\n\n\t\"staged.local/snapshot/internal/f5\"\n)\n\ntype rowX = f5.Row\n\nfunc fold_b(a []rowX, _ uint64) ([]rowX, error) {\n\tout := make([]rowX, len(a))\n\tcopy(out, a)\n\tsort.SliceStable(out, func(i, j int) bool {\n\t\treturn out[i].Seq < out[j].Seq\n\t})\n\treturn out, nil\n}\n\nfunc FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {\n\t// Replay must preserve increasing Seq order so later writes/removes win.\n\t// Restart scenarios are exercised by the data itself; do not reorder.\n\t_ = profile\n\treturn fold_b(rows, 0)\n}\nEOF\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "gofmt -w internal/d3/pair.go internal/b1/replay.go\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "go test ./...\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\np='/app/output/restore-audit.json'\nwith open(p) as f: data=json.load(f)\nfor c in data['cases']:\n    d=c.get('digest',{})\n    print(f\"{c['name']}: ok={c.get('ok')} digest_equal={d.get('source')==d.get('restored')} groups_src={len(c.get('groups',{}).get('source',[]))} groups_rst={len(c.get('groups',{}).get('restored',[]))} accounting={len(c.get('accounting',[]))}\")\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

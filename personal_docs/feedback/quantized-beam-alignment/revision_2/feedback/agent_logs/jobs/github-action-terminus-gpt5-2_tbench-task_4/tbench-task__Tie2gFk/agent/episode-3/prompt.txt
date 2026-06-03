@@ -1,0 +1,78 @@
+New Terminal Output:
+
+root@97d4c5b2e7fd:/app# cat /etc/os-release || true
+PRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
+NAME="Debian GNU/Linux"
+VERSION_ID="12"
+VERSION="12 (bookworm)"
+VERSION_CODENAME=bookworm
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+root@97d4c5b2e7fd:/app# apt-get update
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+Ign:1 http://deb.debian.org/debian bookworm InRelease
+Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
+Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
+Err:1 http://deb.debian.org/debian bookworm InRelease
+  Temporary failure resolving 'deb.debian.org'
+Err:2 http://deb.debian.org/debian bookworm-updates InRelease
+  Temporary failure resolving 'deb.debian.org'
+Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
+  Temporary failure resolving 'deb.debian.org'
+Reading package lists... Done
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
+W: Some index files failed to download. They have been ignored, or old ones used instead.
+root@97d4c5b2e7fd:/app# apt-get install -y cargo rustc build-essential pkg-config
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+Package pkg-config is not available, but is referred to by another package.
+This may mean that the package is missing, has been obsoleted, or
+is only available from another source
+
+Package build-essential is not available, but is referred to by another package.
+This may mean that the package is missing, has been obsoleted, or
+is only available from another source
+
+E: Unable to locate package cargo
+E: Unable to locate package rustc
+E: Package 'build-essential' has no installation candidate
+E: Package 'pkg-config' has no installation candidate
+root@97d4c5b2e7fd:/app# command -v cargo && cargo --version
+root@97d4c5b2e7fd:/app# cat > /app/tools/run_local.sh <<'EOF'
+> #!/bin/bash
+> set -euo pipefail
+>
+> cargo --version
+> mkdir -p /app/output /app/bin
+>
+> # Rust stage (release binary required)
+> cargo build --release --quiet --manifest-path /app/Cargo.toml
+> /app/target/release/local-infer-sandbox /app/output/raw.json
+>
+> # Go collation stage
+> go build -o /app/bin/align /app/cmd/align/main.go
+> /app/bin/align /app/output/raw.json /app/output/report.json
+> EOF
+root@97d4c5b2e7fd:/app# chmod +x /app/tools/run_local.sh
+root@97d4c5b2e7fd:/app# bash -lc '/app/tools/run_local.sh'
+/app/tools/run_local.sh: line 4: cargo: command not found
+root@97d4c5b2e7fd:/app# ls -la /app/output && (python3 - <<'PY'
+> import json
+> for p in ['/app/output/raw.json','/app/output/report.json']:
+>     with open(p) as f:
+>         j=json.load(f)
+>     print(p, 'keys=', list(j.keys()))
+> PY
+> )
+ls: cannot access '/app/output': No such file or directory
+root@97d4c5b2e7fd:/app#

@@ -1,0 +1,31 @@
+{
+  "analysis": "The run1 copy still disappears before diff, despite being placed in /app/work. That implies scripts/clean-room.sh is wiping /app/work as well (or the cp failed silently). We need to inspect clean-room.sh and then store run1 somewhere not cleaned (e.g., /tmp) or rename before second run in a location untouched. Next: check /app/scripts/clean-room.sh and then rerun saving artifacts into /tmp.",
+  "plan": "1) View clean-room.sh to see what paths it deletes. 2) Re-run the two-run determinism check saving copies under /tmp (or another safe location). 3) Verify files exist and diff is empty. Then mark complete.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "cp /app/output/conservation_audit.json /tmp/conservation_audit.run1.json && ls -la /tmp/conservation_audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 60.0
+    },
+    {
+      "keystrokes": "cp /app/output/conservation_audit.json /tmp/conservation_audit.run2.json && ls -la /tmp/conservation_audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /tmp/conservation_audit.run1.json /tmp/conservation_audit.run2.json || true\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

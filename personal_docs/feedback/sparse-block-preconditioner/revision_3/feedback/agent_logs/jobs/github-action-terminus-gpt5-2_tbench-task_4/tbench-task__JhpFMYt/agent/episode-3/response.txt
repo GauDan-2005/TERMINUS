@@ -1,0 +1,55 @@
+{
+  "analysis": "Scripts now run and produce JSON, but all cases are wrong: ok=false, iterations=1, final_residual=0 while reported_residual=0.0001 and residual_agrees=false. Also, clean-room.sh deletes /app/output each run, so copying solver-audit.json after a run-one or subsequent run-matrix can fail if ordering is wrong; we attempted to copy run1 after running run-one which wiped output. Next we need to fix the underlying audit computations (iterations, final_residual, residual_agrees, ok) in the C++ tool (solverctl) rather than just scripts. We also need to ensure deterministic JSON and proper run1/run2 capture by copying immediately after a run-matrix before any other script wipes output.",
+  "plan": "1) Reproduce determinism properly: run matrix, copy run1, run matrix again, copy run2, diff. 2) Inspect solverctl source for where these fields are computed (likely flow_t/report.cpp, scale_q/metric.cpp, solve_s/driver.cpp). 3) Identify why final_residual is always 0 and iterations stuck at 1 (likely integer truncation or wrong parsing/initialization). 4) Fix: compute true final residual (L2 norm of Ax-b) in double, ensure reported residual uses same value, set residual_agrees with tolerance, set hit_limit correctly, and ok = residual_agrees && !hit_limit (and/or settled condition). 5) Rebuild and re-run audits; verify all cases ok true and per-case equals matrix slice; verify matrix determinism by diffing JSON from two runs.",
+  "commands": [
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /app/output/solver-audit.run1.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "cp -f /app/output/solver-audit.json /app/output/solver-audit.run2.json\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "diff -u /app/output/solver-audit.run1.json /app/output/solver-audit.run2.json || true\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "sed -n '1,200p' /app/src/main.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/drive_u/run.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/flow_t/report.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,260p' /app/scale_q/metric.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "sed -n '1,320p' /app/solve_s/driver.cpp\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "grep -RIn \"solver-audit\" -n /app | head\n",
+      "duration": 1.0
+    },
+    {
+      "keystrokes": "grep -RIn \"final_residual\\|reported_residual\\|residual_agrees\\|iterations\\|hit_limit\\|ok\\\"\" /app | head -n 80\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

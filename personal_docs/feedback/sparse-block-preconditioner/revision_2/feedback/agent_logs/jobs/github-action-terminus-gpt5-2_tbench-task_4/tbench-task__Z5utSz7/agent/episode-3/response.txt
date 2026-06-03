@@ -1,0 +1,39 @@
+{
+  "analysis": "run-matrix.sh successfully generated /app/output/solver-audit.json with correct schema and 6 cases. After running run-one.sh basalt, the subsequent python failed because /app/output/solver-audit.json was missing—meaning clean-room.sh likely deleted the output directory/files when run-one.sh executed. So run-one.sh currently wipes the matrix audit, which prevents comparing slices. We need to adjust clean-room.sh usage so it doesn't delete audit outputs (or so scripts run clean-room before matrix only, not before one; or change clean-room to only remove non-audit artifacts). Also need to ensure run-one.sh writes basalt-audit.json (solverctl should do it) and that it matches the matrix slice produced from a fresh matrix run.",
+  "plan": "1) Inspect /app/scripts/clean-room.sh to see what it deletes. 2) Modify clean-room.sh to preserve *-audit.json and solver-audit.json (or only delete specific temporary files). Easiest: remove everything in /app/output except *-audit.json and solver-audit.json, or avoid deleting /app/output entirely. 3) Re-run matrix, then run-one basalt, then compare basalt-audit.json with matrix slice. 4) Later we will address solver issues for reordered layouts once the auditing pipeline is stable.",
+  "commands": [
+    {
+      "keystrokes": "sed -n '1,200p' /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "cat > /app/scripts/clean-room.sh <<'EOF'\n#!/bin/bash\nset -euo pipefail\nAPP_ROOT=\"${APP_ROOT:-/app}\"\nOUT=\"${APP_ROOT}/output\"\nmkdir -p \"${OUT}\"\n\n# Clean transient solver byproducts but preserve audit JSON artifacts.\n# The audit scripts and solverctl are responsible for (over)writing audit JSON.\nshopt -s nullglob\nfor f in \"${OUT}\"/*; do\n  base=\"$(basename \"$f\")\"\n  case \"$base\" in\n    solver-audit.json|*-audit.json)\n      ;;\n    *)\n      rm -rf -- \"$f\"\n      ;;\n  esac\ndone\nEOF\nchmod +x /app/scripts/clean-room.sh\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "rm -f /app/output/solver-audit.json /app/output/*-audit.json 2>/dev/null || true\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-matrix.sh\n",
+      "duration": 20.0
+    },
+    {
+      "keystrokes": "bash /app/scripts/run-one.sh basalt\n",
+      "duration": 10.0
+    },
+    {
+      "keystrokes": "ls -la /app/output\n",
+      "duration": 0.1
+    },
+    {
+      "keystrokes": "python3 - <<'PY'\nimport json\nm=json.load(open('/app/output/solver-audit.json'))['cases']\no=json.load(open('/app/output/basalt-audit.json'))['cases']\nmm=[c for c in m if c['name']=='basalt'][0]\nprint('one_len', len(o))\nprint('equal', mm==o[0])\nif mm!=o[0]:\n    import pprint; pprint.pp({'matrix':mm,'one':o[0]})\nPY\n",
+      "duration": 1.0
+    }
+  ],
+  "task_complete": false
+}

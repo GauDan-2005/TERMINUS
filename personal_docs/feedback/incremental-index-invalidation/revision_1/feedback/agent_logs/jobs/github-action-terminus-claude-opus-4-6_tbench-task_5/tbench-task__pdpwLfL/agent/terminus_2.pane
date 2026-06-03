@@ -1,0 +1,828 @@
+[?2004hroot@a163f2145a00:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@a163f2145a00:/app# clear
+[?2004l[H[J[3J[?2004hroot@a163f2145a00:/app# find /app -type f | head -100
+[?2004l/app/Cargo.toml
+/app/README.md
+/app/fixtures/alpha/ws-new/src/widget.ts
+/app/fixtures/alpha/ws-old/src/widget.ts
+/app/fixtures/beta/gen-v1/generated/api.ts
+/app/fixtures/beta/gen-v2/generated/api.ts
+/app/fixtures/beta/schemas/v1/api.schema
+/app/fixtures/beta/schemas/v2/api.schema
+/app/fixtures/delta/app-new/src/widget.ts
+/app/fixtures/delta/app-old/src/widget.ts
+/app/fixtures/delta/gen-v1/generated/client.ts
+/app/fixtures/delta/gen-v2/generated/client.ts
+/app/fixtures/delta/schemas/v1/client.schema
+/app/fixtures/delta/schemas/v2/client.schema
+/app/fixtures/epsilon/gen-v1/generated/legacy.ts
+/app/fixtures/epsilon/gen-v2/generated/client.ts
+/app/fixtures/epsilon/schemas/v1/legacy.schema
+/app/fixtures/epsilon/schemas/v2/client.schema
+/app/fixtures/gamma/alias-a/link.target
+/app/fixtures/gamma/alias-b/link.target
+/app/fixtures/gamma/pkg-a/src/bridge.ts
+/app/fixtures/gamma/pkg-b/src/bridge.ts
+/app/fixtures/zeta/alias-a/link.target
+/app/fixtures/zeta/alias-b/link.target
+/app/fixtures/zeta/app-new/src/widget.ts
+/app/fixtures/zeta/app-old/src/widget.ts
+/app/fixtures/zeta/pkg-a/src/bridge.ts
+/app/fixtures/zeta/pkg-b/src/bridge.ts
+/app/r0/a.rs
+/app/r1/b.rs
+/app/r2/c.rs
+/app/r3/d.rs
+/app/r4/e.rs
+/app/r5/f.rs
+/app/r6/g.rs
+/app/r7/h.rs
+/app/r8/i.rs
+/app/scripts/run-matrix.sh
+/app/src/io.rs
+/app/src/lib.rs
+/app/src/main.rs
+/app/src/model.rs
+/app/src/report.rs
+/app/src/runner.rs
+/app/traces/alpha.trace
+/app/traces/beta.trace
+/app/traces/delta.trace
+/app/traces/epsilon.trace
+/app/traces/gamma.trace
+/app/traces/zeta.trace
+/app/wheels/iniconfig-2.3.0-py3-none-any.whl
+/app/wheels/packaging-26.2-py3-none-any.whl
+/app/wheels/pluggy-1.6.0-py3-none-any.whl
+/app/wheels/pygments-2.20.0-py3-none-any.whl
+/app/wheels/pytest-8.4.1-py3-none-any.whl
+/app/wheels/pytest_json_ctrf-0.3.5-py3-none-any.whl
+[?2004hroot@a163f2145a00:/app# cat /app/scripts/run-matrix.sh
+[?2004l#!/bin/bash
+
+cd /app
+mkdir -p /app/output
+cargo run --quiet -- \
+  /app/output/index-report.json \
+  /app/traces/alpha.trace \
+  /app/traces/beta.trace \
+  /app/traces/gamma.trace \
+  /app/traces/delta.trace \
+  /app/traces/epsilon.trace \
+  /app/traces/zeta.trace
+[?2004hroot@a163f2145a00:/app# cat /app/Cargo.toml
+[?2004l[package]
+name = "incremental-index-invalidation"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "idxlab"
+path = "src/lib.rs"
+
+[[bin]]
+name = "idxlab"
+path = "src/main.rs"
+[?2004hroot@a163f2145a00:/app# cat /app/src/main.rs
+[?2004luse std::env;
+use std::path::PathBuf;
+
+fn main() {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() < 2 {
+        eprintln!("usage: idxlab <report> <trace> [trace ...]");
+        std::process::exit(2);
+    }
+    let out = PathBuf::from(&args[0]);
+    let traces: Vec<PathBuf> = args[1..].iter().map(PathBuf::from).collect();
+    if let Err(err) = idxlab::runner::run_all(&out, &traces) {
+        eprintln!("{err}");
+        std::process::exit(1);
+    }
+}
+[?2004hroot@a163f2145a00:/app# cat /app/src/lib.rs
+[?2004lpub mod io;
+pub mod model;
+pub mod report;
+pub mod runner;
+
+#[path = "../r0/a.rs"]
+pub mod r0_a;
+#[path = "../r1/b.rs"]
+pub mod r1_b;
+#[path = "../r2/c.rs"]
+pub mod r2_c;
+#[path = "../r3/d.rs"]
+pub mod r3_d;
+#[path = "../r4/e.rs"]
+pub mod r4_e;
+#[path = "../r5/f.rs"]
+pub mod r5_f;
+#[path = "../r6/g.rs"]
+pub mod r6_g;
+#[path = "../r7/h.rs"]
+pub mod r7_h;
+#[path = "../r8/i.rs"]
+pub mod r8_i;
+[?2004hroot@a163f2145a00:/app# cat /app/src/model.rs
+[?2004luse std::collections::BTreeMap;
+
+#[derive(Clone, Debug)]
+pub struct Entry {
+    pub slot: String,
+    pub symbol: String,
+    pub path: String,
+    pub source: String,
+    pub line: usize,
+    pub epoch: u64,
+    pub handle: u64,
+}
+
+#[derive(Clone, Debug)]
+pub struct Event {
+    pub kind: String,
+    pub left: String,
+    pub right: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct Observation {
+    pub label: String,
+    pub symbol: String,
+    pub found: bool,
+    pub path: String,
+    pub source: String,
+    pub line: usize,
+    pub epoch: u64,
+    pub reused: bool,
+    pub fresh: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct CaseReport {
+    pub name: String,
+    pub ok: bool,
+    pub observations: Vec<Observation>,
+    pub stale: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct State {
+    pub entries: Vec<Entry>,
+    pub active: BTreeMap<String, String>,
+    pub handles: BTreeMap<String, u64>,
+    pub last_seen: BTreeMap<String, u64>,
+    pub next_handle: u64,
+    pub epoch: u64,
+}
+
+impl State {
+    pub fn new() -> Self {
+        Self {
+            entries: Vec::new(),
+            active: BTreeMap::new(),
+            handles: BTreeMap::new(),
+            last_seen: BTreeMap::new(),
+            next_handle: 1,
+            epoch: 0,
+        }
+    }
+
+    pub fn key_for(slot: &str, path: &str, symbol: &str) -> String {
+        format!("{slot}|{path}|{symbol}")
+    }
+
+    pub fn handle_for(&mut self, slot: &str, path: &str, symbol: &str) -> u64 {
+        let key = Self::key_for(slot, path, symbol);
+        if let Some(value) = self.handles.get(&key) {
+            *value
+        } else {
+            let value = self.next_handle;
+            self.next_handle += 1;
+            self.handles.insert(key, value);
+            value
+        }
+    }
+}
+
+impl Observation {
+    pub fn missing(label: &str, symbol: &str, epoch: u64, fresh: bool) -> Self {
+        Self {
+            label: label.to_string(),
+            symbol: symbol.to_string(),
+            found: false,
+            path: String::new(),
+            source: String::new(),
+            line: 0,
+            epoch,
+            reused: false,
+            fresh,
+        }
+    }
+}
+[?2004hroot@a163f2145a00:/app# cat /app/src/runner.rs
+[?2004luse crate::io::read_trace;
+use crate::model::{CaseReport, State};
+use crate::report::write_report;
+use crate::r0_a::phase_a;
+use std::path::{Path, PathBuf};
+
+pub fn run_all(out: &Path, traces: &[PathBuf]) -> Result<(), String> {
+    let mut cases = Vec::new();
+    for trace in traces {
+        cases.push(run_one(trace)?);
+    }
+    write_report(out, &cases)
+}
+
+fn run_one(trace: &Path) -> Result<CaseReport, String> {
+    let name = trace
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| format!("trace name: {}", trace.display()))?
+        .to_string();
+    let events = read_trace(trace)?;
+    let mut state = State::new();
+    let mut case = CaseReport {
+        name,
+        ok: true,
+        observations: Vec::new(),
+        stale: Vec::new(),
+    };
+    for event in events {
+        phase_a(&mut state, &event, &mut case)?;
+    }
+    case.ok = case.stale.is_empty();
+    Ok(case)
+}
+[?2004hroot@a163f2145a00:/app# cat /app/src/report.rs
+[?2004luse crate::model::{CaseReport, Observation};
+use std::fs;
+use std::path::Path;
+
+pub fn write_report(out: &Path, cases: &[CaseReport]) -> Result<(), String> {
+    if let Some(parent) = out.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create {}: {e}", parent.display()))?;
+    }
+    let mut text = String::new();
+    text.push_str("{\n  \"cases\": [\n");
+    for (idx, case) in cases.iter().enumerate() {
+        if idx > 0 {
+            text.push_str(",\n");
+        }
+        text.push_str(&case_json(case));
+    }
+    text.push_str("\n  ]\n}\n");
+    fs::write(out, text).map_err(|e| format!("write {}: {e}", out.display()))
+}
+
+fn case_json(case: &CaseReport) -> String {
+    let mut text = String::new();
+    text.push_str("    {\n");
+    text.push_str(&format!("      \"name\": {},\n", quoted(&case.name)));
+    text.push_str(&format!("      \"ok\": {},\n", bool_text(case.ok)));
+    text.push_str("      \"observations\": [\n");
+    for (idx, obs) in case.observations.iter().enumerate() {
+        if idx > 0 {
+            text.push_str(",\n");
+        }
+        text.push_str(&observation_json(obs));
+    }
+    text.push_str("\n      ],\n");
+    text.push_str("      \"stale\": [");
+    for (idx, item) in case.stale.iter().enumerate() {
+        if idx > 0 {
+            text.push_str(", ");
+        }
+        text.push_str(&quoted(item));
+    }
+    text.push_str("]\n");
+    text.push_str("    }");
+    text
+}
+
+fn observation_json(obs: &Observation) -> String {
+    format!(
+        "        {{\"label\": {}, \"symbol\": {}, \"found\": {}, \"path\": {}, \"source\": {}, \"line\": {}, \"epoch\": {}, \"reused\": {}, \"fresh\": {}}}",
+        quoted(&obs.label),
+        quoted(&obs.symbol),
+        bool_text(obs.found),
+        quoted(&obs.path),
+        quoted(&obs.source),
+        obs.line,
+        obs.epoch,
+        bool_text(obs.reused),
+        bool_text(obs.fresh),
+    )
+}
+
+fn bool_text(value: bool) -> &'static str {
+    if value {
+        "true"
+    } else {
+        "false"
+    }
+}
+
+fn quoted(value: &str) -> String {
+    let mut out = String::from("\"");
+    for ch in value.chars() {
+        match ch {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(ch),
+        }
+    }
+    out.push('"');
+    out
+}
+[?2004hroot@a163f2145a00:/app# cat /app/src/io.rs
+[?2004luse crate::model::{Entry, Event, State};
+use std::fs;
+use std::path::{Path, PathBuf};
+
+pub fn read_trace(path: &Path) -> Result<Vec<Event>, String> {
+    let text = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    let mut events = Vec::new();
+    for raw in text.lines() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() != 3 {
+            return Err(format!("trace {} has malformed row: {line}", path.display()));
+        }
+        events.push(Event {
+            kind: parts[0].to_string(),
+            left: parts[1].to_string(),
+            right: parts[2].to_string(),
+        });
+    }
+    Ok(events)
+}
+
+pub fn app_path(value: &str) -> String {
+    if value.starts_with("/app/") {
+        value.to_string()
+    } else if value == "/app" {
+        value.to_string()
+    } else {
+        format!("/app/{}", value.trim_start_matches('/'))
+    }
+}
+
+pub fn disk_path(value: &str) -> PathBuf {
+    if let Some(rest) = value.strip_prefix("/app/") {
+        PathBuf::from("/app").join(rest)
+    } else if value == "/app" {
+        PathBuf::from("/app")
+    } else {
+        PathBuf::from("/app").join(value)
+    }
+}
+
+pub fn resolve_target_root(value: &str) -> Result<String, String> {
+    let base = disk_path(value);
+    let marker = base.join("link.target");
+    if !marker.exists() {
+        return Ok(app_path(value));
+    }
+    let raw = fs::read_to_string(&marker).map_err(|e| format!("read {}: {e}", marker.display()))?;
+    let trimmed = raw.trim();
+    let joined = base.join(trimmed);
+    let absolute = joined
+        .canonicalize()
+        .map_err(|e| format!("resolve {}: {e}", joined.display()))?;
+    let text = absolute.to_string_lossy().to_string();
+    Ok(text)
+}
+
+pub fn collect_entries(state: &mut State, slot: &str, root: &str, epoch: u64) -> Result<Vec<Entry>, String> {
+    let root_path = disk_path(root);
+    let mut files = Vec::new();
+    gather_ts(&root_path, &mut files)?;
+    files.sort();
+    let mut out = Vec::new();
+    for file in files {
+        let app_file = file_to_app(&file)?;
+        let source = source_for(&file)?;
+        let text = fs::read_to_string(&file).map_err(|e| format!("read {}: {e}", file.display()))?;
+        for (line, symbol) in exported_symbols(&text) {
+            let handle = state.handle_for(slot, &app_file, &symbol);
+            out.push(Entry {
+                slot: slot.to_string(),
+                symbol,
+                path: app_file.clone(),
+                source: source.clone(),
+                line,
+                epoch,
+                handle,
+            });
+        }
+    }
+    Ok(out)
+}
+
+fn gather_ts(dir: &Path, out: &mut Vec<PathBuf>) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|e| format!("scan {}: {e}", dir.display()))?;
+    for item in entries {
+        let path = item.map_err(|e| format!("scan {}: {e}", dir.display()))?.path();
+        if path.is_dir() {
+            gather_ts(&path, out)?;
+        } else if path.extension().and_then(|s| s.to_str()) == Some("ts") {
+            out.push(path);
+        }
+    }
+    Ok(())
+}
+
+fn file_to_app(path: &Path) -> Result<String, String> {
+    let abs = path
+        .canonicalize()
+        .map_err(|e| format!("resolve {}: {e}", path.display()))?;
+    Ok(abs.to_string_lossy().to_string())
+}
+
+fn source_for(path: &Path) -> Result<String, String> {
+    let text = fs::read_to_string(path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    for raw in text.lines().take(4) {
+        let line = raw.trim();
+        if let Some(rest) = line.strip_prefix("// origin:") {
+            return Ok(app_path(rest.trim()));
+        }
+    }
+    file_to_app(path)
+}
+
+fn exported_symbols(text: &str) -> Vec<(usize, String)> {
+    let mut out = Vec::new();
+    for (idx, raw) in text.lines().enumerate() {
+        let line = raw.trim_start();
+        for prefix in ["export const ", "export function "] {
+            if let Some(rest) = line.strip_prefix(prefix) {
+                let symbol: String = rest
+                    .chars()
+                    .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                    .collect();
+                if !symbol.is_empty() {
+                    out.push((idx + 1, symbol));
+                }
+            }
+        }
+    }
+    out
+}
+[?2004hroot@a163f2145a00:/app# cat /app/traces/alpha.trace
+[?2004lslot app fixtures/alpha/ws-old
+query alpha_before Widget
+slot app fixtures/alpha/ws-new
+query alpha_after Widget
+[?2004hroot@a163f2145a00:/app# cat /app/traces/beta.trace
+[?2004lslot gen fixtures/beta/gen-v1
+query beta_before Client
+slot gen fixtures/beta/gen-v2
+query beta_after Client
+[?2004hroot@a163f2145a00:/app# cat /app/traces/gamma.trace
+[?2004lslot pkg fixtures/gamma/alias-a
+query gamma_before Bridge
+slot pkg fixtures/gamma/alias-b
+query gamma_after Bridge
+[?2004hroot@a163f2145a00:/app# cat /app/traces/delta.trace
+[?2004lslot app fixtures/delta/app-old
+slot gen fixtures/delta/gen-v1
+query delta_client_before DeltaClient
+query delta_widget_before DeltaWidget
+slot app fixtures/delta/app-new
+query delta_client_after_app DeltaClient
+query delta_widget_after_app DeltaWidget
+slot gen fixtures/delta/gen-v2
+query delta_client_after_gen DeltaClient
+query delta_widget_after_gen DeltaWidget
+[?2004hroot@a163f2145a00:/app# cat /app/traces/epsilon.trace
+[?2004lslot gen fixtures/epsilon/gen-v1
+query epsilon_legacy_before Legacy
+slot gen fixtures/epsilon/gen-v2
+miss epsilon_legacy_after Legacy
+query epsilon_client_after Client
+[?2004hroot@a163f2145a00:/app# cat /app/traces/zeta.trace
+[?2004lslot app fixtures/zeta/app-old
+slot pkg fixtures/zeta/alias-a
+query zeta_bridge_before Bridge
+query zeta_widget_before Widget
+slot pkg fixtures/zeta/alias-b
+query zeta_bridge_after_pkg Bridge
+query zeta_widget_after_pkg Widget
+slot app fixtures/zeta/app-new
+query zeta_widget_after_app Widget
+query zeta_bridge_after_app Bridge
+[?2004hroot@a163f2145a00:/app# cat /app/r0/a.rs
+[?2004luse crate::model::{CaseReport, Event, State};
+use crate::r1_b::fold_b;
+use crate::r2_c::emit_c;
+use crate::r3_d::lift_d;
+use crate::r4_e::mote_e;
+use crate::r5_f::cast_f;
+
+pub fn phase_a(a: &mut State, b: &Event, c: &mut CaseReport) -> Result<(), String> {
+    match b.kind.as_str() {
+        "slot" => {
+            if b.left == "gen" {
+                emit_c(a, &b.left, &b.right)?;
+            } else if b.left == "pkg" {
+                lift_d(a, &b.left, &b.right)?;
+            } else {
+                fold_b(a, &b.left, &b.right)?;
+            }
+        }
+        "query" => {
+            let item = mote_e(a, &b.right, true);
+            let (item, note) = cast_f(a, item, true);
+            c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+        }
+        "miss" => {
+            let item = mote_e(a, &b.right, false);
+            let (item, note) = cast_f(a, item, false);
+            c.observations.push(crate::model::Observation { label: b.left.clone(), ..item });
+            if let Some(note) = note {
+                c.stale.push(note);
+            }
+        }
+        other => return Err(format!("unknown trace row {other}")),
+    }
+    Ok(())
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r1/b.rs
+[?2004luse crate::io::{app_path, collect_entries};
+use crate::model::State;
+
+pub fn fold_b(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let root = app_path(c);
+    a.active.insert(b.to_string(), root);
+    let mut found = collect_entries(a, b, c, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r2/c.rs
+[?2004luse crate::io::{app_path, collect_entries};
+use crate::model::State;
+
+pub fn emit_c(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let root = app_path(c);
+    a.active.insert(b.to_string(), root);
+    let mut found = collect_entries(a, b, c, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r3/d.rs
+[?2004luse crate::io::{app_path, collect_entries, resolve_target_root};
+use crate::model::State;
+
+pub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+    a.epoch += 1;
+    let shown = app_path(c);
+    let actual = resolve_target_root(c)?;
+    a.active.insert(b.to_string(), shown);
+    let mut found = collect_entries(a, b, &actual, a.epoch)?;
+    a.entries.append(&mut found);
+    Ok(())
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r4/e.rs
+[?2004luse crate::model::{Observation, State};
+
+pub fn mote_e(a: &mut State, b: &str, c: bool) -> Observation {
+    if let Some(entry) = a.entries.iter().find(|entry| entry.symbol == b) {
+        let reused = a.last_seen.get(b).map(|old| *old == entry.handle).unwrap_or(false);
+        a.last_seen.insert(b.to_string(), entry.handle);
+        let fresh = a
+            .active
+            .get(&entry.slot)
+            .map(|root| entry.path.starts_with(root))
+            .unwrap_or(false);
+        Observation {
+            label: String::new(),
+            symbol: b.to_string(),
+            found: true,
+            path: entry.path.clone(),
+            source: entry.source.clone(),
+            line: entry.line,
+            epoch: entry.epoch,
+            reused,
+            fresh,
+        }
+    } else {
+        Observation::missing(b, b, a.epoch, !c)
+    }
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r5/f.rs
+[?2004luse crate::model::{Observation, State};
+
+pub fn cast_f(_a: &State, b: Observation, c: bool) -> (Observation, Option<String>) {
+    if c {
+        if b.found && b.fresh {
+            (b, None)
+        } else {
+            let label = b.label.clone();
+            (b, Some(label))
+        }
+    } else if b.found && b.path.starts_with("/app/") {
+        (b, None)
+    } else {
+        (b, None)
+    }
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r6/g.rs
+[?2004luse std::collections::BTreeMap;
+
+pub fn phase_g(rows: &[(&str, usize)]) -> BTreeMap<String, usize> {
+    let mut out = BTreeMap::new();
+    for (key, value) in rows {
+        *out.entry((*key).to_string()).or_insert(0) += *value;
+    }
+    out
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r7/h.rs
+[?2004luse std::path::{Path, PathBuf};
+
+pub fn lift_h(base: &Path, value: &str) -> PathBuf {
+    let candidate = PathBuf::from(value);
+    if candidate.is_absolute() {
+        candidate
+    } else {
+        base.join(candidate)
+    }
+}
+[?2004hroot@a163f2145a00:/app# cat /app/r8/i.rs
+[?2004lpub fn turn_i(values: &[String]) -> Vec<String> {
+    let mut out = values.to_vec();
+    out.sort();
+    out.dedup();
+    out
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/gamma/alias-a/link.target
+[?2004l../pkg-a
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/gamma/alias-b/link.target
+[?2004l../pkg-b
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/gamma/pkg-a/src/bridge.ts
+[?2004lexport const Bridge = "gamma-bridge-a";
+export function gammaA() {
+  return Bridge;
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/gamma/pkg-b/src/bridge.ts
+[?2004lexport const Bridge = "gamma-bridge-b";
+export function gammaB() {
+  return Bridge;
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/alpha/ws-old/src/widget.ts
+[?2004lexport const Widget = "alpha-old-widget";
+export function helperAlphaOld() {
+  return Widget;
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/alpha/ws-new/src/widget.ts
+[?2004lexport const Widget = "alpha-new-widget";
+export function helperAlphaNew() {
+  return Widget;
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/beta/gen-v1/generated/api.ts
+[?2004l// origin: fixtures/beta/schemas/v1/api.schema
+export const Client = "beta-client-v1";
+export function betaShapeOne() {
+  return Client;
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/beta/gen-v2/generated/api.ts
+[?2004l// origin: fixtures/beta/schemas/v2/api.schema
+export const Client = "beta-client-v2";
+export function betaShapeTwo() {
+  return Client;
+}
+[?2004hroot@a163f2145a00:/app# cat /app/fixtures/zeta/alias-a/link.target && cat /app/fixtures/zeta/alias-b/link.target
+[?2004l../pkg-a
+../pkg-b
+[?2004hroot@a163f2145a00:/app# cat > /app/r1/b.rs << 'EOF'
+[?2004l[?2004h> use crate::io::{app_path, collect_entries};
+[?2004l[?2004h> use crate::model::State;
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn fold_b(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+[?2004l[?2004h>     a.epoch += 1;
+[?2004l[?2004h>     let root = app_path(c);
+[?2004l[?2004h>     a.active.insert(b.to_string(), root);
+[?2004l[?2004h>     a.entries.retain(|e| e.slot != b);
+[?2004l[?2004h>     let mut found = collect_entries(a, b, c, a.epoch)?;
+[?2004l[?2004h>     a.entries.append(&mut found);
+[?2004l[?2004h>     Ok(())
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@a163f2145a00:/app# cat > /app/r2/c.rs << 'EOF'
+[?2004l[?2004h> use crate::io::{app_path, collect_entries};
+[?2004l[?2004h> use crate::model::State;
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn emit_c(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+[?2004l[?2004h>     a.epoch += 1;
+[?2004l[?2004h>     let root = app_path(c);
+[?2004l[?2004h>     a.active.insert(b.to_string(), root);
+[?2004l[?2004h>     a.entries.retain(|e| e.slot != b);
+[?2004l[?2004h>     let mut found = collect_entries(a, b, c, a.epoch)?;
+[?2004l[?2004h>     a.entries.append(&mut found);
+[?2004l[?2004h>     Ok(())
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@a163f2145a00:/app# cat > /app/r3/d.rs << 'EOF'
+[?2004l[?2004h> use crate::io::{collect_entries, resolve_target_root};
+[?2004l[?2004h> use crate::model::State;
+[?2004l[?2004h> 
+[?2004l[?2004h> pub fn lift_d(a: &mut State, b: &str, c: &str) -> Result<(), String> {
+[?2004l[?2004h>     a.epoch += 1;
+[?2004l[?2004h>     let actual = resolve_target_root(c)?;
+[?2004l[?2004h>     a.active.insert(b.to_string(), actual.clone());
+[?2004l[?2004h>     a.entries.retain(|e| e.slot != b);
+[?2004l[?2004h>     let mut found = collect_entries(a, b, &actual, a.epoch)?;
+[?2004l[?2004h>     a.entries.append(&mut found);
+[?2004l[?2004h>     Ok(())
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@a163f2145a00:/app# cargo build 2>&1
+[?2004l[1m[32m   Compiling[0m incremental-index-invalidation v0.1.0 (/app)
+[1m[36m    Building[0m [                             ] 0/2: incremental-index-invalidation                                                                              [1m[36m    Building[0m [=============>               ] 1/2: idxlab(bin)                                                                                                 [K[1m[32m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 1.08s
+[?2004hroot@a163f2145a00:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@a163f2145a00:/app# cat /app/output/index-report.json
+[?2004l{
+  "cases": [
+    {
+      "name": "alpha",
+      "ok": true,
+      "observations": [
+        {"label": "alpha_before", "symbol": "Widget", "found": true, "path": "/app/fixtures/alpha/ws-old/src/widget.ts", "source": "/app/fixtures/alpha/ws-old/src/widget.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "alpha_after", "symbol": "Widget", "found": true, "path": "/app/fixtures/alpha/ws-new/src/widget.ts", "source": "/app/fixtures/alpha/ws-new/src/widget.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "beta",
+      "ok": true,
+      "observations": [
+        {"label": "beta_before", "symbol": "Client", "found": true, "path": "/app/fixtures/beta/gen-v1/generated/api.ts", "source": "/app/fixtures/beta/schemas/v1/api.schema", "line": 2, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "beta_after", "symbol": "Client", "found": true, "path": "/app/fixtures/beta/gen-v2/generated/api.ts", "source": "/app/fixtures/beta/schemas/v2/api.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "gamma",
+      "ok": true,
+      "observations": [
+        {"label": "gamma_before", "symbol": "Bridge", "found": true, "path": "/app/fixtures/gamma/pkg-a/src/bridge.ts", "source": "/app/fixtures/gamma/pkg-a/src/bridge.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "gamma_after", "symbol": "Bridge", "found": true, "path": "/app/fixtures/gamma/pkg-b/src/bridge.ts", "source": "/app/fixtures/gamma/pkg-b/src/bridge.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "delta",
+      "ok": true,
+      "observations": [
+        {"label": "delta_client_before", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fixtures/delta/schemas/v1/client.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "delta_widget_before", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-old/src/widget.ts", "source": "/app/fixtures/delta/app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "delta_client_after_app", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v1/generated/client.ts", "source": "/app/fixtures/delta/schemas/v1/client.schema", "line": 2, "epoch": 2, "reused": true, "fresh": true},
+        {"label": "delta_widget_after_app", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-new/src/widget.ts", "source": "/app/fixtures/delta/app-new/src/widget.ts", "line": 1, "epoch": 3, "reused": false, "fresh": true},
+        {"label": "delta_client_after_gen", "symbol": "DeltaClient", "found": true, "path": "/app/fixtures/delta/gen-v2/generated/client.ts", "source": "/app/fixtures/delta/schemas/v2/client.schema", "line": 2, "epoch": 4, "reused": false, "fresh": true},
+        {"label": "delta_widget_after_gen", "symbol": "DeltaWidget", "found": true, "path": "/app/fixtures/delta/app-new/src/widget.ts", "source": "/app/fixtures/delta/app-new/src/widget.ts", "line": 1, "epoch": 3, "reused": true, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "epsilon",
+      "ok": true,
+      "observations": [
+        {"label": "epsilon_legacy_before", "symbol": "Legacy", "found": true, "path": "/app/fixtures/epsilon/gen-v1/generated/legacy.ts", "source": "/app/fixtures/epsilon/schemas/v1/legacy.schema", "line": 2, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "epsilon_legacy_after", "symbol": "Legacy", "found": false, "path": "", "source": "", "line": 0, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "epsilon_client_after", "symbol": "Client", "found": true, "path": "/app/fixtures/epsilon/gen-v2/generated/client.ts", "source": "/app/fixtures/epsilon/schemas/v2/client.schema", "line": 2, "epoch": 2, "reused": false, "fresh": true}
+      ],
+      "stale": []
+    },
+    {
+      "name": "zeta",
+      "ok": true,
+      "observations": [
+        {"label": "zeta_bridge_before", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-a/src/bridge.ts", "source": "/app/fixtures/zeta/pkg-a/src/bridge.ts", "line": 1, "epoch": 2, "reused": false, "fresh": true},
+        {"label": "zeta_widget_before", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": false, "fresh": true},
+        {"label": "zeta_bridge_after_pkg", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-b/src/bridge.ts", "source": "/app/fixtures/zeta/pkg-b/src/bridge.ts", "line": 1, "epoch": 3, "reused": false, "fresh": true},
+        {"label": "zeta_widget_after_pkg", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-old/src/widget.ts", "source": "/app/fixtures/zeta/app-old/src/widget.ts", "line": 1, "epoch": 1, "reused": true, "fresh": true},
+        {"label": "zeta_widget_after_app", "symbol": "Widget", "found": true, "path": "/app/fixtures/zeta/app-new/src/widget.ts", "source": "/app/fixtures/zeta/app-new/src/widget.ts", "line": 1, "epoch": 4, "reused": false, "fresh": true},
+        {"label": "zeta_bridge_after_app", "symbol": "Bridge", "found": true, "path": "/app/fixtures/zeta/pkg-b/src/bridge.ts", "source": "/app/fixtures/zeta/pkg-b/src/bridge.ts", "line": 1, "epoch": 3, "reused": true, "fresh": true}
+      ],
+      "stale": []
+    }
+  ]
+}
+[?2004hroot@a163f2145a00:/app# cp /app/output/index-report.json /tmp/first-run.json
+[?2004l[?2004hroot@a163f2145a00:/app# bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@a163f2145a00:/app# diff /tmp/first-run.json /app/output/index-report.json
+[?2004l[?2004hroot@a163f2145a00:/app# 

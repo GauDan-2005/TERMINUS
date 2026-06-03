@@ -1,0 +1,108 @@
+New Terminal Output:
+
+root@ccbd9cc473ba:/app# cat > /app/internal/store/pack.go <<'EOF'
+> package store
+>
+> type EffectSnap struct {
+> ID         string
+> ExpiryTurn int
+> Active     bool
+> }
+>
+> type HostileSnap struct {
+> ID string
+> X  int
+> Y  int
+> }
+>
+> type ItemY struct {
+> Lit      []bool
+> Seen     []bool
+> Turn     int
+> Obs      map[string]bool
+> Effects  []EffectSnap
+> Width    int
+> Height   int
+> PlayerX  int
+> PlayerY  int
+> Hostiles []HostileSnap
+> }
+>
+> // PackItem produces the “save blob” passed across the resume boundary.
+> // It must preserve all state exactly.
+> func PackItem(b ItemY) ItemY {
+> out := b
+> out.Lit = append([]bool(nil), b.Lit...)
+> out.Seen = append([]bool(nil), b.Seen...)
+> return out
+> }
+> EOF
+root@ccbd9cc473ba:/app# python3 - <<'PY'
+> from pathlib import Path
+> p=Path('/app/internal/exec/run.go')
+> s=p.read_text()
+> # 1) ensure sidecars/moves are fresh-only
+> s=s.replace(
+> "\t\tallMoves := append(append([]MoveRow{}, freshMoves...), resumeMoves...)\n",
+> "\t\t// Sidecars should list the resolved moves in order (same list as JSON).\n\t\t// Since fresh/resume must match, write the fresh path only.\n\t\tallMoves
+:= freshMoves\n",
+> )
+> # 2) compute seen and include in ok
+> s=s.replace(
+> "\t\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n\t\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal
+: resumeIllegal, Steps: len(resumeMoves)}\n\t\tok := freshIllegal == 0 && resumeIllegal == 0 && fresh.Sig == resume.Sig\n",
+> "\t\tfresh := PathSummary{Sig: sigFor(freshMoves), Illegal: freshIllegal, Steps: len(freshMoves)}\n\t\tresume := PathSummary{Sig: sigFor(resumeMoves), Illegal
+: resumeIllegal, Steps: len(resumeMoves)}\n\t\tfreshSeen := vis.CountSeen(wFresh)\n\t\tresumeSeen := vis.CountSeen(wResume)\n\t\tok := freshIllegal == 0 && resu
+meIllegal == 0 && fresh.Sig == resume.Sig && freshSeen == resumeSeen\n",
+> )
+> # 3) publish fresh moves + reuse seen vars
+> s=s.replace(
+> "\t\t\tMoves:      allMoves,\n\t\t\tVisibility: VisPair{FreshSeen: vis.CountSeen(wFresh), ResumeSeen: vis.CountSeen(wResume)},\n",
+> "\t\t\t// Moves are the resolved move list for the case. Fresh and resumed runs\n\t\t\t// must agree, so we publish the fresh path and validate via signature.
+\n\t\t\tMoves:      freshMoves,\n\t\t\tVisibility: VisPair{FreshSeen: freshSeen, ResumeSeen: resumeSeen},\n",
+> )
+> # sanity check: did we actually change?
+> if 'freshSeen := vis.CountSeen(wFresh)' not in s:
+>     raise SystemExit('patch failed: ok/seen block not updated')
+> p.write_text(s)
+> print('patched', p)
+> PY
+patch failed: ok/seen block not updated
+root@ccbd9cc473ba:/app# gofmt -w /app/internal/store/pack.go /app/internal/exec/run.go
+root@ccbd9cc473ba:/app# bash /app/scripts/one-case.sh knight
+root@ccbd9cc473ba:/app# python3 - <<'PY'
+> import json
+> p='/app/output/single-knight.json'
+> with open(p) as f:
+>     c=json.load(f)['cases'][0]
+> print('ok',c['ok'])
+> print('fresh_seen',c['visibility']['fresh_seen'],'resume_seen',c['visibility']['resume_seen'])
+> PY
+ok True
+fresh_seen 7 resume_seen 7
+root@ccbd9cc473ba:/app# bash /app/scripts/run-matrix.sh
+root@ccbd9cc473ba:/app# python3 - <<'PY'
+> import json
+> p='/app/output/resume-audit.json'
+> with open(p) as f:
+>     data=json.load(f)
+> fail=[]
+> for c in data['cases']:
+>     vis=c.get('visibility',{})
+>     if (not c.get('ok')) or c['fresh']['sig']!=c['resume']['sig'] or c['fresh']['illegal']!=0 or c['resume']['illegal']!=0 or vis.get('fresh_seen')!=vis.get('
+resume_seen'):
+>         fail.append(c['name'])
+> print('fail',fail)
+> for c in data['cases']:
+>     vis=c.get('visibility',{})
+>     print(c['name'], 'ok=',c['ok'],'sig=',c['fresh']['sig'], 'seen=',vis.get('fresh_seen'),vis.get('resume_seen'),'moves=',len(c.get('moves',[])))
+> PY
+fail []
+bishop ok= True sig= 811c9dc5 seen= 0 0 moves= 0
+knight ok= True sig= 811c9dc5 seen= 7 7 moves= 0
+lancer ok= True sig= 811c9dc5 seen= 18 18 moves= 0
+ranger ok= True sig= 5c4ed3de seen= 9 9 moves= 4
+rook ok= True sig= 7d3f56fa seen= 9 9 moves= 2
+sentinel ok= True sig= 9a98d68 seen= 9 9 moves= 2
+warden ok= True sig= 811c9dc5 seen= 0 0 moves= 0
+root@ccbd9cc473ba:/app#

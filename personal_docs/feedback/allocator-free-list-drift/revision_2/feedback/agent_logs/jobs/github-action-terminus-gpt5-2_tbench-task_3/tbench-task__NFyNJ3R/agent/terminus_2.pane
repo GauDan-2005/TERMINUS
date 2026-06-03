@@ -1,0 +1,1961 @@
+[?2004hroot@ae6ae9e1ef3c:/app# asciinema rec --stdin /logs/agent/recording.cast
+[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
+[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
+[?2004hroot@ae6ae9e1ef3c:/app# clear
+[?2004l[H[J[3J[?2004hroot@ae6ae9e1ef3c:/app# cd /app
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# ls -la
+[?2004ltotal 4
+drwxr-xr-x 19 root root 257 May 28 10:54 .
+drwxr-xr-x 19 root root 265 May 28 10:55 ..
+-rw-r--r--  1 root root 576 May 28 10:54 Makefile
+drwxr-xr-x  2 root root  48 May 28 10:54 acct_e
+drwxr-xr-x  2 root root  22 May 28 10:54 bin
+drwxr-xr-x  2 root root  25 May 28 10:54 config
+drwxr-xr-x  3 root root  19 May 28 10:54 data
+drwxr-xr-x  2 root root  44 May 28 10:54 docs
+drwxr-xr-x  2 root root  32 May 28 10:54 drive_h
+drwxr-xr-x  2 root root  38 May 28 10:54 flow_g
+drwxr-xr-x  2 root root  81 May 28 10:54 include
+drwxr-xr-x  2 root root  48 May 28 10:54 list_b
+drwxr-xr-x  2 root root  38 May 28 10:54 mirror_j
+drwxr-xr-x  2 root root  48 May 28 10:54 move_d
+drwxr-xr-x  2 root root  45 May 28 10:54 pool_a
+drwxr-xr-x  2 root root  36 May 28 10:54 read_f
+drwxr-xr-x  2 root root  66 May 28 10:54 scripts
+drwxr-xr-x  2 root root  36 May 28 10:54 spill_i
+drwxr-xr-x  2 root root  51 May 28 10:54 split_c
+drwxr-xr-x  2 root root 302 May 28 10:54 src
+[?2004hroot@ae6ae9e1ef3c:/app# find . -maxdepth 3 -type f -name 'run-matrix.sh' -o -name 'run-one.sh' -o -name '*.c' -o -name '*.h' | sed 's|^./||' | head
+[?2004lacct_e/acct.c
+acct_e/acct.h
+drive_h/run.c
+flow_g/report.c
+include/arena.h
+include/block.h
+include/plan.h
+include/report.h
+include/stats.h
+list_b/list.c
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,200p' scripts/run-matrix.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+OUT="${APP_ROOT}/output"
+mkdir -p "${OUT}"
+bash "${APP_ROOT}/scripts/clean-room.sh"
+"${APP_ROOT}/bin/allocctl" matrix
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,200p' scripts/run-one.sh
+[?2004l#!/bin/bash
+set -euo pipefail
+APP_ROOT="${APP_ROOT:-/app}"
+CASE="${1:?case name required}"
+mkdir -p "${APP_ROOT}/output"
+"${APP_ROOT}/bin/allocctl" one "${CASE}"
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,200p' include/report.h
+[?2004l#ifndef REPORT_H
+#define REPORT_H
+
+#include "arena.h"
+#include "plan.h"
+
+#include <stddef.h>
+
+#define MAX_STEPS 128
+
+typedef struct StepRec {
+    int seq;
+    char op[16];
+    int index;
+    size_t size;
+    int result_index;
+    size_t heap_sig;
+    int fl_count;
+    size_t fl_sig;
+    size_t byte_total;
+} StepRec;
+
+typedef struct CaseResult {
+    char name[32];
+    int ok;
+    StepRec steps[MAX_STEPS];
+    int step_count;
+    size_t heap_sig;
+    int fl_count;
+    size_t fl_sig;
+    size_t byte_total;
+    char ledger_path[256];
+} CaseResult;
+
+int run_case(const Plan *plan, const char *out_dir, CaseResult *res);
+int emit_e(const CaseResult *res, const char *audit_path);
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path);
+
+#endif
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# bash -x /app/scripts/run-matrix.sh
+[?2004l+ set -euo pipefail
++ APP_ROOT=/app
++ OUT=/app/output
++ mkdir -p /app/output
++ bash /app/scripts/clean-room.sh
++ /app/bin/allocctl matrix
+[?2004hroot@ae6ae9e1ef3c:/app# ls -la /app/output
+[?2004ltotal 32
+drwxr-xr-x  2 root root  184 May 28 10:55 .
+drwxr-xr-x 20 root root  271 May 28 10:55 ..
+-rw-r--r--  1 root root 7092 May 28 10:55 alloc-audit.json
+-rw-r--r--  1 root root  608 May 28 10:55 cedar.ledger.jsonl
+-rw-r--r--  1 root root  370 May 28 10:55 coral.ledger.jsonl
+-rw-r--r--  1 root root  969 May 28 10:55 jade.ledger.jsonl
+-rw-r--r--  1 root root  853 May 28 10:55 onyx.ledger.jsonl
+-rw-r--r--  1 root root 1092 May 28 10:55 pearl.ledger.jsonl
+-rw-r--r--  1 root root  842 May 28 10:55 slate.ledger.jsonl
+[?2004hroot@ae6ae9e1ef3c:/app# find /app/output -maxdepth 2 -type f -print
+[?2004l/app/output/alloc-audit.json
+/app/output/cedar.ledger.jsonl
+/app/output/jade.ledger.jsonl
+/app/output/slate.ledger.jsonl
+/app/output/coral.ledger.jsonl
+/app/output/onyx.ledger.jsonl
+/app/output/pearl.ledger.jsonl
+[?2004hroot@ae6ae9e1ef3c:/app# test -f /app/output/alloc-audit.json && (echo '--- alloc-audit.json ---'; sed -n '1,200p' /app/output/alloc-audit.json) || echo 'missing /app/output/alloc-audit.json'
+[?2004l--- alloc-audit.json ---
+{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    },
+    {
+      "name": "jade",
+      "ok": true,
+      "heap_sig": 5440,
+      "fl_count": 3,
+      "fl_sig": 65216,
+      "byte_total": 368,
+      "ledger": "/app/output/jade.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
+        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
+        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
+        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
+      ]
+    },
+    {
+      "name": "slate",
+      "ok": true,
+      "heap_sig": 3808,
+      "fl_count": 2,
+      "fl_sig": 65312,
+      "byte_total": 256,
+      "ledger": "/app/output/slate.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
+        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 144},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 2, "fl_sig": 65536, "byte_total": 24},
+        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 256}
+      ]
+    },
+    {
+      "name": "coral",
+      "ok": true,
+      "heap_sig": 2448,
+      "fl_count": 1,
+      "fl_sig": 65392,
+      "byte_total": 168,
+      "ledger": "/app/output/coral.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 152},
+        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 120},
+        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 168}
+      ]
+    },
+    {
+      "name": "onyx",
+      "ok": true,
+      "heap_sig": 24888,
+      "fl_count": 4,
+      "fl_sig": 64072,
+      "byte_total": 1504,
+      "ledger": "/app/output/onyx.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 192},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 288},
+        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 200},
+        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 3, "fl_sig": 65448, "byte_total": 112},
+        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 3, "fl_sig": 64912, "byte_total": 656},
+        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 4, "fl_sig": 64072, "byte_total": 1504}
+      ]
+    },
+    {
+      "name": "pearl",
+      "ok": true,
+      "heap_sig": 9520,
+      "fl_count": 3,
+      "fl_sig": 64976,
+      "byte_total": 608,
+      "ledger": "/app/output/pearl.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 72},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 304},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 344},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 448},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 352},
+        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 3, "fl_sig": 64976, "byte_total": 608}
+      ]
+    }
+  ]
+}
+[?2004hroot@ae6ae9e1ef3c:/app# for n in cedar jade slate coral onyx pearl; do echo "== one $n =="; /app/bin/allocctl one "$n" || echo "allocctl one $n failed"; done
+[?2004l== one cedar ==
+== one jade ==
+== one slate ==
+== one coral ==
+== one onyx ==
+== one pearl ==
+[?2004hroot@ae6ae9e1ef3c:/app# ls -la /app/output
+[?2004ltotal 56
+drwxr-xr-x  2 root root  326 May 28 10:55 .
+drwxr-xr-x 20 root root  271 May 28 10:55 ..
+-rw-r--r--  1 root root 7092 May 28 10:55 alloc-audit.json
+-rw-r--r--  1 root root  979 May 28 10:55 cedar-audit.json
+-rw-r--r--  1 root root  608 May 28 10:55 cedar.ledger.jsonl
+-rw-r--r--  1 root root  689 May 28 10:55 coral-audit.json
+-rw-r--r--  1 root root  370 May 28 10:55 coral.ledger.jsonl
+-rw-r--r--  1 root root 1416 May 28 10:55 jade-audit.json
+-rw-r--r--  1 root root  969 May 28 10:55 jade.ledger.jsonl
+-rw-r--r--  1 root root 1276 May 28 10:55 onyx-audit.json
+-rw-r--r--  1 root root  853 May 28 10:55 onyx.ledger.jsonl
+-rw-r--r--  1 root root 1567 May 28 10:55 pearl-audit.json
+-rw-r--r--  1 root root 1092 May 28 10:55 pearl.ledger.jsonl
+-rw-r--r--  1 root root 1265 May 28 10:55 slate-audit.json
+-rw-r--r--  1 root root  842 May 28 10:55 slate.ledger.jsonl
+[?2004hroot@ae6ae9e1ef3c:/app# for f in /app/output/*-audit.json; do echo "--- $f ---"; sed -n '1,120p' "$f"; done
+[?2004l--- /app/output/alloc-audit.json ---
+{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    },
+    {
+      "name": "jade",
+      "ok": true,
+      "heap_sig": 5440,
+      "fl_count": 3,
+      "fl_sig": 65216,
+      "byte_total": 368,
+      "ledger": "/app/output/jade.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
+        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
+        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
+        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
+      ]
+    },
+    {
+      "name": "slate",
+      "ok": true,
+      "heap_sig": 3808,
+      "fl_count": 2,
+      "fl_sig": 65312,
+      "byte_total": 256,
+      "ledger": "/app/output/slate.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
+        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 144},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 2, "fl_sig": 65536, "byte_total": 24},
+        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 256}
+      ]
+    },
+    {
+      "name": "coral",
+      "ok": true,
+      "heap_sig": 2448,
+      "fl_count": 1,
+      "fl_sig": 65392,
+      "byte_total": 168,
+      "ledger": "/app/output/coral.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 152},
+        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 120},
+        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 168}
+      ]
+    },
+    {
+      "name": "onyx",
+      "ok": true,
+      "heap_sig": 24888,
+      "fl_count": 4,
+      "fl_sig": 64072,
+      "byte_total": 1504,
+      "ledger": "/app/output/onyx.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 192},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 288},
+        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 200},
+        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 3, "fl_sig": 65448, "byte_total": 112},
+        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 3, "fl_sig": 64912, "byte_total": 656},
+        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 4, "fl_sig": 64072, "byte_total": 1504}
+      ]
+    },
+    {
+      "name": "pearl",
+      "ok": true,
+      "heap_sig": 9520,
+      "fl_count": 3,
+      "fl_sig": 64976,
+      "byte_total": 608,
+      "ledger": "/app/output/pearl.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 72},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 304},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 344},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 448},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 352},
+        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 3, "fl_sig": 64976, "byte_total": 608}
+      ]
+    }
+  ]
+}
+--- /app/output/cedar-audit.json ---
+{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    }
+  ]
+}
+--- /app/output/coral-audit.json ---
+{
+  "cases": [
+    {
+      "name": "coral",
+      "ok": true,
+      "heap_sig": 2448,
+      "fl_count": 1,
+      "fl_sig": 65392,
+      "byte_total": 168,
+      "ledger": "/app/output/coral.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 152},
+        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 120},
+        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 168}
+      ]
+    }
+  ]
+}
+--- /app/output/jade-audit.json ---
+{
+  "cases": [
+    {
+      "name": "jade",
+      "ok": true,
+      "heap_sig": 5440,
+      "fl_count": 3,
+      "fl_sig": 65216,
+      "byte_total": 368,
+      "ledger": "/app/output/jade.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
+        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
+        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
+        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
+      ]
+    }
+  ]
+}
+--- /app/output/onyx-audit.json ---
+{
+  "cases": [
+    {
+      "name": "onyx",
+      "ok": true,
+      "heap_sig": 24888,
+      "fl_count": 4,
+      "fl_sig": 64072,
+      "byte_total": 1504,
+      "ledger": "/app/output/onyx.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 192},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 288},
+        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 200},
+        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 3, "fl_sig": 65448, "byte_total": 112},
+        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 3, "fl_sig": 64912, "byte_total": 656},
+        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 4, "fl_sig": 64072, "byte_total": 1504}
+      ]
+    }
+  ]
+}
+--- /app/output/pearl-audit.json ---
+{
+  "cases": [
+    {
+      "name": "pearl",
+      "ok": true,
+      "heap_sig": 9520,
+      "fl_count": 3,
+      "fl_sig": 64976,
+      "byte_total": 608,
+      "ledger": "/app/output/pearl.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 72},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 304},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 344},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 448},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 352},
+        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 3, "fl_sig": 64976, "byte_total": 608}
+      ]
+    }
+  ]
+}
+--- /app/output/slate-audit.json ---
+{
+  "cases": [
+    {
+      "name": "slate",
+      "ok": true,
+      "heap_sig": 3808,
+      "fl_count": 2,
+      "fl_sig": 65312,
+      "byte_total": 256,
+      "ledger": "/app/output/slate.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
+        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 144},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 2, "fl_sig": 65536, "byte_total": 24},
+        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 256}
+      ]
+    }
+  ]
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,240p' flow_g/report.c
+[?2004l#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+static void esc(FILE *fp, const char *s) {
+    fputc('"', fp);
+    for (const char *p = s; *p; p++) {
+        if (*p == '"' || *p == '\\') {
+            fputc('\\', fp);
+        }
+        fputc(*p, fp);
+    }
+    fputc('"', fp);
+}
+
+static void write_case(FILE *fp, const CaseResult *res, int last) {
+    FILE *led = fopen(res->ledger_path, "w");
+    fprintf(fp, "    {\n      \"name\": ");
+    esc(fp, res->name);
+    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
+    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
+    fprintf(fp, "      \"fl_count\": %d,\n", res->fl_count);
+    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
+    fprintf(fp, "      \"byte_total\": %zu,\n", res->byte_total);
+    fprintf(fp, "      \"ledger\": ");
+    esc(fp, res->ledger_path);
+    fprintf(fp, ",\n      \"steps\": [\n");
+    for (int i = 0; i < res->step_count; i++) {
+        const StepRec *st = &res->steps[i];
+        fprintf(fp,
+                "        {\"seq\": %d, \"op\": ", st->seq);
+        esc(fp, st->op);
+        fprintf(fp,
+                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+                st->byte_total);
+        if (i + 1 < res->step_count) {
+            fprintf(fp, ",");
+        }
+        fprintf(fp, "\n");
+        if (led) {
+            fprintf(led,
+                    "{\"seq\":%d,\"op\":", st->seq);
+            esc(led, st->op);
+            fprintf(led,
+                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+                    st->fl_sig, st->byte_total);
+        }
+    }
+    fprintf(fp, "      ]\n    }");
+    if (!last) {
+        fprintf(fp, ",");
+    }
+    fprintf(fp, "\n");
+    if (led) {
+        fclose(led);
+    }
+}
+
+int emit_e(const CaseResult *res, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    write_case(fp, res, 1);
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+
+int emit_matrix(const CaseResult *cases, int count, const char *audit_path) {
+    FILE *fp = fopen(audit_path, "w");
+    int i;
+    if (!fp) {
+        return -1;
+    }
+    fprintf(fp, "{\n  \"cases\": [\n");
+    for (i = 0; i < count; i++) {
+        write_case(fp, &cases[i], i + 1 == count);
+    }
+    fprintf(fp, "  ]\n}\n");
+    fclose(fp);
+    return 0;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "heap_sig\|fl_sig\|byte_total\|emit_matrix\|emit_e\|ledger" /app/src /app/flow_g /app/include | head -n 80
+[?2004l/app/src/arena_core.c:8:size_t arena_heap_sig(const Arena *a) {
+/app/src/arena_core.c:27:size_t arena_fl_sig(const Arena *a) {
+/app/src/main.c:32:        if (emit_matrix(cases, n, "/app/output/alloc-audit.json") != 0) {
+/app/src/main.c:44:        return emit_e(&res, audit) != 0;
+/app/flow_g/report.c:18:    FILE *led = fopen(res->ledger_path, "w");
+/app/flow_g/report.c:22:    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
+/app/flow_g/report.c:24:    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
+/app/flow_g/report.c:25:    fprintf(fp, "      \"byte_total\": %zu,\n", res->byte_total);
+/app/flow_g/report.c:26:    fprintf(fp, "      \"ledger\": ");
+/app/flow_g/report.c:27:    esc(fp, res->ledger_path);
+/app/flow_g/report.c:35:                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
+/app/flow_g/report.c:36:                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
+/app/flow_g/report.c:37:                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
+/app/flow_g/report.c:38:                st->byte_total);
+/app/flow_g/report.c:48:                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
+/app/flow_g/report.c:49:                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
+/app/flow_g/report.c:50:                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
+/app/flow_g/report.c:51:                    st->fl_sig, st->byte_total);
+/app/flow_g/report.c:64:int emit_e(const CaseResult *res, const char *audit_path) {
+/app/flow_g/report.c:76:int emit_matrix(const CaseResult *cases, int count, const char *audit_path) {
+/app/include/arena.h:31:size_t arena_heap_sig(const Arena *a);
+/app/include/arena.h:32:size_t arena_fl_sig(const Arena *a);
+/app/include/report.h:17:    size_t heap_sig;
+/app/include/report.h:19:    size_t fl_sig;
+/app/include/report.h:20:    size_t byte_total;
+/app/include/report.h:28:    size_t heap_sig;
+/app/include/report.h:30:    size_t fl_sig;
+/app/include/report.h:31:    size_t byte_total;
+/app/include/report.h:32:    char ledger_path[256];
+/app/include/report.h:36:int emit_e(const CaseResult *res, const char *audit_path);
+/app/include/report.h:37:int emit_matrix(const CaseResult *cases, int count, const char *audit_path);
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,200p' /app/src/arena_core.c
+[?2004l#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+size_t arena_heap_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t off = 0;
+    while (off < a->used) {
+        Block b;
+        b.base = (unsigned char *)a->mem;
+        b.off = off;
+        size_t total = tag_read_size(&b);
+        if (total == 0) {
+            break;
+        }
+        if (z_is_flag(&b)) {
+            sig += total * 17;
+        }
+        off += total;
+    }
+    return sig;
+}
+
+size_t arena_fl_sig(const Arena *a) {
+    size_t sig = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        Block b = {(unsigned char *)a->mem, cur};
+        sig += tag_read_size(&b);
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return sig;
+}
+
+int arena_fl_count(const Arena *a) {
+    int c = 0;
+    size_t cur = a->fl_head.off;
+    while (cur != FL_END) {
+        c++;
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return c;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "byte_total" /app/src | head -n 80
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "run_case\(" -n /app/src /app/*_* | head -n 40
+[?2004lgrep: Unmatched ( or \(
+[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "ok[[:space:]]*=" /app/src /app/*_* | head -n 80
+[?2004l/app/drive_h/run.c:40:    res->ok = 1;
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,260p' /app/src/case_runner.c 2>/dev/null || true
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "CaseResult" /app/src | head -n 80
+[?2004l/app/src/main.c:10:static int run_named(const char *name, const char *out_dir, CaseResult *res) {
+/app/src/main.c:24:        CaseResult cases[6];
+/app/src/main.c:38:        CaseResult res;
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,260p' /app/src/runner.c 2>/dev/null || true
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# ls -la /app/src
+[?2004ltotal 64
+drwxr-xr-x  2 root root  302 May 28 10:54 .
+drwxr-xr-x 20 root root  271 May 28 10:55 ..
+-rw-r--r--  1 root root 1436 May 28 10:54 alloc_ops.c
+-rw-r--r--  1 root root 2000 May 28 10:54 alloc_ops.o
+-rw-r--r--  1 root root  980 May 28 10:54 arena_core.c
+-rw-r--r--  1 root root 1848 May 28 10:54 arena_core.o
+-rw-r--r--  1 root root  569 May 28 10:54 free_ops.c
+-rw-r--r--  1 root root 1616 May 28 10:54 free_ops.o
+-rw-r--r--  1 root root  514 May 28 10:54 init_heap.c
+-rw-r--r--  1 root root 1560 May 28 10:54 init_heap.o
+-rw-r--r--  1 root root 1408 May 28 10:54 main.c
+-rw-r--r--  1 root root 3584 May 28 10:54 main.o
+-rw-r--r--  1 root root 1028 May 28 10:54 reloc_ops.c
+-rw-r--r--  1 root root 1872 May 28 10:54 reloc_ops.o
+-rw-r--r--  1 root root 1342 May 28 10:54 slot_split.c
+-rw-r--r--  1 root root 2416 May 28 10:54 slot_split.o
+-rw-r--r--  1 root root  281 May 28 10:54 slot_take.c
+-rw-r--r--  1 root root 1472 May 28 10:54 slot_take.o
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,260p' /app/drive_h/run.c
+[?2004l#include "../include/plan.h"
+#include "../include/report.h"
+
+#include <stdio.h>
+#include <string.h>
+
+int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {
+    Arena arena;
+    int seq = 0;
+    memset(res, 0, sizeof(*res));
+    strncpy(res->name, plan->name, sizeof(res->name) - 1);
+    snprintf(res->ledger_path, sizeof(res->ledger_path), "%s/%s.ledger.jsonl", out_dir, plan->name);
+    arena_init(&arena);
+    for (int i = 0; i < plan->op_count; i++) {
+        const PlanOp *op = &plan->ops[i];
+        StepRec *st = &res->steps[res->step_count++];
+        st->seq = seq++;
+        st->index = op->index;
+        st->size = op->size;
+        st->result_index = -1;
+        if (op->kind == OP_ALLOC) {
+            strncpy(st->op, "alloc", sizeof(st->op) - 1);
+            st->result_index = arena_slot_alloc(&arena, op->size);
+        } else if (op->kind == OP_FREE) {
+            strncpy(st->op, "free", sizeof(st->op) - 1);
+            st->result_index = arena_slot_free(&arena, op->index);
+        } else if (op->kind == OP_REALLOC) {
+            strncpy(st->op, "realloc", sizeof(st->op) - 1);
+            st->result_index = arena_slot_realloc(&arena, op->index, op->size);
+        }
+        st->heap_sig = arena_heap_sig(&arena);
+        st->fl_count = arena_fl_count(&arena);
+        st->fl_sig = arena_fl_sig(&arena);
+        st->byte_total = arena.stats.allocated;
+    }
+    res->heap_sig = arena_heap_sig(&arena);
+    res->fl_count = arena_fl_count(&arena);
+    res->fl_sig = arena_fl_sig(&arena);
+    res->byte_total = arena.stats.allocated;
+    res->ok = 1;
+    return 0;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,240p' /app/pool_a/tag.h
+[?2004l#ifndef TAG_H
+#define TAG_H
+
+#include "../include/block.h"
+
+void xa0(Block *a, size_t b);
+size_t tag_read_size(const Block *a);
+int z_is_flag(const Block *a);
+void z_set_flag(Block *a, int flag);
+size_t tag_read_footer(const Block *a, size_t total);
+
+#endif
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,240p' /app/pool_a/tag.c 2>/dev/null || true
+[?2004l#include "../include/block.h"
+
+#include <stddef.h>
+
+void xa0(Block *a, size_t b) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    size_t *ftr;
+    hdr[0] = b;
+    hdr[1] = 0;
+    ftr = (size_t *)(void *)(a->base + a->off + (b / 2));
+    ftr[0] = b;
+}
+
+size_t tag_read_size(const Block *a) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    return hdr[0];
+}
+
+int z_is_flag(const Block *a) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    return (int)(hdr[1] & 1);
+}
+
+void z_set_flag(Block *a, int flag) {
+    size_t *hdr = (size_t *)(void *)(a->base + a->off);
+    if (flag) {
+        hdr[1] |= 1;
+    } else {
+        hdr[1] &= ~(size_t)1;
+    }
+}
+
+size_t tag_read_footer(const Block *a, size_t total) {
+    size_t *ftr = (size_t *)(void *)(a->base + a->off + (total / 2));
+    return ftr[0];
+}
+[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "z_is_flag\|tag_read_size\|payload" /app | head -n 120
+[?2004l/app/include/arena.h:21:    size_t slot_payload[MAX_SLOTS];
+/app/list_b/list.c:49:    size_t total = tag_read_size(b);
+/app/list_b/list.c:53:        if (!z_is_flag(&nb)) {
+/app/list_b/list.c:55:            total += tag_read_size(&nb);
+/app/list_b/list.c:64:    size_t old_total = tag_read_size(oldb);
+/app/list_b/list.c:73:    if (z_is_flag(&nb)) {
+/app/list_b/list.c:76:    ntotal = tag_read_size(&nb);
+/app/pool_a/tag.c:14:size_t tag_read_size(const Block *a) {
+/app/pool_a/tag.c:19:int z_is_flag(const Block *a) {
+/app/pool_a/tag.h:7:size_t tag_read_size(const Block *a);
+/app/pool_a/tag.h:8:int z_is_flag(const Block *a);
+/app/split_c/split.c:13:    size_t total = tag_read_size(b);
+/app/src/alloc_ops.c:25:        size_t total = tag_read_size(&b);
+/app/src/alloc_ops.c:43:    total = tag_read_size(fit);
+/app/src/alloc_ops.c:54:    a->slot_payload[idx] = req;
+/app/src/arena_core.c:15:        size_t total = tag_read_size(&b);
+/app/src/arena_core.c:19:        if (z_is_flag(&b)) {
+/app/src/arena_core.c:32:        sig += tag_read_size(&b);
+/app/src/free_ops.c:15:    size_t total = tag_read_size(&b);
+/app/src/reloc_ops.c:19:    old_pay = a->slot_payload[idx];
+/app/src/reloc_ops.c:21:    if (need <= tag_read_size(&oldb)) {
+/app/src/slot_split.c:8:    size_t old_total = tag_read_size(oldb);
+/app/src/slot_split.c:11:        a->slot_payload[idx] = req;
+/app/src/slot_split.c:18:    a->slot_payload[idx] = req;
+/app/src/slot_split.c:24:    size_t old_total = tag_read_size(oldb);
+/app/src/slot_split.c:29:    ntotal = tag_read_size(&nb);
+/app/src/slot_split.c:40:    a->slot_payload[idx] = req;
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,240p' /app/include/block.h
+[?2004l#ifndef BLOCK_H
+#define BLOCK_H
+
+#include <stddef.h>
+
+#define HDR_SIZE 16
+#define FTR_SIZE 8
+#define FL_END ((size_t)-1)
+#define MIN_BLK 40
+#define ALIGN 8
+
+typedef struct Block {
+    unsigned char *base;
+    size_t off;
+} Block;
+
+static inline size_t blk_align(size_t n) {
+    return (n + (ALIGN - 1)) & ~(size_t)(ALIGN - 1);
+}
+
+#endif
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,260p' /app/src/alloc_ops.c
+[?2004l#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need);
+void slot_take_whole(Arena *a, Block *fit, size_t total);
+
+static Block make_blk(Arena *a, size_t off) {
+    Block b;
+    b.base = a->mem;
+    b.off = off;
+    return b;
+}
+
+static Block *find_fit(Arena *a, size_t need) {
+    size_t cur = a->fl_head.off;
+    static Block pick;
+    while (cur != FL_END) {
+        Block b = make_blk(a, cur);
+        size_t total = tag_read_size(&b);
+        if (total >= need) {
+            pick = b;
+            return &pick;
+        }
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return NULL;
+}
+
+int arena_slot_alloc(Arena *a, size_t req) {
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    Block *fit = find_fit(a, need);
+    size_t total;
+    int idx;
+    if (!fit) {
+        return -1;
+    }
+    total = tag_read_size(fit);
+    if (total >= need + MIN_BLK) {
+        slot_take_split(a, fit, req, need);
+    } else {
+        slot_take_whole(a, fit, total);
+    }
+    idx = a->slot_count++;
+    if (idx >= MAX_SLOTS) {
+        return -1;
+    }
+    a->slots[idx] = fit->base + fit->off + HDR_SIZE;
+    a->slot_payload[idx] = req;
+    a->slot_live[idx] = 1;
+    a->stats.live_blocks++;
+    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+    return idx;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/src/free_ops.c
+[?2004l#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+int arena_slot_free(Arena *a, int idx) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block b;
+    b.base = a->mem;
+    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    size_t total = tag_read_size(&b);
+    z_set_flag(&b, 0);
+    xd3(&a->stats, -(ssize_t)total);
+    a->stats.live_blocks--;
+    a->slot_live[idx] = 0;
+    list_coalesce(a, &b);
+    return 0;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,260p' /app/src/reloc_ops.c
+[?2004l#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../move_d/move.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int arena_slot_alloc(Arena *a, size_t req);
+int arena_slot_free(Arena *a, int idx);
+
+int arena_slot_realloc(Arena *a, int idx, size_t req) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block oldb;
+    size_t old_pay;
+    size_t need;
+    oldb.base = a->mem;
+    oldb.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    old_pay = a->slot_payload[idx];
+    need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (need <= tag_read_size(&oldb)) {
+        return split_realloc_inplace(a, &oldb, idx, req);
+    }
+    if (split_grow_inplace(a, &oldb, idx, req, need) >= 0) {
+        return idx;
+    }
+    {
+        int nidx = arena_slot_alloc(a, req);
+        if (nidx < 0) {
+            return -1;
+        }
+        xc2(a->slots[nidx], a->slots[idx], old_pay);
+        arena_slot_free(a, idx);
+        return nidx;
+    }
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/include/arena.h
+[?2004l#ifndef ARENA_H
+#define ARENA_H
+
+#include "block.h"
+#include "stats.h"
+
+#include <stddef.h>
+
+#define HEAP_BYTES 65536
+#define MAX_SLOTS 64
+#define FL_MAP_SZ (HEAP_BYTES / 8)
+
+typedef struct Arena {
+    unsigned char mem[HEAP_BYTES];
+    size_t used;
+    Block head;
+    Block fl_head;
+    size_t fl_link_next[FL_MAP_SZ];
+    size_t fl_link_prev[FL_MAP_SZ];
+    void *slots[MAX_SLOTS];
+    size_t slot_payload[MAX_SLOTS];
+    int slot_live[MAX_SLOTS];
+    int slot_count;
+    Stats stats;
+} Arena;
+
+void arena_init(Arena *a);
+int arena_slot_alloc(Arena *a, size_t req);
+int arena_slot_free(Arena *a, int idx);
+int arena_slot_realloc(Arena *a, int idx, size_t req);
+size_t arena_heap_sig(const Arena *a);
+size_t arena_fl_sig(const Arena *a);
+int arena_fl_count(const Arena *a);
+
+#endif
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/include/stats.h
+[?2004l#ifndef STATS_H
+#define STATS_H
+
+#include <stddef.h>
+
+typedef struct Stats {
+    size_t allocated;
+    size_t peak;
+    size_t live_blocks;
+} Stats;
+
+#endif
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/acct_e/acct.h
+[?2004l#ifndef ACCT_H
+#define ACCT_H
+
+#include "../include/stats.h"
+
+#include <sys/types.h>
+
+void xd3(Stats *a, ssize_t b);
+
+#endif
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,260p' /app/acct_e/acct.c
+[?2004l#include "../include/stats.h"
+
+#include <stddef.h>
+#include <sys/types.h>
+
+void xd3(Stats *a, ssize_t b) {
+    if (b > 0) {
+        a->allocated += (size_t)b + 8;
+    } else {
+        a->allocated -= (size_t)(-b);
+    }
+    if (a->allocated > a->peak) {
+        a->peak = a->allocated;
+    }
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/src/init_heap.c
+[?2004l#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+void arena_init(Arena *a) {
+    Block h;
+    size_t i;
+    memset(a, 0, sizeof(*a));
+    for (i = 0; i < FL_MAP_SZ; i++) {
+        a->fl_link_next[i] = FL_END;
+        a->fl_link_prev[i] = FL_END;
+    }
+    a->used = HEAP_BYTES;
+    h.base = a->mem;
+    h.off = 0;
+    xa0(&h, HEAP_BYTES);
+    z_set_flag(&h, 0);
+    a->head = h;
+    a->fl_head.base = h.base;
+    a->fl_head.off = FL_END;
+    xb1(a, &h);
+}
+[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "xd3\(" /app | head -n 80
+[?2004lgrep: Unmatched ( or \(
+[?2004hroot@ae6ae9e1ef3c:/app# grep -RIn "stats\.allocated\|live_blocks" /app/src /app/*_* | head -n 120
+[?2004l/app/src/alloc_ops.c:56:    a->stats.live_blocks++;
+/app/src/free_ops.c:18:    a->stats.live_blocks--;
+/app/drive_h/run.c:34:        st->byte_total = arena.stats.allocated;
+/app/drive_h/run.c:39:    res->byte_total = arena.stats.allocated;
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/split_c/split.c
+[?2004l#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <stddef.h>
+
+static int on_fl(Arena *a, size_t off) {
+    size_t ix = off >> 3;
+    return a->fl_head.off == off || a->fl_link_prev[ix] != FL_END || a->fl_link_next[ix] != FL_END;
+}
+
+Block *mark_c(Arena *a, Block *b, size_t c) {
+    size_t total = tag_read_size(b);
+    size_t need = blk_align(c + HDR_SIZE + FTR_SIZE);
+    if (total < need + MIN_BLK) {
+        return NULL;
+    }
+    size_t rem = total - need;
+    if (on_fl(a, b->off)) {
+        list_remove(a, b);
+    }
+    xa0(b, need);
+    z_set_flag(b, 1);
+    Block tail;
+    tail.base = b->base;
+    tail.off = b->off + need;
+    xa0(&tail, rem);
+    z_set_flag(&tail, 0);
+    xb1(a, &tail);
+    return NULL;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,240p' /app/src/slot_split.c
+[?2004l#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+    size_t old_total = tag_read_size(oldb);
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (old_total < need + MIN_BLK) {
+        a->slot_payload[idx] = req;
+        return idx;
+    }
+    z_set_flag(oldb, 0);
+    xd3(&a->stats, -(ssize_t)old_total);
+    mark_c(a, oldb, req);
+    xd3(&a->stats, (ssize_t)need);
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+    size_t merged;
+    size_t old_total = tag_read_size(oldb);
+    size_t ntotal;
+    Block nb;
+    nb.base = oldb->base;
+    nb.off = oldb->off + old_total;
+    ntotal = tag_read_size(&nb);
+    if (q8f_blk(a, oldb, need, &merged) != 0) {
+        return -1;
+    }
+    xd3(&a->stats, (ssize_t)ntotal);
+    if (merged >= need + MIN_BLK) {
+        z_set_flag(oldb, 0);
+        xd3(&a->stats, -(ssize_t)merged);
+        mark_c(a, oldb, req);
+        xd3(&a->stats, (ssize_t)need);
+    }
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+    mark_c(a, fit, req);
+    xd3(&a->stats, (ssize_t)need);
+}
+[?2004hroot@ae6ae9e1ef3c:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: src/alloc_ops.c
+[?2004l[?2004h> @@
+[?2004l[?2004h>  int arena_slot_alloc(Arena *a, size_t req) {
+[?2004l[?2004h> @@
+[?2004l[?2004h>      a->slots[idx] = fit->base + fit->off + HDR_SIZE;
+[?2004l[?2004h>      a->slot_payload[idx] = req;
+[?2004l[?2004h>      a->slot_live[idx] = 1;
+[?2004l[?2004h>      a->stats.live_blocks++;
+[?2004l[?2004h> +    // Per spec: track live allocated payload bytes (not block totals).
+[?2004l[?2004h> +    a->stats.allocated += req;
+[?2004l[?2004h> +    if (a->stats.allocated > a->stats.peak) {
+[?2004l[?2004h> +        a->stats.peak = a->stats.allocated;
+[?2004l[?2004h> +    }
+[?2004l[?2004h>      memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+[?2004l[?2004h>      return idx;
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: src/free_ops.c
+[?2004l[?2004h> @@
+[?2004l[?2004h>  int arena_slot_free(Arena *a, int idx) {
+[?2004l[?2004h>      if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+[?2004l[?2004h>          return -1;
+[?2004l[?2004h>      }
+[?2004l[?2004h> @@
+[?2004l[?2004h>      Block b;
+[?2004l[?2004h> @@
+[?2004l[?2004h>      size_t total = tag_read_size(&b);
+[?2004l[?2004h>      z_set_flag(&b, 0);
+[?2004l[?2004h> -    xd3(&a->stats, -(ssize_t)total);
+[?2004l[?2004h> +    // Per spec: stats.allocated is live payload bytes.
+[?2004l[?2004h> +    a->stats.allocated -= a->slot_payload[idx];
+[?2004l[?2004h>      a->stats.live_blocks--;
+[?2004l[?2004h>      a->slot_live[idx] = 0;
+[?2004l[?2004h> +    a->slot_payload[idx] = 0;
+[?2004l[?2004h>      list_coalesce(a, &b);
+[?2004l[?2004h>      return 0;
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: src/free_ops.c
+[?2004l[?2004h> @@
+[?2004l[?2004h> -#include "../acct_e/acct.h"
+[?2004l[?2004h> +// NOTE: Accounting is done directly in stats for payload bytes.
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: src/free_ops.c
+[?2004l[?2004h> @@
+[?2004l[?2004h> -#include <string.h>
+[?2004l[?2004h> +// <string.h> not needed
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: split_c/split.c
+[?2004l[?2004h> @@
+[?2004l[?2004h>  int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+[?2004l[?2004h> @@
+[?2004l[?2004h> -    a->slot_payload[idx] = req;
+[?2004l[?2004h> +    // Adjust payload accounting by delta.
+[?2004l[?2004h> +    if (req != a->slot_payload[idx]) {
+[?2004l[?2004h> +        size_t old = a->slot_payload[idx];
+[?2004l[?2004h> +        a->slot_payload[idx] = req;
+[?2004l[?2004h> +        if (req > old) {
+[?2004l[?2004h> +            a->stats.allocated += (req - old);
+[?2004l[?2004h> +        } else {
+[?2004l[?2004h> +            a->stats.allocated -= (old - req);
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +        if (a->stats.allocated > a->stats.peak) {
+[?2004l[?2004h> +            a->stats.peak = a->stats.allocated;
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +    }
+[?2004l[?2004h>      return idx;
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# grep -n "split_realloc_inplace" -n /app/split_c/split.c && grep -n "split_grow_inplace" -n /app/split_c/split.c
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# apply_patch<<'PATCH'
+[?2004l[?2004h> *** Begin Patch
+[?2004l[?2004h> *** Update File: split_c/split.c
+[?2004l[?2004h> @@
+[?2004l[?2004h>  int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+[?2004l[?2004h> @@
+[?2004l[?2004h> -    a->slot_payload[idx] = req;
+[?2004l[?2004h> +    // Adjust payload accounting by delta.
+[?2004l[?2004h> +    if (req != a->slot_payload[idx]) {
+[?2004l[?2004h> +        size_t old = a->slot_payload[idx];
+[?2004l[?2004h> +        a->slot_payload[idx] = req;
+[?2004l[?2004h> +        if (req > old) {
+[?2004l[?2004h> +            a->stats.allocated += (req - old);
+[?2004l[?2004h> +        } else {
+[?2004l[?2004h> +            a->stats.allocated -= (old - req);
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +        if (a->stats.allocated > a->stats.peak) {
+[?2004l[?2004h> +            a->stats.peak = a->stats.allocated;
+[?2004l[?2004h> +        }
+[?2004l[?2004h> +    }
+[?2004l[?2004h>      return idx;
+[?2004l[?2004h>  }
+[?2004l[?2004h> *** End Patch
+[?2004l[?2004h> PATCH
+[?2004lbash: apply_patch: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# make -C /app clean && make -C /app
+[?2004lmake: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+make: Leaving directory '/app'
+make: Entering directory '/app'
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
+[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
+   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
+make: Leaving directory '/app'
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# cp /app/output/alloc-audit.json /app/output/alloc-audit.1.json
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# diff -u /app/output/alloc-audit.1.json /app/output/alloc-audit.json || true
+[?2004ldiff: /app/output/alloc-audit.1.json: No such file or directory
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,120p' /app/output/alloc-audit.json
+[?2004l{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    },
+    {
+      "name": "jade",
+      "ok": true,
+      "heap_sig": 5440,
+      "fl_count": 3,
+      "fl_sig": 65216,
+      "byte_total": 368,
+      "ledger": "/app/output/jade.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
+        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
+        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
+        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
+      ]
+    },
+    {
+      "name": "slate",
+      "ok": true,
+      "heap_sig": 3808,
+      "fl_count": 2,
+      "fl_sig": 65312,
+      "byte_total": 256,
+      "ledger": "/app/output/slate.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
+        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 144},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 2, "fl_sig": 65536, "byte_total": 24},
+        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 256}
+      ]
+    },
+    {
+      "name": "coral",
+      "ok": true,
+      "heap_sig": 2448,
+      "fl_count": 1,
+      "fl_sig": 65392,
+      "byte_total": 168,
+      "ledger": "/app/output/coral.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 152},
+        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 120},
+        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 168}
+      ]
+    },
+    {
+      "name": "onyx",
+      "ok": true,
+      "heap_sig": 24888,
+      "fl_count": 4,
+      "fl_sig": 64072,
+      "byte_total": 1504,
+      "ledger": "/app/output/onyx.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 192},
+        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 288},
+        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 200},
+        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 3, "fl_sig": 65448, "byte_total": 112},
+        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 3, "fl_sig": 64912, "byte_total": 656},
+        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 4, "fl_sig": 64072, "byte_total": 1504}
+      ]
+    },
+    {
+      "name": "pearl",
+      "ok": true,
+      "heap_sig": 9520,
+      "fl_count": 3,
+      "fl_sig": 64976,
+      "byte_total": 608,
+      "ledger": "/app/output/pearl.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 72},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 304},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 240},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 344},
+        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 448},
+        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 352},
+        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
+        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 3, "fl_sig": 64976, "byte_total": 608}
+      ]
+    }
+  ]
+}
+[?2004hroot@ae6ae9e1ef3c:/app# bash /app/scripts/run-one.sh cedar && sed -n '1,80p' /app/output/cedar-audit.json 2>/dev/null || ls -la /app/output
+[?2004l{
+  "cases": [
+    {
+      "name": "cedar",
+      "ok": true,
+      "heap_sig": 4080,
+      "fl_count": 1,
+      "fl_sig": 65296,
+      "byte_total": 264,
+      "ledger": "/app/output/cedar.ledger.jsonl",
+      "steps": [
+        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
+        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
+        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
+        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
+        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
+      ]
+    }
+  ]
+}
+[?2004hroot@ae6ae9e1ef3c:/app# perl -0777 -i -pe 's/a->stats\.live_blocks\+\+;\n\s*memset\(/a->stats.live_blocks++;\n    a->stats.allocated += req;\n    if (a->stats.allocated > a->stats.peak) {\n        a->stats.peak = a->stats.allocated;\n    }\n    memset(/s' /app/src/alloc_ops.c
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# perl -0777 -i -pe 's/\n#include "\.\.\/acct_e\/acct\.h"\n/\n/sg; s/\n\s*size_t total = tag_read_size\(&b\);\n\s*z_set_flag\(&b, 0\);\n\s*xd3\(&a->stats, -\(ssize_t\)total\);/\n    (void)tag_read_size(&b);\n    z_set_flag(&b, 0);\n    a->stats.allocated -= a->slot_payload[idx];/sg; s/a->slot_live\[idx\] = 0;\n\s*list_coalesce/a->slot_live[idx] = 0;\n    a->slot_payload[idx] = 0;\n    list_coalesce/sg' /app/src/free_ops.c
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# perl -0777 -i -pe 's/#include "\.\.\/acct_e\/acct\.h"\n//sg; s/\n\s*z_set_flag\(oldb, 0\);\n\s*xd3\(&a->stats, -\(ssize_t\)old_total\);\n\s*mark_c\(a, oldb, req\);\n\s*xd3\(&a->stats, \(ssize_t\)need\);\n\s*a->slot_payload\[idx\] = req;/\n    // Update payload accounting by delta; heap bookkeeping is handled by mark_c\/coalesce.\n    {\n        size_t old_pay = a->slot_payload[idx];\n        a->slot_payload[idx] = req;\n        if (req > old_pay) a->stats.allocated += (req - old_pay);\n        else a->stats.allocated -= (old_pay - req);\n        if (a->stats.allocated > a->stats.peak) a->stats.peak = a->stats.allocated;\n    }/sg; s/\n\s*xd3\(&a->stats, \(ssize_t\)ntotal\);\n/\n/sg; s/\n\s*z_set_flag\(oldb, 0\);\n\s*xd3\(&a->stats, -\(ssize_t\)merged\);\n\s*mark_c\(a, oldb, req\);\n\s*xd3\(&a->stats, \(ssize_t\)need\);/\n        mark_c(a, oldb, req);/sg; s/\n\s*a->slot_payload\[idx\] = req;\n\s*return idx;/\n    {\n        size_t old_pay = a->slot_payload[idx];\n        a->slot_payload[idx] = req;\n        if (req > old_pay) a->stats.allocated += (req - old_pay);\n        else a->stats.allocated -= (old_pay - req);\n        if (a->stats.allocated > a->stats.peak) a->stats.peak = a->stats.allocated;\n    }\n    return idx;/sg; s/\n\s*xd3\(&a->stats, \(ssize_t\)need\);\n/\n    // alloc path accounts payload in alloc_ops.c\n/sg' /app/src/slot_split.c
+[?2004lBackslash found where operator expected (Missing operator before "\"?) at -e line 1, near "c\"
+syntax error at -e line 1, near "c\"
+Execution of -e aborted due to compilation errors.
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,140p' /app/src/free_ops.c
+[?2004l#include "../include/arena.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+int arena_slot_free(Arena *a, int idx) {
+    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+        return -1;
+    }
+    Block b;
+    b.base = a->mem;
+    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+    (void)tag_read_size(&b);
+    z_set_flag(&b, 0);
+    a->stats.allocated -= a->slot_payload[idx];
+    a->stats.live_blocks--;
+    a->slot_live[idx] = 0;
+    a->slot_payload[idx] = 0;
+    list_coalesce(a, &b);
+    return 0;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,120p' /app/src/alloc_ops.c
+[?2004l#include "../include/arena.h"
+#include "../pool_a/tag.h"
+
+#include <string.h>
+
+static size_t fl_ix(size_t off) {
+    return off >> 3;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need);
+void slot_take_whole(Arena *a, Block *fit, size_t total);
+
+static Block make_blk(Arena *a, size_t off) {
+    Block b;
+    b.base = a->mem;
+    b.off = off;
+    return b;
+}
+
+static Block *find_fit(Arena *a, size_t need) {
+    size_t cur = a->fl_head.off;
+    static Block pick;
+    while (cur != FL_END) {
+        Block b = make_blk(a, cur);
+        size_t total = tag_read_size(&b);
+        if (total >= need) {
+            pick = b;
+            return &pick;
+        }
+        cur = a->fl_link_next[fl_ix(cur)];
+    }
+    return NULL;
+}
+
+int arena_slot_alloc(Arena *a, size_t req) {
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    Block *fit = find_fit(a, need);
+    size_t total;
+    int idx;
+    if (!fit) {
+        return -1;
+    }
+    total = tag_read_size(fit);
+    if (total >= need + MIN_BLK) {
+        slot_take_split(a, fit, req, need);
+    } else {
+        slot_take_whole(a, fit, total);
+    }
+    idx = a->slot_count++;
+    if (idx >= MAX_SLOTS) {
+        return -1;
+    }
+    a->slots[idx] = fit->base + fit->off + HDR_SIZE;
+    a->slot_payload[idx] = req;
+    a->slot_live[idx] = 1;
+    a->stats.live_blocks++;
+    a->stats.allocated += req;
+    if (a->stats.allocated > a->stats.peak) {
+        a->stats.peak = a->stats.allocated;
+    }
+    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
+    return idx;
+}
+[?2004hroot@ae6ae9e1ef3c:/app# sed -n '1,220p' /app/src/slot_split.c
+[?2004l#include "../include/arena.h"
+#include "../acct_e/acct.h"
+#include "../list_b/list.h"
+#include "../pool_a/tag.h"
+#include "../split_c/split.h"
+
+int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+    size_t old_total = tag_read_size(oldb);
+    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+    if (old_total < need + MIN_BLK) {
+        a->slot_payload[idx] = req;
+        return idx;
+    }
+    z_set_flag(oldb, 0);
+    xd3(&a->stats, -(ssize_t)old_total);
+    mark_c(a, oldb, req);
+    xd3(&a->stats, (ssize_t)need);
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+    size_t merged;
+    size_t old_total = tag_read_size(oldb);
+    size_t ntotal;
+    Block nb;
+    nb.base = oldb->base;
+    nb.off = oldb->off + old_total;
+    ntotal = tag_read_size(&nb);
+    if (q8f_blk(a, oldb, need, &merged) != 0) {
+        return -1;
+    }
+    xd3(&a->stats, (ssize_t)ntotal);
+    if (merged >= need + MIN_BLK) {
+        z_set_flag(oldb, 0);
+        xd3(&a->stats, -(ssize_t)merged);
+        mark_c(a, oldb, req);
+        xd3(&a->stats, (ssize_t)need);
+    }
+    a->slot_payload[idx] = req;
+    return idx;
+}
+
+void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+    mark_c(a, fit, req);
+    xd3(&a->stats, (ssize_t)need);
+}
+[?2004hroot@ae6ae9e1ef3c:/app# cat > /app/src/reloc_ops.c <<'EOF'
+[?2004l[?2004h> #include "../include/arena.h"
+[?2004l[?2004h> #include "../list_b/list.h"
+[?2004l[?2004h> #include "../move_d/move.h"
+[?2004l[?2004h> #include "../pool_a/tag.h"
+[?2004l[?2004h> #include "../split_c/split.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> int arena_slot_alloc(Arena *a, size_t req);
+[?2004l[?2004h> 
+[?2004l[?2004h> static void free_block_for_ptr(Arena *a, void *p) {
+[?2004l[?2004h>     Block b;
+[?2004l[?2004h>     b.base = a->mem;
+[?2004l[?2004h>     b.off = (size_t)((unsigned char *)p - a->mem - HDR_SIZE);
+[?2004l[?2004h>     z_set_flag(&b, 0);
+[?2004l[?2004h>     list_coalesce(a, &b);
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> int arena_slot_realloc(Arena *a, int idx, size_t req) {
+[?2004l[?2004h>     if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
+[?2004l[?2004h>         return -1;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     Block oldb;
+[?2004l[?2004h>     size_t old_pay = a->slot_payload[idx];
+[?2004l[?2004h>     size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+[?2004l[?2004h> 
+[?2004l[?2004h>     oldb.base = a->mem;
+[?2004l[?2004h>     oldb.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
+[?2004l[?2004h> 
+[?2004l[?2004h>     // In-place shrink.
+[?2004l[?2004h>     if (need <= tag_read_size(&oldb)) {
+[?2004l[?2004h>         (void)split_realloc_inplace(a, &oldb, idx, req);
+[?2004l[?2004h>         return idx;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // In-place grow by merging neighbor if possible.
+[?2004l[?2004h>     if (split_grow_inplace(a, &oldb, idx, req, need) >= 0) {
+[?2004l[?2004h>         return idx;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Move: keep the same logical slot index.
+[?2004l[?2004h>     {
+[?2004l[?2004h>         void *old_ptr = a->slots[idx];
+[?2004l[?2004h>         int nidx = arena_slot_alloc(a, req);
+[?2004l[?2004h>         if (nidx < 0) {
+[?2004l[?2004h>             return -1;
+[?2004l[?2004h>         }
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Copy old payload into new block.
+[?2004l[?2004h>         xc2(a->slots[nidx], old_ptr, old_pay);
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Adopt the new block into the original slot.
+[?2004l[?2004h>         a->slots[idx] = a->slots[nidx];
+[?2004l[?2004h>         a->slot_payload[idx] = req;
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Fix payload accounting: alloc added +req; we still need to remove old_pay
+[?2004l[?2004h>         // for the freed old block (and ensure we don't keep temp slot accounting).
+[?2004l[?2004h>         a->stats.allocated -= old_pay;
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Drop the temporary slot bookkeeping without freeing its block.
+[?2004l[?2004h>         a->slot_live[nidx] = 0;
+[?2004l[?2004h>         a->slot_payload[nidx] = 0;
+[?2004l[?2004h>         a->slots[nidx] = NULL;
+[?2004l[?2004h>         a->stats.live_blocks--;
+[?2004l[?2004h> 
+[?2004l[?2004h>         // Now actually free the old block in the heap.
+[?2004l[?2004h>         free_block_for_ptr(a, old_ptr);
+[?2004l[?2004h> 
+[?2004l[?2004h>         return idx;
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# make -C /app clean && make -C /app
+[?2004lmake: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+make: Leaving directory '/app'
+make: Entering directory '/app'
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
+[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
+   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
+make: Leaving directory '/app'
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# cp /app/output/alloc-audit.json /app/output/alloc-audit.1.json
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# diff -u /app/output/alloc-audit.1.json /app/output/alloc-audit.json || true
+[?2004ldiff: /app/output/alloc-audit.1.json: No such file or directory
+[?2004hroot@ae6ae9e1ef3c:/app# jq '.cases[]|{name,byte_total,ok,steps:(.steps|map({seq,op,index,result_index,byte_total}) )}' /app/output/alloc-audit.json
+[?2004lbash: jq: command not found
+[?2004hroot@ae6ae9e1ef3c:/app# cat > /app/src/slot_split.c <<'EOF'
+[?2004l[?2004h> #include "../include/arena.h"
+[?2004l[?2004h> #include "../list_b/list.h"
+[?2004l[?2004h> #include "../pool_a/tag.h"
+[?2004l[?2004h> #include "../split_c/split.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> static void adjust_payload(Arena *a, int idx, size_t req) {
+[?2004l[?2004h>     size_t old = a->slot_payload[idx];
+[?2004l[?2004h>     a->slot_payload[idx] = req;
+[?2004l[?2004h>     if (req > old) {
+[?2004l[?2004h>         a->stats.allocated += (req - old);
+[?2004l[?2004h>     } else {
+[?2004l[?2004h>         a->stats.allocated -= (old - req);
+[?2004l[?2004h>     }
+[?2004l[?2004h>     if (a->stats.allocated > a->stats.peak) {
+[?2004l[?2004h>         a->stats.peak = a->stats.allocated;
+[?2004l[?2004h>     }
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+[?2004l[?2004h>     size_t old_total = tag_read_size(oldb);
+[?2004l[?2004h>     size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+[?2004l[?2004h> 
+[?2004l[?2004h>     // If we can't split, just update the tracked payload size.
+[?2004l[?2004h>     if (old_total < need + MIN_BLK) {
+[?2004l[?2004h>         adjust_payload(a, idx, req);
+[?2004l[?2004h>         return idx;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Split the block in-place to create a new free tail.
+[?2004l[?2004h>     z_set_flag(oldb, 0);
+[?2004l[?2004h>     list_coalesce(a, oldb);
+[?2004l[?2004h>     mark_c(a, oldb, req);
+[?2004l[?2004h> 
+[?2004l[?2004h>     adjust_payload(a, idx, req);
+[?2004l[?2004h>     return idx;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+[?2004l[?2004h>     size_t merged;
+[?2004l[?2004h> 
+[?2004l[?2004h>     if (q8f_blk(a, oldb, need, &merged) != 0) {
+[?2004l[?2004h>         return -1;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     if (merged >= need + MIN_BLK) {
+[?2004l[?2004h>         // Consume merged region and split remainder.
+[?2004l[?2004h>         z_set_flag(oldb, 0);
+[?2004l[?2004h>         list_coalesce(a, oldb);
+[?2004l[?2004h>         mark_c(a, oldb, req);
+[?2004l[?2004h>     } else {
+[?2004l[?2004h>         // Consume entire merged region.
+[?2004l[?2004h>         if (on_fl(a, oldb->off)) {
+[?2004l[?2004h>             list_remove(a, oldb);
+[?2004l[?2004h>         }
+[?2004l[?2004h>         xa0(oldb, merged);
+[?2004l[?2004h>         z_set_flag(oldb, 1);
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     adjust_payload(a, idx, req);
+[?2004l[?2004h>     return idx;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+[?2004l[?2004h>     (void)need;
+[?2004l[?2004h>     mark_c(a, fit, req);
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# make -C /app clean && make -C /app
+[?2004lmake: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+make: Leaving directory '/app'
+make: Entering directory '/app'
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+[01m[Ksrc/slot_split.c:[m[K In function ‘[01m[Ksplit_grow_inplace[m[K’:
+[01m[Ksrc/slot_split.c:52:13:[m[K [01;31m[Kerror: [m[Kimplicit declaration of function ‘[01m[Kon_fl[m[K’ [[01;31m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wimplicit-function-declaration-Wimplicit-function-declaration]8;;[m[K]
+   52 |         if ([01;31m[Kon_fl[m[K(a, oldb->off)) {
+      |             [01;31m[K^~~~~[m[K
+make: *** [Makefile:19: src/slot_split.o] Error 1
+make: Leaving directory '/app'
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json M[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Kn
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/allocctl: No such file or directory
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json M[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Kn
+[?2004l/app/scripts/run-matrix.sh: line 7: /app/bin/allocctl: No such file or directory
+[?2004hroot@ae6ae9e1ef3c:/app# diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json || true
+[?2004ldiff: /tmp/alloc-audit.1.json: No such file or directory
+diff: /tmp/alloc-audit.2.json: No such file or directory
+[?2004hroot@ae6ae9e1ef3c:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> obj=json.load(open(p))
+[?2004l[?2004h> assert list(obj)==['cases']
+[?2004l[?2004h> order=[c['name'] for c in obj['cases']]
+[?2004l[?2004h> print('order',order)
+[?2004l[?2004h> assert order==['cedar','jade','slate','coral','onyx','pearl']
+[?2004l[?2004h> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+[?2004l[?2004h> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+[?2004l[?2004h> for c in obj['cases']:
+[?2004l[?2004h>     assert req_case_keys.issubset(c.keys())
+[?2004l[?2004h>     steps=c['steps']
+[?2004l[?2004h>     for i,st in enumerate(steps):
+[?2004l[?2004h>         assert req_step_keys.issubset(st.keys())
+[?2004l[?2004h>         assert st['seq']==i
+[?2004l[?2004h>     # top-level tallies must equal last step tallies
+[?2004l[?2004h>     last=steps[-1]
+[?2004l[?2004h>     for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>         assert c[k]==last[k], (c['name'],k,c[k],last[k])
+[?2004l[?2004h> print('ok')
+[?2004l[?2004h> PY
+[?2004lTraceback (most recent call last):
+  File [35m"<stdin>"[0m, line [35m3[0m, in [35m<module>[0m
+[1;35mFileNotFoundError[0m: [35m[Errno 2] No such file or directory: '/app/output/alloc-audit.json'[0m
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-one.sh pearl && python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> obj=json.load(open('/app/output/pearl-audit.json'))
+[?2004l[?2004h> assert 'cases' in obj and isinstance(obj['cases'],list) and len(obj['cases'])==1
+[?2004l[?2004h> print('run-one envelope ok')
+[?2004l[?2004h> print('free result_index values', [s['result_index'] for s in obj['cases'][0]['steps'] if s['op']=='free'])
+[?2004l[?2004h> PY
+[?2004l/app/scripts/run-one.sh: line 6: /app/bin/allocctl: No such file or directory
+[?2004hroot@ae6ae9e1ef3c:/app# cat > /app/src/slot_split.c <<'EOF'
+[?2004l[?2004h> #include "../include/arena.h"
+[?2004l[?2004h> #include "../list_b/list.h"
+[?2004l[?2004h> #include "../pool_a/tag.h"
+[?2004l[?2004h> #include "../split_c/split.h"
+[?2004l[?2004h> 
+[?2004l[?2004h> static void adjust_payload(Arena *a, int idx, size_t req) {
+[?2004l[?2004h>     size_t old = a->slot_payload[idx];
+[?2004l[?2004h>     a->slot_payload[idx] = req;
+[?2004l[?2004h>     if (req > old) a->stats.allocated += (req - old);
+[?2004l[?2004h>     else a->stats.allocated -= (old - req);
+[?2004l[?2004h>     if (a->stats.allocated > a->stats.peak) a->stats.peak = a->stats.allocated;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
+[?2004l[?2004h>     size_t old_total = tag_read_size(oldb);
+[?2004l[?2004h>     size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
+[?2004l[?2004h> 
+[?2004l[?2004h>     if (old_total < need + MIN_BLK) {
+[?2004l[?2004h>         adjust_payload(a, idx, req);
+[?2004l[?2004h>         return idx;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // Turn the whole block into free, coalesce (no-op for allocated neighbors), then split.
+[?2004l[?2004h>     z_set_flag(oldb, 0);
+[?2004l[?2004h>     list_coalesce(a, oldb);
+[?2004l[?2004h>     mark_c(a, oldb, req);
+[?2004l[?2004h> 
+[?2004l[?2004h>     adjust_payload(a, idx, req);
+[?2004l[?2004h>     return idx;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
+[?2004l[?2004h>     size_t merged;
+[?2004l[?2004h> 
+[?2004l[?2004h>     if (q8f_blk(a, oldb, need, &merged) != 0) {
+[?2004l[?2004h>         return -1;
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     // q8f_blk has ensured we can grow by absorbing adjacent free space.
+[?2004l[?2004h>     // Ensure the header reflects the merged extent and mark allocated.
+[?2004l[?2004h>     xa0(oldb, merged);
+[?2004l[?2004h>     z_set_flag(oldb, 1);
+[?2004l[?2004h> 
+[?2004l[?2004h>     // If there is enough remainder, split and return tail to free list.
+[?2004l[?2004h>     if (merged >= need + MIN_BLK) {
+[?2004l[?2004h>         mark_c(a, oldb, req);
+[?2004l[?2004h>     }
+[?2004l[?2004h> 
+[?2004l[?2004h>     adjust_payload(a, idx, req);
+[?2004l[?2004h>     return idx;
+[?2004l[?2004h> }
+[?2004l[?2004h> 
+[?2004l[?2004h> void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
+[?2004l[?2004h>     (void)need;
+[?2004l[?2004h>     mark_c(a, fit, req);
+[?2004l[?2004h> }
+[?2004l[?2004h> EOF
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# make -C /app clean && make -C /app
+[?2004lmake: Entering directory '/app'
+rm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
+make: Leaving directory '/app'
+make: Entering directory '/app'
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
+[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
+[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
+   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
+      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
+mkdir -p bin
+gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
+make: Leaving directory '/app'
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json M[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Kn
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json M[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Kn
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json || true
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> p='/app/output/alloc-audit.json'
+[?2004l[?2004h> obj=json.load(open(p))
+[?2004l[?2004h> order=[c['name'] for c in obj['cases']]
+[?2004l[?2004h> print('order',order)
+[?2004l[?2004h> assert order==['cedar','jade','slate','coral','onyx','pearl']
+[?2004l[?2004h> req_case_keys={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
+[?2004l[?2004h> req_step_keys={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
+[?2004l[?2004h> for c in obj['cases']:
+[?2004l[?2004h>     assert req_case_keys.issubset(c.keys())
+[?2004l[?2004h>     steps=c['steps']
+[?2004l[?2004h>     for i,st in enumerate(steps):
+[?2004l[?2004h>         assert req_step_keys.issubset(st.keys())
+[?2004l[?2004h>         assert st['seq']==i
+[?2004l[?2004h>     last=steps[-1]
+[?2004l[?2004h>     for k in ['heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>         assert c[k]==last[k]
+[?2004l[?2004h> print('validated')
+[?2004l[?2004h> PY
+[?2004lorder ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
+validated
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-one.sh pearl && python3 - <<'PY'
+[?2004l[?2004h> import json
+[?2004l[?2004h> obj=json.load(open('/app/output/pearl-audit.json'))
+[?2004l[?2004h> case=obj['cases'][0]
+[?2004l[?2004h> print('ok',case['ok'])
+[?2004l[?2004h> print('free result_index values', [s['result_index'] for s in case['steps'] if s['op']=='free'])
+[?2004l[?2004h> print('realloc result_index values', [s['result_index'] for s in case['steps'] if s['op']=='realloc'])
+[?2004l[?2004h> print('byte_totals', [s['byte_total'] for s in case['steps']])
+[?2004l[?2004h> PY
+[?2004lok True
+free result_index values [0, 0, 0]
+realloc result_index values [1]
+byte_totals [40, 240, 200, 272, 344, 272, 392, 72, 168]
+[?2004hroot@ae6ae9e1ef3c:/app# rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh
+[?2004l[?2004hroot@ae6ae9e1ef3c:/app# ls -la /app/output
+[?2004ltotal 32
+drwxr-xr-x  2 root root  184 May 28 11:00 .
+drwxr-xr-x 20 root root  271 May 28 11:00 ..
+-rw-r--r--  1 root root 7084 May 28 11:00 alloc-audit.json
+-rw-r--r--  1 root root  608 May 28 11:00 cedar.ledger.jsonl
+-rw-r--r--  1 root root  369 May 28 11:00 coral.ledger.jsonl
+-rw-r--r--  1 root root  968 May 28 11:00 jade.ledger.jsonl
+-rw-r--r--  1 root root  852 May 28 11:00 onyx.ledger.jsonl
+-rw-r--r--  1 root root 1090 May 28 11:00 pearl.ledger.jsonl
+-rw-r--r--  1 root root  839 May 28 11:00 slate.ledger.jsonl
+[?2004hroot@ae6ae9e1ef3c:/app# python3 - <<'PY'
+[?2004l[?2004h> import json, os
+[?2004l[?2004h> m=json.load(open('/app/output/alloc-audit.json'))
+[?2004l[?2004h> for c in m['cases']:
+[?2004l[?2004h>     led=c['ledger']
+[?2004l[?2004h>     assert os.path.exists(led), led
+[?2004l[?2004h>     with open(led) as f:
+[?2004l[?2004h>         line=f.readline().strip()
+[?2004l[?2004h>         obj=json.loads(line)
+[?2004l[?2004h>         for k in ['seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total']:
+[?2004l[?2004h>             assert k in obj, (c['name'],k)
+[?2004l[?2004h> print('ledgers ok')
+[?2004l[?2004h> PY
+[?2004lledgers ok
+[?2004hroot@ae6ae9e1ef3c:/app# 
