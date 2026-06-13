@@ -1,898 +1,0 @@
-[?2004hroot@d6952a1bc71b:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@d6952a1bc71b:/app# clear
-[?2004l[H[J[3J[?2004hroot@d6952a1bc71b:/app# cd /app
-[?2004l[?2004hroot@d6952a1bc71b:/app# ls -la
-[?2004ltotal 12
-drwxr-xr-x  9 root root 159 May 28 16:26 .
-drwxr-xr-x 19 root root 265 May 28 16:27 ..
--rw-r--r--  1 root root 122 May 28 16:24 Cargo.lock
--rw-r--r--  1 root root  90 May 28 16:24 Cargo.toml
-drwxr-xr-x  3 root root  19 May 28 16:24 cmd
-drwxr-xr-x  2 root root  41 May 28 16:24 config
-drwxr-xr-x  2 root root  73 May 28 16:24 data
-drwxr-xr-x  2 root root  50 May 28 16:24 docs
--rw-r--r--  1 root root  30 May 28 16:24 go.mod
--rw-r--r--  1 root root   0 May 28 16:24 go.sum
-drwxr-xr-x  3 root root  21 May 28 16:24 internal
-drwxr-xr-x  9 root root  91 May 28 16:24 src
-drwxr-xr-x  2 root root  26 May 28 16:26 tools
-[?2004hroot@d6952a1bc71b:/app# find . -maxdepth 3 -type f -name 'run_local.sh' -o -name 'sets.txt' -o -name 'Cargo.toml' -o -name 'go.mod'
-[?2004l./Cargo.toml
-./config/sets.txt
-./go.mod
-./tools/run_local.sh
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,200p' /app/tools/run_local.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-cargo --version
-mkdir -p /app/output /app/bin
-cargo build --release --quiet --manifest-path /app/Cargo.toml
-/app/target/release/local-infer-sandbox /app/output/raw.json
-go build -o /app/bin/align /app/cmd/align/main.go
-/app/bin/align /app/output/raw.json /app/output/report.json
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,200p' /app/config/sets.txt
-[?2004lalpha
-beta
-gamma
-delta
-epsilon
-zeta
-[?2004hroot@d6952a1bc71b:/app# ls -la /app/output || true
-[?2004lls: cannot access '/app/output': No such file or directory
-[?2004hroot@d6952a1bc71b:/app# test -f /app/output/raw.json && (echo '--- raw.json ---' && head -n 40 /app/output/raw.json) || echo 'no existing raw.json'
-[?2004lno existing raw.json
-[?2004hroot@d6952a1bc71b:/app# test -f /app/output/report.json && (echo '--- report.json ---' && head -n 80 /app/output/report.json) || echo 'no existing report.json'
-[?2004lno existing report.json
-[?2004hroot@d6952a1bc71b:/app# bash -lc '/app/tools/run_local.sh'
-[?2004l/app/tools/run_local.sh: line 3: cargo: command not found
-[?2004hroot@d6952a1bc71b:/app# ls -la /app/output
-[?2004lls: cannot access '/app/output': No such file or directory
-[?2004hroot@d6952a1bc71b:/app# python3 - <<'PY'
-[?2004l[?2004h> import json,sys
-[?2004l[?2004h> for p in ['/app/output/raw.json','/app/output/report.json']:
-[?2004l[?2004h>     try:
-[?2004l[?2004h>         with open(p) as f: j=json.load(f)
-[?2004l[?2004h>         print(p,'OK', 'keys:', list(j.keys())[:10])
-[?2004l[?2004h>     except Exception as e:
-[?2004l[?2004h>         print(p,'ERROR',e)
-[?2004l[?2004h> PY
-[?2004l/app/output/raw.json ERROR [Errno 2] No such file or directory: '/app/output/raw.json'
-/app/output/report.json ERROR [Errno 2] No such file or directory: '/app/output/report.json'
-[?2004hroot@d6952a1bc71b:/app# rg -n "packed" /app -S
-[?2004lbash: rg: command not found
-[?2004hroot@d6952a1bc71b:/app# rg -n "scale" /app -S
-[?2004lbash: rg: command not found
-[?2004hroot@d6952a1bc71b:/app# rg -n "bias" /app -S
-[?2004lbash: rg: command not found
-[?2004hroot@d6952a1bc71b:/app# rg -n "report\.json|raw\.json|agree" /app -S
-[?2004lbash: rg: command not found
-[?2004hroot@d6952a1bc71b:/app# echo "$PATH"
-[?2004l/root/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-[?2004hroot@d6952a1bc71b:/app# command -v cargo || true
-[?2004l[?2004hroot@d6952a1bc71b:/app# command -v rustc || true
-[?2004l[?2004hroot@d6952a1bc71b:/app# ls -la /root/.cargo/bin 2>/dev/null || true
-[?2004l[?2004hroot@d6952a1bc71b:/app# ls -la /usr/local/cargo/bin 2>/dev/null || true
-[?2004ltotal 18628
-drwxrwxrwx 2 root root      236 Mar 17  2025 .
-drwxrwxrwx 3 root root       71 May 28 16:26 ..
-lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-clippy -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-fmt -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 cargo-miri -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 clippy-driver -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rls -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-analyzer -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-gdb -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-gdbgui -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rust-lldb -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rustc -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rustdoc -> rustup
-lrwxrwxrwx 1 root root        6 Mar 17  2025 rustfmt -> rustup
--rwxrwxrwx 1 root root 19072384 Mar 17  2025 rustup
-[?2004hroot@d6952a1bc71b:/app# ls -la /usr/local/bin | head
-[?2004ltotal 42620
-drwxr-xr-x  2 root root       16 May 28 16:25 .
-drwxr-xr-x 12 root root      141 Mar 17  2025 ..
--rwxr-xr-x  1 1001  117 43642544 Jun 12  2025 uv
-[?2004hroot@d6952a1bc71b:/app# find / -maxdepth 4 -type f -name cargo 2>/dev/null | head -n 20
-[?2004l[?2004hroot@d6952a1bc71b:/app# if [ -x /root/.cargo/bin/cargo ]; then export PATH="/root/.cargo/bin:$PATH"; fi; command -v cargo && cargo --version || true
-[?2004l[?2004hroot@d6952a1bc71b:/app# bash -lc 'export PATH="/root/.cargo/bin:$PATH"; /app/tools/run_local.sh'
-[?2004l/app/tools/run_local.sh: line 3: cargo: command not found
-[?2004hroot@d6952a1bc71b:/app# ls -la /app/output || true
-[?2004lls: cannot access '/app/output': No such file or directory
-[?2004hroot@d6952a1bc71b:/app# head -n 40 /app/output/raw.json 2>/dev/null || true
-[?2004l[?2004hroot@d6952a1bc71b:/app# head -n 80 /app/output/report.json 2>/dev/null || true
-[?2004l[?2004hroot@d6952a1bc71b:/app# grep -RIn --line-number -E "packed|scale|bias" /app/src /app/internal 2>/dev/null | head -n 80
-[?2004l/app/src/main.rs:14:    packed: bool,
-/app/src/main.rs:23:        Case { name: "alpha", packed: false, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![21, 10, 4], vec![15, 8, 6]] },
-/app/src/main.rs:24:        Case { name: "beta", packed: true, group: false, reuse: false, seq: vec![0], rows: vec![vec![10, 4, 1]] },
-/app/src/main.rs:25:        Case { name: "gamma", packed: true, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![8, 3, 2], vec![6, 5, 1]] },
-/app/src/main.rs:26:        Case { name: "delta", packed: true, group: true, reuse: false, seq: vec![1, 0], rows: vec![vec![7, 4, 2], vec![5, 6, 3]] },
-/app/src/main.rs:27:        Case { name: "epsilon", packed: true, group: true, reuse: true, seq: vec![1, 0, 2], rows: vec![vec![4, 7, 2], vec![9, 2, 3], vec![3, 8, 1]] },
-/app/src/main.rs:28:        Case { name: "zeta", packed: false, group: true, reuse: true, seq: vec![2, 0, 1], rows: vec![vec![12, 9, 5], vec![18, 4, 7], vec![10, 6, 8]] },
-/app/src/main.rs:32:fn token(sum: i32, slot: usize, packed: bool, group: bool, reuse: bool) -> i32 {
-/app/src/main.rs:34:    if packed { v += 3; }
-/app/src/main.rs:54:        if c.packed { a0::ax(&meta, row, i) } else { row.clone() }
-/app/src/main.rs:62:        vals.push(token(acc, handle, c.packed, c.group, c.reuse));
-/app/src/main.rs:69:    format!("{{\"case\":\"{}\",\"produced\":[{}],\"slot_trace\":[{}],\"order_used\":[{}],\"packed\":{},\"grouped\":{},\"reuse\":{},\"selected\":[{}]}}",
-/app/src/main.rs:70:        c.name, render_nums(&vals), render_usize(&trace), render_usize(&c.seq), c.packed, c.group, c.reuse, render_nums(&chosen))
-[?2004hroot@d6952a1bc71b:/app# grep -RIn --line-number -E "raw\.json|report\.json|agree" /app/cmd /app/internal 2>/dev/null | head -n 120
-[?2004l/app/cmd/align/main.go:55:    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,120p' /app/tools/run_local.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-cargo --version
-mkdir -p /app/output /app/bin
-cargo build --release --quiet --manifest-path /app/Cargo.toml
-/app/target/release/local-infer-sandbox /app/output/raw.json
-go build -o /app/bin/align /app/cmd/align/main.go
-/app/bin/align /app/output/raw.json /app/output/report.json
-[?2004hroot@d6952a1bc71b:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: tools/run_local.sh
-[?2004l[?2004h> @@
-[?2004l[?2004h>  #!/bin/bash
-[?2004l[?2004h>  set -euo pipefail
-[?2004l[?2004h> +
-[?2004l[?2004h> +# Ensure Rust toolchain is available in this sandbox.
-[?2004l[?2004h> +export PATH="/usr/local/cargo/bin:${PATH}"
-[?2004l[?2004h> +
-[?2004l[?2004h>  cargo --version
-[?2004l[?2004h>  mkdir -p /app/output /app/bin
-[?2004l[?2004h>  cargo build --release --quiet --manifest-path /app/Cargo.toml
-[?2004l[?2004h>  /app/target/release/local-infer-sandbox /app/output/raw.json
-[?2004l[?2004h>  go build -o /app/bin/align /app/cmd/align/main.go
-[?2004l[?2004h>  /app/bin/align /app/output/raw.json /app/output/report.json
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@d6952a1bc71b:/app# bash -lc '/app/tools/run_local.sh'
-[?2004l/app/tools/run_local.sh: line 3: cargo: command not found
-[?2004hroot@d6952a1bc71b:/app# ls -la /app/output
-[?2004lls: cannot access '/app/output': No such file or directory
-[?2004hroot@d6952a1bc71b:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> for p in ['/app/output/raw.json','/app/output/report.json']:
-[?2004l[?2004h>   with open(p) as f: j=json.load(f)
-[?2004l[?2004h>   print(p, 'keys=', list(j.keys()))
-[?2004l[?2004h>   if 'raw' in j: print(' raw len=', len(j['raw']))
-[?2004l[?2004h>   if 'rows' in j: print(' rows len=', len(j['rows']), 'summary=', j.get('summary'))
-[?2004l[?2004h> PY
-[?2004lTraceback (most recent call last):
-  File "<stdin>", line 3, in <module>
-FileNotFoundError: [Errno 2] No such file or directory: '/app/output/raw.json'
-[?2004hroot@d6952a1bc71b:/app# ls -la /app/src
-[?2004ltotal 4
-drwxr-xr-x 9 root root   91 May 28 16:24 .
-drwxr-xr-x 9 root root  159 May 28 16:26 ..
-drwxr-xr-x 2 root root   20 May 28 16:24 a0
-drwxr-xr-x 2 root root   20 May 28 16:24 b1
-drwxr-xr-x 2 root root   20 May 28 16:24 c2
-drwxr-xr-x 2 root root   20 May 28 16:24 d3
-drwxr-xr-x 2 root root   20 May 28 16:24 e4
-drwxr-xr-x 2 root root   20 May 28 16:24 f5
-drwxr-xr-x 2 root root   20 May 28 16:24 g6
--rw-r--r-- 1 root root 3167 May 28 16:24 main.rs
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,220p' /app/src/main.rs
-[?2004lmod a0;
-mod b1;
-mod c2;
-mod d3;
-mod e4;
-mod f5;
-mod g6;
-
-use std::env;
-use std::fs;
-
-struct Case {
-    name: &'static str,
-    packed: bool,
-    group: bool,
-    reuse: bool,
-    seq: Vec<usize>,
-    rows: Vec<Vec<i32>>,
-}
-
-fn cases() -> Vec<Case> {
-    vec![
-        Case { name: "alpha", packed: false, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![21, 10, 4], vec![15, 8, 6]] },
-        Case { name: "beta", packed: true, group: false, reuse: false, seq: vec![0], rows: vec![vec![10, 4, 1]] },
-        Case { name: "gamma", packed: true, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![8, 3, 2], vec![6, 5, 1]] },
-        Case { name: "delta", packed: true, group: true, reuse: false, seq: vec![1, 0], rows: vec![vec![7, 4, 2], vec![5, 6, 3]] },
-        Case { name: "epsilon", packed: true, group: true, reuse: true, seq: vec![1, 0, 2], rows: vec![vec![4, 7, 2], vec![9, 2, 3], vec![3, 8, 1]] },
-        Case { name: "zeta", packed: false, group: true, reuse: true, seq: vec![2, 0, 1], rows: vec![vec![12, 9, 5], vec![18, 4, 7], vec![10, 6, 8]] },
-    ]
-}
-
-fn token(sum: i32, slot: usize, packed: bool, group: bool, reuse: bool) -> i32 {
-    let mut v = sum + (slot as i32) * 7;
-    if packed { v += 3; }
-    if group { v += 5; }
-    if reuse { v += 11; }
-    v.rem_euclid(101)
-}
-
-fn render_nums(a: &[i32]) -> String {
-    a.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
-}
-
-fn render_usize(a: &[usize]) -> String {
-    a.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
-}
-
-fn run_one(c: &Case) -> String {
-    let meta = a0::A0::new();
-    let mut h = b1::B0::new(c.rows.len());
-    let mut local = c2::C0::new(c.rows.len().max(1));
-    let moved = b1::bx(&mut h, &c.seq);
-    let base_rows: Vec<Vec<i32>> = c.rows.iter().enumerate().map(|(i, row)| {
-        if c.packed { a0::ax(&meta, row, i) } else { row.clone() }
-    }).collect();
-    let chosen = d3::dx(&(0..base_rows.len()).map(|i| i as i32).collect::<Vec<_>>(), &c.seq);
-    let mut vals = Vec::new();
-    let mut trace = Vec::new();
-    for (pos, src) in c.seq.iter().enumerate() {
-        let handle = moved[pos];
-        let acc = c2::cx(&mut local, handle, &base_rows[*src]);
-        vals.push(token(acc, handle, c.packed, c.group, c.reuse));
-        trace.push(handle);
-    }
-    let mut sink = e4::E0::new();
-    e4::ex(&mut sink, c.name, &vals, &trace);
-    let _display = f5::view(&vals);
-    let _shape = g6::describe(&trace);
-    format!("{{\"case\":\"{}\",\"produced\":[{}],\"slot_trace\":[{}],\"order_used\":[{}],\"packed\":{},\"grouped\":{},\"reuse\":{},\"selected\":[{}]}}",
-        c.name, render_nums(&vals), render_usize(&trace), render_usize(&c.seq), c.packed, c.group, c.reuse, render_nums(&chosen))
-}
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    let out = args.get(1).cloned().unwrap_or_else(|| "/app/output/raw.json".to_string());
-    let rows = cases().iter().map(run_one).collect::<Vec<_>>().join(",");
-    let body = format!("{{\"raw\":[{}]}}\n", rows);
-    if let Some(parent) = std::path::Path::new(&out).parent() {
-        fs::create_dir_all(parent).unwrap();
-    }
-    fs::write(out, body).unwrap();
-}
-[?2004hroot@d6952a1bc71b:/app# find /app/src -maxdepth 2 -type f -name '*.rs' -print -exec sed -n '1,220p' {} \;
-[?2004l/app/src/a0/mod.rs
-pub struct A0 {
-    pub s: Vec<i32>,
-    pub z: Vec<i32>,
-}
-
-impl A0 {
-    pub fn new() -> Self {
-        Self { s: vec![2, 3, 5], z: vec![1, -1, 2] }
-    }
-}
-
-pub fn ax(a: &A0, b: &[i32], c: usize) -> Vec<i32> {
-    let k = c % a.s.len();
-    b.iter().map(|v| v * a.s[k] + a.z[k]).collect()
-}
-
-pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
-    b.iter().enumerate().map(|(i, v)| v * a.s[i] + a.z[i]).collect()
-}
-/app/src/b1/mod.rs
-pub struct B0 {
-    pub v: Vec<usize>,
-}
-
-impl B0 {
-    pub fn new(n: usize) -> Self {
-        Self { v: (0..n).collect() }
-    }
-}
-
-pub fn bx(a: &mut B0, b: &[usize]) -> Vec<usize> {
-    let out = b.to_vec();
-    if a.v.len() == b.len() {
-        a.v.sort();
-    }
-    out
-}
-/app/src/c2/mod.rs
-pub struct C0 {
-    pub v: Vec<i32>,
-}
-
-impl C0 {
-    pub fn new(n: usize) -> Self {
-        Self { v: vec![0; n] }
-    }
-}
-
-pub fn cx(a: &mut C0, b: usize, c: &[i32]) -> i32 {
-    let value: i32 = c.iter().sum();
-    let k = b % a.v.len();
-    a.v[k] += value;
-    a.v[k]
-}
-/app/src/d3/mod.rs
-pub fn dx(a: &[i32], b: &[usize]) -> Vec<i32> {
-    b.iter().map(|i| a[*i]).collect()
-}
-
-pub fn tag(a: &str, b: usize) -> String {
-    format!("{}:{}", a, b)
-}
-/app/src/e4/mod.rs
-pub struct E0 {
-    pub v: Vec<String>,
-}
-
-impl E0 {
-    pub fn new() -> Self {
-        Self { v: Vec::new() }
-    }
-}
-
-pub fn ex(a: &mut E0, b: &str, c: &[i32], d: &[usize]) {
-    let vals = c.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",");
-    let hs = d.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",");
-    a.v.push(format!("{{\"case\":\"{}\",\"produced\":[{}],\"slot_trace\":[{}]}}", b, vals, hs));
-}
-/app/src/f5/mod.rs
-pub fn view(a: &[i32]) -> String {
-    a.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("|")
-}
-
-pub fn lens(a: &[i32]) -> usize {
-    a.len()
-}
-/app/src/g6/mod.rs
-pub fn arrange(a: &[usize]) -> Vec<usize> {
-    let mut x = a.to_vec();
-    x.sort();
-    x
-}
-
-pub fn describe(a: &[usize]) -> String {
-    arrange(a).iter().map(|x| x.to_string()).collect::<Vec<_>>().join("-")
-}
-/app/src/main.rs
-mod a0;
-mod b1;
-mod c2;
-mod d3;
-mod e4;
-mod f5;
-mod g6;
-
-use std::env;
-use std::fs;
-
-struct Case {
-    name: &'static str,
-    packed: bool,
-    group: bool,
-    reuse: bool,
-    seq: Vec<usize>,
-    rows: Vec<Vec<i32>>,
-}
-
-fn cases() -> Vec<Case> {
-    vec![
-        Case { name: "alpha", packed: false, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![21, 10, 4], vec![15, 8, 6]] },
-        Case { name: "beta", packed: true, group: false, reuse: false, seq: vec![0], rows: vec![vec![10, 4, 1]] },
-        Case { name: "gamma", packed: true, group: true, reuse: false, seq: vec![0, 1], rows: vec![vec![8, 3, 2], vec![6, 5, 1]] },
-        Case { name: "delta", packed: true, group: true, reuse: false, seq: vec![1, 0], rows: vec![vec![7, 4, 2], vec![5, 6, 3]] },
-        Case { name: "epsilon", packed: true, group: true, reuse: true, seq: vec![1, 0, 2], rows: vec![vec![4, 7, 2], vec![9, 2, 3], vec![3, 8, 1]] },
-        Case { name: "zeta", packed: false, group: true, reuse: true, seq: vec![2, 0, 1], rows: vec![vec![12, 9, 5], vec![18, 4, 7], vec![10, 6, 8]] },
-    ]
-}
-
-fn token(sum: i32, slot: usize, packed: bool, group: bool, reuse: bool) -> i32 {
-    let mut v = sum + (slot as i32) * 7;
-    if packed { v += 3; }
-    if group { v += 5; }
-    if reuse { v += 11; }
-    v.rem_euclid(101)
-}
-
-fn render_nums(a: &[i32]) -> String {
-    a.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
-}
-
-fn render_usize(a: &[usize]) -> String {
-    a.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(",")
-}
-
-fn run_one(c: &Case) -> String {
-    let meta = a0::A0::new();
-    let mut h = b1::B0::new(c.rows.len());
-    let mut local = c2::C0::new(c.rows.len().max(1));
-    let moved = b1::bx(&mut h, &c.seq);
-    let base_rows: Vec<Vec<i32>> = c.rows.iter().enumerate().map(|(i, row)| {
-        if c.packed { a0::ax(&meta, row, i) } else { row.clone() }
-    }).collect();
-    let chosen = d3::dx(&(0..base_rows.len()).map(|i| i as i32).collect::<Vec<_>>(), &c.seq);
-    let mut vals = Vec::new();
-    let mut trace = Vec::new();
-    for (pos, src) in c.seq.iter().enumerate() {
-        let handle = moved[pos];
-        let acc = c2::cx(&mut local, handle, &base_rows[*src]);
-        vals.push(token(acc, handle, c.packed, c.group, c.reuse));
-        trace.push(handle);
-    }
-    let mut sink = e4::E0::new();
-    e4::ex(&mut sink, c.name, &vals, &trace);
-    let _display = f5::view(&vals);
-    let _shape = g6::describe(&trace);
-    format!("{{\"case\":\"{}\",\"produced\":[{}],\"slot_trace\":[{}],\"order_used\":[{}],\"packed\":{},\"grouped\":{},\"reuse\":{},\"selected\":[{}]}}",
-        c.name, render_nums(&vals), render_usize(&trace), render_usize(&c.seq), c.packed, c.group, c.reuse, render_nums(&chosen))
-}
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    let out = args.get(1).cloned().unwrap_or_else(|| "/app/output/raw.json".to_string());
-    let rows = cases().iter().map(run_one).collect::<Vec<_>>().join(",");
-    let body = format!("{{\"raw\":[{}]}}\n", rows);
-    if let Some(parent) = std::path::Path::new(&out).parent() {
-        fs::create_dir_all(parent).unwrap();
-    }
-    fs::write(out, body).unwrap();
-}
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,200p' /app/cmd/align/main.go
-[?2004lpackage main
-
-import (
-    "encoding/json"
-    "os"
-    "sort"
-)
-
-type entry struct {
-    Case      string `json:"case"`
-    Produced  []int  `json:"produced"`
-    Trace     []int  `json:"slot_trace"`
-    OrderUsed []int  `json:"order_used"`
-    Packed    bool   `json:"packed"`
-    Grouped   bool   `json:"grouped"`
-    Reuse     bool   `json:"reuse"`
-}
-
-type rawDoc struct {
-    Raw []entry `json:"raw"`
-}
-
-type finalDoc struct {
-    Rows    []entry        `json:"rows"`
-    Summary map[string]any `json:"summary"`
-}
-
-func fold(a []entry) []entry {
-    seen := map[byte]entry{}
-    for _, row := range a {
-        key := row.Case[0]
-        seen[key] = row
-    }
-    out := make([]entry, 0, len(seen))
-    for _, row := range seen {
-        out = append(out, row)
-    }
-    sort.Slice(out, func(i, j int) bool { return out[i].Case < out[j].Case })
-    return out
-}
-
-func main() {
-    if len(os.Args) != 3 {
-        panic("usage: align raw final")
-    }
-    buf, err := os.ReadFile(os.Args[1])
-    if err != nil {
-        panic(err)
-    }
-    var raw rawDoc
-    if err := json.Unmarshal(buf, &raw); err != nil {
-        panic(err)
-    }
-    rows := fold(raw.Raw)
-    doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": len(rows) == len(raw.Raw)}}
-    out, err := json.MarshalIndent(doc, "", "  ")
-    if err != nil {
-        panic(err)
-    }
-    if err := os.WriteFile(os.Args[2], append(out, '\n'), 0o644); err != nil {
-        panic(err)
-    }
-}
-[?2004hroot@d6952a1bc71b:/app# cat > /app/tools/run_local.sh <<'SH'
-[?2004l[?2004h> #!/bin/bash
-[?2004l[?2004h> set -euo pipefail
-[?2004l[?2004h> 
-[?2004l[?2004h> # Ensure Rust toolchain is available in this sandbox.
-[?2004l[?2004h> export PATH="/usr/local/cargo/bin:${PATH}"
-[?2004l[?2004h> 
-[?2004l[?2004h> cargo --version
-[?2004l[?2004h> mkdir -p /app/output /app/bin
-[?2004l[?2004h> cargo build --release --quiet --manifest-path /app/Cargo.toml
-[?2004l[?2004h> /app/target/release/local-infer-sandbox /app/output/raw.json
-[?2004l[?2004h> go build -o /app/bin/align /app/cmd/align/main.go
-[?2004l[?2004h> /app/bin/align /app/output/raw.json /app/output/report.json
-[?2004l[?2004h> SH
-[?2004l[?2004hroot@d6952a1bc71b:/app# chmod +x /app/tools/run_local.sh
-[?2004l[?2004hroot@d6952a1bc71b:/app# bash -lc '/app/tools/run_local.sh'
-[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
-[0m[1m[33mwarning[0m[0m[1m: function `ax_ref` is never used[0m
-[0m  [0m[0m[1m[38;5;12m--> [0m[0msrc/a0/mod.rs:17:8[0m
-[0m   [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m17[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {[0m
-[0m   [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^^^[0m
-[0m   [0m[0m[1m[38;5;12m|[0m
-[0m   [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
-
-[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
-
-[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
-
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,200p' /app/src/a0/mod.rs
-[?2004lpub struct A0 {
-    pub s: Vec<i32>,
-    pub z: Vec<i32>,
-}
-
-impl A0 {
-    pub fn new() -> Self {
-        Self { s: vec![2, 3, 5], z: vec![1, -1, 2] }
-    }
-}
-
-pub fn ax(a: &A0, b: &[i32], c: usize) -> Vec<i32> {
-    let k = c % a.s.len();
-    b.iter().map(|v| v * a.s[k] + a.z[k]).collect()
-}
-
-pub fn ax_ref(a: &A0, b: &[i32]) -> Vec<i32> {
-    b.iter().enumerate().map(|(i, v)| v * a.s[i] + a.z[i]).collect()
-}
-[?2004hroot@d6952a1bc71b:/app# sed -n '1,220p' /app/src/c2/mod.rs
-[?2004lpub struct C0 {
-    pub v: Vec<i32>,
-}
-
-impl C0 {
-    pub fn new(n: usize) -> Self {
-        Self { v: vec![0; n] }
-    }
-}
-
-pub fn cx(a: &mut C0, b: usize, c: &[i32]) -> i32 {
-    let value: i32 = c.iter().sum();
-    let k = b % a.v.len();
-    a.v[k] += value;
-    a.v[k]
-}
-[?2004hroot@d6952a1bc71b:/app# cat > /app/cmd/align/main.go <<'GO'
-[?2004l[?2004h> package main
-[?2004l[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h>     "encoding/json"
-[?2004l[?2004h>     "errors"
-[?2004l[?2004h>     "os"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> type entry struct {
-[?2004l[?2004h>     Case      string `json:"case"`
-[?2004l[?2004h>     Produced  []int  `json:"produced"`
-[?2004l[?2004h>     Trace     []int  `json:"slot_trace"`
-[?2004l[?2004h>     OrderUsed []int  `json:"order_used"`
-[?2004l[?2004h>     Packed    bool   `json:"packed"`
-[?2004l[?2004h>     Grouped   bool   `json:"grouped"`
-[?2004l[?2004h>     Reuse     bool   `json:"reuse"`
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> type rawDoc struct {
-[?2004l[?2004h>     Raw []entry `json:"raw"`
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> type finalDoc struct {
-[?2004l[?2004h>     Rows    []entry        `json:"rows"`
-[?2004l[?2004h>     Summary map[string]any `json:"summary"`
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> type priorDoc struct {
-[?2004l[?2004h>     Rows    []entry        `json:"rows"`
-[?2004l[?2004h>     Summary map[string]any `json:"summary"`
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func equalEntry(a, b entry) bool {
-[?2004l[?2004h>     if a.Case != b.Case || a.Packed != b.Packed || a.Grouped != b.Grouped || a.Reuse != b.Reuse {
-[?2004l[?2004h>         return false
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if len(a.Produced) != len(b.Produced) || len(a.Trace) != len(b.Trace) || len(a.OrderUsed) != len(b.OrderUsed) {
-[?2004l[?2004h>         return false
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for i := range a.Produced {
-[?2004l[?2004h>         if a.Produced[i] != b.Produced[i] {
-[?2004l[?2004h>             return false
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for i := range a.Trace {
-[?2004l[?2004h>         if a.Trace[i] != b.Trace[i] {
-[?2004l[?2004h>             return false
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for i := range a.OrderUsed {
-[?2004l[?2004h>         if a.OrderUsed[i] != b.OrderUsed[i] {
-[?2004l[?2004h>             return false
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h>     return true
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func indexByCase(rows []entry) (map[string]entry, error) {
-[?2004l[?2004h>     m := make(map[string]entry, len(rows))
-[?2004l[?2004h>     for _, r := range rows {
-[?2004l[?2004h>         if r.Case == "" {
-[?2004l[?2004h>             return nil, errors.New("empty case name")
-[?2004l[?2004h>         }
-[?2004l[?2004h>         if _, ok := m[r.Case]; ok {
-[?2004l[?2004h>             return nil, errors.New("duplicate case: " + r.Case)
-[?2004l[?2004h>         }
-[?2004l[?2004h>         m[r.Case] = r
-[?2004l[?2004h>     }
-[?2004l[?2004h>     return m, nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func loadPrior(path string) (*priorDoc, error) {
-[?2004l[?2004h>     buf, err := os.ReadFile(path)
-[?2004l[?2004h>     if err != nil {
-[?2004l[?2004h>         if os.IsNotExist(err) {
-[?2004l[?2004h>             return nil, nil
-[?2004l[?2004h>         }
-[?2004l[?2004h>         return nil, err
-[?2004l[?2004h>     }
-[?2004l[?2004h>     var p priorDoc
-[?2004l[?2004h>     if err := json.Unmarshal(buf, &p); err != nil {
-[?2004l[?2004h>         // If prior exists but is unreadable, treat as disagreement.
-[?2004l[?2004h>         return &priorDoc{}, nil
-[?2004l[?2004h>     }
-[?2004l[?2004h>     return &p, nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func main() {
-[?2004l[?2004h>     if len(os.Args) != 3 {
-[?2004l[?2004h>         panic("usage: align raw final")
-[?2004l[?2004h>     }
-[?2004l[?2004h>     rawPath := os.Args[1]
-[?2004l[?2004h>     finalPath := os.Args[2]
-[?2004l[?2004h> 
-[?2004l[?2004h>     // Read incoming raw.
-[?2004l[?2004h>     buf, err := os.ReadFile(rawPath)
-[?2004l[?2004h>     if err != nil {
-[?2004l[?2004h>         panic(err)
-[?2004l[?2004h>     }
-[?2004l[?2004h>     var raw rawDoc
-[?2004l[?2004h>     if err := json.Unmarshal(buf, &raw); err != nil {
-[?2004l[?2004h>         panic(err)
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     // New report rows: same shape/order as raw (one per built-in case entry).
-[?2004l[?2004h>     // Also ensures Produced in report is exactly raw.Produced.
-[?2004l[?2004h>     rows := make([]entry, len(raw.Raw))
-[?2004l[?2004h>     copy(rows, raw.Raw)
-[?2004l[?2004h> 
-[?2004l[?2004h>     // Compare new rows vs incoming raw by case name (should match exactly).
-[?2004l[?2004h>     // This is defensive: if future collation mutates rows, we still enforce.
-[?2004l[?2004h>     agree := true
-[?2004l[?2004h>     rawByCase, err := indexByCase(raw.Raw)
-[?2004l[?2004h>     if err != nil {
-[?2004l[?2004h>         agree = false
-[?2004l[?2004h>     }
-[?2004l[?2004h>     rowsByCase, err := indexByCase(rows)
-[?2004l[?2004h>     if err != nil {
-[?2004l[?2004h>         agree = false
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if agree {
-[?2004l[?2004h>         for caseName, rr := range rawByCase {
-[?2004l[?2004h>             fr, ok := rowsByCase[caseName]
-[?2004l[?2004h>             if !ok || !equalEntry(rr, fr) {
-[?2004l[?2004h>                 agree = false
-[?2004l[?2004h>                 break
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     // If replacing an existing report.json, compare prior rows against *incoming raw*.
-[?2004l[?2004h>     prior, err := loadPrior(finalPath)
-[?2004l[?2004h>     if err != nil {
-[?2004l[?2004h>         panic(err)
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if prior != nil {
-[?2004l[?2004h>         priorByCase, err := indexByCase(prior.Rows)
-[?2004l[?2004h>         if err != nil {
-[?2004l[?2004h>             agree = false
-[?2004l[?2004h>         } else if agree {
-[?2004l[?2004h>             for caseName, rr := range rawByCase {
-[?2004l[?2004h>                 pr, ok := priorByCase[caseName]
-[?2004l[?2004h>                 if !ok || !equalEntry(rr, pr) {
-[?2004l[?2004h>                     agree = false
-[?2004l[?2004h>                     break
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>         } else {
-[?2004l[?2004h>             // already false
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     doc := finalDoc{Rows: rows, Summary: map[string]any{"total": len(rows), "agree": agree}}
-[?2004l[?2004h>     out, err := json.MarshalIndent(doc, "", "  ")
-[?2004l[?2004h>     if err != nil {
-[?2004l[?2004h>         panic(err)
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if err := os.WriteFile(finalPath, append(out, '\n'), 0o644); err != nil {
-[?2004l[?2004h>         panic(err)
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> GO
-[?2004l[?2004hroot@d6952a1bc71b:/app# go fmt /app/cmd/align/main.go
-[?2004lcmd/align/main.go
-[?2004hroot@d6952a1bc71b:/app# ls -la /app/output && (head -n 5 /app/output/raw.json; head -n 20 /app/output/report.json)
-[?2004ltotal 8
-drwxr-xr-x  2 root root   41 May 28 16:29 .
-drwxr-xr-x 12 root root  198 May 28 16:29 ..
--rw-r--r--  1 root root  824 May 28 16:29 raw.json
--rw-r--r--  1 root root 1656 May 28 16:29 report.json
-{"raw":[{"case":"alpha","produced":[40,41],"slot_trace":[0,1],"order_used":[0,1],"packed":false,"grouped":true,"reuse":false,"selected":[0,1]},{"case":"beta","produced":[36],"slot_trace":[0],"order_used":[0],"packed":true,"grouped":false,"reuse":false,"selected":[0]},{"case":"gamma","produced":[37,48],"slot_trace":[0,1],"order_used":[0,1],"packed":true,"grouped":true,"reuse":false,"selected":[0,1]},{"case":"delta","produced":[54,37],"slot_trace":[1,0],"order_used":[1,0],"packed":true,"grouped":true,"reuse":false,"selected":[1,0]},{"case":"epsilon","produced":[65,48,99],"slot_trace":[1,0,2],"order_used":[1,0,2],"packed":true,"grouped":true,"reuse":true,"selected":[1,0,2]},{"case":"zeta","produced":[54,42,52],"slot_trace":[2,0,1],"order_used":[2,0,1],"packed":false,"grouped":true,"reuse":true,"selected":[2,0,1]}]}
-{
-  "rows": [
-    {
-      "case": "alpha",
-      "produced": [
-        40,
-        41
-      ],
-      "slot_trace": [
-        0,
-        1
-      ],
-      "order_used": [
-        0,
-        1
-      ],
-      "packed": false,
-      "grouped": true,
-      "reuse": false
-    },
-[?2004hroot@d6952a1bc71b:/app# cat > /app/src/a0/mod.rs <<'RS'
-[?2004l[?2004h> pub struct A0 {
-[?2004l[?2004h>     pub s: Vec<i32>,
-[?2004l[?2004h>     pub z: Vec<i32>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> impl A0 {
-[?2004l[?2004h>     pub fn new() -> Self {
-[?2004l[?2004h>         Self {
-[?2004l[?2004h>             s: vec![2, 3, 5],
-[?2004l[?2004h>             z: vec![1, -1, 2],
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> // Packed path transform.
-[?2004l[?2004h> // Each column position gets its own scale and bias (not one shared scale across the whole row).
-[?2004l[?2004h> pub fn ax(a: &A0, b: &[i32], _row_idx: usize) -> Vec<i32> {
-[?2004l[?2004h>     let sl = a.s.len().max(1);
-[?2004l[?2004h>     let zl = a.z.len().max(1);
-[?2004l[?2004h>     b.iter()
-[?2004l[?2004h>         .enumerate()
-[?2004l[?2004h>         .map(|(i, v)| v * a.s[i%sl] + a.z[i%zl])
-[?2004l[?2004h>         .collect()
-[?2004l[?2004h> }
-[?2004l[?2004h> RS
-[?2004l[?2004hroot@d6952a1bc71b:/app# export PATH="/usr/local/cargo/bin:$PATH"; cargo build --release --quiet --manifest-path /app/Cargo.toml
-[?2004l[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
-
-[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
-
-[?2004hroot@d6952a1bc71b:/app# bash -lc '/app/tools/run_local.sh'
-[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
-[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
-
-[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
-
-[?2004hroot@d6952a1bc71b:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
-[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
-[?2004l[?2004h> print('raw keys',raw.keys())
-[?2004l[?2004h> print('report keys',rep.keys())
-[?2004l[?2004h> print('raw rows',len(raw['raw']))
-[?2004l[?2004h> print('report rows',len(rep['rows']))
-[?2004l[?2004h> print('summary',rep['summary'])
-[?2004l[?2004h> # quick per-case check produced equality
-[?2004l[?2004h> rm={r['case']:r for r in raw['raw']}
-[?2004l[?2004h> pm={r['case']:r for r in rep['rows']}
-[?2004l[?2004h> miss=set(rm)-set(pm)
-[?2004l[?2004h> extra=set(pm)-set(rm)
-[?2004l[?2004h> print('missing',miss,'extra',extra)
-[?2004l[?2004h> for k in sorted(rm):
-[?2004l[?2004h>   ok = all(rm[k][f]==pm[k][f] for f in ['produced','slot_trace','order_used','packed','grouped','reuse'])
-[?2004l[?2004h>   print(k,'match' if ok else 'MISMATCH')
-[?2004l[?2004h> PY
-[?2004lraw keys dict_keys(['raw'])
-report keys dict_keys(['rows', 'summary'])
-raw rows 6
-report rows 6
-summary {'agree': False, 'total': 6}
-missing set() extra set()
-alpha match
-beta match
-delta match
-epsilon match
-gamma match
-zeta match
-[?2004hroot@d6952a1bc71b:/app# /app/bin/align /app/output/raw.json /app/output/report.json
-[?2004l[?2004hroot@d6952a1bc71b:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> raw=json.load(open('/app/output/raw.json'))
-[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
-[?2004l[?2004h> rm={r['case']:r for r in raw['raw']}
-[?2004l[?2004h> pm={r['case']:r for r in rep['rows']}
-[?2004l[?2004h> print('summary', rep['summary'])
-[?2004l[?2004h> agree_all=True
-[?2004l[?2004h> for k in sorted(rm):
-[?2004l[?2004h>   ok = all(rm[k][f]==pm[k][f] for f in ['produced','slot_trace','order_used','packed','grouped','reuse'])
-[?2004l[?2004h>   agree_all &= ok
-[?2004l[?2004h> print('all_case_match', agree_all)
-[?2004l[?2004h> PY
-[?2004lsummary {'agree': True, 'total': 6}
-all_case_match True
-[?2004hroot@d6952a1bc71b:/app# bash -lc '/app/tools/run_local.sh'
-[?2004lcargo 1.85.0 (d73d2caf9 2024-12-31)
-[0m[1m[33mwarning[0m[0m[1m: function `tag` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/d3/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn tag(a: &str, b: usize) -> String {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m  [0m[0m[1m[38;5;12m= [0m[0m[1mnote[0m[0m: `#[warn(dead_code)]` on by default[0m
-
-[0m[1m[33mwarning[0m[0m[1m: function `lens` is never used[0m
-[0m [0m[0m[1m[38;5;12m--> [0m[0msrc/f5/mod.rs:5:8[0m
-[0m  [0m[0m[1m[38;5;12m|[0m
-[0m[1m[38;5;12m5[0m[0m [0m[0m[1m[38;5;12m|[0m[0m [0m[0mpub fn lens(a: &[i32]) -> usize {[0m
-[0m  [0m[0m[1m[38;5;12m|[0m[0m        [0m[0m[1m[33m^^^^[0m
-
-[?2004hroot@d6952a1bc71b:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> rep=json.load(open('/app/output/report.json'))
-[?2004l[?2004h> print(rep['summary'])
-[?2004l[?2004h> PY
-[?2004l{'agree': True, 'total': 6}
-[?2004hroot@d6952a1bc71b:/app# 

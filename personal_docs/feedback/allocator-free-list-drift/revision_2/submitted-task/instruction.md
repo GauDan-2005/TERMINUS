@@ -1,5 +1,0 @@
-The heap stress harness under `/app` looks fine on tiny sequences but its combined audit drifts under fragmentation, neighbor merge, and growth scripts. Repair it so `bash /app/scripts/run-matrix.sh` completes and writes `/app/output/alloc-audit.json` for cedar, jade, slate, coral, onyx, and pearl from the shipped inputs.
-
-The matrix JSON has a top-level cases array in that exact order. Each case reports name, ok, steps, heap_sig, fl_count, fl_sig, byte_total, and ledger (path to a JSONL file). Every step and ledger row use the StepRec field set in `/app/include/report.h`, including index and result_index on each record (seq through byte_total). A case is clean with ok true and matching tally fields across the sequence.
-
-After each step, heap_sig sums block_size times 17 over allocated blocks only; fl_sig sums free-block sizes; fl_count counts free blocks; byte_total tracks live allocated payload bytes. `bash /app/scripts/run-one.sh <name>` must write `/app/output/<name>-audit.json` using the same top-level envelope as the matrix file (a cases array with one element), not a bare case object. Two matrix runs from unchanged inputs must produce equivalent JSON.

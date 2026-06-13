@@ -1,192 +1,0 @@
-[?2004hroot@d6483c51e643:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@d6483c51e643:/app# clear
-[?2004l[H[J[3J[?2004hroot@d6483c51e643:/app# ls -la
-[?2004ltotal 4
-drwxr-xr-x 19 root root 257 May 25 13:09 .
-drwxr-xr-x 19 root root 265 May 25 13:10 ..
--rw-r--r--  1 root root 576 May 25 13:08 Makefile
-drwxr-xr-x  2 root root  48 May 25 13:08 acct_e
-drwxr-xr-x  2 root root  22 May 25 13:09 bin
-drwxr-xr-x  2 root root  25 May 25 13:08 config
-drwxr-xr-x  3 root root  19 May 25 13:08 data
-drwxr-xr-x  2 root root  44 May 25 13:08 docs
-drwxr-xr-x  2 root root  32 May 25 13:08 drive_h
-drwxr-xr-x  2 root root  38 May 25 13:08 flow_g
-drwxr-xr-x  2 root root  81 May 25 13:08 include
-drwxr-xr-x  2 root root  48 May 25 13:08 list_b
-drwxr-xr-x  2 root root  38 May 25 13:08 mirror_j
-drwxr-xr-x  2 root root  48 May 25 13:08 move_d
-drwxr-xr-x  2 root root  45 May 25 13:08 pool_a
-drwxr-xr-x  2 root root  36 May 25 13:08 read_f
-drwxr-xr-x  2 root root  66 May 25 13:08 scripts
-drwxr-xr-x  2 root root  36 May 25 13:08 spill_i
-drwxr-xr-x  2 root root  51 May 25 13:08 split_c
-drwxr-xr-x  2 root root 302 May 25 13:08 src
-[?2004hroot@d6483c51e643:/app# find . -maxdepth 3 -type f -name 'run-*.sh' -o -name '*.py' -o -name '*.js' -o -name '*.ts' -o -name '*.c' -o -name '*.rs' | sed 's|^./||' | sort | head -n 200
-[?2004lacct_e/acct.c
-drive_h/run.c
-flow_g/report.c
-list_b/list.c
-mirror_j/mirror.c
-move_d/move.c
-pool_a/tag.c
-read_f/parse.c
-scripts/run-matrix.sh
-scripts/run-one.sh
-spill_i/spill.c
-split_c/split.c
-src/alloc_ops.c
-src/arena_core.c
-src/free_ops.c
-src/init_heap.c
-src/main.c
-src/reloc_ops.c
-src/slot_split.c
-src/slot_take.c
-[?2004hroot@d6483c51e643:/app# ls -la scripts output inputs 2>/dev/null || true
-[?2004lscripts:
-total 12
-drwxr-xr-x  2 root root  66 May 25 13:08 .
-drwxr-xr-x 19 root root 257 May 25 13:09 ..
--rwxr-xr-x  1 root root 179 May 25 13:08 clean-room.sh
--rwxr-xr-x  1 root root 177 May 25 13:08 run-matrix.sh
--rwxr-xr-x  1 root root 162 May 25 13:08 run-one.sh
-[?2004hroot@d6483c51e643:/app# sed -n '1,200p' scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-OUT="${APP_ROOT}/output"
-mkdir -p "${OUT}"
-bash "${APP_ROOT}/scripts/clean-room.sh"
-"${APP_ROOT}/bin/allocctl" matrix
-[?2004hroot@d6483c51e643:/app# sed -n '1,200p' scripts/run-one.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-CASE="${1:?case name required}"
-mkdir -p "${APP_ROOT}/output"
-"${APP_ROOT}/bin/allocctl" one "${CASE}"
-[?2004hroot@d6483c51e643:/app# bash -lc 'rm -rf /app/output && mkdir -p /app/output'
-[?2004l[?2004hroot@d6483c51e643:/app# bash /app/scripts/run-one.sh cedar
-[?2004l[?2004hroot@d6483c51e643:/app# ls -la /app/output && sed -n '1,200p' /app/output/cedar-audit.json
-[?2004ltotal 8
-drwxr-xr-x  2 root root  56 May 25 13:10 .
-drwxr-xr-x 20 root root 271 May 25 13:10 ..
--rw-r--r--  1 root root 979 May 25 13:10 cedar-audit.json
--rw-r--r--  1 root root 608 May 25 13:10 cedar.ledger.jsonl
-{
-  "cases": [
-    {
-      "name": "cedar",
-      "ok": true,
-      "heap_sig": 4080,
-      "fl_count": 1,
-      "fl_sig": 65296,
-      "byte_total": 264,
-      "ledger": "/app/output/cedar.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
-        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
-      ]
-    }
-  ]
-}
-[?2004hroot@d6483c51e643:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@d6483c51e643:/app# ls -la /app/output && ls -la /app/output/*.json 2>/dev/null || true
-[?2004ltotal 32
-drwxr-xr-x  2 root root  184 May 25 13:10 .
-drwxr-xr-x 20 root root  271 May 25 13:10 ..
--rw-r--r--  1 root root 7092 May 25 13:10 alloc-audit.json
--rw-r--r--  1 root root  608 May 25 13:10 cedar.ledger.jsonl
--rw-r--r--  1 root root  370 May 25 13:10 coral.ledger.jsonl
--rw-r--r--  1 root root  969 May 25 13:10 jade.ledger.jsonl
--rw-r--r--  1 root root  853 May 25 13:10 onyx.ledger.jsonl
--rw-r--r--  1 root root 1092 May 25 13:10 pearl.ledger.jsonl
--rw-r--r--  1 root root  842 May 25 13:10 slate.ledger.jsonl
--rw-r--r-- 1 root root 7092 May 25 13:10 /app/output/alloc-audit.json
-[?2004hroot@d6483c51e643:/app# jq -r '.cases|map(.name)|join(" ")' /app/output/alloc-audit.json
-[?2004lbash: jq: command not found
-[?2004hroot@d6483c51e643:/app# jq -c '.cases[] | {name, ok, steps:(.steps|length), heap_sig, fl_count, fl_sig, byte_total, ledger}' /app/output/alloc-audit.json
-[?2004lbash: jq: command not found
-[?2004hroot@d6483c51e643:/app# bash -lc 'jq -r ".cases[] | .name + \"\t\" + ((.steps|length)|tostring) + \"\t\" + (.ledger)" /app/output/alloc-audit.json | while IFS=$"\t" read -r n s l; do c=$(wc -l < "$l"); echo "$n steps=$s ledger_lines=$c"; done'
-[?2004lbash: line 1: jq: command not found
-[?2004hroot@d6483c51e643:/app# bash -lc 'rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.1.json'
-[?2004l[?2004hroot@d6483c51e643:/app# bash -lc 'rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.2.json'
-[?2004l[?2004hroot@d6483c51e643:/app# diff -u /tmp/alloc-audit.1.json /tmp/alloc-audit.2.json | sed -n '1,200p'
-[?2004l[?2004hroot@d6483c51e643:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, os
-[?2004l[?2004h> p='/app/output/alloc-audit.json'
-[?2004l[?2004h> with open(p) as f: data=json.load(f)
-[?2004l[?2004h> assert isinstance(data, dict)
-[?2004l[?2004h> assert 'cases' in data and isinstance(data['cases'], list)
-[?2004l[?2004h> print('cases:', [c.get('name') for c in data['cases']])
-[?2004l[?2004h> req_case={'name','ok','steps','heap_sig','fl_count','fl_sig','byte_total','ledger'}
-[?2004l[?2004h> req_step={'seq','op','index','size','result_index','heap_sig','fl_count','fl_sig','byte_total'}
-[?2004l[?2004h> missing=[]
-[?2004l[?2004h> for c in data['cases']:
-[?2004l[?2004h>     mc=sorted(req_case - set(c))
-[?2004l[?2004h>     if mc: missing.append((c.get('name'), 'case', mc))
-[?2004l[?2004h>     if not isinstance(c.get('steps'), list):
-[?2004l[?2004h>         missing.append((c.get('name'), 'steps_not_list', []));
-[?2004l[?2004h>         continue
-[?2004l[?2004h>     for i,s in enumerate(c['steps']):
-[?2004l[?2004h>         ms=sorted(req_step - set(s))
-[?2004l[?2004h>         if ms:
-[?2004l[?2004h>             missing.append((c.get('name'), f'step[{i}]', ms))
-[?2004l[?2004h>             break
-[?2004l[?2004h>     led=c.get('ledger')
-[?2004l[?2004h>     if isinstance(led,str):
-[?2004l[?2004h>         if not os.path.exists(led):
-[?2004l[?2004h>             missing.append((c.get('name'), 'ledger_missing', [led]))
-[?2004l[?2004h>     else:
-[?2004l[?2004h>         missing.append((c.get('name'), 'ledger_not_str', []))
-[?2004l[?2004h> print('missing:', missing)
-[?2004l[?2004h> PY
-[?2004lcases: ['cedar', 'jade', 'slate', 'coral', 'onyx', 'pearl']
-missing: []
-[?2004hroot@d6483c51e643:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> p='/app/output/alloc-audit.json'
-[?2004l[?2004h> with open(p) as f: data=json.load(f)
-[?2004l[?2004h> for c in data['cases']:
-[?2004l[?2004h>     name=c['name']
-[?2004l[?2004h>     steps=len(c['steps'])
-[?2004l[?2004h>     ledger_path=c['ledger']
-[?2004l[?2004h>     with open(ledger_path) as lf:
-[?2004l[?2004h>         lines=sum(1 for _ in lf)
-[?2004l[?2004h>     print(f"{name}: steps={steps} ledger_lines={lines} ok={c['ok']}")
-[?2004l[?2004h> PY
-[?2004lcedar: steps=5 ledger_lines=5 ok=True
-jade: steps=8 ledger_lines=8 ok=True
-slate: steps=7 ledger_lines=7 ok=True
-coral: steps=3 ledger_lines=3 ok=True
-onyx: steps=7 ledger_lines=7 ok=True
-pearl: steps=9 ledger_lines=9 ok=True
-[?2004hroot@d6483c51e643:/app# bash -lc 'rm -rf /app/output && mkdir -p /app/output'
-[?2004l[?2004hroot@d6483c51e643:/app# for n in cedar jade slate coral onyx pearl; do echo "== $n =="; bash /app/scripts/run-one.sh "$n"; ls -la "/app/output/${n}-audit.json" "/app/output/${n}.ledger.jsonl"; done
-[?2004l== cedar ==
--rw-r--r-- 1 root root 979 May 25 13:12 /app/output/cedar-audit.json
--rw-r--r-- 1 root root 608 May 25 13:12 /app/output/cedar.ledger.jsonl
-== jade ==
--rw-r--r-- 1 root root 1416 May 25 13:12 /app/output/jade-audit.json
--rw-r--r-- 1 root root  969 May 25 13:12 /app/output/jade.ledger.jsonl
-== slate ==
--rw-r--r-- 1 root root 1265 May 25 13:12 /app/output/slate-audit.json
--rw-r--r-- 1 root root  842 May 25 13:12 /app/output/slate.ledger.jsonl
-== coral ==
--rw-r--r-- 1 root root 689 May 25 13:12 /app/output/coral-audit.json
--rw-r--r-- 1 root root 370 May 25 13:12 /app/output/coral.ledger.jsonl
-== onyx ==
--rw-r--r-- 1 root root 1276 May 25 13:12 /app/output/onyx-audit.json
--rw-r--r-- 1 root root  853 May 25 13:12 /app/output/onyx.ledger.jsonl
-== pearl ==
--rw-r--r-- 1 root root 1567 May 25 13:12 /app/output/pearl-audit.json
--rw-r--r-- 1 root root 1092 May 25 13:12 /app/output/pearl.ledger.jsonl
-[?2004hroot@d6483c51e643:/app# bash -lc 'rm -rf /app/output && mkdir -p /app/output && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.A.json && bash /app/scripts/run-matrix.sh && cp /app/output/alloc-audit.json /tmp/alloc-audit.B.json && diff -u /tmp/alloc-audit.A.json /tmp/alloc-audit.B.json | head -n 50; ls -la /app/output/alloc-audit.json'
-[?2004l-rw-r--r-- 1 root root 7092 May 25 13:12 /app/output/alloc-audit.json
-[?2004hroot@d6483c51e643:/app# 

@@ -1,702 +1,0 @@
-[?2004hroot@9972658a2e17:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@9972658a2e17:/app# clear
-[?2004l[H[J[3J[?2004hroot@9972658a2e17:/app# find /app -type f | grep -v node_modules | grep -v target | grep -v '.git' | sort
-[?2004l/app/Cargo.lock
-/app/Cargo.toml
-/app/README.md
-/app/a1/p.js
-/app/b2/q.js
-/app/c3/r.js
-/app/d4/s.js
-/app/docs/architecture.md
-/app/docs/maintenance.md
-/app/docs/operations.md
-/app/docs/scenario-format.md
-/app/fixtures/scenarios.json
-/app/package-lock.json
-/app/package.json
-/app/scripts/clean-local.sh
-/app/src/core/e5/epsilon.js
-/app/src/core/f6/zeta.js
-/app/src/core/g7/theta.js
-/app/src/core/h8/iota.js
-/app/src/native/README.md
-/app/src/native/src/lib.rs
-/app/src/native/src/main.rs
-/app/src/native/src/view.rs
-/app/tools/run_matrix.js
-[?2004hroot@9972658a2e17:/app# cat /app/package.json
-[?2004l{"name":"local-runtime-matrix","version":"1.0.0","private":true,"description":"local mixed runtime scenario matrix","scripts":{"matrix":"node tools/run_matrix.js"},"dependencies":{},"devDependencies":{}}
-[?2004hroot@9972658a2e17:/app# cat /app/fixtures/scenarios.json
-[?2004l{
-  "scenarios": [
-    {
-      "name": "alpha",
-      "cycles": [
-        {
-          "base": 4,
-          "dep": 2,
-          "deferred": [
-            3
-          ],
-          "native": "old"
-        },
-        {
-          "base": 5,
-          "dep": 3,
-          "deferred": [],
-          "native": "new"
-        }
-      ]
-    },
-    {
-      "name": "beta",
-      "cycles": [
-        {
-          "base": 2,
-          "dep": 4,
-          "deferred": [
-            5,
-            1
-          ],
-          "native": "old"
-        },
-        {
-          "base": 3,
-          "dep": 4,
-          "deferred": [
-            2
-          ],
-          "native": "old"
-        },
-        {
-          "base": 1,
-          "dep": 5,
-          "deferred": [],
-          "native": "new"
-        }
-      ]
-    },
-    {
-      "name": "gamma",
-      "cycles": [
-        {
-          "base": 6,
-          "dep": 1,
-          "deferred": [],
-          "native": "new"
-        },
-        {
-          "base": 2,
-          "dep": 6,
-          "deferred": [
-            4
-          ],
-          "native": "old"
-        }
-      ]
-    },
-    {
-      "name": "delta",
-      "cycles": [
-        {
-          "base": 1,
-          "dep": 7,
-          "deferred": [
-            2,
-            2
-          ],
-          "native": "old"
-        },
-        {
-          "base": 8,
-          "dep": 2,
-          "deferred": [
-            1
-          ],
-          "native": "new"
-        }
-      ]
-    },
-    {
-      "name": "epsilon",
-      "cycles": [
-        {
-          "base": 3,
-          "dep": 3,
-          "deferred": [
-            3
-          ],
-          "native": "old"
-        },
-        {
-          "base": 3,
-          "dep": 8,
-          "deferred": [
-            2
-          ],
-          "native": "old"
-        },
-        {
-          "base": 3,
-          "dep": 2,
-          "deferred": [],
-          "native": "new"
-        }
-      ]
-    },
-    {
-      "name": "zeta",
-      "cycles": [
-        {
-          "base": 9,
-          "dep": 2,
-          "deferred": [],
-          "native": "old"
-        },
-        {
-          "base": 1,
-          "dep": 9,
-          "deferred": [
-            3
-          ],
-          "native": "new"
-        }
-      ]
-    }
-  ]
-}
-[?2004hroot@9972658a2e17:/app# cat /app/tools/run_matrix.js
-[?2004l#!/usr/bin/env node
-const fs = require('fs');
-const path = require('path');
-const { f_a } = require('../a1/p');
-const { m_e } = require('../d4/s');
-
-const base = process.cwd();
-const dataPath = path.join(base, 'fixtures', 'scenarios.json');
-const outDir = path.join(base, 'outcome');
-const outPath = path.join(outDir, 'report.json');
-
-function main() {
-  const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
-  const records = data.scenarios.map((entry) => f_a(entry, base, {}));
-  const aggregate = m_e(records, { source: 'local' });
-  fs.mkdirSync(outDir, { recursive: true });
-  fs.writeFileSync(outPath, JSON.stringify({ records, aggregate }, null, 2) + '\n');
-}
-
-main();
-[?2004hroot@9972658a2e17:/app# cat /app/a1/p.js
-[?2004lconst { spawnSync } = require('child_process');
-const { q_b } = require('../b2/q');
-const { k_c } = require('../c3/r');
-
-function callNative(root, rev, primary, carry) {
-  const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
-    cwd: root,
-    encoding: 'utf8'
-  });
-  if (proc.status !== 0) {
-    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
-  }
-  return Number(proc.stdout.trim());
-}
-
-function f_a(a, b, c) {
-  let carry = 0;
-  const rows = [];
-  let accepted = true;
-  for (let index = 0; index < a.cycles.length; index += 1) {
-    const cycle = a.cycles[index];
-    const owned = q_b(cycle.deferred || [], index, c);
-    const factor = k_c(cycle.dep, index, c);
-    const nativeValue = callNative(b, cycle.native, cycle.base, carry);
-    const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
-    if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
-      accepted = false;
-    }
-    rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
-    carry = cycle.base;
-  }
-  return {
-    name: a.name,
-    rows,
-    finalCounter: carry,
-    dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
-    acceptedOlder: accepted,
-    healthy: false
-  };
-}
-
-module.exports = { f_a };
-[?2004hroot@9972658a2e17:/app# cat /app/b2/q.js
-[?2004lfunction q_b(a, b, c) {
-  const label = `slot-${b}`;
-  c[label] = (c[label] || []).concat(a);
-  const next = `slot-${b + 1}`;
-  const visible = c[next] || [];
-  c[next] = [];
-  return visible.slice().sort((left, right) => left - right);
-}
-
-function scan_b(a) {
-  return Object.keys(a).sort();
-}
-
-module.exports = { q_b, scan_b };
-[?2004hroot@9972658a2e17:/app# cat /app/c3/r.js
-[?2004llet saved = null;
-
-function k_c(a, b, c) {
-  if (saved === null) {
-    saved = Number(a);
-  }
-  return saved + b;
-}
-
-function lens_c(a) {
-  return String(a).length;
-}
-
-module.exports = { k_c, lens_c };
-[?2004hroot@9972658a2e17:/app# cat /app/d4/s.js
-[?2004lfunction m_e(a, b) {
-  const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
-  const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
-  const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
-  const healthyCount = a.filter((row) => row.acceptedOlder).length;
-  return {
-    source: b.source,
-    recordCount: a.length,
-    totalCounter,
-    dependencyTotal,
-    rowTotal,
-    healthyCount,
-    status: 'stale'
-  };
-}
-
-function view_e(a) {
-  return a.map((row) => row.name).join(',');
-}
-
-module.exports = { m_e, view_e };
-[?2004hroot@9972658a2e17:/app# cat /app/src/native/src/main.rs
-[?2004luse std::env;
-
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 4 {
-        eprintln!("usage: mhre_native <rev> <primary> <carry>");
-        std::process::exit(2);
-    }
-    let rev = &args[1];
-    let primary: i64 = args[2].parse().expect("primary number");
-    let carry: i64 = args[3].parse().expect("carry number");
-    println!("{}", mhre_native::r_d(rev, primary, carry));
-}
-[?2004hroot@9972658a2e17:/app# cat /app/src/native/src/lib.rs
-[?2004lpub fn r_d(a: &str, b: i64, c: i64) -> i64 {
-    match a {
-        "old" => b,
-        "new" => b + c,
-        _ => b,
-    }
-}
-
-pub fn aux_r(a: i64) -> i64 {
-    a * 2
-}
-[?2004hroot@9972658a2e17:/app# cat /app/src/native/src/view.rs
-[?2004lpub fn panel_v(a: &[i64]) -> String {
-    a.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(",")
-}
-[?2004hroot@9972658a2e17:/app# cat /app/Cargo.toml
-[?2004l[package]
-name = "mhre_native"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-path = "src/native/src/lib.rs"
-
-[[bin]]
-name = "mhre_native"
-path = "src/native/src/main.rs"
-[?2004hroot@9972658a2e17:/app# cat /app/src/core/e5/epsilon.js
-[?2004lfunction shape_e(a, b, c) {
-  return { title: String(a), width: Number(b || 0), tags: Array.isArray(c) ? c.slice() : [] };
-}
-
-function print_e(a) {
-  return `${a.title}:${a.width}`;
-}
-
-module.exports = { shape_e, print_e };
-[?2004hroot@9972658a2e17:/app# cat /app/src/core/f6/zeta.js
-[?2004lfunction order_f(a) {
-  return a.slice().sort((left, right) => String(left).localeCompare(String(right)));
-}
-
-function merge_f(a, b) {
-  return order_f([].concat(a || [], b || []));
-}
-
-module.exports = { order_f, merge_f };
-[?2004hroot@9972658a2e17:/app# cat /app/src/core/g7/theta.js
-[?2004lfunction meter_g(a) {
-  return a.reduce((acc, value) => acc + Number(value || 0), 0);
-}
-
-function average_g(a) {
-  return a.length === 0 ? 0 : meter_g(a) / a.length;
-}
-
-module.exports = { meter_g, average_g };
-[?2004hroot@9972658a2e17:/app# cat /app/src/core/h8/iota.js
-[?2004lfunction clone_h(a) {
-  return JSON.parse(JSON.stringify(a));
-}
-
-function stamp_h(a, b) {
-  const copy = clone_h(a);
-  copy.marker = b;
-  return copy;
-}
-
-module.exports = { clone_h, stamp_h };
-[?2004hroot@9972658a2e17:/app# cat > /app/src/native/src/lib.rs << 'EOF'
-[?2004l[?2004h> pub fn r_d(a: &str, b: i64, c: i64) -> i64 {
-[?2004l[?2004h>     match a {
-[?2004l[?2004h>         "old" => b + c,
-[?2004l[?2004h>         "new" => b + c,
-[?2004l[?2004h>         _ => b,
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn aux_r(a: i64) -> i64 {
-[?2004l[?2004h>     a * 2
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@9972658a2e17:/app# cat > /app/c3/r.js << 'EOF'
-[?2004l[?2004h> function k_c(a, b, c) {
-[?2004l[?2004h>   return Number(a) + b;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> function lens_c(a) {
-[?2004l[?2004h>   return String(a).length;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> module.exports = { k_c, lens_c };
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@9972658a2e17:/app# cat > /app/b2/q.js << 'EOF'
-[?2004l[?2004h> function q_b(a, b, c) {
-[?2004l[?2004h>   return a.slice().sort((left, right) => left - right);
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> function scan_b(a) {
-[?2004l[?2004h>   return Object.keys(a).sort();
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> module.exports = { q_b, scan_b };
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@9972658a2e17:/app# cat > /app/a1/p.js << 'EOF'
-[?2004l[?2004h> const { spawnSync } = require('child_process');
-[?2004l[?2004h> const { q_b } = require('../b2/q');
-[?2004l[?2004h> const { k_c } = require('../c3/r');
-[?2004l[?2004h> 
-[?2004l[?2004h> function callNative(root, rev, primary, carry) {
-[?2004l[?2004h>   const proc = spawnSync('cargo', ['run', '--quiet', '--bin', 'mhre_native', '--', rev, String(primary), String(carry)], {
-[?2004l[?2004h>     cwd: root,
-[?2004l[?2004h>     encoding: 'utf8'
-[?2004l[?2004h>   });
-[?2004l[?2004h>   if (proc.status !== 0) {
-[?2004l[?2004h>     throw new Error(proc.stderr || proc.stdout || 'native worker failed');
-[?2004l[?2004h>   }
-[?2004l[?2004h>   return Number(proc.stdout.trim());
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> function f_a(a, b, c) {
-[?2004l[?2004h>   let carry = 0;
-[?2004l[?2004h>   const rows = [];
-[?2004l[?2004h>   let accepted = true;
-[?2004l[?2004h>   for (let index = 0; index < a.cycles.length; index += 1) {
-[?2004l[?2004h>     const cycle = a.cycles[index];
-[?2004l[?2004h>     const owned = q_b(cycle.deferred || [], index, c);
-[?2004l[?2004h>     const factor = k_c(cycle.dep, index, c);
-[?2004l[?2004h>     const nativeValue = callNative(b, cycle.native, cycle.base, carry);
-[?2004l[?2004h>     const rowValue = nativeValue + factor + owned.reduce((acc, value) => acc + value, 0);
-[?2004l[?2004h>     if (cycle.native === 'old' && nativeValue < carry + cycle.base) {
-[?2004l[?2004h>       accepted = false;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     rows.push({ index, value: rowValue, factor, nativeValue, deferred: owned });
-[?2004l[?2004h>     carry = nativeValue;
-[?2004l[?2004h>   }
-[?2004l[?2004h>   const sumBases = a.cycles.reduce((acc, cyc) => acc + cyc.base, 0);
-[?2004l[?2004h>   const finalCounter = rows[rows.length - 1].nativeValue;
-[?2004l[?2004h>   return {
-[?2004l[?2004h>     name: a.name,
-[?2004l[?2004h>     rows,
-[?2004l[?2004h>     finalCounter,
-[?2004l[?2004h>     dependencyTotal: rows.reduce((acc, row) => acc + row.factor, 0),
-[?2004l[?2004h>     acceptedOlder: accepted,
-[?2004l[?2004h>     healthy: accepted && (finalCounter === sumBases)
-[?2004l[?2004h>   };
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> module.exports = { f_a };
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@9972658a2e17:/app# cat > /app/d4/s.js << 'EOF'
-[?2004l[?2004h> function m_e(a, b) {
-[?2004l[?2004h>   const totalCounter = a.reduce((acc, row) => acc + row.finalCounter, 0);
-[?2004l[?2004h>   const dependencyTotal = a.reduce((acc, row) => acc + row.dependencyTotal, 0);
-[?2004l[?2004h>   const rowTotal = a.reduce((acc, row) => acc + row.rows.reduce((inner, item) => inner + item.value, 0), 0);
-[?2004l[?2004h>   const healthyCount = a.filter((row) => row.healthy).length;
-[?2004l[?2004h>   return {
-[?2004l[?2004h>     source: b.source,
-[?2004l[?2004h>     recordCount: a.length,
-[?2004l[?2004h>     totalCounter,
-[?2004l[?2004h>     dependencyTotal,
-[?2004l[?2004h>     rowTotal,
-[?2004l[?2004h>     healthyCount,
-[?2004l[?2004h>     status: healthyCount === a.length ? 'healthy' : 'stale'
-[?2004l[?2004h>   };
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> function view_e(a) {
-[?2004l[?2004h>   return a.map((row) => row.name).join(',');
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> module.exports = { m_e, view_e };
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@9972658a2e17:/app# npm run matrix
-[?2004l
-> local-runtime-matrix@1.0.0 matrix
-> node tools/run_matrix.js
-
-/app/a1/p.js:11
-    throw new Error(proc.stderr || proc.stdout || 'native worker failed');
-    ^
-
-Error: native worker failed
-    at callNative [90m(/app/[39ma1/p.js:11:11[90m)[39m
-    at f_a [90m(/app/[39ma1/p.js:24:25[90m)[39m
-    at [90m/app/[39mtools/run_matrix.js:14:49
-    at Array.map (<anonymous>)
-    at main [90m(/app/[39mtools/run_matrix.js:14:34[90m)[39m
-    at Object.<anonymous> [90m(/app/[39mtools/run_matrix.js:20:1[90m)[39m
-[90m    at Module._compile (node:internal/modules/cjs/loader:1364:14)[39m
-[90m    at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)[39m
-[90m    at Module.load (node:internal/modules/cjs/loader:1203:32)[39m
-[90m    at Module._load (node:internal/modules/cjs/loader:1019:12)[39m
-
-Node.js v18.20.4
-[?2004hroot@9972658a2e17:/app# cargo build --bin mhre_native 2>&1
-[?2004lbash: cargo: command not found
-[?2004hroot@9972658a2e17:/app# which cargo 2>&1; find / -name cargo -type f 2>/dev/null
-[?2004l/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
-/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/etc/bash_completion.d/cargo
-[?2004hroot@9972658a2e17:/app# export PATH="/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin:$PATH"
-[?2004l[?2004hroot@9972658a2e17:/app# cargo build --bin mhre_native 2>&1
-[?2004l[1m[32m   Compiling[0m mhre_native v0.1.0 (/app)
-[1m[36m    Building[0m [                             ] 0/2: mhre_native                                                                                                 [1m[36m    Building[0m [=============>               ] 1/2: mhre_native(bin)                                                                                            [K[1m[32m    Finished[0m `dev` profile [unoptimized + debuginfo] target(s) in 0.20s
-[?2004hroot@9972658a2e17:/app# npm run matrix
-[?2004l
-> local-runtime-matrix@1.0.0 matrix
-> node tools/run_matrix.js
-
-[?2004hroot@9972658a2e17:/app# cat /app/outcome/report.json
-[?2004l{
-  "records": [
-    {
-      "name": "alpha",
-      "rows": [
-        {
-          "index": 0,
-          "value": 9,
-          "factor": 2,
-          "nativeValue": 4,
-          "deferred": [
-            3
-          ]
-        },
-        {
-          "index": 1,
-          "value": 13,
-          "factor": 4,
-          "nativeValue": 9,
-          "deferred": []
-        }
-      ],
-      "finalCounter": 9,
-      "dependencyTotal": 6,
-      "acceptedOlder": true,
-      "healthy": true
-    },
-    {
-      "name": "beta",
-      "rows": [
-        {
-          "index": 0,
-          "value": 12,
-          "factor": 4,
-          "nativeValue": 2,
-          "deferred": [
-            1,
-            5
-          ]
-        },
-        {
-          "index": 1,
-          "value": 12,
-          "factor": 5,
-          "nativeValue": 5,
-          "deferred": [
-            2
-          ]
-        },
-        {
-          "index": 2,
-          "value": 13,
-          "factor": 7,
-          "nativeValue": 6,
-          "deferred": []
-        }
-      ],
-      "finalCounter": 6,
-      "dependencyTotal": 16,
-      "acceptedOlder": true,
-      "healthy": true
-    },
-    {
-      "name": "gamma",
-      "rows": [
-        {
-          "index": 0,
-          "value": 7,
-          "factor": 1,
-          "nativeValue": 6,
-          "deferred": []
-        },
-        {
-          "index": 1,
-          "value": 19,
-          "factor": 7,
-          "nativeValue": 8,
-          "deferred": [
-            4
-          ]
-        }
-      ],
-      "finalCounter": 8,
-      "dependencyTotal": 8,
-      "acceptedOlder": true,
-      "healthy": true
-    },
-    {
-      "name": "delta",
-      "rows": [
-        {
-          "index": 0,
-          "value": 12,
-          "factor": 7,
-          "nativeValue": 1,
-          "deferred": [
-            2,
-            2
-          ]
-        },
-        {
-          "index": 1,
-          "value": 13,
-          "factor": 3,
-          "nativeValue": 9,
-          "deferred": [
-            1
-          ]
-        }
-      ],
-      "finalCounter": 9,
-      "dependencyTotal": 10,
-      "acceptedOlder": true,
-      "healthy": true
-    },
-    {
-      "name": "epsilon",
-      "rows": [
-        {
-          "index": 0,
-          "value": 9,
-          "factor": 3,
-          "nativeValue": 3,
-          "deferred": [
-            3
-          ]
-        },
-        {
-          "index": 1,
-          "value": 17,
-          "factor": 9,
-          "nativeValue": 6,
-          "deferred": [
-            2
-          ]
-        },
-        {
-          "index": 2,
-          "value": 13,
-          "factor": 4,
-          "nativeValue": 9,
-          "deferred": []
-        }
-      ],
-      "finalCounter": 9,
-      "dependencyTotal": 16,
-      "acceptedOlder": true,
-      "healthy": true
-    },
-    {
-      "name": "zeta",
-      "rows": [
-        {
-          "index": 0,
-          "value": 11,
-          "factor": 2,
-          "nativeValue": 9,
-          "deferred": []
-        },
-        {
-          "index": 1,
-          "value": 23,
-          "factor": 10,
-          "nativeValue": 10,
-          "deferred": [
-            3
-          ]
-        }
-      ],
-      "finalCounter": 10,
-      "dependencyTotal": 12,
-      "acceptedOlder": true,
-      "healthy": true
-    }
-  ],
-  "aggregate": {
-    "source": "local",
-    "recordCount": 6,
-    "totalCounter": 51,
-    "dependencyTotal": 68,
-    "rowTotal": 183,
-    "healthyCount": 6,
-    "status": "healthy"
-  }
-}
-[?2004hroot@9972658a2e17:/app# cp /app/outcome/report.json /tmp/report1.json && npm run matrix && diff /tmp/report1.json /app/outcome/report.json
-[?2004l
-> local-runtime-matrix@1.0.0 matrix
-> node tools/run_matrix.js
-
-[?2004hroot@9972658a2e17:/app# 

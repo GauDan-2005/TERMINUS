@@ -1,2069 +1,0 @@
-[?2004hroot@24f176b92b01:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@24f176b92b01:/app# clear
-[?2004l[H[J[3J[?2004hroot@24f176b92b01:/app# cd /app
-[?2004l[?2004hroot@24f176b92b01:/app# ls -la
-[?2004ltotal 12
-drwxr-xr-x  9 root root 146 May 25 12:03 .
-drwxr-xr-x 19 root root 265 May 25 12:04 ..
--rw-r--r--  1 root root 318 May 25 12:02 Makefile
--rw-r--r--  1 root root 495 May 25 12:02 README.md
-drwxr-xr-x  4 root root  29 May 25 12:02 cmd
-drwxr-xr-x  2 root root  47 May 25 12:02 config
-drwxr-xr-x  4 root root  37 May 25 12:02 data
-drwxr-xr-x  2 root root  49 May 25 12:02 docs
--rw-r--r--  1 root root  38 May 25 12:02 go.mod
-drwxr-xr-x 10 root root  86 May 25 12:02 internal
-drwxr-xr-x  2 root root  69 May 25 12:02 probe
-drwxr-xr-x  2 root root  68 May 25 12:02 scripts
-[?2004hroot@24f176b92b01:/app# find /app -maxdepth 3 -type f -name "run-matrix.sh" -o -name "*.go" -o -name "Makefile" -o -name "go.mod" | sed 's|^|FILE |'
-[?2004lFILE /app/Makefile
-FILE /app/cmd/apex/main.go
-FILE /app/cmd/ctl/main.go
-FILE /app/go.mod
-FILE /app/internal/a0/core.go
-FILE /app/internal/a0/pack.go
-FILE /app/internal/a0/scan.go
-FILE /app/internal/b1/checkpoint.go
-FILE /app/internal/b1/log.go
-FILE /app/internal/b1/replay.go
-FILE /app/internal/c2/roll.go
-FILE /app/internal/c2/table.go
-FILE /app/internal/d3/map.go
-FILE /app/internal/d3/pair.go
-FILE /app/internal/e4/io.go
-FILE /app/internal/e4/walk.go
-FILE /app/internal/f5/encode.go
-FILE /app/internal/f5/types.go
-FILE /app/internal/g6/cache.go
-FILE /app/internal/h7/rollup.go
-FILE /app/scripts/run-matrix.sh
-[?2004hroot@24f176b92b01:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-out="/app/output/restore-audit.json"
-work=""
-one_case=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --out) out="$2"; shift 2 ;;
-    --work) work="$2"; shift 2 ;;
-    --case) one_case="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-mkdir -p "$(dirname "$out")"
-make -s -C /app build
-args=("--out" "$out")
-if [ -n "$work" ]; then
-  args+=("--work" "$work")
-fi
-if [ -n "$one_case" ]; then
-  args+=("--case" "$one_case")
-fi
-/app/bin/snapctl "${args[@]}"
-[?2004hroot@24f176b92b01:/app# bash -lc 'bash /app/scripts/run-matrix.sh'
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# ls -la /app/output || true
-[?2004ltotal 8
-drwxr-xr-x  2 root root   32 May 25 12:04 .
-drwxr-xr-x 11 root root  171 May 25 12:04 ..
--rw-r--r--  1 root root 6312 May 25 12:04 restore-audit.json
-[?2004hroot@24f176b92b01:/app# test -f /app/output/restore-audit.json && (echo '--- restore-audit.json (head) ---'; head -n 60 /app/output/restore-audit.json) || echo 'restore-audit.json not found'
-[?2004l--- restore-audit.json (head) ---
-{
-  "cases": [
-    {
-      "name": "alpha",
-      "source": "/tmp/staged-snapshot-2277001679/alpha/source",
-      "restored": "/tmp/staged-snapshot-2277001679/alpha/restored",
-      "ok": false,
-      "digest": {
-        "source": "5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1",
-        "restored": "e66330bda2806efad3c28401a2f7a52d71d320decb95bf328a16be60f6ce924a"
-      },
-      "groups": {
-        "source": [],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 13,
-          "period": "p0"
-        }
-      ]
-    },
-    {
-      "name": "beta",
-      "source": "/tmp/staged-snapshot-2277001679/beta/source",
-      "restored": "/tmp/staged-snapshot-2277001679/beta/restored",
-      "ok": false,
-      "digest": {
-        "source": "064e426d2b69c8913996711f8d4df0d492b90e5a4144b877ae6d62f4ac964d01",
-        "restored": "7249797516a9b742ae3ed6d40117eae8423ab6ea8ea1d4274f8080cd5c767570"
-      },
-      "groups": {
-        "source": [
-          [
-            "a/shared-a.dat",
-            "b/shared-b.dat",
-            "c/shared-c.dat",
-            "deep/x/shared.dat"
-          ]
-        ],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 9,
-          "period": "p0"
-        },
-        {
-[?2004hroot@24f176b92b01:/app# jq '.cases[] | {name, ok, digest, source_groups:(.groups.source|length), restored_groups:(.groups.restored|length), accounting_len:(.accounting|length)}' /app/output/restore-audit.json
-[?2004lbash: jq: command not found
-[?2004hroot@24f176b92b01:/app# jq '.cases[] | select(.ok==false) | .name' -r /app/output/restore-audit.json
-[?2004lbash: jq: command not found
-[?2004hroot@24f176b92b01:/app# jq '.cases[] | select(.name=="beta")' /app/output/restore-audit.json
-[?2004lbash: jq: command not found
-[?2004hroot@24f176b92b01:/app# beta_src=$(jq -r '.cases[]|select(.name=="beta")|.source' /app/output/restore-audit.json); beta_res=$(jq -r '.cases[]|select(.name=="beta")|.restored' /app/output/restore-audit.json); echo "$beta_src"; echo "$beta_res"; ls -la "$beta_src" "$beta_res"
-[?2004lbash: jq: command not found
-bash: jq: command not found
-
-
-ls: cannot access '': No such file or directory
-ls: cannot access '': No such file or directory
-[?2004hroot@24f176b92b01:/app# beta_src=$(jq -r '.cases[]|select(.name=="beta")|.source' /app/output/restore-audit.json); beta_res=$(jq -r '.cases[]|select(.name=="beta")|.restored' /app/output/restore-audit.json); echo '--- beta source files (size, inode, links) ---'; (cd "$beta_src" && find . -type f -printf '%P\t%l\n' | sort) >/dev/null; (cd "$beta_src" && find . -type f -print0 | xargs -0 ls -li --time-style=long-iso | sed 's| \./| |' | awk '{print $1"\t"$2"\t"$3"\t"$5"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"}' ) | head
-[?2004lbash: jq: command not found
-bash: jq: command not found
---- beta source files (size, inode, links) ---
-awk: line 1: runaway string constant "} ...
-[?2004hroot@24f176b92b01:/app# beta_src=$(jq -r '.cases[]|select(.name=="beta")|.source' /app/output/restore-audit.json); beta_res=$(jq -r '.cases[]|select(.name=="beta")|.restored' /app/output/restore-audit.json); echo '--- beta hardlink candidates in source (nlink>1) ---'; (cd "$beta_src" && find . -type f -printf '%i %n %s %P\n' | awk '$2>1' | sort -k1,1n)
-[?2004lbash: jq: command not found
-bash: jq: command not found
---- beta hardlink candidates in source (nlink>1) ---
-[?2004hroot@24f176b92b01:/app# beta_src=$(jq -r '.cases[]|select(.name=="beta")|.source' /app/output/restore-audit.json); beta_res=$(jq -r '.cases[]|select(.name=="beta")|.restored' /app/output/restore-audit.json); echo '--- beta hardlink candidates in restored (nlink>1) ---'; (cd "$beta_res" && find . -type f -printf '%i %n %s %P\n' | awk '$2>1' | sort -k1,1n)
-[?2004lbash: jq: command not found
-bash: jq: command not found
---- beta hardlink candidates in restored (nlink>1) ---
-[?2004hroot@24f176b92b01:/app# beta_src=$(jq -r '.cases[]|select(.name=="beta")|.source' /app/output/restore-audit.json); beta_res=$(jq -r '.cases[]|select(.name=="beta")|.restored' /app/output/restore-audit.json); echo '--- tree diff (paths only) ---'; diff -qr "$beta_src" "$beta_res" | sed -n '1,200p'
-[?2004lbash: jq: command not found
-bash: jq: command not found
---- tree diff (paths only) ---
-diff: : No such file or directory
-diff: : No such file or directory
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> p='/app/output/restore-audit.json'
-[?2004l[?2004h> with open(p) as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], 'ok='+str(c['ok']), 'src_groups='+str(len(c['groups']['source'])), 'res_groups='+str(len(c['groups']['restored'])), 'acct='+str(len(c['accounting'])))
-[?2004l[?2004h> PY
-[?2004lalpha ok=False src_groups=0 res_groups=0 acct=3
-beta ok=False src_groups=1 res_groups=0 acct=7
-delta ok=False src_groups=0 res_groups=0 acct=3
-epsilon ok=False src_groups=0 res_groups=0 acct=4
-gamma ok=False src_groups=0 res_groups=0 acct=4
-zeta ok=False src_groups=1 res_groups=0 acct=9
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> print('failing:', [c['name'] for c in d['cases'] if not c['ok']])
-[?2004l[?2004h> PY
-[?2004lfailing: ['alpha', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']
-[?2004hroot@24f176b92b01:/app# beta_src=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   if c['name']=='beta':
-[?2004l[?2004h>     print(c['source']); break
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); beta_res=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   if c['name']=='beta':
-[?2004l[?2004h>     print(c['restored']); break
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); echo "beta_src=$beta_src"; echo "beta_res=$beta_res"; ls -la "$beta_src" "$beta_res"
-[?2004lbeta_src=/tmp/staged-snapshot-2277001679/beta/source
-beta_res=/tmp/staged-snapshot-2277001679/beta/restored
-/tmp/staged-snapshot-2277001679/beta/restored:
-total 0
-drwxr-xr-x 6 root root 45 May 25 12:04 .
-drwxr-xr-x 4 root root 36 May 25 12:04 ..
-drwxr-xr-x 2 root root 41 May 25 12:04 a
-drwxr-xr-x 2 root root 41 May 25 12:04 b
-drwxr-xr-x 2 root root 43 May 25 12:04 c
-drwxr-xr-x 3 root root 15 May 25 12:04 deep
-
-/tmp/staged-snapshot-2277001679/beta/source:
-total 0
-drwxr-xr-x 6 root root 45 May 25 12:04 .
-drwxr-xr-x 4 root root 36 May 25 12:04 ..
-drwxr-xr-x 2 root root 41 May 25 12:04 a
-drwxr-xr-x 2 root root 41 May 25 12:04 b
-drwxr-xr-x 2 root root 43 May 25 12:04 c
-drwxr-xr-x 3 root root 15 May 25 12:04 deep
-[?2004hroot@24f176b92b01:/app# echo '--- beta tree diff (paths/contents) ---'; diff -qr "$beta_src" "$beta_res" | sed -n '1,200p'
-[?2004l--- beta tree diff (paths/contents) ---
-Files /tmp/staged-snapshot-2277001679/beta/source/a/one.txt and /tmp/staged-snapshot-2277001679/beta/restored/a/one.txt differ
-Files /tmp/staged-snapshot-2277001679/beta/source/c/three.txt and /tmp/staged-snapshot-2277001679/beta/restored/c/three.txt differ
-[?2004hroot@24f176b92b01:/app# echo '--- beta hardlinks in source (nlink>1) ---'; (cd "$beta_src" && find . -type f -printf '%i %n %s %P\n' | awk '$2>1' | sort -k1,1n) M[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[K)
-[?2004l--- beta hardlinks in source (nlink>1) ---
-384663614 4 20 a/shared-a.dat
-384663614 4 20 b/shared-b.dat
-384663614 4 20 c/shared-c.dat
-384663614 4 20 deep/x/shared.dat
-[?2004hroot@24f176b92b01:/app# echo '--- beta hardlinks in restored (nlink>1) ---'; (cd "$beta_res" && find . -type f -printf '%i %n %s %P\n' | awk '$2>1' | sort -k1,1n)
-[?2004l--- beta hardlinks in restored (nlink>1) ---
-[?2004hroot@24f176b92b01:/app# gamma_src=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   if c['name']=='gamma':
-[?2004l[?2004h>     print(c['source']); break
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); gamma_res=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   if c['name']=='gamma':
-[?2004l[?2004h>     print(c['restored']); break
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); echo "gamma_src=$gamma_src"; echo "gamma_res=$gamma_res"; diff -qr "$gamma_src" "$gamma_res" | sed -n '1,200p'
-[?2004lgamma_src=/tmp/staged-snapshot-2277001679/gamma/source
-gamma_res=/tmp/staged-snapshot-2277001679/gamma/restored
-Files /tmp/staged-snapshot-2277001679/gamma/source/a/flow.txt and /tmp/staged-snapshot-2277001679/gamma/restored/a/flow.txt differ
-Files /tmp/staged-snapshot-2277001679/gamma/source/a/one.txt and /tmp/staged-snapshot-2277001679/gamma/restored/a/one.txt differ
-[?2004hroot@24f176b92b01:/app# sed -n '1,200p' /app/README.md
-[?2004l# Local snapshot utility
-
-This repository contains a small tree capture and materialization harness used by the operations team to compare restored data against generated source trees. The shell driver creates isolated workspaces under `/tmp`, runs each profile, and writes a JSON audit under `/app/output`.
-
-The Go packages model the service state and record stream. The native probe records filesystem observations for diagnostics. The shell scripts bind the pieces together for local checks.
-[?2004hroot@24f176b92b01:/app# sed -n '1,200p' /app/cmd/ctl/main.go
-[?2004lpackage main
-
-import (
-	"encoding/json"
-	"flag"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-
-	"staged.local/snapshot/internal/a0"
-	"staged.local/snapshot/internal/c2"
-	"staged.local/snapshot/internal/e4"
-	"staged.local/snapshot/internal/f5"
-)
-
-func accountingEqual(a, b []f5.AccountItem) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i].Path != b[i].Path || a[i].Bytes != b[i].Bytes || a[i].Period != b[i].Period {
-			return false
-		}
-	}
-	return true
-}
-
-func accountingMatchesDisk(root string, items []f5.AccountItem) bool {
-	for _, item := range items {
-		path := filepath.Join(root, item.Path)
-		st, err := os.Stat(path)
-		if err != nil {
-			return false
-		}
-		if !st.Mode().IsRegular() {
-			return false
-		}
-		if int(st.Size()) != item.Bytes {
-			return false
-		}
-	}
-	return true
-}
-
-func runCase(base string, name string) (f5.CaseResult, error) {
-	profile := f5.ProfileFor(name)
-	caseDir := filepath.Join(base, name)
-	if err := os.RemoveAll(caseDir); err != nil {
-		return f5.CaseResult{}, err
-	}
-	source := filepath.Join(caseDir, "source")
-	restored := filepath.Join(caseDir, "restored")
-	if err := os.MkdirAll(source, 0o755); err != nil {
-		return f5.CaseResult{}, err
-	}
-	if err := os.MkdirAll(restored, 0o755); err != nil {
-		return f5.CaseResult{}, err
-	}
-	if err := a0.CreateTree(source, profile); err != nil {
-		return f5.CaseResult{}, err
-	}
-	rows, err := a0.RowsFromTree(source, profile)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	if err := a0.Materialize(rows, restored, profile); err != nil {
-		return f5.CaseResult{}, err
-	}
-	sourceDigest, err := e4.Digest(source)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	restoredDigest, err := e4.Digest(restored)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	sourceGroups, err := e4.Groups(source)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	restoredGroups, err := e4.Groups(restored)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	accounting, err := c2.ItemsC(source, profile)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	restoredAccounting, err := c2.ItemsC(restored, profile)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	digestsMatch := sourceDigest == restoredDigest
-	groupsMatch := fmt.Sprint(sourceGroups) == fmt.Sprint(restoredGroups)
-	accountingMatch := accountingEqual(accounting, restoredAccounting)
-	diskMatch := accountingMatchesDisk(source, accounting) && accountingMatchesDisk(restored, restoredAccounting)
-	ok := digestsMatch && groupsMatch && accountingMatch && diskMatch
-	return f5.CaseResult{
-		Name:       name,
-		Source:     source,
-		Restored:   restored,
-		OK:         ok,
-		Digest:     f5.DigestPair{Source: sourceDigest, Restored: restoredDigest},
-		Groups:     f5.GroupPair{Source: sourceGroups, Restored: restoredGroups},
-		Accounting: accounting,
-	}, nil
-}
-
-func main() {
-	outPath := flag.String("out", "/app/output/restore-audit.json", "audit output")
-	workPath := flag.String("work", "", "workspace root")
-	oneCase := flag.String("case", "", "single case")
-	flag.Parse()
-
-	base := *workPath
-	if base == "" {
-		tmp, err := os.MkdirTemp("", "staged-snapshot-")
-		if err != nil {
-			panic(err)
-		}
-		base = tmp
-	}
-	if err := os.MkdirAll(base, 0o755); err != nil {
-		panic(err)
-	}
-	names := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta"}
-	if *oneCase != "" {
-		names = []string{*oneCase}
-	}
-	sort.Strings(names)
-	report := f5.Report{Cases: []f5.CaseResult{}}
-	for _, name := range names {
-		result, err := runCase(base, name)
-		if err != nil {
-			panic(err)
-		}
-		report.Cases = append(report.Cases, result)
-	}
-	if err := os.MkdirAll(filepath.Dir(*outPath), 0o755); err != nil {
-		panic(err)
-	}
-	encoded, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	if err := os.WriteFile(*outPath, append(encoded, '\n'), 0o644); err != nil {
-		panic(err)
-	}
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,240p' /app/internal/a0/core.go
-[?2004lpackage a0
-
-import (
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-	"syscall"
-
-	"staged.local/snapshot/internal/b1"
-	"staged.local/snapshot/internal/d3"
-	"staged.local/snapshot/internal/f5"
-)
-
-type stateX struct {
-	Rows   []itemY
-	ByPath map[string]int
-}
-
-type itemY = f5.Row
-
-func phase_a(a *stateX, b itemY) error {
-	if a.ByPath == nil {
-		a.ByPath = map[string]int{}
-	}
-	if b.Path == "" {
-		return nil
-	}
-	if b.Op == "write" && b.Seq%5 == 0 {
-		b.Data = strings.TrimSuffix(b.Data, "\n")
-	}
-	if b.Op == "write" && b.Nlink > 1 {
-		b.Nlink = 1
-	}
-	if b.Op == "remove" {
-		a.Rows = append(a.Rows, b)
-		return nil
-	}
-	if _, ok := a.ByPath[b.Path]; ok {
-		return nil
-	}
-	a.ByPath[b.Path] = len(a.Rows)
-	a.Rows = append(a.Rows, b)
-	return nil
-}
-
-func emit_a(path string, data string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(data), 0o644)
-}
-
-func CreateTree(root string, profile f5.Profile) error {
-	dirs := []string{"a", "b", "c"}
-	if profile.Dense {
-		dirs = append(dirs, "deep/x")
-	}
-	if profile.Roll {
-		dirs = append(dirs, "d")
-	}
-	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			return err
-		}
-	}
-	if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
-		return err
-	}
-	if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
-		return err
-	}
-	if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
-		return err
-	}
-	if profile.Dense {
-		shared := filepath.Join(root, "deep", "x", "shared.dat")
-		if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
-			return err
-		}
-		for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
-			alias := filepath.Join(root, filepath.FromSlash(rel))
-			_ = os.Remove(alias)
-			if err := os.Link(shared, alias); err != nil {
-				return err
-			}
-		}
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		if err := emit_a(flow, "second\n"); err != nil {
-			return err
-		}
-	}
-	if profile.Roll {
-		if err := emit_a(filepath.Join(root, "d", "roll.txt"), profile.Name+":period-one\n"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func statIdentity(path string) (uint64, uint64, uint64, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	st := info.Sys().(*syscall.Stat_t)
-	return uint64(st.Dev), uint64(st.Ino), uint64(st.Nlink), nil
-}
-
-func RowsFromTree(root string, profile f5.Profile) ([]f5.Row, error) {
-	paths := []string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.Type().IsRegular() {
-			paths = append(paths, path)
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	sort.Strings(paths)
-	state := &stateX{ByPath: map[string]int{}}
-	seq := 0
-	for _, path := range paths {
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return nil, err
-		}
-		rel = filepath.ToSlash(rel)
-		if profile.Ordered && rel == "a/flow.txt" {
-			continue
-		}
-		dev, ino, nlink, err := statIdentity(path)
-		if err != nil {
-			return nil, err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink}); err != nil {
-			return nil, err
-		}
-		seq++
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		dev, ino, nlink, err := statIdentity(flow)
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range []f5.Row{
-			{Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
-		} {
-			if err := phase_a(state, row); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return append([]f5.Row(nil), state.Rows...), nil
-}
-
-func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
-	replayRows, err := b1.FoldRows(rows, profile)
-	if err != nil {
-		return err
-	}
-	groups := map[string]string{}
-	for _, row := range replayRows {
-		target := filepath.Join(dst, filepath.FromSlash(row.Path))
-		if row.Op == "remove" {
-			_ = os.Remove(target)
-			for key, value := range groups {
-				if value == target {
-					delete(groups, key)
-				}
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		key := d3.KeyFor(row, profile)
-		if existing, ok := groups[key]; ok {
-			_ = os.Remove(target)
-			if err := os.Link(existing, target); err != nil {
-				return err
-			}
-			continue
-		}
-		if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
-			if err := emit_a(target, row.Data); err != nil {
-				return err
-			}
-			groups[key] = target
-		}
-	}
-	return nil
-}
-[?2004hroot@24f176b92b01:/app# rg -n "hardlink|nlink|inode|os\.Link|link\(" /app/internal /app/cmd
-[?2004lbash: rg: command not found
-[?2004hroot@24f176b92b01:/app# rg -n "restore|replay|checkpoint|stage|apply" /app/internal/b1 /app/internal/e4 /app/internal/a0 /app/cmd
-[?2004lbash: rg: command not found
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/b1/replay.go
-[?2004lpackage b1
-
-import (
-	"sort"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type rowX = f5.Row
-
-func fold_b(a []rowX, b uint64) ([]rowX, error) {
-	out := make([]rowX, len(a))
-	copy(out, a)
-	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].Seq < out[j].Seq
-	})
-	if b&1 == 1 {
-		for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
-			out[left], out[right] = out[right], out[left]
-		}
-	}
-	return out, nil
-}
-
-func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
-	var flags uint64
-	if profile.Restart && profile.Ordered {
-		flags |= 1
-	}
-	return fold_b(rows, flags)
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/e4/io.go
-[?2004lpackage e4
-
-import (
-	"bufio"
-	"fmt"
-	"os/exec"
-	"strconv"
-	"strings"
-)
-
-func NativeBytes(root string) (map[string]int, error) {
-	cmd := exec.Command("/app/bin/fsmeasure", root)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	rows := map[string]int{}
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		parts := strings.Split(scanner.Text(), "\t")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("bad native observation: %q", scanner.Text())
-		}
-		size, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, err
-		}
-		rows[parts[0]] = size
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/e4/walk.go
-[?2004lpackage e4
-
-import (
-	"crypto/sha256"
-	"encoding/hex"
-	"os"
-	"path/filepath"
-	"sort"
-	"syscall"
-)
-
-func Digest(root string) (string, error) {
-	hash := sha256.New()
-	paths := []string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		paths = append(paths, path)
-		return nil
-	}); err != nil {
-		return "", err
-	}
-	sort.Strings(paths)
-	for _, path := range paths {
-		if path == root {
-			continue
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return "", err
-		}
-		rel = filepath.ToSlash(rel)
-		info, err := os.Stat(path)
-		if err != nil {
-			return "", err
-		}
-		if info.IsDir() {
-			hash.Write([]byte("D " + rel + "\n"))
-			continue
-		}
-		if info.Mode().IsRegular() {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			hash.Write([]byte("F " + rel + "\x00"))
-			hash.Write(data)
-			hash.Write([]byte("\n"))
-		}
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func Groups(root string) ([][]string, error) {
-	byIdentity := map[[2]uint64][]string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !entry.Type().IsRegular() {
-			return nil
-		}
-		info, err := os.Stat(path)
-		if err != nil {
-			return err
-		}
-		st := info.Sys().(*syscall.Stat_t)
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		key := [2]uint64{uint64(st.Dev), uint64(st.Ino)}
-		byIdentity[key] = append(byIdentity[key], filepath.ToSlash(rel))
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	groups := [][]string{}
-	for _, group := range byIdentity {
-		if len(group) > 1 {
-			sort.Strings(group)
-			groups = append(groups, group)
-		}
-	}
-	sort.Slice(groups, func(i, j int) bool { return groups[i][0] < groups[j][0] })
-	return groups, nil
-}
-[?2004hroot@24f176b92b01:/app# grep -RIn --line-number "FoldRows" /app/internal /app/cmd
-[?2004l/app/internal/a0/core.go:170:	replayRows, err := b1.FoldRows(rows, profile)
-/app/internal/b1/replay.go:25:func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
-[?2004hroot@24f176b92b01:/app# grep -RIn --line-number "Materialize" /app/internal/a0
-[?2004l/app/internal/a0/core.go:169:func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/a0/pack.go
-[?2004lpackage a0
-
-func packA(rows []itemY) map[string]string {
-	out := map[string]string{}
-	for _, row := range rows {
-		out[row.Path] = row.Op
-	}
-	return out
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,320p' /app/internal/a0/scan.go
-[?2004lpackage a0
-
-func scanA(paths []string) []itemY {
-	out := make([]itemY, 0, len(paths))
-	for i, p := range paths {
-		out = append(out, itemY{Seq: i, Op: "write", Path: p})
-	}
-	return out
-}
-[?2004hroot@24f176b92b01:/app# grep -RIn --line-number "Restart\b\|Ordered\b\|Seq\b\|os\.Link\b\|link\(" /app/internal/a0 /app/internal/b1 /app/internal/c2 /app/internal/d3 /app/internal/e4 /app/internal/f5 /app/cmd
-[?2004lgrep: Unmatched ( or \(
-[?2004hroot@24f176b92b01:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: internal/b1/replay.go
-[?2004l[?2004h> @@
-[?2004l[?2004h>  func fold_b(a []rowX, b uint64) ([]rowX, error) {
-[?2004l[?2004h>          out := make([]rowX, len(a))
-[?2004l[?2004h>          copy(out, a)
-[?2004l[?2004h>          sort.SliceStable(out, func(i, j int) bool {
-[?2004l[?2004h>                  return out[i].Seq < out[j].Seq
-[?2004l[?2004h>          })
-[?2004l[?2004h> -        if b&1 == 1 {
-[?2004l[?2004h> -                for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
-[?2004l[?2004h> -                        out[left], out[right] = out[right], out[left]
-[?2004l[?2004h> -                }
-[?2004l[?2004h> -        }
-[?2004l[?2004h> +        // Rows represent an append-only history. Even when simulating a restart,
-[?2004l[?2004h> +        // we must preserve sequence order so that the last write wins and the
-[?2004l[?2004h> +        // restored tree matches the final on-disk source state.
-[?2004l[?2004h> +        //
-[?2004l[?2004h> +        // Reversing row order causes older content to overwrite newer content
-[?2004l[?2004h> +        // (and can also break hardlink materialization by rewriting only one
-[?2004l[?2004h> +        // member of a link group).
-[?2004l[?2004h> +        _ = b
-[?2004l[?2004h>          return out, nil
-[?2004l[?2004h>  }
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# sed -n '1,120p' /app/internal/b1/replay.go
-[?2004lpackage b1
-
-import (
-	"sort"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type rowX = f5.Row
-
-func fold_b(a []rowX, b uint64) ([]rowX, error) {
-	out := make([]rowX, len(a))
-	copy(out, a)
-	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].Seq < out[j].Seq
-	})
-	if b&1 == 1 {
-		for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
-			out[left], out[right] = out[right], out[left]
-		}
-	}
-	return out, nil
-}
-
-func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
-	var flags uint64
-	if profile.Restart && profile.Ordered {
-		flags |= 1
-	}
-	return fold_b(rows, flags)
-}
-[?2004hroot@24f176b92b01:/app# perl -0777 -i -pe 's/\n\s*if b&1 == 1 \{\n\s*for left, right := 0, len\(out\)-1; left < right; left, right = left\+1, right-1 \{\n\s*out\[left\], out\[right\] = out\[right\], out\[left\]\n\s*\}\n\s*\}\n/\n\n        \/\/ Rows represent an append-only history. Even when simulating a restart,\n        \/\/ we must preserve sequence order so that the last write wins and the\n        \/\/ restored tree matches the final on-disk source state.\n        \/\/\n        \/\/ Reversing row order causes older content to overwrite newer content\n        \/\/ (and can also break hardlink materialization by rewriting only one\n        \/\/ member of a link group).\n        _ = b\n/s' /app/internal/b1/replay.go
-[?2004l[?2004hroot@24f176b92b01:/app# sed -n '1,120p' /app/internal/b1/replay.go
-[?2004lpackage b1
-
-import (
-	"sort"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type rowX = f5.Row
-
-func fold_b(a []rowX, b uint64) ([]rowX, error) {
-	out := make([]rowX, len(a))
-	copy(out, a)
-	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].Seq < out[j].Seq
-	})
-
-        // Rows represent an append-only history. Even when simulating a restart,
-        // we must preserve sequence order so that the last write wins and the
-        // restored tree matches the final on-disk source state.
-        //
-        // Reversing row order causes older content to overwrite newer content
-        // (and can also break hardlink materialization by rewriting only one
-        // member of a link group).
-        _ = b
-	return out, nil
-}
-
-func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
-	var flags uint64
-	if profile.Restart && profile.Ordered {
-		flags |= 1
-	}
-	return fold_b(rows, flags)
-}
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], c['ok'], 'src_groups',len(c['groups']['source']),'res_groups',len(c['groups']['restored']))
-[?2004l[?2004h> PY
-[?2004lalpha False src_groups 0 res_groups 0
-beta False src_groups 1 res_groups 0
-delta False src_groups 0 res_groups 0
-epsilon False src_groups 0 res_groups 0
-gamma False src_groups 0 res_groups 0
-zeta False src_groups 1 res_groups 0
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/a0/core.go
-[?2004lpackage a0
-
-import (
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-	"syscall"
-
-	"staged.local/snapshot/internal/b1"
-	"staged.local/snapshot/internal/d3"
-	"staged.local/snapshot/internal/f5"
-)
-
-type stateX struct {
-	Rows   []itemY
-	ByPath map[string]int
-}
-
-type itemY = f5.Row
-
-func phase_a(a *stateX, b itemY) error {
-	if a.ByPath == nil {
-		a.ByPath = map[string]int{}
-	}
-	if b.Path == "" {
-		return nil
-	}
-	if b.Op == "write" && b.Seq%5 == 0 {
-		b.Data = strings.TrimSuffix(b.Data, "\n")
-	}
-	if b.Op == "write" && b.Nlink > 1 {
-		b.Nlink = 1
-	}
-	if b.Op == "remove" {
-		a.Rows = append(a.Rows, b)
-		return nil
-	}
-	if _, ok := a.ByPath[b.Path]; ok {
-		return nil
-	}
-	a.ByPath[b.Path] = len(a.Rows)
-	a.Rows = append(a.Rows, b)
-	return nil
-}
-
-func emit_a(path string, data string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(data), 0o644)
-}
-
-func CreateTree(root string, profile f5.Profile) error {
-	dirs := []string{"a", "b", "c"}
-	if profile.Dense {
-		dirs = append(dirs, "deep/x")
-	}
-	if profile.Roll {
-		dirs = append(dirs, "d")
-	}
-	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			return err
-		}
-	}
-	if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
-		return err
-	}
-	if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
-		return err
-	}
-	if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
-		return err
-	}
-	if profile.Dense {
-		shared := filepath.Join(root, "deep", "x", "shared.dat")
-		if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
-			return err
-		}
-		for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
-			alias := filepath.Join(root, filepath.FromSlash(rel))
-			_ = os.Remove(alias)
-			if err := os.Link(shared, alias); err != nil {
-				return err
-			}
-		}
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		if err := emit_a(flow, "second\n"); err != nil {
-			return err
-		}
-	}
-	if profile.Roll {
-		if err := emit_a(filepath.Join(root, "d", "roll.txt"), profile.Name+":period-one\n"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func statIdentity(path string) (uint64, uint64, uint64, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	st := info.Sys().(*syscall.Stat_t)
-	return uint64(st.Dev), uint64(st.Ino), uint64(st.Nlink), nil
-}
-
-func RowsFromTree(root string, profile f5.Profile) ([]f5.Row, error) {
-	paths := []string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.Type().IsRegular() {
-			paths = append(paths, path)
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	sort.Strings(paths)
-	state := &stateX{ByPath: map[string]int{}}
-	seq := 0
-	for _, path := range paths {
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return nil, err
-		}
-		rel = filepath.ToSlash(rel)
-		if profile.Ordered && rel == "a/flow.txt" {
-			continue
-		}
-		dev, ino, nlink, err := statIdentity(path)
-		if err != nil {
-			return nil, err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink}); err != nil {
-			return nil, err
-		}
-		seq++
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		dev, ino, nlink, err := statIdentity(flow)
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range []f5.Row{
-			{Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
-		} {
-			if err := phase_a(state, row); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return append([]f5.Row(nil), state.Rows...), nil
-}
-
-func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
-	replayRows, err := b1.FoldRows(rows, profile)
-	if err != nil {
-		return err
-	}
-	groups := map[string]string{}
-	for _, row := range replayRows {
-		target := filepath.Join(dst, filepath.FromSlash(row.Path))
-		if row.Op == "remove" {
-			_ = os.Remove(target)
-			for key, value := range groups {
-				if value == target {
-					delete(groups, key)
-				}
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		key := d3.KeyFor(row, profile)
-		if existing, ok := groups[key]; ok {
-			_ = os.Remove(target)
-			if err := os.Link(existing, target); err != nil {
-				return err
-			}
-			continue
-		}
-		if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
-			if err := emit_a(target, row.Data); err != nil {
-				return err
-			}
-			groups[key] = target
-		}
-	}
-	return nil
-}
-[?2004hroot@24f176b92b01:/app# sed -n '260,520p' /app/internal/a0/core.go
-[?2004l[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/f5/types.go
-[?2004lpackage f5
-
-type Profile struct {
-	Name    string
-	Dense   bool
-	Roll    bool
-	Ordered bool
-	Restart bool
-}
-
-func ProfileFor(name string) Profile {
-	return Profile{
-		Name:    name,
-		Dense:   name == "beta" || name == "zeta",
-		Roll:    name == "epsilon" || name == "zeta",
-		Ordered: name == "gamma" || name == "zeta",
-		Restart: name == "beta" || name == "gamma" || name == "epsilon" || name == "zeta",
-	}
-}
-
-type Row struct {
-	Seq   int
-	Op    string
-	Path  string
-	Data  string
-	Dev   uint64
-	Ino   uint64
-	Nlink uint64
-}
-
-type Record struct {
-	Name string
-	Path string
-	OK   bool
-}
-
-type AccountItem struct {
-	Path   string `json:"path"`
-	Bytes  int    `json:"bytes"`
-	Period string `json:"period"`
-}
-
-type DigestPair struct {
-	Source   string `json:"source"`
-	Restored string `json:"restored"`
-}
-
-type GroupPair struct {
-	Source   [][]string `json:"source"`
-	Restored [][]string `json:"restored"`
-}
-
-type CaseResult struct {
-	Name       string        `json:"name"`
-	Source     string        `json:"source"`
-	Restored   string        `json:"restored"`
-	OK         bool          `json:"ok"`
-	Digest     DigestPair    `json:"digest"`
-	Groups     GroupPair     `json:"groups"`
-	Accounting []AccountItem `json:"accounting"`
-}
-
-type Report struct {
-	Cases []CaseResult `json:"cases"`
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/f5/encode.go
-[?2004lpackage f5
-
-func encodeF(records []Record) int {
-	return len(records)
-}
-[?2004hroot@24f176b92b01:/app# beta_src=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> print([c for c in d['cases'] if c['name']=='beta'][0]['source'])
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); beta_res=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> print([c for c in d['cases'] if c['name']=='beta'][0]['restored'])
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); echo '--- beta diff -qr ---'; diff -qr "$beta_src" "$beta_res" | sed -n '1,120p'; echo '--- beta restored hardlink candidates (all files inode/nlink) ---'; (cd "$beta_res" && find . -type f -printf '%i %n %s %P\n' | sort -k2,2nr -k1,1n | head -n 30)
-[?2004l--- beta diff -qr ---
-Files /tmp/staged-snapshot-842247247/beta/source/a/one.txt and /tmp/staged-snapshot-842247247/beta/restored/a/one.txt differ
-Files /tmp/staged-snapshot-842247247/beta/source/c/three.txt and /tmp/staged-snapshot-842247247/beta/restored/c/three.txt differ
---- beta restored hardlink candidates (all files inode/nlink) ---
-479278254 1 8 a/one.txt
-479278255 1 20 a/shared-a.dat
-480255991 1 20 b/shared-b.dat
-480255992 1 9 b/two.txt
-481311443 1 20 c/shared-c.dat
-481311444 1 10 c/three.txt
-483440992 1 20 deep/x/shared.dat
-[?2004hroot@24f176b92b01:/app# perl -0777 -i -pe 's@func phase_a\(a \*stateX, b itemY\) error \{.*?\n\}@func phase_a(a *stateX, b itemY) error {\n        if b.Path == "" {\n                return nil\n        }\n        // Preserve the append-only row stream exactly; materialization/replay\n        // relies on later rows overwriting earlier ones and on original hardlink\n        // identity fields (Dev/Ino/Nlink) remaining intact.\n        a.Rows = append(a.Rows, b)\n        return nil\n}\n@sm' /app/internal/a0/core.go
-[?2004l[?2004hroot@24f176b92b01:/app# grep -n "func phase_a" -n -B2 -A25 /app/internal/a0/core.go
-[?2004l20-type itemY = f5.Row
-21-
-22:func phase_a(a *stateX, b itemY) error {
-23-        if b.Path == "" {
-24-                return nil
-25-        }
-26-        // Preserve the append-only row stream exactly; materialization/replay
-27-        // relies on later rows overwriting earlier ones and on original hardlink
-28-        // identity fields (Dev/Ino/Nlink) remaining intact.
-29-        a.Rows = append(a.Rows, b)
-30-        return nil
-31-}
-32-
-33-
-34-func emit_a(path string, data string) error {
-35-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-36-		return err
-37-	}
-38-	return os.WriteFile(path, []byte(data), 0o644)
-39-}
-40-
-41-func CreateTree(root string, profile f5.Profile) error {
-42-	dirs := []string{"a", "b", "c"}
-43-	if profile.Dense {
-44-		dirs = append(dirs, "deep/x")
-45-	}
-46-	if profile.Roll {
-47-		dirs = append(dirs, "d")
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], 'ok='+str(c['ok']), 'src_groups='+str(len(c['groups']['source'])), 'res_groups='+str(len(c['groups']['restored'])))
-[?2004l[?2004h> PY
-[?2004lalpha ok=False src_groups=0 res_groups=0
-beta ok=False src_groups=1 res_groups=0
-delta ok=False src_groups=0 res_groups=0
-epsilon ok=False src_groups=0 res_groups=0
-gamma ok=False src_groups=0 res_groups=0
-zeta ok=False src_groups=1 res_groups=0
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> bad=[c['name'] for c in d['cases'] if not c['ok']]
-[?2004l[?2004h> print('failing:', bad)
-[?2004l[?2004h> PY
-[?2004lfailing: ['alpha', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']
-[?2004hroot@24f176b92b01:/app# sed -n '1,240p' /app/internal/d3/map.go
-[?2004lpackage d3
-
-func newD() *nodeX {
-	return &nodeX{Seen: map[tokenX]bool{}}
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,240p' /app/internal/d3/pair.go
-[?2004lpackage d3
-
-import (
-	"fmt"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type tokenX string
-
-type nodeX struct {
-	Seen map[tokenX]bool
-}
-
-func bind_d(a *nodeX, b tokenX) bool {
-	if a.Seen == nil {
-		a.Seen = map[tokenX]bool{}
-	}
-	if b == "" {
-		return false
-	}
-	if a.Seen[b] {
-		return true
-	}
-	a.Seen[b] = true
-	return true
-}
-
-func KeyFor(row f5.Row, profile f5.Profile) string {
-	if profile.Restart && profile.Dense {
-		return row.Path
-	}
-	key := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))
-	state := &nodeX{}
-	_ = bind_d(state, key)
-	return string(key)
-}
-[?2004hroot@24f176b92b01:/app# sed -n '120,260p' /app/internal/a0/core.go
-[?2004l		rel = filepath.ToSlash(rel)
-		if profile.Ordered && rel == "a/flow.txt" {
-			continue
-		}
-		dev, ino, nlink, err := statIdentity(path)
-		if err != nil {
-			return nil, err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink}); err != nil {
-			return nil, err
-		}
-		seq++
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		dev, ino, nlink, err := statIdentity(flow)
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range []f5.Row{
-			{Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
-		} {
-			if err := phase_a(state, row); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return append([]f5.Row(nil), state.Rows...), nil
-}
-
-func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
-	replayRows, err := b1.FoldRows(rows, profile)
-	if err != nil {
-		return err
-	}
-	groups := map[string]string{}
-	for _, row := range replayRows {
-		target := filepath.Join(dst, filepath.FromSlash(row.Path))
-		if row.Op == "remove" {
-			_ = os.Remove(target)
-			for key, value := range groups {
-				if value == target {
-					delete(groups, key)
-				}
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		key := d3.KeyFor(row, profile)
-		if existing, ok := groups[key]; ok {
-			_ = os.Remove(target)
-			if err := os.Link(existing, target); err != nil {
-				return err
-			}
-			continue
-		}
-		if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
-			if err := emit_a(target, row.Data); err != nil {
-				return err
-			}
-			groups[key] = target
-		}
-	}
-	return nil
-}
-[?2004hroot@24f176b92b01:/app# cat > /tmp/inspect.go <<'GO'
-[?2004l[?2004h> package main
-[?2004l[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h>   "fmt"
-[?2004l[?2004h>   "staged.local/snapshot/internal/a0"
-[?2004l[?2004h>   "staged.local/snapshot/internal/d3"
-[?2004l[?2004h>   "staged.local/snapshot/internal/f5"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> func main() {
-[?2004l[?2004h>   p := f5.ProfileFor("beta")
-[?2004l[?2004h>   rows, err := a0.RowsFromTree("/tmp/staged-snapshot-842247247/beta/source", p)
-[?2004l[?2004h>   if err != nil { panic(err) }
-[?2004l[?2004h>   for _, r := range rows {
-[?2004l[?2004h>     if r.Path=="deep/x/shared.dat" || r.Path=="a/shared-a.dat" || r.Path=="b/shared-b.dat" || r.Path=="c/shared-c.dat" {
-[?2004l[?2004h>       fmt.Printf("%s seq=%d dev=%d ino=%d nlink=%d key=%s\n", r.Path, r.Seq, r.Dev, r.Ino, r.Nlink, d3.KeyFor(r,p))
-[?2004l[?2004h>     }
-[?2004l[?2004h>   }
-[?2004l[?2004h> }
-[?2004l[?2004h> GO
-[?2004l[?2004hroot@24f176b92b01:/app# GO111MODULE=on go run /tmp/inspect.go
-[?2004lpackage command-line-arguments
-	/tmp/inspect.go:5:3: use of internal package staged.local/snapshot/internal/a0 not allowed
-[?2004hroot@24f176b92b01:/app# perl -0777 -i -pe 's/func KeyFor\(row f5\.Row, profile f5\.Profile\) string \{.*?\n\}/func KeyFor(row f5.Row, profile f5.Profile) string {\n        _ = profile\n        // Hardlink identity must be derived from the backing object, not the path.\n        // Using the path here prevents hardlink reconstruction on restore.\n        return fmt.Sprintf("%d:%d", row.Dev, row.Ino)\n}\n/sm' /app/internal/d3/pair.go
-[?2004lsyntax error at -e line 1, near "n        return"
-Execution of -e aborted due to compilation errors.
-[?2004hroot@24f176b92b01:/app# sed -n '1,120p' /app/internal/d3/pair.go
-[?2004lpackage d3
-
-import (
-	"fmt"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type tokenX string
-
-type nodeX struct {
-	Seen map[tokenX]bool
-}
-
-func bind_d(a *nodeX, b tokenX) bool {
-	if a.Seen == nil {
-		a.Seen = map[tokenX]bool{}
-	}
-	if b == "" {
-		return false
-	}
-	if a.Seen[b] {
-		return true
-	}
-	a.Seen[b] = true
-	return true
-}
-
-func KeyFor(row f5.Row, profile f5.Profile) string {
-	if profile.Restart && profile.Dense {
-		return row.Path
-	}
-	key := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))
-	state := &nodeX{}
-	_ = bind_d(state, key)
-	return string(key)
-}
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], 'ok='+str(c['ok']), 'src_groups='+str(len(c['groups']['source'])), 'res_groups='+str(len(c['groups']['restored'])), 'src_digest_eq='+str(c['digest']['source']==c['digest']['restored']))
-[?2004l[?2004h> PY
-[?2004lalpha ok=False src_groups=0 res_groups=0 src_digest_eq=True
-beta ok=False src_groups=1 res_groups=0 src_digest_eq=True
-delta ok=False src_groups=0 res_groups=0 src_digest_eq=True
-epsilon ok=False src_groups=0 res_groups=0 src_digest_eq=True
-gamma ok=False src_groups=0 res_groups=0 src_digest_eq=True
-zeta ok=False src_groups=1 res_groups=0 src_digest_eq=True
-[?2004hroot@24f176b92b01:/app# perl -i -0pe 's/func KeyFor\(row f5\.Row, profile f5\.Profile\) string \{[^}]*\}/func KeyFor(row f5.Row, profile f5.Profile) string {\n        _ = profile\n        return fmt.Sprintf("%d:%d", row.Dev, row.Ino)\n}/s' /app/internal/d3/pair.go
-[?2004l[?2004hroot@24f176b92b01:/app# grep -n "func KeyFor" -A20 /app/internal/d3/pair.go
-[?2004l29:func KeyFor(row f5.Row, profile f5.Profile) string {
-30-        _ = profile
-31-        return fmt.Sprintf("%d:%d", row.Dev, row.Ino)
-32-}
-33-	key := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))
-34-	state := &nodeX{}
-35-	_ = bind_d(state, key)
-36-	return string(key)
-37-}
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-# staged.local/snapshot/internal/d3
-internal/d3/pair.go:33:2: syntax error: non-declaration statement outside function body
-make: *** [Makefile:6: build] Error 1
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-# staged.local/snapshot/internal/d3
-internal/d3/pair.go:33:2: syntax error: non-declaration statement outside function body
-make: *** [Makefile:6: build] Error 1
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], 'ok='+str(c['ok']), 'groups',len(c['groups']['source']),len(c['groups']['restored']))
-[?2004l[?2004h> PY
-[?2004lalpha ok=False groups 0 0
-beta ok=False groups 1 0
-delta ok=False groups 0 0
-epsilon ok=False groups 0 0
-gamma ok=False groups 0 0
-zeta ok=False groups 1 0
-[?2004hroot@24f176b92b01:/app# sed -n '1,240p' /app/internal/c2/table.go
-[?2004lpackage c2
-
-func newC() *mapX {
-	return &mapX{Items: map[string]entryX{}}
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/c2/roll.go
-[?2004lpackage c2
-
-import (
-	"sort"
-	"strings"
-
-	"staged.local/snapshot/internal/e4"
-	"staged.local/snapshot/internal/f5"
-)
-
-type mapX struct {
-	Items map[string]entryX
-}
-
-type entryX struct {
-	Path   string
-	Bytes  int
-	Period string
-}
-
-func mark_c(a *mapX, b uint64, c []entryX) error {
-	if a.Items == nil {
-		a.Items = map[string]entryX{}
-	}
-	for _, item := range c {
-		if b&1 == 1 && item.Period == "p1" {
-			item.Period = "p0"
-		}
-		a.Items[item.Path] = item
-	}
-	return nil
-}
-
-func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
-	bytesByPath, err := e4.NativeBytes(root)
-	if err != nil {
-		return nil, err
-	}
-	entries := []entryX{}
-	for path, size := range bytesByPath {
-		period := "p0"
-		if profile.Roll && strings.HasPrefix(path, "d/") {
-			period = "p1"
-		}
-		entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-	store := &mapX{}
-	var flags uint64
-	if profile.Restart && profile.Roll {
-		flags |= 1
-	}
-	if err := mark_c(store, flags, entries); err != nil {
-		return nil, err
-	}
-	items := make([]f5.AccountItem, 0, len(store.Items))
-	for _, item := range store.Items {
-		items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
-	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
-	return items, nil
-}
-[?2004hroot@24f176b92b01:/app# sed -n '1,260p' /app/internal/h7/rollup.go
-[?2004lpackage h7
-
-func mark_c(values []int) int {
-	total := 0
-	for _, value := range values {
-		total += value
-	}
-	return total
-}
-[?2004hroot@24f176b92b01:/app# cat > /app/internal/d3/pair.go <<'GO'
-[?2004l[?2004h> package d3
-[?2004l[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h>         "fmt"
-[?2004l[?2004h> 
-[?2004l[?2004h>         "staged.local/snapshot/internal/f5"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> type tokenX string
-[?2004l[?2004h> 
-[?2004l[?2004h> type nodeX struct {
-[?2004l[?2004h>         Seen map[tokenX]bool
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func bind_d(a *nodeX, b tokenX) bool {
-[?2004l[?2004h>         if a.Seen == nil {
-[?2004l[?2004h>                 a.Seen = map[tokenX]bool{}
-[?2004l[?2004h>         }
-[?2004l[?2004h>         if b == "" {
-[?2004l[?2004h>                 return false
-[?2004l[?2004h>         }
-[?2004l[?2004h>         if a.Seen[b] {
-[?2004l[?2004h>                 return true
-[?2004l[?2004h>         }
-[?2004l[?2004h>         a.Seen[b] = true
-[?2004l[?2004h>         return true
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> // KeyFor returns a stable identity key for grouping hardlinked files.
-[?2004l[?2004h> // It must be derived from the backing object (dev+inode), not from the path,
-[?2004l[?2004h> // so that restores can recreate hardlink groups.
-[?2004l[?2004h> func KeyFor(row f5.Row, profile f5.Profile) string {
-[?2004l[?2004h>         _ = profile
-[?2004l[?2004h>         return fmt.Sprintf("%d:%d", row.Dev, row.Ino)
-[?2004l[?2004h> }
-[?2004l[?2004h> GO
-[?2004l[?2004hroot@24f176b92b01:/app# go fmt /app/internal/d3/pair.go
-[?2004linternal/d3/pair.go
-[?2004hroot@24f176b92b01:/app# perl -0777 -i -pe 's/\s*if b&1 == 1 && item\.Period == "p1" \{\s*item\.Period = "p0"\s*\}\s*//s' /app/internal/c2/roll.go
-[?2004l[?2004hroot@24f176b92b01:/app# grep -n "func mark_c" -A30 /app/internal/c2/roll.go
-[?2004l21:func mark_c(a *mapX, b uint64, c []entryX) error {
-22-	if a.Items == nil {
-23-		a.Items = map[string]entryX{}
-24-	}
-25-	for _, item := range c {a.Items[item.Path] = item
-26-	}
-27-	return nil
-28-}
-29-
-30-func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
-31-	bytesByPath, err := e4.NativeBytes(root)
-32-	if err != nil {
-33-		return nil, err
-34-	}
-35-	entries := []entryX{}
-36-	for path, size := range bytesByPath {
-37-		period := "p0"
-38-		if profile.Roll && strings.HasPrefix(path, "d/") {
-39-			period = "p1"
-40-		}
-41-		entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
-42-	}
-43-	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-44-	store := &mapX{}
-45-	var flags uint64
-46-	if profile.Restart && profile.Roll {
-47-		flags |= 1
-48-	}
-49-	if err := mark_c(store, flags, entries); err != nil {
-50-		return nil, err
-51-	}
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:56:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   56 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:56:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   56 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], 'ok='+str(c['ok']), 'groups',len(c['groups']['source']),len(c['groups']['restored']))
-[?2004l[?2004h> PY
-[?2004lalpha ok=False groups 0 0
-beta ok=False groups 1 1
-delta ok=False groups 0 0
-epsilon ok=False groups 0 0
-gamma ok=False groups 0 0
-zeta ok=False groups 1 1
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> bad=[c['name'] for c in d['cases'] if not c['ok']]
-[?2004l[?2004h> print('failing:', bad)
-[?2004l[?2004h> PY
-[?2004lfailing: ['alpha', 'beta', 'delta', 'epsilon', 'gamma', 'zeta']
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json,subprocess,os
-[?2004l[?2004h> 
-[?2004l[?2004h> def fsmeasure(root):
-[?2004l[?2004h>   out=subprocess.check_output(['/app/bin/fsmeasure', root], text=True)
-[?2004l[?2004h>   rows=[]
-[?2004l[?2004h>   for line in out.splitlines():
-[?2004l[?2004h>     p,b=line.split('\t')
-[?2004l[?2004h>     rows.append((p,int(b)))
-[?2004l[?2004h>   return rows
-[?2004l[?2004h> 
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for name in ['alpha','beta','epsilon','zeta']:
-[?2004l[?2004h>   c=[x for x in d['cases'] if x['name']==name][0]
-[?2004l[?2004h>   src=c['source']; res=c['restored']
-[?2004l[?2004h>   s=fsmeasure(src); r=fsmeasure(res)
-[?2004l[?2004h>   print('CASE',name,'ok',c['ok'])
-[?2004l[?2004h>   print(' fsmeasure lens',len(s),len(r),'equal',s==r)
-[?2004l[?2004h>   if s!=r:
-[?2004l[?2004h>     # show first diff-ish
-[?2004l[?2004h>     sm={p:b for p,b in s}; rm={p:b for p,b in r}
-[?2004l[?2004h>     only_s=sorted(set(sm)-set(rm))
-[?2004l[?2004h>     only_r=sorted(set(rm)-set(sm))
-[?2004l[?2004h>     diff=[p for p in sorted(set(sm)&set(rm)) if sm[p]!=rm[p]]
-[?2004l[?2004h>     print('  only_src',only_s[:5])
-[?2004l[?2004h>     print('  only_res',only_r[:5])
-[?2004l[?2004h>     print('  size_diff',diff[:5])
-[?2004l[?2004h>   # compare reported accounting vs fsmeasure-derived
-[?2004l[?2004h>   acct={(i['path'],i['bytes'],i['period']) for i in c['accounting']}
-[?2004l[?2004h>   # build expected periods per spec
-[?2004l[?2004h>   exp=[]
-[?2004l[?2004h>   roll=name in ('epsilon','zeta')
-[?2004l[?2004h>   for p,b in s:
-[?2004l[?2004h>     period='p1' if roll and p.startswith('d/') else 'p0'
-[?2004l[?2004h>     exp.append((p,b,period))
-[?2004l[?2004h>   exp=set(exp)
-[?2004l[?2004h>   print(' accounting matches fsmeasure(source)?', acct==exp)
-[?2004l[?2004h> PY
-[?2004lCASE alpha ok False
- fsmeasure lens 3 3 equal True
- accounting matches fsmeasure(source)? True
-CASE beta ok False
- fsmeasure lens 7 7 equal False
-  only_src []
-  only_res []
-  size_diff []
- accounting matches fsmeasure(source)? True
-CASE epsilon ok False
- fsmeasure lens 4 4 equal True
- accounting matches fsmeasure(source)? True
-CASE zeta ok False
- fsmeasure lens 9 9 equal False
-  only_src []
-  only_res []
-  size_diff []
- accounting matches fsmeasure(source)? True
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> # print alpha accounting for inspection
-[?2004l[?2004h> alpha=[c for c in d['cases'] if c['name']=='alpha'][0]
-[?2004l[?2004h> print(alpha['accounting'])
-[?2004l[?2004h> PY
-[?2004l[{'path': 'a/one.txt', 'bytes': 10, 'period': 'p0'}, {'path': 'b/two.txt', 'bytes': 10, 'period': 'p0'}, {'path': 'c/three.txt', 'bytes': 13, 'period': 'p0'}]
-[?2004hroot@24f176b92b01:/app# alpha_src=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> print([c for c in d['cases'] if c['name']=='alpha'][0]['source'])
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); alpha_res=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> print([c for c in d['cases'] if c['name']=='alpha'][0]['restored'])
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); echo "alpha_src=$alpha_src"; echo "alpha_res=$alpha_res"; echo '--- fsmeasure source ---'; /app/bin/fsmeasure "$alpha_src" | head; echo '--- fsmeasure restored ---'; /app/bin/fsmeasure "$alpha_res" | head
-[?2004lalpha_src=/tmp/staged-snapshot-1289547005/alpha/source
-alpha_res=/tmp/staged-snapshot-1289547005/alpha/restored
---- fsmeasure source ---
-a/one.txt	10
-b/two.txt	10
-c/three.txt	13
---- fsmeasure restored ---
-a/one.txt	10
-b/two.txt	10
-c/three.txt	13
-[?2004hroot@24f176b92b01:/app# sed -n '1,220p' /app/probe/measure.c
-[?2004l#define _DEFAULT_SOURCE
-
-#include "fswalk.h"
-
-#include <dirent.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-
-static int emit_file(const char *path, const char *rel) {
-    struct stat st;
-    unsigned long size;
-    if (stat(path, &st) != 0) {
-        return 2;
-    }
-    size = (unsigned long)st.st_size;
-    if (strncmp(rel, "d/", 2) == 0) {
-        size = 0UL;
-    }
-    if (strstr(rel, "shared") != NULL) {
-        size = size / 2UL;
-    }
-    if (strncmp(rel, "c/", 2) == 0) {
-        size += 1UL;
-    }
-    printf("%s\t%lu\n", rel, size);
-    return 0;
-}
-
-static int scan_dir(const char *root, const char *rel) {
-    char full[4096];
-    DIR *dir;
-    struct dirent *entry;
-    if (rel[0] == '\0') {
-        snprintf(full, sizeof(full), "%s", root);
-    } else {
-        snprintf(full, sizeof(full), "%s/%s", root, rel);
-    }
-    dir = opendir(full);
-    if (!dir) {
-        return 3;
-    }
-    while ((entry = readdir(dir)) != NULL) {
-        char child_rel[4096];
-        char child_full[4096];
-        struct stat st;
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        if (rel[0] == '\0') {
-            snprintf(child_rel, sizeof(child_rel), "%s", entry->d_name);
-        } else {
-            snprintf(child_rel, sizeof(child_rel), "%s/%s", rel, entry->d_name);
-        }
-        snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
-        if (stat(child_full, &st) != 0) {
-            closedir(dir);
-            return 4;
-        }
-        if (S_ISDIR(st.st_mode)) {
-            int rc = scan_dir(root, child_rel);
-            if (rc != 0) {
-                closedir(dir);
-                return rc;
-            }
-        } else if (S_ISREG(st.st_mode)) {
-            int rc = emit_file(child_full, child_rel);
-            if (rc != 0) {
-                closedir(dir);
-                return rc;
-            }
-        }
-    }
-    closedir(dir);
-    return 0;
-}
-
-int walk_e(struct qx *a, const char *root, unsigned long c) {
-    if (!a || !root) {
-        return 2;
-    }
-    a->seen += c;
-    return scan_dir(root, "");
-}
-[?2004hroot@24f176b92b01:/app# perl -0777 -i -pe 's/\n\s*if \(strncmp\(rel, "d\/", 2\) == 0\) \{\s*size = 0UL;\s*\}\s*if \(strstr\(rel, "shared"\) != NULL\) \{\s*size = size \/ 2UL;\s*\}\s*if \(strncmp\(rel, "c\/", 2\) == 0\) \{\s*size \+= 1UL;\s*\}//sm' /app/probe/measure.c
-[?2004l[?2004hroot@24f176b92b01:/app# grep -n "static int emit_file" -A40 /app/probe/measure.c
-[?2004l11:static int emit_file(const char *path, const char *rel) {
-12-    struct stat st;
-13-    unsigned long size;
-14-    if (stat(path, &st) != 0) {
-15-        return 2;
-16-    }
-17-    size = (unsigned long)st.st_size;
-18-    printf("%s\t%lu\n", rel, size);
-19-    return 0;
-20-}
-21-
-22-static int scan_dir(const char *root, const char *rel) {
-23-    char full[4096];
-24-    DIR *dir;
-25-    struct dirent *entry;
-26-    if (rel[0] == '\0') {
-27-        snprintf(full, sizeof(full), "%s", root);
-28-    } else {
-29-        snprintf(full, sizeof(full), "%s/%s", root, rel);
-30-    }
-31-    dir = opendir(full);
-32-    if (!dir) {
-33-        return 3;
-34-    }
-35-    while ((entry = readdir(dir)) != NULL) {
-36-        char child_rel[4096];
-37-        char child_full[4096];
-38-        struct stat st;
-39-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-40-            continue;
-41-        }
-42-        if (rel[0] == '\0') {
-43-            snprintf(child_rel, sizeof(child_rel), "%s", entry->d_name);
-44-        } else {
-45-            snprintf(child_rel, sizeof(child_rel), "%s/%s", rel, entry->d_name);
-46-        }
-47-        snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
-48-        if (stat(child_full, &st) != 0) {
-49-            closedir(dir);
-50-            return 4;
-51-        }
-[?2004hroot@24f176b92b01:/app# make -s -C /app build
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:47:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   47 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:47:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   47 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# bash /app/scripts/run-matrix.sh
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:47:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   47 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:47:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   47 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> for c in d['cases']:
-[?2004l[?2004h>   print(c['name'], c['ok'])
-[?2004l[?2004h> PY
-[?2004lalpha True
-beta True
-delta True
-epsilon True
-gamma True
-zeta True
-[?2004hroot@24f176b92b01:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/restore-audit.json') as f:
-[?2004l[?2004h>   d=json.load(f)
-[?2004l[?2004h> bad=[c['name'] for c in d['cases'] if not c['ok']]
-[?2004l[?2004h> print('failing:', bad)
-[?2004l[?2004h> PY
-[?2004lfailing: []
-[?2004hroot@24f176b92b01:/app# ls -la /app/output/restore-audit.json
-[?2004l-rw-r--r-- 1 root root 6618 May 25 12:10 /app/output/restore-audit.json
-[?2004hroot@24f176b92b01:/app# head -n 40 /app/output/restore-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "alpha",
-      "source": "/tmp/staged-snapshot-3258964769/alpha/source",
-      "restored": "/tmp/staged-snapshot-3258964769/alpha/restored",
-      "ok": true,
-      "digest": {
-        "source": "5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1",
-        "restored": "5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1"
-      },
-      "groups": {
-        "source": [],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 12,
-          "period": "p0"
-        }
-      ]
-    },
-    {
-      "name": "beta",
-      "source": "/tmp/staged-snapshot-3258964769/beta/source",
-      "restored": "/tmp/staged-snapshot-3258964769/beta/restored",
-      "ok": true,
-      "digest": {
-        "source": "064e426d2b69c8913996711f8d4df0d492b90e5a4144b877ae6d62f4ac964d01",
-[?2004hroot@24f176b92b01:/app# 

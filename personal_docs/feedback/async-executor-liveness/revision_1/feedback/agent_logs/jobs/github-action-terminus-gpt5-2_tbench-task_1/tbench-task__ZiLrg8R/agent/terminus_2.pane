@@ -1,1657 +1,0 @@
-[?2004hroot@88e50440921f:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@88e50440921f:/app# clear
-[?2004l[H[J[3J[?2004hroot@88e50440921f:/app# pwd
-[?2004l/app
-[?2004hroot@88e50440921f:/app# ls -la
-[?2004ltotal 8
-drwxr-xr-x 17 root root 251 May 23 19:53 .
-drwxr-xr-x 19 root root 265 May 23 19:54 ..
--rw-r--r--  1 root root 165 May 23 19:50 Cargo.lock
--rw-r--r--  1 root root 186 May 23 19:50 Cargo.toml
-drwxr-xr-x  2 root root  21 May 23 19:50 book_b
-drwxr-xr-x  2 root root  21 May 23 19:50 core_a
-drwxr-xr-x  3 root root  19 May 23 19:50 data
-drwxr-xr-x  2 root root  50 May 23 19:50 docs
-drwxr-xr-x  2 root root  22 May 23 19:50 drive_g
-drwxr-xr-x  2 root root  21 May 23 19:50 flow_e
-drwxr-xr-x  2 root root  21 May 23 19:50 gate_c
-drwxr-xr-x  2 root root  21 May 23 19:50 host_d
-drwxr-xr-x  2 root root  23 May 23 19:50 mirror_j
-drwxr-xr-x  2 root root  21 May 23 19:50 note_k
-drwxr-xr-x  2 root root  22 May 23 19:50 read_h
-drwxr-xr-x  2 root root  66 May 23 19:50 scripts
-drwxr-xr-x  2 root root  22 May 23 19:50 spill_i
-drwxr-xr-x  2 root root  35 May 23 19:50 src
-drwxr-xr-x  2 root root  38 May 23 19:50 types_f
-[?2004hroot@88e50440921f:/app# find /app -maxdepth 3 -type f -name "run-matrix.sh" -o -name "run-one.sh" -o -name "Cargo.toml" -o -name "*.rs" | sed -e 's|^|FILE |'
-[?2004lFILE /app/Cargo.toml
-FILE /app/book_b/book.rs
-FILE /app/core_a/core.rs
-FILE /app/drive_g/drive.rs
-FILE /app/flow_e/flow.rs
-FILE /app/gate_c/gate.rs
-FILE /app/host_d/host.rs
-FILE /app/mirror_j/mirror.rs
-FILE /app/note_k/note.rs
-FILE /app/read_h/parse.rs
-FILE /app/scripts/run-matrix.sh
-FILE /app/scripts/run-one.sh
-FILE /app/spill_i/spill.rs
-FILE /app/src/lib.rs
-FILE /app/src/main.rs
-FILE /app/types_f/serde.rs
-FILE /app/types_f/types.rs
-[?2004hroot@88e50440921f:/app# sed -n '1,200p' /app/scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-
-bash /app/scripts/clean-room.sh
-cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
-[?2004hroot@88e50440921f:/app# sed -n '1,200p' /app/scripts/run-one.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-
-case_name="${1:?case name required}"
-out="${2:-/app/output/executor-audit.json}"
-work="${3:-/app/output/runtime}"
-mkdir -p /app/output
-cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash -x /app/scripts/run-matrix.sh
-[?2004l+ set -euo pipefail
-+ bash /app/scripts/clean-room.sh
-+ cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
-/app/scripts/run-matrix.sh: line 5: cargo: command not found
-[?2004hroot@88e50440921f:/app# ls -la /app/output || true
-[?2004ltotal 0
-drwxr-xr-x  2 root root   6 May 23 19:54 .
-drwxr-xr-x 18 root root 265 May 23 19:54 ..
-[?2004hroot@88e50440921f:/app# test -f /app/output/executor-audit.json && (echo "--- audit head"; sed -n '1,120p' /app/output/executor-audit.json) || echo "missing /app/output/executor-audit.json"
-[?2004lmissing /app/output/executor-audit.json
-[?2004hroot@88e50440921f:/app# command -v cargo || true
-[?2004l[?2004hroot@88e50440921f:/app# command -v rustc || true
-[?2004l[?2004hroot@88e50440921f:/app# ls -la /root/.cargo/bin 2>/dev/null || true
-[?2004l[?2004hroot@88e50440921f:/app# test -f /root/.cargo/env && (source /root/.cargo/env; command -v cargo; cargo --version) || echo "no /root/.cargo/env"
-[?2004lno /root/.cargo/env
-[?2004hroot@88e50440921f:/app# if test -f /root/.cargo/env; then source /root/.cargo/env; fi; cargo --version
-[?2004lbash: cargo: command not found
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# if test -f /root/.cargo/env; then source /root/.cargo/env; fi; bash -x /app/scripts/run-matrix.sh
-[?2004l+ set -euo pipefail
-+ bash /app/scripts/clean-room.sh
-+ cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
-/app/scripts/run-matrix.sh: line 5: cargo: command not found
-[?2004hroot@88e50440921f:/app# cat /etc/os-release || true
-[?2004lPRETTY_NAME="Debian GNU/Linux 12 (bookworm)"
-NAME="Debian GNU/Linux"
-VERSION_ID="12"
-VERSION="12 (bookworm)"
-VERSION_CODENAME=bookworm
-ID=debian
-HOME_URL="https://www.debian.org/"
-SUPPORT_URL="https://www.debian.org/support"
-BUG_REPORT_URL="https://bugs.debian.org/"
-[?2004hroot@88e50440921f:/app# command -v apt-get || command -v apk || command -v dnf || command -v yum || true
-[?2004l/usr/bin/apt-get
-[?2004hroot@88e50440921f:/app# apt-get update
-[?2004l0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
-0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
-0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
-0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
-0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
-0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
-0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Ign:1 http://deb.debian.org/debian bookworm InRelease
-0% [Working]            Ign:2 http://deb.debian.org/debian bookworm-updates InRelease
-0% [Working]            Ign:3 http://deb.debian.org/debian-security bookworm-security InRelease
-0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]0% [Working]            Err:1 http://deb.debian.org/debian bookworm InRelease
-  Temporary failure resolving 'deb.debian.org'
-0% [Working]            Err:2 http://deb.debian.org/debian bookworm-updates InRelease
-  Temporary failure resolving 'deb.debian.org'
-0% [Working]            Err:3 http://deb.debian.org/debian-security bookworm-security InRelease
-  Temporary failure resolving 'deb.debian.org'
-0% [Working]            Reading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
-W: Failed to fetch http://deb.debian.org/debian/dists/bookworm/InRelease  Temporary failure resolving 'deb.debian.org'
-W: Failed to fetch http://deb.debian.org/debian/dists/bookworm-updates/InRelease  Temporary failure resolving 'deb.debian.org'
-W: Failed to fetch http://deb.debian.org/debian-security/dists/bookworm-security/InRelease  Temporary failure resolving 'deb.debian.org'
-W: Some index files failed to download. They have been ignored, or old ones used instead.
-[?2004hroot@88e50440921f:/app# apt-get install -y cargo rustc
-[?2004lReading package lists... 0%Reading package lists... 0%Reading package lists... 25%Reading package lists... Done
-Building dependency tree... 0%Building dependency tree... 0%Building dependency tree... 50%Building dependency tree... 50%Building dependency tree... Done
-Reading state information... 0% Reading state information... 0%Reading state information... Done
-E: Unable to locate package cargo
-E: Unable to locate package rustc
-[?2004hroot@88e50440921f:/app# cargo --version && rustc --version
-[?2004lbash: cargo: command not found
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash -x /app/scripts/run-matrix.sh
-[?2004l+ set -euo pipefail
-+ bash /app/scripts/clean-room.sh
-+ cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
-/app/scripts/run-matrix.sh: line 5: cargo: command not found
-[?2004hroot@88e50440921f:/app# ls -la /app/output
-[?2004ltotal 0
-drwxr-xr-x  2 root root   6 May 23 19:58 .
-drwxr-xr-x 18 root root 265 May 23 19:58 ..
-[?2004hroot@88e50440921f:/app# test -f /app/output/executor-audit.json && (jq '.cases|length' /app/output/executor-audit.json; jq '.cases[].name' -r /app/output/executor-audit.json) || (echo "missing audit"; exit 1)
-[?2004lmissing audit
-[?2004hroot@88e50440921f:/app# sed -n '1,200p' /app/scripts/clean-room.sh
-[?2004l#!/bin/bash
-rm -rf /app/output
-mkdir -p /app/output
-[?2004hroot@88e50440921f:/app# cat /app/Cargo.toml
-[?2004l[package]
-name = "executor_liveness_lab"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-name = "executor_liveness_lab"
-path = "src/lib.rs"
-
-[[bin]]
-name = "executor-ctl"
-path = "src/main.rs"
-[?2004hroot@88e50440921f:/app# ls -la /app/target 2>/dev/null || true
-[?2004l[?2004hroot@88e50440921f:/app# find /app -maxdepth 4 -type f -perm -111 -name "executor-ctl" -o -name "cargo" -o -name "rustc" | sed -e 's|^|FOUND |'
-[?2004l[?2004hroot@88e50440921f:/app# find / -maxdepth 5 -type f -name cargo -o -name rustc -o -name executor-ctl 2>/dev/null | head -n 50
-[?2004l/usr/local/cargo/bin/rustc
-[?2004hroot@88e50440921f:/app# ls -la /usr/local/bin 2>/dev/null || true
-[?2004ltotal 12
-drwxr-xr-x  2 root root  53 May 23 19:51 .
-drwxr-xr-x 12 root root 141 Mar 18  2025 ..
--rwxr-xr-x  1 root root 221 May 23 19:51 py.test
--rwxr-xr-x  1 root root 215 May 23 19:51 pygmentize
--rwxr-xr-x  1 root root 221 May 23 19:51 pytest
-[?2004hroot@88e50440921f:/app# ls -la /opt 2>/dev/null || true
-[?2004ltotal 0
-drwxr-xr-x  2 root root   6 Mar 17  2025 .
-drwxr-xr-x 19 root root 265 May 23 19:54 ..
-[?2004hroot@88e50440921f:/app# ls -la /usr/local/cargo/bin
-[?2004ltotal 18628
-drwxrwxrwx 2 root root      236 Mar 18  2025 .
-drwxrwxrwx 3 root root       28 Mar 18  2025 ..
-lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo-clippy -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo-fmt -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 cargo-miri -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 clippy-driver -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rls -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-analyzer -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-gdb -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-gdbgui -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rust-lldb -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rustc -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rustdoc -> rustup
-lrwxrwxrwx 1 root root        6 Mar 18  2025 rustfmt -> rustup
--rwxrwxrwx 1 root root 19072384 Mar 18  2025 rustup
-[?2004hroot@88e50440921f:/app# export PATH="/usr/local/cargo/bin:$PATH"
-[?2004l[?2004hroot@88e50440921f:/app# command -v cargo; cargo --version; command -v rustc; rustc --version
-[?2004l/usr/local/cargo/bin/cargo
-cargo 1.85.0 (d73d2caf9 2024-12-31)
-/usr/local/cargo/bin/rustc
-rustc 1.85.0 (4d91de4e4 2025-02-17)
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash -x /app/scripts/run-matrix.sh
-[?2004l+ set -euo pipefail
-+ bash /app/scripts/clean-room.sh
-+ cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
-[?2004hroot@88e50440921f:/app# ls -la /app/output
-[?2004ltotal 4
-drwxr-xr-x  3 root root   48 May 23 19:59 .
-drwxr-xr-x 19 root root  279 May 23 19:59 ..
--rw-r--r--  1 root root 2829 May 23 19:59 executor-audit.json
-drwxr-xr-x  4 root root   37 May 23 19:59 runtime
-[?2004hroot@88e50440921f:/app# test -f /app/output/executor-audit.json && (jq '.cases|length' /app/output/executor-audit.json; jq -r '.cases[].name' /app/output/executor-audit.json) || echo "missing audit"
-[?2004lbash: jq: command not found
-bash: jq: command not found
-missing audit
-[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> p=pathlib.Path('/app/output/executor-audit.json')
-[?2004l[?2004h> print('exists',p.exists(),'size',p.stat().st_size)
-[?2004l[?2004h> a=json.loads(p.read_text())
-[?2004l[?2004h> print('top keys',sorted(a.keys()))
-[?2004l[?2004h> cases=a.get('cases',[])
-[?2004l[?2004h> print('cases',len(cases),[c.get('name') for c in cases])
-[?2004l[?2004h> for c in cases:
-[?2004l[?2004h>     print(c['name'],'ok',c.get('ok'),'finished',c.get('finished'),'pending',len(c.get('pending',[])),'trace',len(c.get('trace',[])))
-[?2004l[?2004h> PY
-[?2004lexists True size 2829
-top keys ['cases']
-cases 6 ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
-amber ok True finished True pending 0 trace 4
-cobalt ok False finished False pending 3 trace 2
-drake ok True finished True pending 0 trace 4
-ember ok False finished False pending 2 trace 2
-flint ok True finished True pending 0 trace 3
-graphite ok False finished False pending 1 trace 5
-[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> from itertools import zip_longest
-[?2004l[?2004h> root=pathlib.Path('/app')
-[?2004l[?2004h> a=json.loads((root/'output/executor-audit.json').read_text())
-[?2004l[?2004h> 
-[?2004l[?2004h> def norm_rec(r):
-[?2004l[?2004h>     return {k:r.get(k) for k in ['case','task','parent','depth','lane','turn']}
-[?2004l[?2004h> 
-[?2004l[?2004h> bad=False
-[?2004l[?2004h> for c in a['cases']:
-[?2004l[?2004h>     name=c['name']
-[?2004l[?2004h>     ledger_path=root/c['ledger'] if not str(c['ledger']).startswith('/') else pathlib.Path(c['ledger'])
-[?2004l[?2004h>     journal_path=root/c['journal'] if not str(c['journal']).startswith('/') else pathlib.Path(c['journal'])
-[?2004l[?2004h>     if not ledger_path.exists():
-[?2004l[?2004h>         print('MISSING ledger',name,ledger_path); bad=True; continue
-[?2004l[?2004h>     if not journal_path.exists():
-[?2004l[?2004h>         print('MISSING journal',name,journal_path); bad=True; continue
-[?2004l[?2004h>     # load ledger jsonl
-[?2004l[?2004h>     ledger=[]
-[?2004l[?2004h>     for line in ledger_path.read_text().splitlines():
-[?2004l[?2004h>         line=line.strip()
-[?2004l[?2004h>         if not line: continue
-[?2004l[?2004h>         ledger.append(json.loads(line))
-[?2004l[?2004h>     trace=[norm_rec(r) for r in c.get('trace',[])]
-[?2004l[?2004h>     ledger_n=[norm_rec(r) for r in ledger]
-[?2004l[?2004h>     if trace!=ledger_n:
-[?2004l[?2004h>         print('TRACE!=LEDGER',name,'trace',len(trace),'ledger',len(ledger_n))
-[?2004l[?2004h>         for i,(t,l) in enumerate(zip_longest(trace,ledger_n)):
-[?2004l[?2004h>             if t!=l:
-[?2004l[?2004h>                 print(' first diff at',i,'trace',t,'ledger',l)
-[?2004l[?2004h>                 break
-[?2004l[?2004h>         bad=True
-[?2004l[?2004h>     # load journal rows
-[?2004l[?2004h>     journal=[]
-[?2004l[?2004h>     for line in journal_path.read_text().splitlines():
-[?2004l[?2004h>         line=line.strip()
-[?2004l[?2004h>         if not line: continue
-[?2004l[?2004h>         parts=line.split()
-[?2004l[?2004h>         if len(parts)!=6:
-[?2004l[?2004h>             print('bad journal row',name,line); bad=True; continue
-[?2004l[?2004h>         case,task,parent,depth,lane,turn=parts
-[?2004l[?2004h>         journal.append({'case':case,'task':task,'parent':None if parent=='-' else parent,'depth':int(depth),'lane':lane,'turn':int(turn)})
-[?2004l[?2004h>     if trace!=journal:
-[?2004l[?2004h>         print('TRACE!=JOURNAL',name,'trace',len(trace),'journal',len(journal))
-[?2004l[?2004h>         for i,(t,j) in enumerate(zip_longest(trace,journal)):
-[?2004l[?2004h>             if t!=j:
-[?2004l[?2004h>                 print(' first diff at',i,'trace',t,'journal',j)
-[?2004l[?2004h>                 break
-[?2004l[?2004h>         bad=True
-[?2004l[?2004h> 
-[?2004l[?2004h> print('OK' if not bad else 'FAIL')
-[?2004l[?2004h> PY
-[?2004lTRACE!=JOURNAL amber trace 4 journal 4
- first diff at 0 trace {'case': 'amber', 'task': 'amber-left', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'amber', 'task': 'amber-side', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
-TRACE!=JOURNAL cobalt trace 2 journal 2
- first diff at 0 trace {'case': 'cobalt', 'task': 'cobalt-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'cobalt', 'task': 'cobalt-tail', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
-TRACE!=JOURNAL drake trace 4 journal 4
- first diff at 0 trace {'case': 'drake', 'task': 'drake-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'drake', 'task': 'drake-shadow', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
-TRACE!=JOURNAL ember trace 2 journal 2
- first diff at 0 trace {'case': 'ember', 'task': 'ember-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'ember', 'task': 'ember-side', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
-TRACE!=JOURNAL flint trace 3 journal 3
- first diff at 0 trace {'case': 'flint', 'task': 'flint-a', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'flint', 'task': 'flint-b', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 0}
-TRACE!=JOURNAL graphite trace 5 journal 5
- first diff at 0 trace {'case': 'graphite', 'task': 'graphite-root', 'parent': '-', 'depth': 0, 'lane': 'lane-a', 'turn': 0} journal {'case': 'graphite', 'task': 'graphite-e', 'parent': None, 'depth': 0, 'lane': 'lane-b', 'turn': 1}
-FAIL
-[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> import pathlib
-[?2004l[?2004h> p=pathlib.Path('/app/output/executor-audit.json')
-[?2004l[?2004h> a=json.loads(p.read_text())
-[?2004l[?2004h> want=['amber','cobalt','drake','ember','flint','graphite']
-[?2004l[?2004h> have=[c['name'] for c in a.get('cases',[])]
-[?2004l[?2004h> print('want',want)
-[?2004l[?2004h> print('have',have)
-[?2004l[?2004h> print('missing',[x for x in want if x not in have])
-[?2004l[?2004h> print('extra',[x for x in have if x not in want])
-[?2004l[?2004h> PY
-[?2004lwant ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
-have ['amber', 'cobalt', 'drake', 'ember', 'flint', 'graphite']
-missing []
-extra []
-[?2004hroot@88e50440921f:/app# sed -n '1,200p' /app/src/main.rs
-[?2004luse std::env;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
-
-use executor_liveness_lab::drive_g::drive_g;
-use executor_liveness_lab::read_h::read_plan;
-use executor_liveness_lab::serde_f::report_json;
-use executor_liveness_lab::types_f::CaseReport;
-
-fn arg_value(args: &[String], key: &str) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == key)
-        .map(|w| w[1].to_string())
-}
-
-fn plan_path(root: &Path, name: &str) -> PathBuf {
-    root.join("data").join("cases").join(format!("{}.plan", name))
-}
-
-fn load_names(args: &[String]) -> Vec<String> {
-    if let Some(name) = arg_value(args, "--case") {
-        vec![name]
-    } else {
-        ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect()
-    }
-}
-
-fn drive_x(root: &Path, names: &[String], out: &Path, work: &Path) -> io::Result<Vec<CaseReport>> {
-    let mut reports = Vec::new();
-    for name in names {
-        let plan = read_plan(&plan_path(root, name))?;
-        reports.push(drive_g(&plan, work)?);
-    }
-    if let Some(parent) = out.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(out, report_json(&reports))?;
-    Ok(reports)
-}
-
-fn main() -> io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let root = PathBuf::from(arg_value(&args, "--root").unwrap_or_else(|| "/app".to_string()));
-    let out = PathBuf::from(arg_value(&args, "--out").unwrap_or_else(|| "/app/output/executor-audit.json".to_string()));
-    let work = PathBuf::from(arg_value(&args, "--work").unwrap_or_else(|| "/app/output/runtime".to_string()));
-    let names = load_names(&args);
-    let _ = drive_x(&root, &names, &out, &work)?;
-    Ok(())
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,240p' /app/src/lib.rs
-[?2004l#[path = "../types_f/types.rs"]
-pub mod types_f;
-#[path = "../types_f/serde.rs"]
-pub mod serde_f;
-#[path = "../read_h/parse.rs"]
-pub mod read_h;
-#[path = "../core_a/core.rs"]
-pub mod core_a;
-#[path = "../book_b/book.rs"]
-pub mod book_b;
-#[path = "../gate_c/gate.rs"]
-pub mod gate_c;
-#[path = "../host_d/host.rs"]
-pub mod host_d;
-#[path = "../flow_e/flow.rs"]
-pub mod flow_e;
-#[path = "../drive_g/drive.rs"]
-pub mod drive_g;
-#[path = "../spill_i/spill.rs"]
-pub mod spill_i;
-#[path = "../mirror_j/mirror.rs"]
-pub mod mirror_j;
-#[path = "../note_k/note.rs"]
-pub mod note_k;
-[?2004hroot@88e50440921f:/app# sed -n '1,240p' /app/types_f/types.rs
-[?2004l#[derive(Clone, Debug)]
-pub enum Entry {
-    Root { ident: String, lane: String, at: u64, seq: usize },
-    Child { from: String, ident: String, lane: String, at: u64, seq: usize },
-    Drop { ident: String },
-}
-
-#[derive(Clone, Debug)]
-pub struct Plan {
-    pub name: String,
-    pub cap: usize,
-    pub entries: Vec<Entry>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Item {
-    pub ident: String,
-    pub parent: String,
-    pub lane: String,
-    pub at: u64,
-    pub seq: usize,
-    pub depth: usize,
-    pub chain: Vec<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Record {
-    pub case_name: String,
-    pub task_name: String,
-    pub parent_name: String,
-    pub depth: usize,
-    pub lane_name: String,
-    pub turn: u64,
-}
-
-#[derive(Clone, Debug)]
-pub struct CaseReport {
-    pub name: String,
-    pub ok: bool,
-    pub finished: bool,
-    pub pending: Vec<String>,
-    pub trace: Vec<Record>,
-    pub ledger: String,
-    pub journal: String,
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,240p' /app/types_f/serde.rs
-[?2004luse crate::types_f::{CaseReport, Record};
-
-fn esc(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
-pub fn row_json(row: &Record) -> String {
-    format!(
-        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":\"{}\",\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
-        esc(&row.case_name),
-        esc(&row.task_name),
-        esc(&row.parent_name),
-        row.depth,
-        esc(&row.lane_name),
-        row.turn
-    )
-}
-
-fn string_array(items: &[String]) -> String {
-    format!(
-        "[{}]",
-        items
-            .iter()
-            .map(|s| format!("\"{}\"", esc(s)))
-            .collect::<Vec<_>>()
-            .join(",")
-    )
-}
-
-pub fn case_json(case: &CaseReport) -> String {
-    let trace = case.trace.iter().map(row_json).collect::<Vec<_>>().join(",");
-    format!(
-        "{{\"name\":\"{}\",\"ok\":{},\"finished\":{},\"pending\":{},\"trace\":[{}],\"ledger\":\"{}\",\"journal\":\"{}\"}}",
-        esc(&case.name),
-        if case.ok { "true" } else { "false" },
-        if case.finished { "true" } else { "false" },
-        string_array(&case.pending),
-        trace,
-        esc(&case.ledger),
-        esc(&case.journal)
-    )
-}
-
-pub fn report_json(cases: &[CaseReport]) -> String {
-    let body = cases.iter().map(case_json).collect::<Vec<_>>().join(",");
-    format!("{{\"cases\":[{}]}}\n", body)
-}
-[?2004hroot@88e50440921f:/app# rg -n "audit|ledger|journal|pending|trace|accept" /app/src /app/core_a /app/flow_e /app/gate_c /app/drive_g /app/read_h /app/spill_i /app/book_b /app/host_d /app/mirror_j /app/note_k /app/types_f
-[?2004lbash: rg: command not found
-[?2004hroot@88e50440921f:/app# ls -la /app/output/runtime && find /app/output/runtime -maxdepth 3 -type f -print
-[?2004ltotal 0
-drwxr-xr-x 4 root root  37 May 23 19:59 .
-drwxr-xr-x 3 root root  48 May 23 19:59 ..
-drwxr-xr-x 2 root root 112 May 23 19:59 journals
-drwxr-xr-x 2 root root 124 May 23 19:59 ledgers
-/app/output/runtime/ledgers/amber.jsonl
-/app/output/runtime/ledgers/cobalt.jsonl
-/app/output/runtime/ledgers/drake.jsonl
-/app/output/runtime/ledgers/ember.jsonl
-/app/output/runtime/ledgers/flint.jsonl
-/app/output/runtime/ledgers/graphite.jsonl
-/app/output/runtime/journals/amber.txt
-/app/output/runtime/journals/cobalt.txt
-/app/output/runtime/journals/drake.txt
-/app/output/runtime/journals/ember.txt
-/app/output/runtime/journals/flint.txt
-/app/output/runtime/journals/graphite.txt
-[?2004hroot@88e50440921f:/app# sed -n '1,260p' /app/drive_g/drive.rs
-[?2004luse std::collections::{BTreeMap, BTreeSet};
-use std::io;
-use std::path::{Path, PathBuf};
-
-use crate::book_b::fold_b;
-use crate::core_a::{op_a, R0, S0};
-use crate::flow_e::{emit_e, note_e};
-use crate::gate_c::{mark_c, S1};
-use crate::host_d::{bind_d, R1, S2};
-use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
-
-fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
-    (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
-}
-
-pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
-    let mut host = S2::new();
-    let mut removed: BTreeSet<String> = BTreeSet::new();
-    let mut raw: BTreeMap<String, Item> = BTreeMap::new();
-    for entry in &a.entries {
-        match entry {
-            Entry::Root { ident, lane, at, seq } => {
-                let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()] };
-                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-                raw.insert(ident.clone(), moved.item);
-            }
-            Entry::Child { from, ident, lane, at, seq } => {
-                let parent = raw.get(from).cloned();
-                let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
-                let mut chain = parent.map(|p| p.chain).unwrap_or_default();
-                chain.push(ident.clone());
-                let item = Item { ident: ident.clone(), parent: from.clone(), lane: lane.clone(), at: *at, seq: *seq, depth, chain };
-                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-                raw.insert(ident.clone(), moved.item);
-            }
-            Entry::Drop { ident } => {
-                removed.insert(ident.clone());
-            }
-        }
-    }
-    let gate = S1::new(removed);
-    let mut state = S0::new();
-    for item in raw.values() {
-        let row = R0::from_item(&a.name, item);
-        if mark_c(&gate, &row) {
-            op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
-        }
-    }
-    let ordered = fold_b(&state.rows, a.cap);
-    let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
-    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
-    let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
-    pending.sort();
-    let (ledger, journal) = out_paths(b, &a.name);
-    emit_e(&ledger, &trace)?;
-    note_e(&journal, &trace)?;
-    let finished = pending.is_empty();
-    Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string() })
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,260p' /app/flow_e/flow.rs
-[?2004luse std::fs::{self, File};
-use std::io::{self, Write};
-use std::path::Path;
-
-use crate::serde_f::row_json;
-use crate::types_f::Record;
-
-pub struct S3 {
-    pub count: usize,
-}
-
-pub fn walk_e(a: &[Record], b: &mut S3) {
-    b.count += a.len();
-}
-
-pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
-    if let Some(parent) = a.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut file = File::create(a)?;
-    for row in b {
-        writeln!(file, "{}", row_json(row))?;
-    }
-    Ok(())
-}
-
-pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
-    if let Some(parent) = a.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut file = File::create(a)?;
-    for row in b.iter().rev() {
-        writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
-    }
-    Ok(())
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,300p' /app/gate_c/gate.rs
-[?2004luse std::collections::BTreeSet;
-
-use crate::core_a::R0;
-
-pub struct S1 {
-    pub removed: BTreeSet<String>,
-}
-
-impl S1 {
-    pub fn new(removed: BTreeSet<String>) -> Self {
-        Self { removed }
-    }
-}
-
-pub fn mark_c(a: &S1, b: &R0) -> bool {
-    !a.removed.contains(&b.task_name)
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,320p' /app/core_a/core.rs
-[?2004luse crate::types_f::{Item, Record};
-
-pub struct S0 {
-    pub rows: Vec<R0>,
-    pub names: Vec<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct R0 {
-    pub case_name: String,
-    pub task_name: String,
-    pub parent_name: String,
-    pub depth: usize,
-    pub lane_name: String,
-    pub base_turn: u64,
-    pub turn: u64,
-    pub seq: usize,
-    pub chain: Vec<String>,
-}
-
-#[derive(Debug)]
-pub enum E0 {
-    Halt,
-}
-
-impl S0 {
-    pub fn new() -> Self {
-        Self { rows: Vec::new(), names: Vec::new() }
-    }
-}
-
-impl R0 {
-    pub fn from_item(case_name: &str, item: &Item) -> Self {
-        Self {
-            case_name: case_name.to_string(),
-            task_name: item.ident.clone(),
-            parent_name: item.parent.clone(),
-            depth: item.depth,
-            lane_name: item.lane.clone(),
-            base_turn: item.at,
-            turn: item.at,
-            seq: item.seq,
-            chain: item.chain.clone(),
-        }
-    }
-
-    pub fn pack_a(&self) -> Record {
-        Record {
-            case_name: self.case_name.clone(),
-            task_name: self.task_name.clone(),
-            parent_name: self.parent_name.clone(),
-            depth: self.depth,
-            lane_name: self.lane_name.clone(),
-            turn: self.turn,
-        }
-    }
-}
-
-pub fn op_a(a: &mut S0, b: R0) -> Result<(), E0> {
-    a.names.push(b.task_name.clone());
-    a.rows.push(b);
-    Ok(())
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,260p' /app/read_h/parse.rs
-[?2004luse std::fs;
-use std::io;
-use std::path::Path;
-
-use crate::types_f::{Entry, Plan};
-
-pub fn read_plan(path: &Path) -> io::Result<Plan> {
-    let text = fs::read_to_string(path)?;
-    let mut cap = 1usize;
-    let mut entries = Vec::new();
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("case")
-        .to_string();
-    for raw in text.lines() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        match parts.as_slice() {
-            ["CAP", value] => cap = value.parse().unwrap_or(1),
-            ["ROOT", ident, lane, at] => {
-                let seq = entries.len();
-                entries.push(Entry::Root { ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
-            }
-            ["CHILD", from, ident, lane, at] => {
-                let seq = entries.len();
-                entries.push(Entry::Child { from: (*from).to_string(), ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
-            }
-            ["DROP", ident] => entries.push(Entry::Drop { ident: (*ident).to_string() }),
-            _ => {}
-        }
-    }
-    Ok(Plan { name, cap, entries })
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,260p' /app/spill_i/spill.rs
-[?2004lpub fn fold_hint(values: &[usize], cap: usize) -> Vec<usize> {
-    values.iter().copied().filter(|v| *v <= cap).collect()
-}
-
-pub fn bucket_hint(values: &[usize]) -> usize {
-    values.iter().fold(0usize, |acc, v| acc.saturating_add(*v))
-}
-[?2004hroot@88e50440921f:/app# sed -n '1,260p' /app/book_b/book.rs
-[?2004luse std::collections::BTreeMap;
-
-use crate::core_a::R0;
-
-pub fn fold_b(a: &[R0], b: usize) -> Vec<R0> {
-    let mut by_lane_turn: BTreeMap<(String, u64), Vec<R0>> = BTreeMap::new();
-    for row in a.iter().cloned() {
-        by_lane_turn.entry((row.lane_name.clone(), row.base_turn)).or_default().push(row);
-    }
-    let mut out = Vec::new();
-    for ((_lane, _turn), mut rows) in by_lane_turn {
-        rows.sort_by_key(|row| row.seq);
-        for row in rows.into_iter().take(b.max(1)) {
-            out.push(row);
-        }
-    }
-    out.sort_by(|left, right| left.lane_name.cmp(&right.lane_name).then(left.turn.cmp(&right.turn)).then(left.task_name.cmp(&right.task_name)));
-    out
-}
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: types_f/types.rs
-[?2004l[?2004h> @@
-[?2004l[?2004h>  #[derive(Clone, Debug, Eq, PartialEq)]
-[?2004l[?2004h>  pub struct Record {
-[?2004l[?2004h>      pub case_name: String,
-[?2004l[?2004h>      pub task_name: String,
-[?2004l[?2004h> -    pub parent_name: String,
-[?2004l[?2004h> +    pub parent_name: Option<String>,
-[?2004l[?2004h>      pub depth: usize,
-[?2004l[?2004h>      pub lane_name: String,
-[?2004l[?2004h>      pub turn: u64,
-[?2004l[?2004h>  }
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: core_a/core.rs
-[?2004l[?2004h> @@
-[?2004l[?2004h>  pub struct R0 {
-[?2004lelf.task_name.clone(),
-             parent_name: self.parent_name.clone(),
-             depth: self.depth,
-             lane_name: self.lane_name.clone(),
-             turn: self.turn,
-         }
-     }
- }
-*** End Patch
-PATCH
-[?2004h>      pub case_name: String,
-[?2004l[?2004h>      pub task_name: String,
-[?2004l[?2004h> -    pub parent_name: String,
-[?2004l[?2004h> +    pub parent_name: Option<String>,
-[?2004l[?2004h>      pub depth: usize,
-[?2004l[?2004h>      pub lane_name: String,
-[?2004l[?2004h>      pub base_turn: u64,
-[?2004l[?2004h>      pub turn: u64,
-[?2004l[?2004h>      pub seq: usize,
-[?2004l[?2004h>      pub chain: Vec<String>,
-[?2004l[?2004h>  }
-[?2004l[?2004h> @@
-[?2004l[?2004h>  impl R0 {
-[?2004l[?2004h>      pub fn from_item(case_name: &str, item: &Item) -> Self {
-[?2004l[?2004h>          Self {
-[?2004l[?2004h>              case_name: case_name.to_string(),
-[?2004l[?2004h>              task_name: item.ident.clone(),
-[?2004l[?2004h> -            parent_name: item.parent.clone(),
-[?2004l[?2004h> +            parent_name: (item.parent != "-").then(|| item.parent.clone()),
-[?2004l[?2004h>              depth: item.depth,
-[?2004l[?2004h>              lane_name: item.lane.clone(),
-[?2004l[?2004h>              base_turn: item.at,
-[?2004l[?2004h>              turn: item.at,
-[?2004l[?2004h>              seq: item.seq,
-[?2004l[?2004h>              chain: item.chain.clone(),
-[?2004l[?2004h>          }
-[?2004l[?2004h>      }
-[?2004l[?2004h> @@
-[?2004l[?2004h>      pub fn pack_a(&self) -> Record {
-[?2004l[?2004h>          Record {
-[?2004l[?2004h>              case_name: self.case_name.clone(),
-[?2004l[?2004h>              task_name: self.task_name.clone(),
-[?2004l[?2004h>              parent_name: self.parent_name.clone(),
-[?2004l[?2004h>              depth: self.depth,
-[?2004l[?2004h>              lane_name: self.lane_name.clone(),
-[?2004l[?2004h>              turn: self.turn,
-[?2004l[?2004h>          }
-[?2004l[?2004h>      }
-[?2004l[?2004h>  }
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: types_f/serde.rs
-[?2004l[?2004h> @@
-[?2004l[?2004h>  pub fn row_json(row: &Record) -> String {
-[?2004l[?2004h> +    let parent = match &row.parent_name {
-[?2004l[?2004h> +        Some(p) => format!("\"{}\"", esc(p)),
-[?2004l[?2004h> +        None => "null".to_string(),
-[?2004l[?2004h> +    };
-[?2004l[?2004h>      format!(
-[?2004l[?2004h> -        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":\"{}\",\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
-[?2004l[?2004h> +        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":{},\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
-[?2004l[?2004h>          esc(&row.case_name),
-[?2004l[?2004h>          esc(&row.task_name),
-[?2004l[?2004h> -        esc(&row.parent_name),
-[?2004l[?2004h> +        parent,
-[?2004l[?2004h>          row.depth,
-[?2004l[?2004h>          esc(&row.lane_name),
-[?2004l[?2004h>          row.turn
-[?2004l[?2004h>      )
-[?2004l[?2004h>  }
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: flow_e/flow.rs
-[?2004l[?2004h> @@
-[?2004l[?2004h>  pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
-[?2004l[?2004h> @@
-[?2004l[?2004h>      let mut file = File::create(a)?;
-[?2004l[?2004h> -    for row in b.iter().rev() {
-[?2004l[?2004h> -        writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
-[?2004l[?2004h> +    for row in b {
-[?2004l[?2004h> +        let parent = row.parent_name.as_deref().unwrap_or("-");
-[?2004l[?2004h> +        writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, parent, row.depth, row.lane_name, row.turn)?;
-[?2004l[?2004h>      }
-[?2004l[?2004h>      Ok(())
-[?2004l[?2004h>  }
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Delete File: book_b/book.rs
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Add File: book_b/book.rs
-[?2004l[?2004h> +use std::collections::{BTreeMap, BTreeSet, VecDeque};
-[?2004l[?2004h> +
-[?2004l[?2004h> +use crate::core_a::R0;
-[?2004l[?2004h> +
-[?2004l[?2004h> +fn lane_key(r: &R0) -> String {
-[?2004l[?2004h> +    r.lane_name.clone()
-[?2004l[?2004h> +}
-[?2004l[?2004h> +
-[?2004l[?2004h> +/// Accept work in discrete turns.
-[?2004l[?2004h> +///
-[?2004l[?2004h> +/// Contract:
-[?2004l[?2004h> +/// - Each row becomes eligible on its own arrival/base_turn.
-[?2004l[?2004h> +/// - Per turn, each lane may accept up to `cap` ready rows.
-[?2004l[?2004h> +/// - Overflow stays live for later turns.
-[?2004l[?2004h> +/// - Accepted trace is ordered by accepted turn asc, then lane name asc,
-[?2004l[?2004h> +///   then plan-file order (seq) within the lane.
-[?2004l[?2004h> +pub fn fold_b(rows: &[R0], cap: usize) -> Vec<R0> {
-[?2004l[?2004h> +    let cap = cap.max(1);
-[?2004l[?2004h> +
-[?2004l[?2004h> +    // Dedup by logical task name: keep the earliest (base_turn, seq).
-[?2004l[?2004h> +    let mut uniq: BTreeMap<String, R0> = BTreeMap::new();
-[?2004l[?2004h> +    for r in rows.iter().cloned() {
-[?2004l[?2004h> +        uniq.entry(r.task_name.clone())
-[?2004l[?2004h> +            .and_modify(|cur| {
-[?2004l[?2004h> +                if (r.base_turn, r.seq) < (cur.base_turn, cur.seq) {
-[?2004l[?2004h> +                    *cur = r.clone();
-[?2004l[?2004h> +                }
-[?2004l[?2004h> +            })
-[?2004l[?2004h> +            .or_insert(r);
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +    let mut rows: Vec<R0> = uniq.into_values().collect();
-[?2004l[?2004h> +
-[?2004l[?2004h> +    // Establish timeline.
-[?2004l[?2004h> +    let mut turns: BTreeSet<u64> = BTreeSet::new();
-[?2004l[?2004h> +    for r in &rows {
-[?2004l[?2004h> +        turns.insert(r.base_turn);
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +    if turns.is_empty() {
-[?2004l[?2004h> +        return Vec::new();
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +    let min_turn = *turns.iter().next().unwrap();
-[?2004l[?2004h> +    let max_turn = *turns.iter().next_back().unwrap();
-[?2004l[?2004h> +
-[?2004l[?2004h> +    // Bucket arrivals by turn, then by lane.
-[?2004l[?2004h> +    let mut arrivals: BTreeMap<u64, BTreeMap<String, Vec<R0>>> = BTreeMap::new();
-[?2004l[?2004h> +    for r in rows.drain(..) {
-[?2004l[?2004h> +        arrivals
-[?2004l[?2004h> +            .entry(r.base_turn)
-[?2004l[?2004h> +            .or_default()
-[?2004l[?2004h> +            .entry(lane_key(&r))
-[?2004l[?2004h> +            .or_default()
-[?2004l[?2004h> +            .push(r);
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +    for (_t, by_lane) in arrivals.iter_mut() {
-[?2004l[?2004h> +        for (_lane, v) in by_lane.iter_mut() {
-[?2004l[?2004h> +            v.sort_by_key(|r| r.seq);
-[?2004l[?2004h> +        }
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +
-[?2004l[?2004h> +    // Per-lane ready queues.
-[?2004l[?2004h> +    let mut ready: BTreeMap<String, VecDeque<R0>> = BTreeMap::new();
-[?2004l[?2004h> +    let mut accepted: Vec<R0> = Vec::new();
-[?2004l[?2004h> +
-[?2004l[?2004h> +    // Drive turns from min..=max, and then keep going until all ready drained.
-[?2004l[?2004h> +    let mut t = min_turn;
-[?2004l[?2004h> +    loop {
-[?2004l[?2004h> +        if let Some(by_lane) = arrivals.remove(&t) {
-[?2004l[?2004h> +            for (lane, v) in by_lane {
-[?2004l[?2004h> +                let q = ready.entry(lane).or_default();
-[?2004l[?2004h> +                for r in v {
-[?2004l[?2004h> +                    q.push_back(r);
-[?2004l[?2004h> +                }
-[?2004l[?2004h> +            }
-[?2004l[?2004h> +        }
-[?2004l[?2004h> +
-[?2004l[?2004h> +        // Accept per lane in lane-name order.
-[?2004l[?2004h> +        for (lane, q) in ready.iter_mut() {
-[?2004l[?2004h> +            let mut took = 0usize;
-[?2004l[?2004h> +            while took < cap {
-[?2004l[?2004h> +                let mut r = match q.pop_front() {
-[?2004l[?2004h> +                    Some(r) => r,
-[?2004l[?2004h> +                    None => break,
-[?2004l[?2004h> +                };
-[?2004l[?2004h> +                r.turn = t;
-[?2004l[?2004h> +                // keep lane field stable, but ensure it matches key
-[?2004l[?2004h> +                r.lane_name = lane.clone();
-[?2004l[?2004h> +                accepted.push(r);
-[?2004l[?2004h> +                took += 1;
-[?2004l[?2004h> +            }
-[?2004l[?2004h> +        }
-[?2004l[?2004h> +
-[?2004l[?2004h> +        let any_ready = ready.values().any(|q| !q.is_empty());
-[?2004l[?2004h> +        let any_future = !arrivals.is_empty();
-[?2004l[?2004h> +
-[?2004l[?2004h> +        if !any_ready && !any_future {
-[?2004l[?2004h> +            break;
-[?2004l[?2004h> +        }
-[?2004l[?2004h> +        if t < max_turn {
-[?2004l[?2004h> +            t += 1;
-[?2004l[?2004h> +        } else {
-[?2004l[?2004h> +            // past last arrival turn, just keep draining ready
-[?2004l[?2004h> +            t += 1;
-[?2004l[?2004h> +        }
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +
-[?2004l[?2004h> +    accepted.sort_by(|l, r| {
-[?2004l[?2004h> +        l.turn
-[?2004l[?2004h> +            .cmp(&r.turn)
-[?2004l[?2004h> +            .then(l.lane_name.cmp(&r.lane_name))
-[?2004l[?2004h> +            .then(l.seq.cmp(&r.seq))
-[?2004l[?2004h> +    });
-[?2004l[?2004h> +    accepted
-[?2004l[?2004h> +}
-[?2004l[?2004h> +
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# apply_patch <<'PATCH'
-[?2004l[?2004h> *** Begin Patch
-[?2004l[?2004h> *** Update File: drive_g/drive.rs
-[?2004l[?2004h> @@
-[?2004l[?2004h>  use crate::book_b::fold_b;
-[?2004l[?2004h>  use crate::core_a::{op_a, R0, S0};
-[?2004l[?2004h>  use crate::flow_e::{emit_e, note_e};
-[?2004l[?2004h>  use crate::gate_c::{mark_c, S1};
-[?2004l[?2004h>  use crate::host_d::{bind_d, R1, S2};
-[?2004l[?2004h>  use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
-[?2004l[?2004h> @@
-[?2004l[?2004h>  pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
-[?2004l[?2004h> @@
-[?2004l[?2004h>      let gate = S1::new(removed);
-[?2004l[?2004h>      let mut state = S0::new();
-[?2004l[?2004h>      for item in raw.values() {
-[?2004l[?2004h>          let row = R0::from_item(&a.name, item);
-[?2004l[?2004h>          if mark_c(&gate, &row) {
-[?2004l[?2004h>              op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
-[?2004l[?2004h>          }
-[?2004l[?2004h>      }
-[?2004l[?2004h> -    let ordered = fold_b(&state.rows, a.cap);
-[?2004l[?2004h> +
-[?2004l[?2004h> +    // Expand removals to descendants: if a DROP removes X, it removes X and every row
-[?2004l[?2004h> +    // that has X in its ancestor chain.
-[?2004l[?2004h> +    let mut expanded = Vec::new();
-[?2004l[?2004h> +    for row in &state.rows {
-[?2004l[?2004h> +        if row.chain.iter().any(|n| gate.removed.contains(n)) {
-[?2004l[?2004h> +            expanded.push(row.task_name.clone());
-[?2004l[?2004h> +        }
-[?2004l[?2004h> +    }
-[?2004l[?2004h> +    let expanded: BTreeSet<String> = expanded.into_iter().collect();
-[?2004l[?2004h> +    let kept: Vec<R0> = state
-[?2004l[?2004h> +        .rows
-[?2004l[?2004h> +        .iter()
-[?2004l[?2004h> +        .cloned()
-[?2004l[?2004h> +        .filter(|r| !expanded.contains(&r.task_name))
-[?2004l[?2004h> +        .collect();
-[?2004l[?2004h> +
-[?2004l[?2004h> +    let ordered = fold_b(&kept, a.cap);
-[?2004l[?2004h>      let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
-[?2004l[?2004h> -    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
-[?2004l[?2004h> -    let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
-[?2004l[?2004h> +
-[?2004l[?2004h> +    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
-[?2004l[?2004h> +    let mut pending: Vec<String> = kept
-[?2004l[?2004h> +        .iter()
-[?2004l[?2004h> +        .filter(|row| !accepted.contains(&row.task_name))
-[?2004l[?2004h> +        .map(|row| row.task_name.clone())
-[?2004l[?2004h> +        .collect();
-[?2004l[?2004h>      pending.sort();
-[?2004l[?2004h> *** End Patch
-[?2004l[?2004h> PATCH
-[?2004lbash: apply_patch: command not found
-[?2004hroot@88e50440921f:/app# export PATH="/usr/local/cargo/bin:$PATH"
-[?2004l[?2004hroot@88e50440921f:/app# cargo build --release --bin executor-ctl
-[?2004l[1m[32m    Finished[0m `release` profile [optimized] target(s) in 0.00s
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> p=pathlib.Path('/app/output/executor-audit.json')
-[?2004l[?2004h> a=json.loads(p.read_text())
-[?2004l[?2004h> for c in a['cases']:
-[?2004l[?2004h>     print(c['name'],'ok',c['ok'],'finished',c['finished'],'pending',len(c['pending']),'trace',len(c['trace']))
-[?2004l[?2004h> PY
-[?2004lamber ok True finished True pending 0 trace 4
-cobalt ok False finished False pending 3 trace 2
-drake ok True finished True pending 0 trace 4
-ember ok False finished False pending 2 trace 2
-flint ok True finished True pending 0 trace 3
-graphite ok False finished False pending 1 trace 5
-[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> from itertools import zip_longest
-[?2004l[?2004h> root=pathlib.Path('/app')
-[?2004l[?2004h> a=json.loads((root/'output/executor-audit.json').read_text())
-[?2004l[?2004h> 
-[?2004l[?2004h> def norm_rec(r):
-[?2004l[?2004h>     return {k:r.get(k) for k in ['case','task','parent','depth','lane','turn']}
-[?2004l[?2004h> 
-[?2004l[?2004h> bad=False
-[?2004l[?2004h> for c in a['cases']:
-[?2004l[?2004h>     name=c['name']
-[?2004l[?2004h>     ledger_path=pathlib.Path(c['ledger'])
-[?2004l[?2004h>     journal_path=pathlib.Path(c['journal'])
-[?2004l[?2004h>     ledger=[]
-[?2004l[?2004h>     for line in ledger_path.read_text().splitlines():
-[?2004l[?2004h>         if line.strip():
-[?2004l[?2004h>             ledger.append(json.loads(line))
-[?2004l[?2004h>     trace=[norm_rec(r) for r in c['trace']]
-[?2004l[?2004h>     ledger_n=[norm_rec(r) for r in ledger]
-[?2004l[?2004h>     if trace!=ledger_n:
-[?2004l[?2004h>         print('TRACE!=LEDGER',name); bad=True
-[?2004l[?2004h>     journal=[]
-[?2004l[?2004h>     for line in journal_path.read_text().splitlines():
-[?2004l[?2004h>         parts=line.split()
-[?2004l[?2004h>         case,task,parent,depth,lane,turn=parts
-[?2004l[?2004h>         journal.append({'case':case,'task':task,'parent':None if parent=='-' else parent,'depth':int(depth),'lane':lane,'turn':int(turn)})
-[?2004l[?2004h>     if trace!=journal:
-[?2004l[?2004h>         print('TRACE!=JOURNAL',name); bad=True
-[?2004l[?2004h> print('OK' if not bad else 'FAIL')
-[?2004l[?2004h> PY
-[?2004lTRACE!=JOURNAL amber
-TRACE!=JOURNAL cobalt
-TRACE!=JOURNAL drake
-TRACE!=JOURNAL ember
-TRACE!=JOURNAL flint
-TRACE!=JOURNAL graphite
-FAIL
-[?2004hroot@88e50440921f:/app# command -v perl sed ed tee cat >/dev/null && echo "edit tools ok"
-[?2004ledit tools ok
-[?2004hroot@88e50440921f:/app# cat > /app/types_f/types.rs <<'EOF'
-[?2004l[?2004h> #[derive(Clone, Debug)]
-[?2004l[?2004h> pub enum Entry {
-[?2004l[?2004h>     Root { ident: String, lane: String, at: u64, seq: usize },
-[?2004l[?2004h>     Child { from: String, ident: String, lane: String, at: u64, seq: usize },
-[?2004l[?2004h>     Drop { ident: String },
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> #[derive(Clone, Debug)]
-[?2004l[?2004h> pub struct Plan {
-[?2004l[?2004h>     pub name: String,
-[?2004l[?2004h>     pub cap: usize,
-[?2004l[?2004h>     pub entries: Vec<Entry>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> #[derive(Clone, Debug, Eq, PartialEq)]
-[?2004l[?2004h> pub struct Item {
-[?2004l[?2004h>     pub ident: String,
-[?2004l[?2004h>     pub parent: String,
-[?2004l[?2004h>     pub lane: String,
-[?2004l[?2004h>     pub at: u64,
-[?2004l[?2004h>     pub seq: usize,
-[?2004l[?2004h>     pub depth: usize,
-[?2004l[?2004h>     pub chain: Vec<String>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> #[derive(Clone, Debug, Eq, PartialEq)]
-[?2004l[?2004h> pub struct Record {
-[?2004l[?2004h>     pub case_name: String,
-[?2004l[?2004h>     pub task_name: String,
-[?2004l[?2004h>     pub parent_name: Option<String>,
-[?2004l[?2004h>     pub depth: usize,
-[?2004l[?2004h>     pub lane_name: String,
-[?2004l[?2004h>     pub turn: u64,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> #[derive(Clone, Debug)]
-[?2004l[?2004h> pub struct CaseReport {
-[?2004l[?2004h>     pub name: String,
-[?2004l[?2004h>     pub ok: bool,
-[?2004l[?2004h>     pub finished: bool,
-[?2004l[?2004h>     pub pending: Vec<String>,
-[?2004l[?2004h>     pub trace: Vec<Record>,
-[?2004l[?2004h>     pub ledger: String,
-[?2004l[?2004h>     pub journal: String,
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@88e50440921f:/app# cat > /app/core_a/core.rs <<'EOF'
-[?2004l[?2004h> use crate::types_f::{Item, Record};
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct S0 {
-[?2004l[?2004h>     pub rows: Vec<R0>,
-[?2004l    chain: item.chain.clone(),
-        }
-    }
-
-    pub fn pack_a(&self) -> Record {
-        Record {
-            case_name: self.case_name.clone(),
-            task_name: self.task_name.clone(),
-            parent_name: self.parent_name.clone(),
-            depth: self.depth,
-            lane_name: self.lane_name.clone(),
-            turn: self.turn,
-        }
-    }
-}
-
-pub fn op_a(a: &mut S0, b: R0) -> Result<(), E0> {
-    a.names.push(b.task_name.clone());
-    a.rows.push(b);
-    Ok(())
-}
-EOF
-[?2004h>     pub names: Vec<String>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> #[derive(Clone, Debug, Eq, PartialEq)]
-[?2004l[?2004h> pub struct R0 {
-[?2004l[?2004h>     pub case_name: String,
-[?2004l[?2004h>     pub task_name: String,
-[?2004l[?2004h>     pub parent_name: Option<String>,
-[?2004l[?2004h>     pub depth: usize,
-[?2004l[?2004h>     pub lane_name: String,
-[?2004l[?2004h>     pub base_turn: u64,
-[?2004l[?2004h>     pub turn: u64,
-[?2004l[?2004h>     pub seq: usize,
-[?2004l[?2004h>     pub chain: Vec<String>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> #[derive(Debug)]
-[?2004l[?2004h> pub enum E0 {
-[?2004l[?2004h>     Halt,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> impl S0 {
-[?2004l[?2004h>     pub fn new() -> Self {
-[?2004l[?2004h>         Self {
-[?2004l[?2004h>             rows: Vec::new(),
-[?2004l[?2004h>             names: Vec::new(),
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> impl R0 {
-[?2004l[?2004h>     pub fn from_item(case_name: &str, item: &Item) -> Self {
-[?2004l[?2004h>         Self {
-[?2004l[?2004h>             case_name: case_name.to_string(),
-[?2004l[?2004h>             task_name: item.ident.clone(),
-[?2004l[?2004h>             parent_name: (item.parent != "-").then(|| item.parent.clone()),
-[?2004l[?2004h>             depth: item.depth,
-[?2004l[?2004h>             lane_name: item.lane.clone(),
-[?2004l[?2004h>             base_turn: item.at,
-[?2004l[?2004h>             turn: item.at,
-[?2004l[?2004h>             seq: item.seq,
-[?2004l[?2004h>             chain: item.chain.clone(),
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     pub fn pack_a(&self) -> Record {
-[?2004l[?2004h>         Record {
-[?2004l[?2004h>             case_name: self.case_name.clone(),
-[?2004l[?2004h>             task_name: self.task_name.clone(),
-[?2004l[?2004h>             parent_name: self.parent_name.clone(),
-[?2004l[?2004h>             depth: self.depth,
-[?2004l[?2004h>             lane_name: self.lane_name.clone(),
-[?2004l[?2004h>             turn: self.turn,
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn op_a(a: &mut S0, b: R0) -> Result<(), E0> {
-[?2004l[?2004h>     a.names.push(b.task_name.clone());
-[?2004l[?2004h>     a.rows.push(b);
-[?2004l[?2004h>     Ok(())
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@88e50440921f:/app# cat > /app/types_f/serde.rs <<'EOF'
-[?2004l[?2004h> use crate::types_f::{CaseReport, Record};
-[?2004l[?2004h> 
-[?2004l[?2004h> fn esc(s: &str) -> String {
-[?2004l[?2004h>     s.replace('\\', "\\\\").replace('"', "\\\"")
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn row_json(row: &Record) -> String {
-[?2004l[?2004h>     let parent = match &row.parent_name {
-[?2004l[?2004h>         Some(p) => format!("\"{}\"", esc(p)),
-[?2004l[?2004h>         None => "null".to_string(),
-[?2004l[?2004h>     };
-[?2004l[?2004h>     format!(
-[?2004l[?2004h>         "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":{},\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
-[?2004l[?2004h>         esc(&row.case_name),
-[?2004l[?2004h>         esc(&row.task_name),
-[?2004l[?2004h>         parent,
-[?2004l[?2004h>         row.depth,
-[?2004l[?2004h>         esc(&row.lane_name),
-[?2004l[?2004h>         row.turn
-[?2004l[?2004h>     )
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> fn string_array(items: &[String]) -> String {
-[?2004l[?2004h>     format!(
-[?2004l[?2004h>         "[{}]",
-[?2004l[?2004h>         items
-[?2004l[?2004h>             .iter()
-[?2004l[?2004h>             .map(|s| format!("\"{}\"", esc(s)))
-[?2004l[?2004h>             .collect::<Vec<_>>()
-[?2004l[?2004h>             .join(",")
-[?2004l[?2004h>     )
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn case_json(case: &CaseReport) -> String {
-[?2004l[?2004h>     let trace = case
-[?2004l[?2004h>         .trace
-[?2004l[?2004h>         .iter()
-[?2004l[?2004h>         .map(row_json)
-[?2004l[?2004h>         .collect::<Vec<_>>()
-[?2004l[?2004h>         .join(",");
-[?2004l[?2004h>     format!(
-[?2004l[?2004h>         "{{\"name\":\"{}\",\"ok\":{},\"finished\":{},\"pending\":{},\"trace\":[{}],\"ledger\":\"{}\",\"journal\":\"{}\"}}",
-[?2004l[?2004h>         esc(&case.name),
-[?2004l[?2004h>         if case.ok { "true" } else { "false" },
-[?2004l[?2004h>         if case.finished { "true" } else { "false" },
-[?2004l[?2004h>         string_array(&case.pending),
-[?2004l[?2004h>         trace,
-[?2004l[?2004h>         esc(&case.ledger),
-[?2004l[?2004h>         esc(&case.journal)
-[?2004l[?2004h>     )
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn report_json(cases: &[CaseReport]) -> String {
-[?2004l[?2004h>     let body = cases.iter().map(case_json).collect::<Vec<_>>().join(",");
-[?2004l[?2004h>     format!("{{\"cases\":[{}]}}\n", body)
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@88e50440921f:/app# cat > /app/flow_e/flow.rs <<'EOF'
-[?2004l[?2004h> use std::fs::{self, File};
-[?2004l[?2004h> use std::io::{self, Write};
-[?2004l[?2004h> use std::path::Path;
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::serde_f::row_json;
-[?2004l[?2004h> use crate::types_f::Record;
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct S3 {
-[?2004l[?2004h>     pub count: usize,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn walk_e(a: &[Record], b: &mut S3) {
-[?2004l[?2004h>     b.count += a.len();
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
-[?2004l[?2004h>     if let Some(parent) = a.parent() {
-[?2004l[?2004h>         fs::create_dir_all(parent)?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     let mut file = File::create(a)?;
-[?2004l[?2004h>     for row in b {
-[?2004l[?2004h>         writeln!(file, "{}", row_json(row))?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     Ok(())
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
-[?2004l[?2004h>     if let Some(parent) = a.parent() {
-[?2004l[?2004h>         fs::create_dir_all(parent)?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     let mut file = File::create(a)?;
-[?2004l[?2004h>     for row in b {
-[?2004l[?2004h>         let parent = row.parent_name.as_deref().unwrap_or("-");
-[?2004l[?2004h>         writeln!(
-[?2004l[?2004h>             file,
-[?2004l[?2004h>             "{} {} {} {} {} {}",
-[?2004l[?2004h>             row.case_name, row.task_name, parent, row.depth, row.lane_name, row.turn
-[?2004l[?2004h>         )?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     Ok(())
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@88e50440921f:/app# cat > /app/book_b/book.rs <<'EOF'
-[?2004l[?2004h> use std::collections::{BTreeMap, BTreeSet, VecDeque};
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::core_a::R0;
-[?2004l[?2004h> 
-[?2004l[?2004h> /// Accept work in discrete turns.
-[?2004l[?2004h> ///
-[?2004l[?2004h> /// Contract:
-[?2004l[?2004h> /// - Each row becomes eligible on its own arrival/base_turn.
-[?2004l[?2004h> /// - Per turn, each lane may accept up to `cap` ready rows.
-[?2004l[?2004h> /// - Overflow stays live for later turns and competes with later arrivals.
-[?2004l[?2004h> /// - Accepted trace order: accepted turn asc; within turn: lane name asc;
-[?2004l[?2004h> ///   within lane+turn: plan-file order (seq).
-[?2004l[?2004h> pub fn fold_b(rows: &[R0], cap: usize) -> Vec<R0> {
-[?2004l[?2004h>     let cap = cap.max(1);
-[?2004l[?2004h> 
-[?2004l[?2004h>     // Dedup by logical task name: keep earliest (base_turn, seq).
-[?2004l[?2004h>     let mut uniq: BTreeMap<String, R0> = BTreeMap::new();
-[?2004l[?2004h>     for r in rows.iter().cloned() {
-[?2004l[?2004h>         uniq.entry(r.task_name.clone())
-[?2004l[?2004h>             .and_modify(|cur| {
-[?2004l[?2004h>                 if (r.base_turn, r.seq) < (cur.base_turn, cur.seq) {
-[?2004l[?2004h>                     *cur = r.clone();
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             })
-[?2004l[?2004h>             .or_insert(r);
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let mut turns: BTreeSet<u64> = BTreeSet::new();
-[?2004l[?2004h>     for r in uniq.values() {
-[?2004l[?2004h>         turns.insert(r.base_turn);
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if turns.is_empty() {
-[?2004l[?2004h>         return Vec::new();
-[?2004l[?2004h>     }
-[?2004l[?2004h>     let min_turn = *turns.iter().next().unwrap();
-[?2004l[?2004h>     let max_turn = *turns.iter().next_back().unwrap();
-[?2004l[?2004h> 
-[?2004l[?2004h>     // Bucket arrivals by base_turn then lane; keep seq order within each bucket.
-[?2004l[?2004h>     let mut arrivals: BTreeMap<u64, BTreeMap<String, Vec<R0>>> = BTreeMap::new();
-[?2004l[?2004h>     for r in uniq.into_values() {
-[?2004l[?2004h>         arrivals
-[?2004l[?2004h>             .entry(r.base_turn)
-[?2004l[?2004h>             .or_default()
-[?2004l[?2004h>             .entry(r.lane_name.clone())
-[?2004l[?2004h>             .or_default()
-[?2004l[?2004h>             .push(r);
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for (_t, by_lane) in arrivals.iter_mut() {
-[?2004l[?2004h>         for (_lane, v) in by_lane.iter_mut() {
-[?2004l[?2004h>             v.sort_by_key(|r| r.seq);
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let mut ready: BTreeMap<String, VecDeque<R0>> = BTreeMap::new();
-[?2004l[?2004h>     let mut accepted: Vec<R0> = Vec::new();
-[?2004l[?2004h> 
-[?2004l[?2004h>     let mut t = min_turn;
-[?2004l[?2004h>     loop {
-[?2004l[?2004h>         if let Some(by_lane) = arrivals.remove(&t) {
-[?2004l[?2004h>             for (lane, mut v) in by_lane {
-[?2004l[?2004h>                 let q = ready.entry(lane).or_default();
-[?2004l[?2004h>                 for r in v.drain(..) {
-[?2004l[?2004h>                     q.push_back(r);
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         // accept in lane-name order (BTreeMap iteration)
-[?2004l[?2004h>         for (lane, q) in ready.iter_mut() {
-[?2004l[?2004h>             let mut took = 0usize;
-[?2004l[?2004h>             while took < cap {
-[?2004l[?2004h>                 let mut r = match q.pop_front() {
-[?2004l[?2004h>                     Some(r) => r,
-[?2004l[?2004h>                     None => break,
-[?2004l[?2004h>                 };
-[?2004l[?2004h>                 r.turn = t;
-[?2004l[?2004h>                 r.lane_name = lane.clone();
-[?2004l[?2004h>                 accepted.push(r);
-[?2004l[?2004h>                 took += 1;
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         let any_ready = ready.values().any(|q| !q.is_empty());
-[?2004l[?2004h>         let any_future = !arrivals.is_empty();
-[?2004l[?2004h>         if !any_ready && !any_future {
-[?2004l[?2004h>             break;
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         // If there are gaps in turns (e.g., arrivals at 0 and 10), we still need to
-[?2004l[?2004h>         // progress turn-by-turn because CAP applies per turn.
-[?2004l[?2004h>         if t < max_turn || any_ready {
-[?2004l[?2004h>             t += 1;
-[?2004l[?2004h>         } else {
-[?2004l[?2004h>             t += 1;
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     accepted.sort_by(|l, r| {
-[?2004l[?2004h>         l.turn
-[?2004l[?2004h>             .cmp(&r.turn)
-[?2004l[?2004h>             .then(l.lane_name.cmp(&r.lane_name))
-[?2004l[?2004h>             .then(l.seq.cmp(&r.seq))
-[?2004l[?2004h>     });
-[?2004l[?2004h>     accepted
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@88e50440921f:/app# cat > /app/drive_g/drive.rs <<'EOF'
-[?2004l[?2004h> use std::collections::{BTreeMap, BTreeSet};
-[?2004l[?2004h> use std::io;
-[?2004l[?2004h> use std::path::{Path, PathBuf};
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::book_b::fold_b;
-[?2004l[?2004h> use crate::core_a::{op_a, R0, S0};
-[?2004l[?2004h> use crate::flow_e::{emit_e, note_e};
-[?2004l[?2004h> use crate::gate_c::{mark_c, S1};
-[?2004l[?2004h> use crate::host_d::{bind_d, R1, S2};
-[?2004l[?2004h> use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
-[?2004l[?2004h> 
-[?2004l[?2004h> fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
-[?2004l[?2004h>     (
-[?2004l[?2004h>         base.join("ledgers").join(format!("{}.jsonl", name)),
-[?2004l[?2004h>         base.join("journals").join(format!("{}.txt", name)),
-[?2004l[?2004h>     )
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
-[?2004l[?2004h>     let mut host = S2::new();
-[?2004l[?2004h>     let mut removed: BTreeSet<String> = BTreeSet::new();
-[?2004l[?2004h>     let mut raw: BTreeMap<String, Item> = BTreeMap::new();
-[?2004l[?2004h> 
-[?2004l[?2004h>     for entry in &a.entries {
-[?2004l[?2004h>         match entry {
-[?2004l[?2004h>             Entry::Root { ident, lane, at, seq } => {
-[?2004l[?2004h>                 let item = Item {
-[?2004l[?2004h>                     ident: ident.clone(),
-[?2004l[?2004h>                     parent: "-".to_string(),
-[?2004l[?2004h>                     lane: lane.clone(),
-[?2004l[?2004h>                     at: *at,
-[?2004l[?2004h>                     seq: *seq,
-[?2004l[?2004h>                     depth: 0,
-[?2004l[?2004h>                     chain: vec![ident.clone()],
-[?2004l[?2004h>                 };
-[?2004l[?2004h>                 let moved =
-[?2004l[?2004h>                     bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-[?2004l[?2004h>                 raw.insert(ident.clone(), moved.item);
-[?2004l[?2004h>             }
-[?2004l[?2004h>             Entry::Child {
-[?2004l[?2004h>                 from,
-[?2004l[?2004h>                 ident,
-[?2004l[?2004h>                 lane,
-[?2004l[?2004h>                 at,
-[?2004l[?2004h>                 seq,
-[?2004l[?2004h>             } => {
-[?2004l[?2004h>                 let parent = raw.get(from).cloned();
-[?2004l[?2004h>                 let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
-[?2004l[?2004h>                 let mut chain = parent.map(|p| p.chain).unwrap_or_default();
-[?2004l[?2004h>                 chain.push(ident.clone());
-[?2004l[?2004h>                 let item = Item {
-[?2004l[?2004h>                     ident: ident.clone(),
-[?2004l[?2004h>                     parent: from.clone(),
-[?2004l[?2004h>                     lane: lane.clone(),
-[?2004l[?2004h>                     at: *at,
-[?2004l[?2004h>                     seq: *seq,
-[?2004l[?2004h>                     depth,
-[?2004l[?2004h>                     chain,
-[?2004l[?2004h>                 };
-[?2004l[?2004h>                 let moved =
-[?2004l[?2004h>                     bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-[?2004l[?2004h>                 raw.insert(ident.clone(), moved.item);
-[?2004l[?2004h>             }
-[?2004l[?2004h>             Entry::Drop { ident } => {
-[?2004l[?2004h>                 removed.insert(ident.clone());
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let gate = S1::new(removed);
-[?2004l[?2004h>     let mut state = S0::new();
-[?2004l[?2004h> 
-[?2004l[?2004h>     for item in raw.values() {
-[?2004l[?2004h>         let row = R0::from_item(&a.name, item);
-[?2004l[?2004h>         if mark_c(&gate, &row) {
-[?2004l[?2004h>             op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     // Expand removals to descendants: DROP removes that ident and all descendants.
-[?2004l[?2004h>     let mut expanded: BTreeSet<String> = BTreeSet::new();
-[?2004l[?2004h>     for row in &state.rows {
-[?2004l[?2004h>         if row.chain.iter().any(|n| gate.removed.contains(n)) {
-[?2004l[?2004h>             expanded.insert(row.task_name.clone());
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let kept: Vec<R0> = state
-[?2004l[?2004h>         .rows
-[?2004l[?2004h>         .iter()
-[?2004l[?2004h>         .cloned()
-[?2004l[?2004h>         .filter(|r| !expanded.contains(&r.task_name))
-[?2004l[?2004h>         .collect();
-[?2004l[?2004h> 
-[?2004l[?2004h>     let ordered = fold_b(&kept, a.cap);
-[?2004l[?2004h>     let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
-[?2004l[?2004h> 
-[?2004l[?2004h>     let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
-[?2004l[?2004h>     let mut pending: Vec<String> = kept
-[?2004l[?2004h>         .iter()
-[?2004l[?2004h>         .filter(|row| !accepted.contains(&row.task_name))
-[?2004l[?2004h>         .map(|row| row.task_name.clone())
-[?2004l[?2004h>         .collect();
-[?2004l[?2004h>     pending.sort();
-[?2004l[?2004h> 
-[?2004l[?2004h>     let (ledger, journal) = out_paths(b, &a.name);
-[?2004l[?2004h>     emit_e(&ledger, &trace)?;
-[?2004l[?2004h>     note_e(&journal, &trace)?;
-[?2004l[?2004h> 
-[?2004l[?2004h>     let finished = pending.is_empty();
-[?2004l[?2004h>     Ok(CaseReport {
-[?2004l[?2004h>         name: a.name.clone(),
-[?2004l[?2004h>         ok: finished,
-[?2004l[?2004h>         finished,
-[?2004l[?2004h>         pending,
-[?2004l[?2004h>         trace,
-[?2004l[?2004h>         ledger: ledger.display().to_string(),
-[?2004l[?2004h>         journal: journal.display().to_string(),
-[?2004l[?2004h>     })
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@88e50440921f:/app# export PATH="/usr/local/cargo/bin:$PATH"
-[?2004l[?2004hroot@88e50440921f:/app# cargo build --release --bin executor-ctl
-[?2004l[1m[32m   Compiling[0m executor_liveness_lab v0.1.0 (/app)
-[1m[36m    Building[0m [                             ] 0/2: executor_liveness_lab                                                                                       [1m[36m    Building[0m [=============>               ] 1/2: executor-ctl(bin)                                                                                           [K[1m[32m    Finished[0m `release` profile [optimized] target(s) in 2.15s
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> p=pathlib.Path('/app/output/executor-audit.json')
-[?2004l[?2004h> a=json.loads(p.read_text())
-[?2004l[?2004h> for c in a['cases']:
-[?2004l[?2004h>     print(c['name'],'ok',c['ok'],'finished',c['finished'],'pending',len(c['pending']),'trace',len(c['trace']))
-[?2004l[?2004h> PY
-[?2004lamber ok True finished True pending 0 trace 4
-cobalt ok True finished True pending 0 trace 5
-drake ok True finished True pending 0 trace 4
-ember ok True finished True pending 0 trace 4
-flint ok True finished True pending 0 trace 3
-graphite ok True finished True pending 0 trace 6
-[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> root=pathlib.Path('/app')
-[?2004l[?2004h> a=json.loads((root/'output/executor-audit.json').read_text())
-[?2004l[?2004h> 
-[?2004l[?2004h> def norm_rec(r):
-[?2004l[?2004h>     return {k:r.get(k) for k in ['case','task','parent','depth','lane','turn']}
-[?2004l[?2004h> 
-[?2004l[?2004h> bad=False
-[?2004l[?2004h> for c in a['cases']:
-[?2004l[?2004h>     name=c['name']
-[?2004l[?2004h>     trace=[norm_rec(r) for r in c['trace']]
-[?2004l[?2004h>     # ledger
-[?2004l[?2004h>     ledger=[]
-[?2004l[?2004h>     for line in pathlib.Path(c['ledger']).read_text().splitlines():
-[?2004l[?2004h>         if line.strip():
-[?2004l[?2004h>             ledger.append(norm_rec(json.loads(line)))
-[?2004l[?2004h>     if trace!=ledger:
-[?2004l[?2004h>         print('TRACE!=LEDGER',name); bad=True
-[?2004l[?2004h>     # journal
-[?2004l[?2004h>     journal=[]
-[?2004l[?2004h>     for line in pathlib.Path(c['journal']).read_text().splitlines():
-[?2004l[?2004h>         if not line.strip():
-[?2004l[?2004h>             continue
-[?2004l[?2004h>         case,task,parent,depth,lane,turn=line.split()
-[?2004l[?2004h>         journal.append({'case':case,'task':task,'parent':None if parent=='-' else parent,'depth':int(depth),'lane':lane,'turn':int(turn)})
-[?2004l[?2004h>     if trace!=journal:
-[?2004l[?2004h>         print('TRACE!=JOURNAL',name); bad=True
-[?2004l[?2004h>     if c['pending']:
-[?2004l[?2004h>         print('PENDING',name,c['pending']); bad=True
-[?2004l[?2004h>     if not c['ok'] or not c['finished']:
-[?2004l[?2004h>         print('NOT OK/FINISHED',name,c['ok'],c['finished']); bad=True
-[?2004l[?2004h> print('OK' if not bad else 'FAIL')
-[?2004l[?2004h> PY
-[?2004lOK
-[?2004hroot@88e50440921f:/app# export PATH="/usr/local/cargo/bin:$PATH"
-[?2004l[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash /app/scripts/run-one.sh cobalt /app/output/one-cobalt.json /app/output/runtime-one
-[?2004l[?2004hroot@88e50440921f:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, pathlib
-[?2004l[?2004h> p=pathlib.Path('/app/output/one-cobalt.json')
-[?2004l[?2004h> a=json.loads(p.read_text())
-[?2004l[?2004h> print('cases',len(a['cases']))
-[?2004l[?2004h> c=a['cases'][0]
-[?2004l[?2004h> print(c['name'],c['ok'],c['finished'],len(c['pending']),len(c['trace']))
-[?2004l[?2004h> # verify ledger/journal agreement
-[?2004l[?2004h> root=pathlib.Path('/app')
-[?2004l[?2004h> 
-[?2004l[?2004h> def norm(r):
-[?2004l[?2004h>     return {k:r.get(k) for k in ['case','task','parent','depth','lane','turn']}
-[?2004l[?2004h> trace=[norm(r) for r in c['trace']]
-[?2004l[?2004h> ledger=[norm(json.loads(l)) for l in pathlib.Path(c['ledger']).read_text().splitlines() if l.strip()]
-[?2004l[?2004h> journal=[]
-[?2004l[?2004h> for line in pathlib.Path(c['journal']).read_text().splitlines():
-[?2004l[?2004h>     if not line.strip():
-[?2004l[?2004h>         continue
-[?2004l[?2004h>     case,task,parent,depth,lane,turn=line.split()
-[?2004l[?2004h>     journal.append({'case':case,'task':task,'parent':None if parent=='-' else parent,'depth':int(depth),'lane':lane,'turn':int(turn)})
-[?2004l[?2004h> print('trace==ledger',trace==ledger,'trace==journal',trace==journal)
-[?2004l[?2004h> PY
-[?2004lcases 1
-cobalt True True 0 5
-trace==ledger True trace==journal True
-[?2004hroot@88e50440921f:/app# rm -rf /app/output && mkdir -p /app/output
-[?2004l[?2004hroot@88e50440921f:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@88e50440921f:/app# test -f /app/output/executor-audit.json && echo "matrix audit exists"
-[?2004lmatrix audit exists
-[?2004hroot@88e50440921f:/app# 

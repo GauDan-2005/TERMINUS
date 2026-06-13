@@ -1,288 +1,0 @@
-[?2004hroot@c6c596d788f9:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@c6c596d788f9:/app# clear
-[?2004l[H[J[3J[?2004hroot@c6c596d788f9:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@c6c596d788f9:/app# ls -la /app/output
-[?2004ltotal 8
-drwxr-xr-x  2 root root   31 May 28 17:12 .
-drwxr-xr-x 12 root root  188 May 28 17:12 ..
--rw-r--r--  1 root root 5437 May 28 17:12 resume-audit.json
-[?2004hroot@c6c596d788f9:/app# jq -r '.cases[] | select(.ok==false) | [.case, (.fresh.summary.illegal|tostring), (.resume.summary.illegal|tostring), (.fresh.summary.signature==.resume.summary.signature|tostring)] | @tsv' /app/output/resume-audit.json | sed -n '1,200p'
-[?2004lbash: jq: command not found
-[?2004hroot@c6c596d788f9:/app# jq -r '.cases[] | select(.ok==false) | .case' /app/output/resume-audit.json | head -n 1
-[?2004lbash: jq: command not found
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> p='/app/output/resume-audit.json'
-[?2004l[?2004h> with open(p) as f:
-[?2004l[?2004h>     data=json.load(f)
-[?2004l[?2004h> fail=[]
-[?2004l[?2004h> for c in data.get('cases',[]):
-[?2004l[?2004h>     if not c.get('ok',False):
-[?2004l[?2004h>         fresh=c.get('fresh',{}).get('summary',{})
-[?2004l[?2004h>         resume=c.get('resume',{}).get('summary',{})
-[?2004l[?2004h>         fail.append((c.get('case'), fresh.get('illegal'), resume.get('illegal'), fresh.get('signature'), resume.get('signature')))
-[?2004l[?2004h> print('fail_count',len(fail))
-[?2004l[?2004h> for row in fail[:50]:
-[?2004l[?2004h>     case, fi, ri, fs, rs = row
-[?2004l[?2004h>     print(case, 'fresh_illegal=%s'%fi, 'resume_illegal=%s'%ri, 'sig_match=%s'%(fs==rs))
-[?2004l[?2004h> PY
-[?2004lfail_count 0
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/resume-audit.json') as f:
-[?2004l[?2004h>     data=json.load(f)
-[?2004l[?2004h> for c in data.get('cases',[]):
-[?2004l[?2004h>     if not c.get('ok',False):
-[?2004l[?2004h>         print(c.get('case'))
-[?2004l[?2004h>         break
-[?2004l[?2004h> PY
-[?2004l[?2004hroot@c6c596d788f9:/app# case=$(python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/resume-audit.json') as f:
-[?2004l[?2004h>     data=json.load(f)
-[?2004l[?2004h> for c in data.get('cases',[]):
-[?2004l[?2004h>     if not c.get('ok',False):
-[?2004l[?2004h>         print(c.get('case'))
-[?2004l[?2004h>         break
-[?2004l[?2004h> PY
-[?2004l[?2004h> ); echo "$case"; bash /app/scripts/one-case.sh "$case"
-[?2004l
-[?2004hroot@c6c596d788f9:/app# ls -la /app/output | sed -n '1,200p'
-[?2004ltotal 16
-drwxr-xr-x  2 root root   51 May 28 17:12 .
-drwxr-xr-x 12 root root  188 May 28 17:12 ..
--rw-r--r--  1 root root 5437 May 28 17:12 resume-audit.json
--rw-r--r--  1 root root 5437 May 28 17:12 single-.json
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> p='/app/output/resume-audit.json'
-[?2004l[?2004h> with open(p) as f:
-[?2004l[?2004h>     d=json.load(f)
-[?2004l[?2004h> cases=d.get('cases',[])
-[?2004l[?2004h> print('case_count',len(cases))
-[?2004l[?2004h> not_ok=[c.get('case') for c in cases if not c.get('ok',False)]
-[?2004l[?2004h> print('not_ok_count',len(not_ok))
-[?2004l[?2004h> # extra sanity: signature match and illegal==0 for both paths
-[?2004l[?2004h> bad=[]
-[?2004l[?2004h> for c in cases:
-[?2004l[?2004h>     fresh=c.get('fresh',{}).get('summary',{})
-[?2004l[?2004h>     resume=c.get('resume',{}).get('summary',{})
-[?2004l[?2004h>     if fresh.get('illegal')!=0 or resume.get('illegal')!=0 or fresh.get('signature')!=resume.get('signature'):
-[?2004l[?2004h>         bad.append((c.get('case'), fresh.get('illegal'), resume.get('illegal'), fresh.get('signature')==resume.get('signature')))
-[?2004l[?2004h> print('sanity_bad_count',len(bad))
-[?2004l[?2004h> for row in bad[:20]:
-[?2004l[?2004h>     print(*row)
-[?2004l[?2004h> PY
-[?2004lcase_count 7
-not_ok_count 0
-sanity_bad_count 7
-None None None True
-None None None True
-None None None True
-None None None True
-None None None True
-None None None True
-None None None True
-[?2004hroot@c6c596d788f9:/app# rm -f /app/output/single-.json
-[?2004l[?2004hroot@c6c596d788f9:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/resume-audit.json') as f:
-[?2004l[?2004h>     d=json.load(f)
-[?2004l[?2004h> print('not_ok_count', sum(1 for c in d.get('cases',[]) if not c.get('ok',False)))
-[?2004l[?2004h> PY
-[?2004lnot_ok_count 0
-[?2004hroot@c6c596d788f9:/app# sed -n '1,200p' /app/internal/sim/types.go
-[?2004lpackage sim
-
-type Profile struct {
-	Name      string
-	Radius    int
-	Blind     bool
-	Dense     bool
-	Epoch     bool
-	Mixed     bool
-	CheckTurn int
-}
-
-type MoveRow struct {
-	Turn  int    `json:"turn"`
-	Actor string `json:"actor"`
-	FromX int    `json:"from_x"`
-	FromY int    `json:"from_y"`
-	ToX   int    `json:"to_x"`
-	ToY   int    `json:"to_y"`
-	Kind  string `json:"kind"`
-	Legal bool   `json:"legal"`
-}
-
-type PathSummary struct {
-	Sig     string `json:"sig"`
-	Illegal int    `json:"illegal"`
-	Steps   int    `json:"steps"`
-}
-
-type VisPair struct {
-	FreshSeen  int `json:"fresh_seen"`
-	ResumeSeen int `json:"resume_seen"`
-}
-
-type EffectRow struct {
-	ID     string `json:"id"`
-	Active bool   `json:"active"`
-	Epoch  int    `json:"epoch"`
-}
-
-type CaseResult struct {
-	Name       string      `json:"name"`
-	OK         bool        `json:"ok"`
-	Fresh      PathSummary `json:"fresh"`
-	Resume     PathSummary `json:"resume"`
-	Moves      []MoveRow   `json:"moves"`
-	Visibility VisPair     `json:"visibility"`
-	Effects    []EffectRow `json:"effects"`
-	Records    string      `json:"records"`
-	Log        string      `json:"log"`
-}
-
-type Report struct {
-	Cases []CaseResult `json:"cases"`
-}
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/resume-audit.json') as f:
-[?2004l[?2004h>     d=json.load(f)
-[?2004l[?2004h> print('top_keys:', sorted(d.keys()))
-[?2004l[?2004h> cs=d.get('cases',[])
-[?2004l[?2004h> print('cases:', len(cs))
-[?2004l[?2004h> if cs:
-[?2004l[?2004h>     c=cs[0]
-[?2004l[?2004h>     print('case0_keys:', sorted(c.keys()))
-[?2004l[?2004h>     for k in ['case','ok','visibility','fresh','resume']:
-[?2004l[?2004h>         if k in c:
-[?2004l[?2004h>             print(k, 'type', type(c[k]).__name__)
-[?2004l[?2004h>     # print a compact preview of fresh/resume keys
-[?2004l[?2004h>     for side in ['fresh','resume']:
-[?2004l[?2004h>         if side in c and isinstance(c[side], dict):
-[?2004l[?2004h>             print(side+'_keys:', sorted(c[side].keys()))
-[?2004l[?2004h> PY
-[?2004ltop_keys: ['cases']
-cases: 7
-case0_keys: ['effects', 'fresh', 'log', 'moves', 'name', 'ok', 'records', 'resume', 'visibility']
-ok type bool
-visibility type dict
-fresh type dict
-resume type dict
-fresh_keys: ['illegal', 'sig', 'steps']
-resume_keys: ['illegal', 'sig', 'steps']
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> from pprint import pprint
-[?2004l[?2004h> with open('/app/output/resume-audit.json') as f:
-[?2004l[?2004h>     d=json.load(f)
-[?2004l[?2004h> cs=d.get('cases',[])
-[?2004l[?2004h> if not cs:
-[?2004l[?2004h>     raise SystemExit('no cases')
-[?2004l[?2004h> # pretty-print first case (trim large arrays)
-[?2004l[?2004h> c=dict(cs[0])
-[?2004l[?2004h> for side in ['fresh','resume']:
-[?2004l[?2004h>     if side in c and isinstance(c[side], dict):
-[?2004l[?2004h>         for k,v in list(c[side].items()):
-[?2004l[?2004h>             if isinstance(v,list) and len(v)>10:
-[?2004l[?2004h>                 c[side][k]=v[:3]+['...(%d total)'%len(v)]+v[-3:]
-[?2004l[?2004h> pprint(c)
-[?2004l[?2004h> PY
-[?2004l{'effects': [{'active': False, 'epoch': 3, 'id': 'blind'}],
- 'fresh': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0},
- 'log': '/app/workspace/bishop/trace.tsv',
- 'moves': [],
- 'name': 'bishop',
- 'ok': True,
- 'records': '/app/workspace/bishop/records.jsonl',
- 'resume': {'illegal': 0, 'sig': '811c9dc5', 'steps': 0},
- 'visibility': {'fresh_seen': 0, 'resume_seen': 0}}
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json, os
-[?2004l[?2004h> 
-[?2004l[?2004h> def load_jsonl(path):
-[?2004l[?2004h>     out=[]
-[?2004l[?2004h>     with open(path) as f:
-[?2004l[?2004h>         for line in f:
-[?2004l[?2004h>             line=line.strip()
-[?2004l[?2004h>             if not line:
-[?2004l[?2004h>                 continue
-[?2004l[?2004h>             out.append(json.loads(line))
-[?2004l[?2004h>     return out
-[?2004l[?2004h> 
-[?2004l[?2004h> p='/app/output/resume-audit.json'
-[?2004l[?2004h> with open(p) as f:
-[?2004l[?2004h>     report=json.load(f)
-[?2004l[?2004h> 
-[?2004l[?2004h> cases=report.get('cases',[])
-[?2004l[?2004h> problems=[]
-[?2004l[?2004h> for c in cases:
-[?2004l[?2004h>     name=c.get('name')
-[?2004l[?2004h>     ok=c.get('ok')
-[?2004l[?2004h>     fresh=c.get('fresh',{})
-[?2004l[?2004h>     resume=c.get('resume',{})
-[?2004l[?2004h>     if ok is not True:
-[?2004l[?2004h>         problems.append((name,'ok_false'))
-[?2004l[?2004h>     if fresh.get('illegal')!=0 or resume.get('illegal')!=0:
-[?2004l[?2004h>         problems.append((name,'illegal',fresh.get('illegal'),resume.get('illegal')))
-[?2004l[?2004h>     if fresh.get('sig')!=resume.get('sig'):
-[?2004l[?2004h>         problems.append((name,'sig_mismatch',fresh.get('sig'),resume.get('sig')))
-[?2004l[?2004h> 
-[?2004l[?2004h>     rec_path=c.get('records')
-[?2004l[?2004h>     log_path=c.get('log')
-[?2004l[?2004h>     if not (rec_path and os.path.exists(rec_path)):
-[?2004l[?2004h>         problems.append((name,'missing_records',rec_path))
-[?2004l[?2004h>         continue
-[?2004l[?2004h>     if not (log_path and os.path.exists(log_path)):
-[?2004l[?2004h>         problems.append((name,'missing_log',log_path))
-[?2004l[?2004h> 
-[?2004l[?2004h>     moves=c.get('moves',[])
-[?2004l[?2004h>     recs=load_jsonl(rec_path)
-[?2004l[?2004h>     # heuristic: many record formats; try to find records with a 'move' object
-[?2004l[?2004h>     rec_moves=[]
-[?2004l[?2004h>     for r in recs:
-[?2004l[?2004h>         if isinstance(r,dict) and 'move' in r and isinstance(r['move'],dict):
-[?2004l[?2004h>             rec_moves.append(r['move'])
-[?2004l[?2004h>     if rec_moves:
-[?2004l[?2004h>         if len(rec_moves)!=len(moves):
-[?2004l[?2004h>             problems.append((name,'move_count_mismatch',len(moves),len(rec_moves)))
-[?2004l[?2004h>         else:
-[?2004l[?2004h>             # compare key fields if present
-[?2004l[?2004h>             keys_map=[('turn','turn'),('actor','actor'),('from_x','from_x'),('from_y','from_y'),('to_x','to_x'),('to_y','to_y'),('kind','kind')]
-[?2004l[?2004h>             for i,(m,rm) in enumerate(zip(moves,rec_moves)):
-[?2004l[?2004h>                 for mk,rk in keys_map:
-[?2004l[?2004h>                     if mk in m and rk in rm and m[mk]!=rm[rk]:
-[?2004l[?2004h>                         problems.append((name,'move_order_mismatch',i,mk,m[mk],rm[rk]))
-[?2004l[?2004h>                         raise StopIteration
-[?2004l[?2004h> 
-[?2004l[?2004h> print('case_count',len(cases))
-[?2004l[?2004h> if problems:
-[?2004l[?2004h>     print('PROBLEMS',len(problems))
-[?2004l[?2004h>     for pr in problems[:200]:
-[?2004l[?2004h>         print(pr)
-[?2004l[?2004h>     raise SystemExit(1)
-[?2004l[?2004h> print('ALL_CHECKS_PASS')
-[?2004l[?2004h> PY
-[?2004lcase_count 7
-ALL_CHECKS_PASS
-[?2004hroot@c6c596d788f9:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/resume-audit.json') as f:
-[?2004l[?2004h>     r=json.load(f)
-[?2004l[?2004h> for c in r.get('cases',[]):
-[?2004l[?2004h>     print(c['name'], 'ok=%s'%c['ok'], 'illegal(f/r)=%d/%d'%(c['fresh']['illegal'],c['resume']['illegal']), 'sig_match=%s'%(c['fresh']['sig']==c['resume']['sig']), 'moves=%d'%len(c.get('moves',[])), 'effects=%d'%len(c.get('effects',[])))
-[?2004l[?2004h> PY
-[?2004lbishop ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=1
-knight ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=0
-lancer ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=0
-ranger ok=True illegal(f/r)=0/0 sig_match=True moves=4 effects=1
-rook ok=True illegal(f/r)=0/0 sig_match=True moves=2 effects=0
-sentinel ok=True illegal(f/r)=0/0 sig_match=True moves=2 effects=1
-warden ok=True illegal(f/r)=0/0 sig_match=True moves=0 effects=2
-[?2004hroot@c6c596d788f9:/app# 

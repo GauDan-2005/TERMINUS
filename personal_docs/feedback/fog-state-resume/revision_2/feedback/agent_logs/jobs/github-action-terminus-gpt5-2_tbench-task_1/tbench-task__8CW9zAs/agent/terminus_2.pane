@@ -1,99 +1,0 @@
-[?2004hroot@e4f42232d1ec:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@e4f42232d1ec:/app# clear
-[?2004l[H[J[3J[?2004hroot@e4f42232d1ec:/app# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@e4f42232d1ec:/app# cat /app/output/resume-audit.json | python3 - <<'PY'
-[?2004l[?2004h> import json,sys
-[?2004l[?2004h> p='/app/output/resume-audit.json'
-[?2004l[?2004h> with open(p) as f: d=json.load(f)
-[?2004l[?2004h> cases=d.get('cases',[])
-[?2004l[?2004h> bad=[]
-[?2004l[?2004h> for i,c in enumerate(cases):
-[?2004l[?2004h>     if not c.get('ok',False):
-[?2004l[?2004h>         bad.append((i,c.get('case') or c.get('name') or c.get('id'),c.get('visibility')))
-[?2004l[?2004h> print('total',len(cases))
-[?2004l[?2004h> print('bad',len(bad))
-[?2004l[?2004h> for i,name,vis in bad[:50]:
-[?2004l[?2004h>     print(i,name,vis)
-[?2004l[?2004h> PY
-[?2004ltotal 7
-bad 0
-[?2004hroot@e4f42232d1ec:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> p='/app/output/resume-audit.json'
-[?2004l[?2004h> with open(p) as f: d=json.load(f)
-[?2004l[?2004h> for c in d.get('cases',[]):
-[?2004l[?2004h>     if not c.get('ok',False):
-[?2004l[?2004h>         print(c.get('case') or c.get('name') or c.get('id'))
-[?2004l[?2004h>         break
-[?2004l[?2004h> PY
-[?2004l[?2004hroot@e4f42232d1ec:/app# python3 - <<'PY'
-[?2004l[?2004h> import json
-[?2004l[?2004h> from collections.abc import Mapping, Sequence
-[?2004l[?2004h> p='/app/output/resume-audit.json'
-[?2004l[?2004h> with open(p) as f: d=json.load(f)
-[?2004l[?2004h> 
-[?2004l[?2004h> def dig_illegal(obj):
-[?2004l[?2004h>     # find any key named 'illegal' under fresh/resume summaries
-[?2004l[?2004h>     if isinstance(obj, Mapping):
-[?2004l[?2004h>         if 'illegal' in obj and isinstance(obj['illegal'], int):
-[?2004l[?2004h>             return obj['illegal']
-[?2004l[?2004h>         for v in obj.values():
-[?2004l[?2004h>             r=dig_illegal(v)
-[?2004l[?2004h>             if r is not None:
-[?2004l[?2004h>                 return r
-[?2004l[?2004h>     elif isinstance(obj, Sequence) and not isinstance(obj,(str,bytes)):
-[?2004l[?2004h>         for v in obj:
-[?2004l[?2004h>             r=dig_illegal(v)
-[?2004l[?2004h>             if r is not None:
-[?2004l[?2004h>                 return r
-[?2004l[?2004h>     return None
-[?2004l[?2004h> 
-[?2004l[?2004h> def dig_sig(obj):
-[?2004l[?2004h>     if isinstance(obj, Mapping):
-[?2004l[?2004h>         for k in ('signature','sig','hash'):
-[?2004l[?2004h>             if k in obj and isinstance(obj[k], str):
-[?2004l[?2004h>                 return obj[k]
-[?2004l[?2004h>         for v in obj.values():
-[?2004l[?2004h>             r=dig_sig(v)
-[?2004l[?2004h>             if r is not None:
-[?2004l[?2004h>                 return r
-[?2004l[?2004h>     elif isinstance(obj, Sequence) and not isinstance(obj,(str,bytes)):
-[?2004l[?2004h>         for v in obj:
-[?2004l[?2004h>             r=dig_sig(v)
-[?2004l[?2004h>             if r is not None:
-[?2004l[?2004h>                 return r
-[?2004l[?2004h>     return None
-[?2004l[?2004h> 
-[?2004l[?2004h> cases=d.get('cases',[])
-[?2004l[?2004h> problems=[]
-[?2004l[?2004h> for c in cases:
-[?2004l[?2004h>     name=c.get('case') or c.get('name') or c.get('id')
-[?2004l[?2004h>     if not c.get('ok',False):
-[?2004l[?2004h>         problems.append((name,'ok=false'))
-[?2004l[?2004h>         continue
-[?2004l[?2004h>     fresh=c.get('fresh') or {}
-[?2004l[?2004h>     resume=c.get('resume') or {}
-[?2004l[?2004h>     fi=dig_illegal(fresh)
-[?2004l[?2004h>     ri=dig_illegal(resume)
-[?2004l[?2004h>     if fi not in (None,0):
-[?2004l[?2004h>         problems.append((name,f'fresh illegal={fi}'))
-[?2004l[?2004h>     if ri not in (None,0):
-[?2004l[?2004h>         problems.append((name,f'resume illegal={ri}'))
-[?2004l[?2004h>     fs=dig_sig(fresh)
-[?2004l[?2004h>     rs=dig_sig(resume)
-[?2004l[?2004h>     if fs is not None and rs is not None and fs!=rs:
-[?2004l[?2004h>         problems.append((name,f'signature mismatch fresh={fs} resume={rs}'))
-[?2004l[?2004h> 
-[?2004l[?2004h> print('cases',len(cases))
-[?2004l[?2004h> if problems:
-[?2004l[?2004h>     print('PROBLEMS',len(problems))
-[?2004l[?2004h>     for n,why in problems:
-[?2004l[?2004h>         print(n,why)
-[?2004l[?2004h>     raise SystemExit(1)
-[?2004l[?2004h> print('audit looks clean')
-[?2004l[?2004h> PY
-[?2004lcases 7
-audit looks clean
-[?2004hroot@e4f42232d1ec:/app# 

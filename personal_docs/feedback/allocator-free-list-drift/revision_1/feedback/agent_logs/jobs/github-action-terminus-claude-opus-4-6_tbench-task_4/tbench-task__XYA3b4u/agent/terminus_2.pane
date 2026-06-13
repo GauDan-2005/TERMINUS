@@ -1,1776 +1,0 @@
-[?2004hroot@8c64c9759efb:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@8c64c9759efb:/app# clear
-[?2004l[H[J[3J[?2004hroot@8c64c9759efb:/app# find /app -type f | head -100
-[?2004l/app/Makefile
-/app/acct_e/acct.c
-/app/acct_e/acct.h
-/app/acct_e/acct.o
-/app/bin/allocctl
-/app/config/limits.toml
-/app/data/cases/cedar.plan
-/app/data/cases/coral.plan
-/app/data/cases/jade.plan
-/app/data/cases/onyx.plan
-/app/data/cases/pearl.plan
-/app/data/cases/slate.plan
-/app/docs/layout.md
-/app/docs/operations.md
-/app/drive_h/run.c
-/app/drive_h/run.o
-/app/flow_g/report.c
-/app/flow_g/report.o
-/app/include/arena.h
-/app/include/block.h
-/app/include/plan.h
-/app/include/report.h
-/app/include/stats.h
-/app/list_b/list.c
-/app/list_b/list.h
-/app/list_b/list.o
-/app/mirror_j/mirror.c
-/app/mirror_j/mirror.o
-/app/move_d/move.c
-/app/move_d/move.h
-/app/move_d/move.o
-/app/pool_a/tag.c
-/app/pool_a/tag.h
-/app/pool_a/tag.o
-/app/read_f/parse.c
-/app/read_f/parse.o
-/app/scripts/clean-room.sh
-/app/scripts/run-matrix.sh
-/app/scripts/run-one.sh
-/app/spill_i/spill.c
-/app/spill_i/spill.o
-/app/split_c/split.c
-/app/split_c/split.h
-/app/split_c/split.o
-/app/src/alloc_ops.c
-/app/src/alloc_ops.o
-/app/src/arena_core.c
-/app/src/arena_core.o
-/app/src/free_ops.c
-/app/src/free_ops.o
-/app/src/init_heap.c
-/app/src/init_heap.o
-/app/src/main.c
-/app/src/main.o
-/app/src/reloc_ops.c
-/app/src/reloc_ops.o
-/app/src/slot_split.c
-/app/src/slot_split.o
-/app/src/slot_take.c
-/app/src/slot_take.o
-[?2004hroot@8c64c9759efb:/app# cat /app/scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-OUT="${APP_ROOT}/output"
-mkdir -p "${OUT}"
-bash "${APP_ROOT}/scripts/clean-room.sh"
-"${APP_ROOT}/bin/allocctl" matrix
-[?2004hroot@8c64c9759efb:/app# cat /app/scripts/run-one.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-CASE="${1:?case name required}"
-mkdir -p "${APP_ROOT}/output"
-"${APP_ROOT}/bin/allocctl" one "${CASE}"
-[?2004hroot@8c64c9759efb:/app# cat /app/Makefile
-[?2004lCC = gcc
-CFLAGS = -std=c17 -Wall -Wextra -O2 -Iinclude
-
-SRCS = src/main.c src/arena_core.c src/init_heap.c src/alloc_ops.c src/slot_take.c \
-       src/slot_split.c src/free_ops.c src/reloc_ops.c \
-       pool_a/tag.c list_b/list.c split_c/split.c \
-       move_d/move.c acct_e/acct.c read_f/parse.c drive_h/run.c flow_g/report.c \
-       spill_i/spill.c mirror_j/mirror.c
-
-OBJS = $(SRCS:.c=.o)
-
-all: bin/allocctl
-
-bin/allocctl: $(OBJS)
-	mkdir -p bin
-	$(CC) $(CFLAGS) -o $@ $(OBJS)
-
-%.o: %.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-clean:
-	rm -f $(OBJS) bin/allocctl
-
-.PHONY: all clean
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# ls -la /app/output/
-[?2004ltotal 32
-drwxr-xr-x  2 root root  184 May 25 13:10 .
-drwxr-xr-x 20 root root  271 May 25 13:10 ..
--rw-r--r--  1 root root 7092 May 25 13:10 alloc-audit.json
--rw-r--r--  1 root root  608 May 25 13:10 cedar.ledger.jsonl
--rw-r--r--  1 root root  370 May 25 13:10 coral.ledger.jsonl
--rw-r--r--  1 root root  969 May 25 13:10 jade.ledger.jsonl
--rw-r--r--  1 root root  853 May 25 13:10 onyx.ledger.jsonl
--rw-r--r--  1 root root 1092 May 25 13:10 pearl.ledger.jsonl
--rw-r--r--  1 root root  842 May 25 13:10 slate.ledger.jsonl
-[?2004hroot@8c64c9759efb:/app# cat /app/output/alloc-audit.json 2>&1 | head -100
-[?2004l{
-  "cases": [
-    {
-      "name": "cedar",
-      "ok": true,
-      "heap_sig": 4080,
-      "fl_count": 1,
-      "fl_sig": 65296,
-      "byte_total": 264,
-      "ledger": "/app/output/cedar.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
-        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
-      ]
-    },
-    {
-      "name": "jade",
-      "ok": true,
-      "heap_sig": 5440,
-      "fl_count": 3,
-      "fl_sig": 65216,
-      "byte_total": 368,
-      "ledger": "/app/output/jade.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
-        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
-        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
-        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
-        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
-      ]
-    },
-    {
-      "name": "slate",
-      "ok": true,
-      "heap_sig": 3808,
-      "fl_count": 2,
-      "fl_sig": 65312,
-      "byte_total": 256,
-      "ledger": "/app/output/slate.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
-        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
-        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 144},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 2, "fl_sig": 65536, "byte_total": 24},
-        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 256}
-      ]
-    },
-    {
-      "name": "coral",
-      "ok": true,
-      "heap_sig": 2448,
-      "fl_count": 1,
-      "fl_sig": 65392,
-      "byte_total": 168,
-      "ledger": "/app/output/coral.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 152},
-        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 120},
-        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 168}
-      ]
-    },
-    {
-      "name": "onyx",
-      "ok": true,
-      "heap_sig": 24888,
-      "fl_count": 4,
-      "fl_sig": 64072,
-      "byte_total": 1504,
-      "ledger": "/app/output/onyx.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 192},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 288},
-        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 200},
-        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 3, "fl_sig": 65448, "byte_total": 112},
-        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 3, "fl_sig": 64912, "byte_total": 656},
-        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 4, "fl_sig": 64072, "byte_total": 1504}
-      ]
-    },
-    {
-      "name": "pearl",
-      "ok": true,
-      "heap_sig": 9520,
-      "fl_count": 3,
-      "fl_sig": 64976,
-      "byte_total": 608,
-      "ledger": "/app/output/pearl.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 72},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 304},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 240},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 344},
-[?2004hroot@8c64c9759efb:/app# cat /app/output/alloc-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "cedar",
-      "ok": true,
-      "heap_sig": 4080,
-      "fl_count": 1,
-      "fl_sig": 65296,
-      "byte_total": 264,
-      "ledger": "/app/output/cedar.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
-        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
-      ]
-    },
-    {
-      "name": "jade",
-      "ok": true,
-      "heap_sig": 5440,
-      "fl_count": 3,
-      "fl_sig": 65216,
-      "byte_total": 368,
-      "ledger": "/app/output/jade.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 80},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 160},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 240},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 320},
-        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 400},
-        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 328},
-        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 256},
-        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 368}
-      ]
-    },
-    {
-      "name": "slate",
-      "ok": true,
-      "heap_sig": 3808,
-      "fl_count": 2,
-      "fl_sig": 65312,
-      "byte_total": 256,
-      "ledger": "/app/output/slate.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 128},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 384},
-        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 264},
-        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 144},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 2, "fl_sig": 65536, "byte_total": 24},
-        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 256}
-      ]
-    },
-    {
-      "name": "coral",
-      "ok": true,
-      "heap_sig": 2448,
-      "fl_count": 1,
-      "fl_sig": 65392,
-      "byte_total": 168,
-      "ledger": "/app/output/coral.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 152},
-        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 120},
-        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 168}
-      ]
-    },
-    {
-      "name": "onyx",
-      "ok": true,
-      "heap_sig": 24888,
-      "fl_count": 4,
-      "fl_sig": 64072,
-      "byte_total": 1504,
-      "ledger": "/app/output/onyx.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 192},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 288},
-        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 200},
-        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 3, "fl_sig": 65448, "byte_total": 112},
-        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 3, "fl_sig": 64912, "byte_total": 656},
-        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 4, "fl_sig": 64072, "byte_total": 1504}
-      ]
-    },
-    {
-      "name": "pearl",
-      "ok": true,
-      "heap_sig": 9520,
-      "fl_count": 3,
-      "fl_sig": 64976,
-      "byte_total": 608,
-      "ledger": "/app/output/pearl.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 72},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 304},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 240},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 344},
-        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 448},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 352},
-        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
-        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 3, "fl_sig": 65096, "byte_total": 480},
-        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 3, "fl_sig": 64976, "byte_total": 608}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# cp /app/output/alloc-audit.json /tmp/run1.json
-[?2004l[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# diff /tmp/run1.json /app/output/alloc-audit.json
-[?2004l[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-one.sh cedar 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# cat /app/output/cedar-audit.json 2>&1
-[?2004l{
-  "cases": [
-    {
-      "name": "cedar",
-      "ok": true,
-      "heap_sig": 4080,
-      "fl_count": 1,
-      "fl_sig": 65296,
-      "byte_total": 264,
-      "ledger": "/app/output/cedar.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 96},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 256},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 168},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264},
-        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 264}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/output/cedar.ledger.jsonl
-[?2004l{"seq":0,"op":"alloc","index":-1,"size":64,"result_index":0,"heap_sig":1496,"fl_count":1,"fl_sig":65448,"byte_total":96}
-{"seq":1,"op":"alloc","index":-1,"size":128,"result_index":1,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":256}
-{"seq":2,"op":"free","index":0,"size":0,"result_index":0,"heap_sig":2584,"fl_count":2,"fl_sig":65384,"byte_total":168}
-{"seq":3,"op":"alloc","index":-1,"size":32,"result_index":2,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":264}
-{"seq":4,"op":"realloc","index":1,"size":96,"result_index":1,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":264}
-[?2004hroot@8c64c9759efb:/app# cat /app/scripts/clean-room.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-rm -f "${APP_ROOT}"/output/alloc-audit.json "${APP_ROOT}"/output/*-audit.json
-rm -f "${APP_ROOT}"/output/*.ledger.jsonl
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-one.sh jade 2>&1 && bash /app/scripts/run-one.sh slate 2>&1 && bash /app/scripts/run-one.sh coral 2>&1 && bash /app/scripts/run-one.sh onyx 2>&1 && bash /app/scripts/run-one.sh pearl 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# ls /app/output/*-audit.json
-[?2004l/app/output/alloc-audit.json  /app/output/coral-audit.json  /app/output/onyx-audit.json   /app/output/slate-audit.json
-/app/output/cedar-audit.json  /app/output/jade-audit.json   /app/output/pearl-audit.json
-[?2004hroot@8c64c9759efb:/app# ls -la /app/bin/allocctl
-[?2004l-rwxr-xr-x 1 root root 22696 May 25 13:09 /app/bin/allocctl
-[?2004hroot@8c64c9759efb:/app# ls -la /app/src/*.c
-[?2004l-rw-r--r-- 1 root root 1436 May 25 13:08 /app/src/alloc_ops.c
--rw-r--r-- 1 root root  980 May 25 13:08 /app/src/arena_core.c
--rw-r--r-- 1 root root  569 May 25 13:08 /app/src/free_ops.c
--rw-r--r-- 1 root root  514 May 25 13:08 /app/src/init_heap.c
--rw-r--r-- 1 root root 1408 May 25 13:08 /app/src/main.c
--rw-r--r-- 1 root root 1028 May 25 13:08 /app/src/reloc_ops.c
--rw-r--r-- 1 root root 1342 May 25 13:08 /app/src/slot_split.c
--rw-r--r-- 1 root root  281 May 25 13:08 /app/src/slot_take.c
-[?2004hroot@8c64c9759efb:/app# ls -la /app/src/*.o
-[?2004l-rw-r--r-- 1 root root 2232 May 25 13:08 /app/src/alloc_ops.o
--rw-r--r-- 1 root root 2144 May 25 13:08 /app/src/arena_core.o
--rw-r--r-- 1 root root 1840 May 25 13:08 /app/src/free_ops.o
--rw-r--r-- 1 root root 1800 May 25 13:08 /app/src/init_heap.o
--rw-r--r-- 1 root root 3944 May 25 13:08 /app/src/main.o
--rw-r--r-- 1 root root 2104 May 25 13:08 /app/src/reloc_ops.o
--rw-r--r-- 1 root root 2672 May 25 13:08 /app/src/slot_split.o
--rw-r--r-- 1 root root 1600 May 25 13:08 /app/src/slot_take.o
-[?2004hroot@8c64c9759efb:/app# cp /app/bin/allocctl /tmp/allocctl.orig
-[?2004l[?2004hroot@8c64c9759efb:/app# cd /app && make clean && make 2>&1
-[?2004lrm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
-[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
-[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
-   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
-      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
-mkdir -p bin
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# diff /tmp/run1.json /app/output/alloc-audit.json
-[?2004l[?2004hroot@8c64c9759efb:/app# cat /app/src/free_ops.c
-[?2004l#include "../include/arena.h"
-#include "../acct_e/acct.h"
-#include "../list_b/list.h"
-#include "../pool_a/tag.h"
-
-#include <string.h>
-
-int arena_slot_free(Arena *a, int idx) {
-    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
-        return -1;
-    }
-    Block b;
-    b.base = a->mem;
-    b.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
-    size_t total = tag_read_size(&b);
-    z_set_flag(&b, 0);
-    xd3(&a->stats, -(ssize_t)total);
-    a->stats.live_blocks--;
-    a->slot_live[idx] = 0;
-    list_coalesce(a, &b);
-    return 0;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/src/alloc_ops.c
-[?2004l#include "../include/arena.h"
-#include "../pool_a/tag.h"
-
-#include <string.h>
-
-static size_t fl_ix(size_t off) {
-    return off >> 3;
-}
-
-void slot_take_split(Arena *a, Block *fit, size_t req, size_t need);
-void slot_take_whole(Arena *a, Block *fit, size_t total);
-
-static Block make_blk(Arena *a, size_t off) {
-    Block b;
-    b.base = a->mem;
-    b.off = off;
-    return b;
-}
-
-static Block *find_fit(Arena *a, size_t need) {
-    size_t cur = a->fl_head.off;
-    static Block pick;
-    while (cur != FL_END) {
-        Block b = make_blk(a, cur);
-        size_t total = tag_read_size(&b);
-        if (total >= need) {
-            pick = b;
-            return &pick;
-        }
-        cur = a->fl_link_next[fl_ix(cur)];
-    }
-    return NULL;
-}
-
-int arena_slot_alloc(Arena *a, size_t req) {
-    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
-    Block *fit = find_fit(a, need);
-    size_t total;
-    int idx;
-    if (!fit) {
-        return -1;
-    }
-    total = tag_read_size(fit);
-    if (total >= need + MIN_BLK) {
-        slot_take_split(a, fit, req, need);
-    } else {
-        slot_take_whole(a, fit, total);
-    }
-    idx = a->slot_count++;
-    if (idx >= MAX_SLOTS) {
-        return -1;
-    }
-    a->slots[idx] = fit->base + fit->off + HDR_SIZE;
-    a->slot_payload[idx] = req;
-    a->slot_live[idx] = 1;
-    a->stats.live_blocks++;
-    memset(a->slots[idx], (unsigned char)(idx + 1), req < 64 ? req : 64);
-    return idx;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/src/reloc_ops.c
-[?2004l#include "../include/arena.h"
-#include "../list_b/list.h"
-#include "../move_d/move.h"
-#include "../pool_a/tag.h"
-#include "../split_c/split.h"
-
-int arena_slot_alloc(Arena *a, size_t req);
-int arena_slot_free(Arena *a, int idx);
-
-int arena_slot_realloc(Arena *a, int idx, size_t req) {
-    if (idx < 0 || idx >= a->slot_count || !a->slot_live[idx]) {
-        return -1;
-    }
-    Block oldb;
-    size_t old_pay;
-    size_t need;
-    oldb.base = a->mem;
-    oldb.off = (size_t)((unsigned char *)a->slots[idx] - a->mem - HDR_SIZE);
-    old_pay = a->slot_payload[idx];
-    need = blk_align(req + HDR_SIZE + FTR_SIZE);
-    if (need <= tag_read_size(&oldb)) {
-        return split_realloc_inplace(a, &oldb, idx, req);
-    }
-    if (split_grow_inplace(a, &oldb, idx, req, need) >= 0) {
-        return idx;
-    }
-    {
-        int nidx = arena_slot_alloc(a, req);
-        if (nidx < 0) {
-            return -1;
-        }
-        xc2(a->slots[nidx], a->slots[idx], old_pay);
-        arena_slot_free(a, idx);
-        return nidx;
-    }
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/list_b/list.c
-[?2004l#include "../include/arena.h"
-#include "../pool_a/tag.h"
-
-#include <stddef.h>
-#include <string.h>
-
-static size_t fl_ix(size_t off) {
-    return off >> 3;
-}
-
-static void fl_clear(Arena *a, size_t off) {
-    size_t ix = fl_ix(off);
-    a->fl_link_next[ix] = FL_END;
-    a->fl_link_prev[ix] = FL_END;
-}
-
-void xb1(Arena *a, Block *b) {
-    size_t off = b->off;
-    size_t ix = fl_ix(off);
-    size_t old = a->fl_head.off;
-    a->fl_link_next[ix] = old;
-    a->fl_link_prev[ix] = FL_END;
-    if (old != FL_END) {
-        a->fl_link_prev[fl_ix(old)] = off;
-    }
-    a->fl_head.base = b->base;
-    a->fl_head.off = off;
-}
-
-void list_remove(Arena *a, Block *b) {
-    size_t off = b->off;
-    size_t ix = fl_ix(off);
-    size_t nxt = a->fl_link_next[ix];
-    size_t prv = a->fl_link_prev[ix];
-    if (nxt != FL_END) {
-        a->fl_link_prev[fl_ix(nxt)] = prv;
-    } else if (a->fl_head.off == off) {
-        a->fl_head.off = FL_END;
-    }
-    if (prv != FL_END) {
-        a->fl_link_next[fl_ix(prv)] = nxt;
-    } else {
-        a->fl_head.off = nxt;
-    }
-    fl_clear(a, off);
-}
-
-void list_coalesce(Arena *a, Block *b) {
-    size_t total = tag_read_size(b);
-    size_t off = b->off + total;
-    if (off < a->used) {
-        Block nb = {b->base, off};
-        if (!z_is_flag(&nb)) {
-            list_remove(a, &nb);
-            total += tag_read_size(&nb);
-            xa0(b, total);
-            off = b->off + total;
-        }
-    }
-    xb1(a, b);
-}
-
-int q8f_blk(Arena *a, Block *oldb, size_t need, size_t *merged_out) {
-    size_t old_total = tag_read_size(oldb);
-    size_t next_off = oldb->off + old_total;
-    size_t ntotal;
-    Block nb;
-    if (next_off >= a->used) {
-        return -1;
-    }
-    nb.base = oldb->base;
-    nb.off = next_off;
-    if (z_is_flag(&nb)) {
-        return -1;
-    }
-    ntotal = tag_read_size(&nb);
-    if (old_total + ntotal < need) {
-        return -1;
-    }
-    list_remove(a, &nb);
-    *merged_out = old_total + ntotal;
-    xa0(oldb, *merged_out);
-    z_set_flag(oldb, 1);
-    return 0;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/list_b/list.h
-[?2004l#ifndef LIST_H
-#define LIST_H
-
-#include "../include/arena.h"
-#include "../include/block.h"
-
-void xb1(Arena *a, Block *b);
-void list_remove(Arena *a, Block *b);
-void list_coalesce(Arena *a, Block *b);
-int q8f_blk(Arena *a, Block *oldb, size_t need, size_t *merged_out);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/include/arena.h
-[?2004l#ifndef ARENA_H
-#define ARENA_H
-
-#include "block.h"
-#include "stats.h"
-
-#include <stddef.h>
-
-#define HEAP_BYTES 65536
-#define MAX_SLOTS 64
-#define FL_MAP_SZ (HEAP_BYTES / 8)
-
-typedef struct Arena {
-    unsigned char mem[HEAP_BYTES];
-    size_t used;
-    Block head;
-    Block fl_head;
-    size_t fl_link_next[FL_MAP_SZ];
-    size_t fl_link_prev[FL_MAP_SZ];
-    void *slots[MAX_SLOTS];
-    size_t slot_payload[MAX_SLOTS];
-    int slot_live[MAX_SLOTS];
-    int slot_count;
-    Stats stats;
-} Arena;
-
-void arena_init(Arena *a);
-int arena_slot_alloc(Arena *a, size_t req);
-int arena_slot_free(Arena *a, int idx);
-int arena_slot_realloc(Arena *a, int idx, size_t req);
-size_t arena_heap_sig(const Arena *a);
-size_t arena_fl_sig(const Arena *a);
-int arena_fl_count(const Arena *a);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/pool_a/tag.c
-[?2004l#include "../include/block.h"
-
-#include <stddef.h>
-
-void xa0(Block *a, size_t b) {
-    size_t *hdr = (size_t *)(void *)(a->base + a->off);
-    size_t *ftr;
-    hdr[0] = b;
-    hdr[1] = 0;
-    ftr = (size_t *)(void *)(a->base + a->off + (b / 2));
-    ftr[0] = b;
-}
-
-size_t tag_read_size(const Block *a) {
-    size_t *hdr = (size_t *)(void *)(a->base + a->off);
-    return hdr[0];
-}
-
-int z_is_flag(const Block *a) {
-    size_t *hdr = (size_t *)(void *)(a->base + a->off);
-    return (int)(hdr[1] & 1);
-}
-
-void z_set_flag(Block *a, int flag) {
-    size_t *hdr = (size_t *)(void *)(a->base + a->off);
-    if (flag) {
-        hdr[1] |= 1;
-    } else {
-        hdr[1] &= ~(size_t)1;
-    }
-}
-
-size_t tag_read_footer(const Block *a, size_t total) {
-    size_t *ftr = (size_t *)(void *)(a->base + a->off + (total / 2));
-    return ftr[0];
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/pool_a/tag.h
-[?2004l#ifndef TAG_H
-#define TAG_H
-
-#include "../include/block.h"
-
-void xa0(Block *a, size_t b);
-size_t tag_read_size(const Block *a);
-int z_is_flag(const Block *a);
-void z_set_flag(Block *a, int flag);
-size_t tag_read_footer(const Block *a, size_t total);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/include/block.h
-[?2004l#ifndef BLOCK_H
-#define BLOCK_H
-
-#include <stddef.h>
-
-#define HDR_SIZE 16
-#define FTR_SIZE 8
-#define FL_END ((size_t)-1)
-#define MIN_BLK 40
-#define ALIGN 8
-
-typedef struct Block {
-    unsigned char *base;
-    size_t off;
-} Block;
-
-static inline size_t blk_align(size_t n) {
-    return (n + (ALIGN - 1)) & ~(size_t)(ALIGN - 1);
-}
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/src/arena_core.c
-[?2004l#include "../include/arena.h"
-#include "../pool_a/tag.h"
-
-static size_t fl_ix(size_t off) {
-    return off >> 3;
-}
-
-size_t arena_heap_sig(const Arena *a) {
-    size_t sig = 0;
-    size_t off = 0;
-    while (off < a->used) {
-        Block b;
-        b.base = (unsigned char *)a->mem;
-        b.off = off;
-        size_t total = tag_read_size(&b);
-        if (total == 0) {
-            break;
-        }
-        if (z_is_flag(&b)) {
-            sig += total * 17;
-        }
-        off += total;
-    }
-    return sig;
-}
-
-size_t arena_fl_sig(const Arena *a) {
-    size_t sig = 0;
-    size_t cur = a->fl_head.off;
-    while (cur != FL_END) {
-        Block b = {(unsigned char *)a->mem, cur};
-        sig += tag_read_size(&b);
-        cur = a->fl_link_next[fl_ix(cur)];
-    }
-    return sig;
-}
-
-int arena_fl_count(const Arena *a) {
-    int c = 0;
-    size_t cur = a->fl_head.off;
-    while (cur != FL_END) {
-        c++;
-        cur = a->fl_link_next[fl_ix(cur)];
-    }
-    return c;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/src/init_heap.c
-[?2004l#include "../include/arena.h"
-#include "../list_b/list.h"
-#include "../pool_a/tag.h"
-
-#include <string.h>
-
-void arena_init(Arena *a) {
-    Block h;
-    size_t i;
-    memset(a, 0, sizeof(*a));
-    for (i = 0; i < FL_MAP_SZ; i++) {
-        a->fl_link_next[i] = FL_END;
-        a->fl_link_prev[i] = FL_END;
-    }
-    a->used = HEAP_BYTES;
-    h.base = a->mem;
-    h.off = 0;
-    xa0(&h, HEAP_BYTES);
-    z_set_flag(&h, 0);
-    a->head = h;
-    a->fl_head.base = h.base;
-    a->fl_head.off = FL_END;
-    xb1(a, &h);
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/include/stats.h
-[?2004l#ifndef STATS_H
-#define STATS_H
-
-#include <stddef.h>
-
-typedef struct Stats {
-    size_t allocated;
-    size_t peak;
-    size_t live_blocks;
-} Stats;
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/acct_e/acct.c
-[?2004l#include "../include/stats.h"
-
-#include <stddef.h>
-#include <sys/types.h>
-
-void xd3(Stats *a, ssize_t b) {
-    if (b > 0) {
-        a->allocated += (size_t)b + 8;
-    } else {
-        a->allocated -= (size_t)(-b);
-    }
-    if (a->allocated > a->peak) {
-        a->peak = a->allocated;
-    }
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/acct_e/acct.h
-[?2004l#ifndef ACCT_H
-#define ACCT_H
-
-#include "../include/stats.h"
-
-#include <sys/types.h>
-
-void xd3(Stats *a, ssize_t b);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/src/slot_split.c
-[?2004l#include "../include/arena.h"
-#include "../acct_e/acct.h"
-#include "../list_b/list.h"
-#include "../pool_a/tag.h"
-#include "../split_c/split.h"
-
-int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req) {
-    size_t old_total = tag_read_size(oldb);
-    size_t need = blk_align(req + HDR_SIZE + FTR_SIZE);
-    if (old_total < need + MIN_BLK) {
-        a->slot_payload[idx] = req;
-        return idx;
-    }
-    z_set_flag(oldb, 0);
-    xd3(&a->stats, -(ssize_t)old_total);
-    mark_c(a, oldb, req);
-    xd3(&a->stats, (ssize_t)need);
-    a->slot_payload[idx] = req;
-    return idx;
-}
-
-int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need) {
-    size_t merged;
-    size_t old_total = tag_read_size(oldb);
-    size_t ntotal;
-    Block nb;
-    nb.base = oldb->base;
-    nb.off = oldb->off + old_total;
-    ntotal = tag_read_size(&nb);
-    if (q8f_blk(a, oldb, need, &merged) != 0) {
-        return -1;
-    }
-    xd3(&a->stats, (ssize_t)ntotal);
-    if (merged >= need + MIN_BLK) {
-        z_set_flag(oldb, 0);
-        xd3(&a->stats, -(ssize_t)merged);
-        mark_c(a, oldb, req);
-        xd3(&a->stats, (ssize_t)need);
-    }
-    a->slot_payload[idx] = req;
-    return idx;
-}
-
-void slot_take_split(Arena *a, Block *fit, size_t req, size_t need) {
-    mark_c(a, fit, req);
-    xd3(&a->stats, (ssize_t)need);
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/src/slot_take.c
-[?2004l#include "../include/arena.h"
-#include "../acct_e/acct.h"
-#include "../list_b/list.h"
-#include "../pool_a/tag.h"
-
-void slot_take_whole(Arena *a, Block *fit, size_t total) {
-    list_remove(a, fit);
-    xa0(fit, total);
-    z_set_flag(fit, 1);
-    xd3(&a->stats, (ssize_t)total);
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/split_c/split.c
-[?2004l#include "../include/arena.h"
-#include "../list_b/list.h"
-#include "../pool_a/tag.h"
-
-#include <stddef.h>
-
-static int on_fl(Arena *a, size_t off) {
-    size_t ix = off >> 3;
-    return a->fl_head.off == off || a->fl_link_prev[ix] != FL_END || a->fl_link_next[ix] != FL_END;
-}
-
-Block *mark_c(Arena *a, Block *b, size_t c) {
-    size_t total = tag_read_size(b);
-    size_t need = blk_align(c + HDR_SIZE + FTR_SIZE);
-    if (total < need + MIN_BLK) {
-        return NULL;
-    }
-    size_t rem = total - need;
-    if (on_fl(a, b->off)) {
-        list_remove(a, b);
-    }
-    xa0(b, need);
-    z_set_flag(b, 1);
-    Block tail;
-    tail.base = b->base;
-    tail.off = b->off + need;
-    xa0(&tail, rem);
-    z_set_flag(&tail, 0);
-    xb1(a, &tail);
-    return NULL;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/split_c/split.h
-[?2004l#ifndef SPLIT_H
-#define SPLIT_H
-
-#include "../include/arena.h"
-#include "../include/block.h"
-
-Block *mark_c(Arena *a, Block *b, size_t c);
-int split_realloc_inplace(Arena *a, Block *oldb, int idx, size_t req);
-int split_grow_inplace(Arena *a, Block *oldb, int idx, size_t req, size_t need);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/flow_g/report.c
-[?2004l#include "../include/report.h"
-
-#include <stdio.h>
-#include <string.h>
-
-static void esc(FILE *fp, const char *s) {
-    fputc('"', fp);
-    for (const char *p = s; *p; p++) {
-        if (*p == '"' || *p == '\\') {
-            fputc('\\', fp);
-        }
-        fputc(*p, fp);
-    }
-    fputc('"', fp);
-}
-
-static void write_case(FILE *fp, const CaseResult *res, int last) {
-    FILE *led = fopen(res->ledger_path, "w");
-    fprintf(fp, "    {\n      \"name\": ");
-    esc(fp, res->name);
-    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
-    fprintf(fp, "      \"heap_sig\": %zu,\n", res->heap_sig);
-    fprintf(fp, "      \"fl_count\": %d,\n", res->fl_count);
-    fprintf(fp, "      \"fl_sig\": %zu,\n", res->fl_sig);
-    fprintf(fp, "      \"byte_total\": %zu,\n", res->byte_total);
-    fprintf(fp, "      \"ledger\": ");
-    esc(fp, res->ledger_path);
-    fprintf(fp, ",\n      \"steps\": [\n");
-    for (int i = 0; i < res->step_count; i++) {
-        const StepRec *st = &res->steps[i];
-        fprintf(fp,
-                "        {\"seq\": %d, \"op\": ", st->seq);
-        esc(fp, st->op);
-        fprintf(fp,
-                ", \"index\": %d, \"size\": %zu, \"result_index\": %d, \"heap_sig\": %zu, "
-                "\"fl_count\": %d, \"fl_sig\": %zu, \"byte_total\": %zu}",
-                st->index, st->size, st->result_index, st->heap_sig, st->fl_count, st->fl_sig,
-                st->byte_total);
-        if (i + 1 < res->step_count) {
-            fprintf(fp, ",");
-        }
-        fprintf(fp, "\n");
-        if (led) {
-            fprintf(led,
-                    "{\"seq\":%d,\"op\":", st->seq);
-            esc(led, st->op);
-            fprintf(led,
-                    ",\"index\":%d,\"size\":%zu,\"result_index\":%d,\"heap_sig\":%zu,"
-                    "\"fl_count\":%d,\"fl_sig\":%zu,\"byte_total\":%zu}\n",
-                    st->index, st->size, st->result_index, st->heap_sig, st->fl_count,
-                    st->fl_sig, st->byte_total);
-        }
-    }
-    fprintf(fp, "      ]\n    }");
-    if (!last) {
-        fprintf(fp, ",");
-    }
-    fprintf(fp, "\n");
-    if (led) {
-        fclose(led);
-    }
-}
-
-int emit_e(const CaseResult *res, const char *audit_path) {
-    FILE *fp = fopen(audit_path, "w");
-    if (!fp) {
-        return -1;
-    }
-    fprintf(fp, "{\n  \"cases\": [\n");
-    write_case(fp, res, 1);
-    fprintf(fp, "  ]\n}\n");
-    fclose(fp);
-    return 0;
-}
-
-int emit_matrix(const CaseResult *cases, int count, const char *audit_path) {
-    FILE *fp = fopen(audit_path, "w");
-    int i;
-    if (!fp) {
-        return -1;
-    }
-    fprintf(fp, "{\n  \"cases\": [\n");
-    for (i = 0; i < count; i++) {
-        write_case(fp, &cases[i], i + 1 == count);
-    }
-    fprintf(fp, "  ]\n}\n");
-    fclose(fp);
-    return 0;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/drive_h/run.c
-[?2004l#include "../include/plan.h"
-#include "../include/report.h"
-
-#include <stdio.h>
-#include <string.h>
-
-int run_case(const Plan *plan, const char *out_dir, CaseResult *res) {
-    Arena arena;
-    int seq = 0;
-    memset(res, 0, sizeof(*res));
-    strncpy(res->name, plan->name, sizeof(res->name) - 1);
-    snprintf(res->ledger_path, sizeof(res->ledger_path), "%s/%s.ledger.jsonl", out_dir, plan->name);
-    arena_init(&arena);
-    for (int i = 0; i < plan->op_count; i++) {
-        const PlanOp *op = &plan->ops[i];
-        StepRec *st = &res->steps[res->step_count++];
-        st->seq = seq++;
-        st->index = op->index;
-        st->size = op->size;
-        st->result_index = -1;
-        if (op->kind == OP_ALLOC) {
-            strncpy(st->op, "alloc", sizeof(st->op) - 1);
-            st->result_index = arena_slot_alloc(&arena, op->size);
-        } else if (op->kind == OP_FREE) {
-            strncpy(st->op, "free", sizeof(st->op) - 1);
-            st->result_index = arena_slot_free(&arena, op->index);
-        } else if (op->kind == OP_REALLOC) {
-            strncpy(st->op, "realloc", sizeof(st->op) - 1);
-            st->result_index = arena_slot_realloc(&arena, op->index, op->size);
-        }
-        st->heap_sig = arena_heap_sig(&arena);
-        st->fl_count = arena_fl_count(&arena);
-        st->fl_sig = arena_fl_sig(&arena);
-        st->byte_total = arena.stats.allocated;
-    }
-    res->heap_sig = arena_heap_sig(&arena);
-    res->fl_count = arena_fl_count(&arena);
-    res->fl_sig = arena_fl_sig(&arena);
-    res->byte_total = arena.stats.allocated;
-    res->ok = 1;
-    return 0;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/read_f/parse.c
-[?2004l#include "../include/plan.h"
-
-#include <stdio.h>
-#include <string.h>
-
-int plan_load(const char *path, Plan *out) {
-    FILE *fp = fopen(path, "r");
-    char line[256];
-    if (!fp) {
-        return -1;
-    }
-    memset(out, 0, sizeof(*out));
-    {
-        const char *slash = strrchr(path, '/');
-        const char *base = slash ? slash + 1 : path;
-        strncpy(out->name, base, sizeof(out->name) - 1);
-        char *dot = strchr(out->name, '.');
-        if (dot) {
-            *dot = '\0';
-        }
-    }
-    while (fgets(line, sizeof(line), fp)) {
-        char op[32];
-        size_t sz = 0;
-        int idx = 0;
-        int nidx = 0;
-        if (line[0] == '#' || line[0] == '\n') {
-            continue;
-        }
-        if (sscanf(line, "ALLOC %zu", &sz) == 1) {
-            PlanOp *p = &out->ops[out->op_count++];
-            p->kind = OP_ALLOC;
-            p->size = sz;
-            p->index = -1;
-        } else if (sscanf(line, "FREE %d", &idx) == 1) {
-            PlanOp *p = &out->ops[out->op_count++];
-            p->kind = OP_FREE;
-            p->index = idx;
-        } else if (sscanf(line, "REALLOC %d %zu", &idx, &sz) == 2) {
-            PlanOp *p = &out->ops[out->op_count++];
-            p->kind = OP_REALLOC;
-            p->index = idx;
-            p->size = sz;
-        } else if (sscanf(line, "%31s %d %zu %d", op, &idx, &sz, &nidx) >= 2) {
-            (void)op;
-            (void)nidx;
-        }
-    }
-    fclose(fp);
-    return 0;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/include/plan.h
-[?2004l#ifndef PLAN_H
-#define PLAN_H
-
-#include <stddef.h>
-
-#define MAX_OPS 128
-
-typedef enum {
-    OP_ALLOC = 1,
-    OP_FREE = 2,
-    OP_REALLOC = 3
-} OpKind;
-
-typedef struct PlanOp {
-    OpKind kind;
-    size_t size;
-    int index;
-    int new_index;
-} PlanOp;
-
-typedef struct Plan {
-    char name[32];
-    PlanOp ops[MAX_OPS];
-    int op_count;
-} Plan;
-
-int plan_load(const char *path, Plan *out);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/include/report.h
-[?2004l#ifndef REPORT_H
-#define REPORT_H
-
-#include "arena.h"
-#include "plan.h"
-
-#include <stddef.h>
-
-#define MAX_STEPS 128
-
-typedef struct StepRec {
-    int seq;
-    char op[16];
-    int index;
-    size_t size;
-    int result_index;
-    size_t heap_sig;
-    int fl_count;
-    size_t fl_sig;
-    size_t byte_total;
-} StepRec;
-
-typedef struct CaseResult {
-    char name[32];
-    int ok;
-    StepRec steps[MAX_STEPS];
-    int step_count;
-    size_t heap_sig;
-    int fl_count;
-    size_t fl_sig;
-    size_t byte_total;
-    char ledger_path[256];
-} CaseResult;
-
-int run_case(const Plan *plan, const char *out_dir, CaseResult *res);
-int emit_e(const CaseResult *res, const char *audit_path);
-int emit_matrix(const CaseResult *cases, int count, const char *audit_path);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/src/main.c
-[?2004l#include "../include/plan.h"
-#include "../include/report.h"
-
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-
-static const char *CASES[] = {"cedar", "jade", "slate", "coral", "onyx", "pearl", NULL};
-
-static int run_named(const char *name, const char *out_dir, CaseResult *res) {
-    char path[512];
-    Plan plan;
-    snprintf(path, sizeof(path), "/app/data/cases/%s.plan", name);
-    if (plan_load(path, &plan) != 0) {
-        return -1;
-    }
-    return run_case(&plan, out_dir, res);
-}
-
-int main(int argc, char **argv) {
-    const char *out_dir = "/app/output";
-    mkdir(out_dir, 0755);
-    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
-        CaseResult cases[6];
-        int n = 0;
-        for (int i = 0; CASES[i]; i++) {
-            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
-                return 1;
-            }
-            n++;
-        }
-        if (emit_matrix(cases, n, "/app/output/alloc-audit.json") != 0) {
-            return 1;
-        }
-        return 0;
-    }
-    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
-        CaseResult res;
-        if (run_named(argv[2], out_dir, &res) != 0) {
-            return 1;
-        }
-        char audit[512];
-        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
-        return emit_e(&res, audit) != 0;
-    }
-    fprintf(stderr, "usage: allocctl matrix | allocctl one <case>\n");
-    return 1;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/move_d/move.c
-[?2004l#include <stddef.h>
-#include <string.h>
-
-int xc2(void *a, void *b, size_t c) {
-    unsigned char *dst = (unsigned char *)a;
-    unsigned char *src = (unsigned char *)b;
-    size_t n = c / 2;
-    if (n == 0 && c > 0) {
-        n = 1;
-    }
-    memcpy(dst, src, n);
-    return (int)n;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/move_d/move.h
-[?2004l#ifndef MOVE_H
-#define MOVE_H
-
-#include <stddef.h>
-
-int xc2(void *a, void *b, size_t c);
-
-#endif
-[?2004hroot@8c64c9759efb:/app# cat /app/spill_i/spill.c
-[?2004l#include <stddef.h>
-
-size_t spill_bucket(size_t v) {
-    size_t b = 1;
-    while (b < v) {
-        b <<= 1;
-    }
-    return b;
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/mirror_j/mirror.c
-[?2004l#include <stdio.h>
-
-void mirror_line(const char *label, int v) {
-    fprintf(stderr, "[diag] %s=%d\n", label, v);
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/data/cases/cedar.plan
-[?2004l# cedar baseline
-ALLOC 64
-ALLOC 128
-FREE 0
-ALLOC 32
-REALLOC 1 96
-[?2004hroot@8c64c9759efb:/app# cat /app/data/cases/onyx.plan
-[?2004l# onyx reloc grow
-ALLOC 64
-ALLOC 64
-ALLOC 64
-FREE 0
-FREE 1
-ALLOC 512
-REALLOC 2 900
-[?2004hroot@8c64c9759efb:/app# cat /app/data/cases/slate.plan
-[?2004l# slate coalesce
-ALLOC 96
-ALLOC 96
-ALLOC 96
-FREE 1
-FREE 0
-FREE 2
-ALLOC 200
-[?2004hroot@8c64c9759efb:/app# cat /app/data/cases/jade.plan
-[?2004l# jade split pressure
-ALLOC 48
-ALLOC 48
-ALLOC 48
-ALLOC 48
-ALLOC 48
-FREE 1
-FREE 3
-ALLOC 80
-[?2004hroot@8c64c9759efb:/app# cat /app/data/cases/coral.plan
-[?2004l# coral in-place shrink/grow small
-ALLOC 120
-REALLOC 0 80
-REALLOC 0 100
-[?2004hroot@8c64c9759efb:/app# cat /app/data/cases/pearl.plan
-[?2004l# pearl mixed
-ALLOC 40
-ALLOC 200
-FREE 0
-ALLOC 72
-ALLOC 72
-FREE 2
-REALLOC 1 320
-FREE 1
-ALLOC 96
-[?2004hroot@8c64c9759efb:/app# cat /app/docs/layout.md
-[?2004l# Layout
-
-Internal modules are grouped by responsibility: tag maintenance, intrusive list wiring, block division, relocation copies, tally updates, plan ingestion, and report emission. The driver coordinates a single arena per scenario run.
-[?2004hroot@8c64c9759efb:/app# cat /app/docs/operations.md
-[?2004l# Operations
-
-The control binary supports `matrix` and `one <scenario>` modes. Matrix mode writes the combined audit under the output directory configured at build time.
-
-Scenario scripts live under `data/cases/` as line-oriented operation lists.
-[?2004hroot@8c64c9759efb:/app# cat > /app/pool_a/tag.c << 'EOF'
-[?2004l[?2004h> #include "../include/block.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <stddef.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> void xa0(Block *a, size_t b) {
-[?2004l[?2004h>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
-[?2004l[?2004h>     size_t *ftr;
-[?2004l[?2004h>     hdr[0] = b;
-[?2004l[?2004h>     hdr[1] = 0;
-[?2004l[?2004h>     ftr = (size_t *)(void *)(a->base + a->off + b - FTR_SIZE);
-[?2004l[?2004h>     ftr[0] = b;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> size_t tag_read_size(const Block *a) {
-[?2004l[?2004h>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
-[?2004l[?2004h>     return hdr[0];
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> int z_is_flag(const Block *a) {
-[?2004l[?2004h>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
-[?2004l[?2004h>     return (int)(hdr[1] & 1);
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> void z_set_flag(Block *a, int flag) {
-[?2004l[?2004h>     size_t *hdr = (size_t *)(void *)(a->base + a->off);
-[?2004l[?2004h>     if (flag) {
-[?2004l[?2004h>         hdr[1] |= 1;
-[?2004l[?2004h>     } else {
-[?2004l[?2004h>         hdr[1] &= ~(size_t)1;
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> size_t tag_read_footer(const Block *a, size_t total) {
-[?2004l[?2004h>     size_t *ftr = (size_t *)(void *)(a->base + a->off + total - FTR_SIZE);
-[?2004l[?2004h>     return ftr[0];
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@8c64c9759efb:/app# cat > /app/list_b/list.c << 'EOF'
-[?2004l[?2004h> #include "../include/arena.h"
-[?2004l[?2004h> #include "../pool_a/tag.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <stddef.h>
-[?2004l[?2004h> #include <string.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> static size_t fl_ix(size_t off) {
-[?2004l[?2004h>     return off >> 3;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> static void fl_clear(Arena *a, size_t off) {
-[?2004l[?2004h>     size_t ix = fl_ix(off);
-[?2004l[?2004h>     a->fl_link_next[ix] = FL_END;
-[?2004l[?2004h>     a->fl_link_prev[ix] = FL_END;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> void xb1(Arena *a, Block *b) {
-[?2004l[?2004h>     size_t off = b->off;
-[?2004l[?2004h>     size_t ix = fl_ix(off);
-[?2004l[?2004h>     size_t old = a->fl_head.off;
-[?2004l[?2004h>     a->fl_link_next[ix] = old;
-[?2004l[?2004h>     a->fl_link_prev[ix] = FL_END;
-[?2004l[?2004h>     if (old != FL_END) {
-[?2004l[?2004h>         a->fl_link_prev[fl_ix(old)] = off;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     a->fl_head.base = b->base;
-[?2004l[?2004h>     a->fl_head.off = off;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> void list_remove(Arena *a, Block *b) {
-[?2004l[?2004h>     size_t off = b->off;
-[?2004l[?2004h>     size_t ix = fl_ix(off);
-[?2004l[?2004h>     size_t nxt = a->fl_link_next[ix];
-[?2004l[?2004h>     size_t prv = a->fl_link_prev[ix];
-[?2004l[?2004h>     if (nxt != FL_END) {
-[?2004l[?2004h>         a->fl_link_prev[fl_ix(nxt)] = prv;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if (prv != FL_END) {
-[?2004l[?2004h>         a->fl_link_next[fl_ix(prv)] = nxt;
-[?2004l[?2004h>     } else {
-[?2004l[?2004h>         a->fl_head.off = nxt;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     fl_clear(a, off);
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> void list_coalesce(Arena *a, Block *b) {
-[?2004l[?2004h>     size_t total = tag_read_size(b);
-[?2004l[?2004h> 
-[?2004l[?2004h>     /* Forward coalesce: merge with next block if free */
-[?2004l[?2004h>     size_t off = b->off + total;
-[?2004l[?2004h>     if (off < a->used) {
-[?2004l[?2004h>         Block nb = {b->base, off};
-[?2004l[?2004h>         if (!z_is_flag(&nb)) {
-[?2004l[?2004h>             list_remove(a, &nb);
-[?2004l[?2004h>             total += tag_read_size(&nb);
-[?2004l[?2004h>             xa0(b, total);
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     /* Backward coalesce: merge with previous block if free */
-[?2004l[?2004h>     if (b->off > 0) {
-[?2004l[?2004h>         size_t *prev_ftr = (size_t *)(void *)(b->base + b->off - FTR_SIZE);
-[?2004l[?2004h>         size_t prev_total = prev_ftr[0];
-[?2004l[?2004h>         if (prev_total > 0 && prev_total <= b->off) {
-[?2004l[?2004h>             Block pb = {b->base, b->off - prev_total};
-[?2004l[?2004h>             if (!z_is_flag(&pb)) {
-[?2004l[?2004h>                 list_remove(a, &pb);
-[?2004l[?2004h>                 total += prev_total;
-[?2004l[?2004h>                 pb.off = b->off - prev_total;
-[?2004l[?2004h>                 xa0(&pb, total);
-[?2004l[?2004h>                 *b = pb;
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     xb1(a, b);
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> int q8f_blk(Arena *a, Block *oldb, size_t need, size_t *merged_out) {
-[?2004l[?2004h>     size_t old_total = tag_read_size(oldb);
-[?2004l[?2004h>     size_t next_off = oldb->off + old_total;
-[?2004l[?2004h>     size_t ntotal;
-[?2004l[?2004h>     Block nb;
-[?2004l[?2004h>     if (next_off >= a->used) {
-[?2004l[?2004h>         return -1;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     nb.base = oldb->base;
-[?2004l[?2004h>     nb.off = next_off;
-[?2004l[?2004h>     if (z_is_flag(&nb)) {
-[?2004l[?2004h>         return -1;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     ntotal = tag_read_size(&nb);
-[?2004l[?2004h>     if (old_total + ntotal < need) {
-[?2004l[?2004h>         return -1;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     list_remove(a, &nb);
-[?2004l[?2004h>     *merged_out = old_total + ntotal;
-[?2004l[?2004h>     xa0(oldb, *merged_out);
-[?2004l[?2004h>     z_set_flag(oldb, 1);
-[?2004l[?2004h>     return 0;
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@8c64c9759efb:/app# cat > /app/acct_e/acct.c << 'EOF'
-[?2004l[?2004h> #include "../include/stats.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <stddef.h>
-[?2004l[?2004h> #include <sys/types.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> void xd3(Stats *a, ssize_t b) {
-[?2004l[?2004h>     if (b > 0) {
-[?2004l[?2004h>         a->allocated += (size_t)b;
-[?2004l[?2004h>     } else {
-[?2004l[?2004h>         a->allocated -= (size_t)(-b);
-[?2004l[?2004h>     }
-[?2004l[?2004h>     if (a->allocated > a->peak) {
-[?2004l[?2004h>         a->peak = a->allocated;
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@8c64c9759efb:/app# cat > /app/move_d/move.c << 'EOF'
-[?2004l[?2004h> #include <stddef.h>
-[?2004l[?2004h> #include <string.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> int xc2(void *a, void *b, size_t c) {
-[?2004l[?2004h>     unsigned char *dst = (unsigned char *)a;
-[?2004l[?2004h>     unsigned char *src = (unsigned char *)b;
-[?2004l[?2004h>     if (c > 0) {
-[?2004l[?2004h>         memcpy(dst, src, c);
-[?2004l[?2004h>     }
-[?2004l[?2004h>     return (int)c;
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@8c64c9759efb:/app# cd /app && make clean && make 2>&1
-[?2004lrm -f src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o bin/allocctl
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/main.o src/main.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/arena_core.o src/arena_core.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/init_heap.o src/init_heap.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/alloc_ops.o src/alloc_ops.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_take.o src/slot_take.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/slot_split.o src/slot_split.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/free_ops.o src/free_ops.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o src/reloc_ops.o src/reloc_ops.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o pool_a/tag.o pool_a/tag.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o list_b/list.o list_b/list.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o split_c/split.o split_c/split.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o move_d/move.o move_d/move.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o acct_e/acct.o acct_e/acct.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o read_f/parse.o read_f/parse.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o drive_h/run.o drive_h/run.c
-[01m[Kdrive_h/run.c:[m[K In function ‘[01m[Krun_case[m[K’:
-[01m[Kdrive_h/run.c:11:5:[m[K [01;35m[Kwarning: [m[K‘[01m[Kstrncpy[m[K’ output may be truncated copying 31 bytes from a string of length 31 [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wno-stringop-truncation-Wstringop-truncation]8;;[m[K]
-   11 |     [01;35m[Kstrncpy(res->name, plan->name, sizeof(res->name) - 1)[m[K;
-      |     [01;35m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o flow_g/report.o flow_g/report.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o spill_i/spill.o spill_i/spill.c
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -c -o mirror_j/mirror.o mirror_j/mirror.c
-mkdir -p bin
-gcc -std=c17 -Wall -Wextra -O2 -Iinclude -o bin/allocctl src/main.o src/arena_core.o src/init_heap.o src/alloc_ops.o src/slot_take.o src/slot_split.o src/free_ops.o src/reloc_ops.o pool_a/tag.o list_b/list.o split_c/split.o move_d/move.o acct_e/acct.o read_f/parse.o drive_h/run.o flow_g/report.o spill_i/spill.o mirror_j/mirror.o
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# cat /app/output/alloc-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "cedar",
-      "ok": true,
-      "heap_sig": 4080,
-      "fl_count": 1,
-      "fl_sig": 65296,
-      "byte_total": 240,
-      "ledger": "/app/output/cedar.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 88},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 152},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240}
-      ]
-    },
-    {
-      "name": "jade",
-      "ok": true,
-      "heap_sig": 5440,
-      "fl_count": 3,
-      "fl_sig": 65216,
-      "byte_total": 320,
-      "ledger": "/app/output/jade.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 48, "result_index": 0, "heap_sig": 1224, "fl_count": 1, "fl_sig": 65464, "byte_total": 72},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 48, "result_index": 1, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 144},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 48, "result_index": 2, "heap_sig": 3672, "fl_count": 1, "fl_sig": 65320, "byte_total": 216},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 48, "result_index": 3, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 288},
-        {"seq": 4, "op": "alloc", "index": -1, "size": 48, "result_index": 4, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 360},
-        {"seq": 5, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4896, "fl_count": 2, "fl_sig": 65248, "byte_total": 288},
-        {"seq": 6, "op": "free", "index": 3, "size": 0, "result_index": 0, "heap_sig": 3672, "fl_count": 3, "fl_sig": 65320, "byte_total": 216},
-        {"seq": 7, "op": "alloc", "index": -1, "size": 80, "result_index": 5, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 320}
-      ]
-    },
-    {
-      "name": "slate",
-      "ok": true,
-      "heap_sig": 3808,
-      "fl_count": 1,
-      "fl_sig": 65312,
-      "byte_total": 224,
-      "ledger": "/app/output/slate.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 120},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 360},
-        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 120},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 1, "fl_sig": 65536, "byte_total": 0},
-        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 1, "fl_sig": 65312, "byte_total": 224}
-      ]
-    },
-    {
-      "name": "coral",
-      "ok": true,
-      "heap_sig": 2448,
-      "fl_count": 1,
-      "fl_sig": 65392,
-      "byte_total": 144,
-      "ledger": "/app/output/coral.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 120, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 144},
-        {"seq": 1, "op": "realloc", "index": 0, "size": 80, "result_index": 0, "heap_sig": 1768, "fl_count": 2, "fl_sig": 65432, "byte_total": 104},
-        {"seq": 2, "op": "realloc", "index": 0, "size": 100, "result_index": 0, "heap_sig": 2448, "fl_count": 1, "fl_sig": 65392, "byte_total": 144}
-      ]
-    },
-    {
-      "name": "onyx",
-      "ok": true,
-      "heap_sig": 24888,
-      "fl_count": 2,
-      "fl_sig": 64072,
-      "byte_total": 1464,
-      "ledger": "/app/output/onyx.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 88},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 176},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 264},
-        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 176},
-        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 2, "fl_sig": 65448, "byte_total": 88},
-        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 2, "fl_sig": 64912, "byte_total": 624},
-        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 2, "fl_sig": 64072, "byte_total": 1464}
-      ]
-    },
-    {
-      "name": "pearl",
-      "ok": true,
-      "heap_sig": 9520,
-      "fl_count": 2,
-      "fl_sig": 64976,
-      "byte_total": 560,
-      "ledger": "/app/output/pearl.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 64},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 288},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 224},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 320},
-        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 416},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 320},
-        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 2, "fl_sig": 65096, "byte_total": 440},
-        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 2, "fl_sig": 65096, "byte_total": 440},
-        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 2, "fl_sig": 64976, "byte_total": 560}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# cp /app/output/alloc-audit.json /tmp/run2.json
-[?2004l[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# diff /tmp/run2.json /app/output/alloc-audit.json
-[?2004l[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-one.sh cedar 2>&1
-[?2004l[?2004hroot@8c64c9759efb:/app# cat /app/output/cedar-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "cedar",
-      "ok": true,
-      "heap_sig": 4080,
-      "fl_count": 1,
-      "fl_sig": 65296,
-      "byte_total": 240,
-      "ledger": "/app/output/cedar.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 88},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 128, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2584, "fl_count": 2, "fl_sig": 65384, "byte_total": 152},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 32, "result_index": 2, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 4, "op": "realloc", "index": 1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# cat /app/output/cedar.ledger.jsonl
-[?2004l{"seq":0,"op":"alloc","index":-1,"size":64,"result_index":0,"heap_sig":1496,"fl_count":1,"fl_sig":65448,"byte_total":88}
-{"seq":1,"op":"alloc","index":-1,"size":128,"result_index":1,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":240}
-{"seq":2,"op":"free","index":0,"size":0,"result_index":0,"heap_sig":2584,"fl_count":2,"fl_sig":65384,"byte_total":152}
-{"seq":3,"op":"alloc","index":-1,"size":32,"result_index":2,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":240}
-{"seq":4,"op":"realloc","index":1,"size":96,"result_index":1,"heap_sig":4080,"fl_count":1,"fl_sig":65296,"byte_total":240}
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-one.sh onyx 2>&1 && cat /app/output/onyx-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "onyx",
-      "ok": true,
-      "heap_sig": 24888,
-      "fl_count": 2,
-      "fl_sig": 64072,
-      "byte_total": 1464,
-      "ledger": "/app/output/onyx.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 64, "result_index": 0, "heap_sig": 1496, "fl_count": 1, "fl_sig": 65448, "byte_total": 88},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 64, "result_index": 1, "heap_sig": 2992, "fl_count": 1, "fl_sig": 65360, "byte_total": 176},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 64, "result_index": 2, "heap_sig": 4488, "fl_count": 1, "fl_sig": 65272, "byte_total": 264},
-        {"seq": 3, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2992, "fl_count": 2, "fl_sig": 65360, "byte_total": 176},
-        {"seq": 4, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 1496, "fl_count": 2, "fl_sig": 65448, "byte_total": 88},
-        {"seq": 5, "op": "alloc", "index": -1, "size": 512, "result_index": 3, "heap_sig": 10608, "fl_count": 2, "fl_sig": 64912, "byte_total": 624},
-        {"seq": 6, "op": "realloc", "index": 2, "size": 900, "result_index": 4, "heap_sig": 24888, "fl_count": 2, "fl_sig": 64072, "byte_total": 1464}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-one.sh slate 2>&1 && cat /app/output/slate-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "slate",
-      "ok": true,
-      "heap_sig": 3808,
-      "fl_count": 1,
-      "fl_sig": 65312,
-      "byte_total": 224,
-      "ledger": "/app/output/slate.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 96, "result_index": 0, "heap_sig": 2040, "fl_count": 1, "fl_sig": 65416, "byte_total": 120},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 96, "result_index": 1, "heap_sig": 4080, "fl_count": 1, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 2, "op": "alloc", "index": -1, "size": 96, "result_index": 2, "heap_sig": 6120, "fl_count": 1, "fl_sig": 65176, "byte_total": 360},
-        {"seq": 3, "op": "free", "index": 1, "size": 0, "result_index": 0, "heap_sig": 4080, "fl_count": 2, "fl_sig": 65296, "byte_total": 240},
-        {"seq": 4, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 2040, "fl_count": 2, "fl_sig": 65416, "byte_total": 120},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 0, "fl_count": 1, "fl_sig": 65536, "byte_total": 0},
-        {"seq": 6, "op": "alloc", "index": -1, "size": 200, "result_index": 3, "heap_sig": 3808, "fl_count": 1, "fl_sig": 65312, "byte_total": 224}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# bash /app/scripts/run-one.sh pearl 2>&1 && cat /app/output/pearl-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "pearl",
-      "ok": true,
-      "heap_sig": 9520,
-      "fl_count": 2,
-      "fl_sig": 64976,
-      "byte_total": 560,
-      "ledger": "/app/output/pearl.ledger.jsonl",
-      "steps": [
-        {"seq": 0, "op": "alloc", "index": -1, "size": 40, "result_index": 0, "heap_sig": 1088, "fl_count": 1, "fl_sig": 65472, "byte_total": 64},
-        {"seq": 1, "op": "alloc", "index": -1, "size": 200, "result_index": 1, "heap_sig": 4896, "fl_count": 1, "fl_sig": 65248, "byte_total": 288},
-        {"seq": 2, "op": "free", "index": 0, "size": 0, "result_index": 0, "heap_sig": 3808, "fl_count": 2, "fl_sig": 65312, "byte_total": 224},
-        {"seq": 3, "op": "alloc", "index": -1, "size": 72, "result_index": 2, "heap_sig": 5440, "fl_count": 2, "fl_sig": 65216, "byte_total": 320},
-        {"seq": 4, "op": "alloc", "index": -1, "size": 72, "result_index": 3, "heap_sig": 7072, "fl_count": 2, "fl_sig": 65120, "byte_total": 416},
-        {"seq": 5, "op": "free", "index": 2, "size": 0, "result_index": 0, "heap_sig": 5440, "fl_count": 3, "fl_sig": 65216, "byte_total": 320},
-        {"seq": 6, "op": "realloc", "index": 1, "size": 320, "result_index": 4, "heap_sig": 7480, "fl_count": 2, "fl_sig": 65096, "byte_total": 440},
-        {"seq": 7, "op": "free", "index": 1, "size": 0, "result_index": -1, "heap_sig": 7480, "fl_count": 2, "fl_sig": 65096, "byte_total": 440},
-        {"seq": 8, "op": "alloc", "index": -1, "size": 96, "result_index": 5, "heap_sig": 9520, "fl_count": 2, "fl_sig": 64976, "byte_total": 560}
-      ]
-    }
-  ]
-}
-[?2004hroot@8c64c9759efb:/app# 

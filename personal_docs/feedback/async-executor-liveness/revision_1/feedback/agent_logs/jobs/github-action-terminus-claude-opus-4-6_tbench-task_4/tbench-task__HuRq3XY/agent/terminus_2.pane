@@ -1,1640 +1,0 @@
-[?2004hroot@ad377fa89207:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@ad377fa89207:/app# clear
-[?2004l[H[J[3J[?2004hroot@ad377fa89207:/app# find /app -type f | head -100
-[?2004l/app/Cargo.lock
-/app/Cargo.toml
-/app/book_b/book.rs
-/app/core_a/core.rs
-/app/data/cases/amber.plan
-/app/data/cases/cobalt.plan
-/app/data/cases/drake.plan
-/app/data/cases/ember.plan
-/app/data/cases/flint.plan
-/app/data/cases/graphite.plan
-/app/docs/ARCHITECTURE.md
-/app/docs/OPERATIONS.md
-/app/drive_g/drive.rs
-/app/flow_e/flow.rs
-/app/gate_c/gate.rs
-/app/host_d/host.rs
-/app/mirror_j/mirror.rs
-/app/note_k/note.rs
-/app/read_h/parse.rs
-/app/scripts/clean-room.sh
-/app/scripts/run-matrix.sh
-/app/scripts/run-one.sh
-/app/spill_i/spill.rs
-/app/src/lib.rs
-/app/src/main.rs
-/app/types_f/serde.rs
-/app/types_f/types.rs
-[?2004hroot@ad377fa89207:/app# cat /app/scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-
-bash /app/scripts/clean-room.sh
-cargo run --quiet --release --bin executor-ctl -- --out /app/output/executor-audit.json --work /app/output/runtime
-[?2004hroot@ad377fa89207:/app# cat /app/scripts/run-one.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-
-case_name="${1:?case name required}"
-out="${2:-/app/output/executor-audit.json}"
-work="${3:-/app/output/runtime}"
-mkdir -p /app/output
-cargo run --quiet --release --bin executor-ctl -- --case "$case_name" --out "$out" --work "$work"
-[?2004hroot@ad377fa89207:/app# cat /app/Cargo.toml
-[?2004l[package]
-name = "executor_liveness_lab"
-version = "0.1.0"
-edition = "2021"
-
-[lib]
-name = "executor_liveness_lab"
-path = "src/lib.rs"
-
-[[bin]]
-name = "executor-ctl"
-path = "src/main.rs"
-[?2004hroot@ad377fa89207:/app# cat /app/src/main.rs
-[?2004luse std::env;
-use std::fs;
-use std::io;
-use std::path::{Path, PathBuf};
-
-use executor_liveness_lab::drive_g::drive_g;
-use executor_liveness_lab::read_h::read_plan;
-use executor_liveness_lab::serde_f::report_json;
-use executor_liveness_lab::types_f::CaseReport;
-
-fn arg_value(args: &[String], key: &str) -> Option<String> {
-    args.windows(2)
-        .find(|w| w[0] == key)
-        .map(|w| w[1].to_string())
-}
-
-fn plan_path(root: &Path, name: &str) -> PathBuf {
-    root.join("data").join("cases").join(format!("{}.plan", name))
-}
-
-fn load_names(args: &[String]) -> Vec<String> {
-    if let Some(name) = arg_value(args, "--case") {
-        vec![name]
-    } else {
-        ["amber", "cobalt", "drake", "ember", "flint", "graphite"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect()
-    }
-}
-
-fn drive_x(root: &Path, names: &[String], out: &Path, work: &Path) -> io::Result<Vec<CaseReport>> {
-    let mut reports = Vec::new();
-    for name in names {
-        let plan = read_plan(&plan_path(root, name))?;
-        reports.push(drive_g(&plan, work)?);
-    }
-    if let Some(parent) = out.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(out, report_json(&reports))?;
-    Ok(reports)
-}
-
-fn main() -> io::Result<()> {
-    let args: Vec<String> = env::args().collect();
-    let root = PathBuf::from(arg_value(&args, "--root").unwrap_or_else(|| "/app".to_string()));
-    let out = PathBuf::from(arg_value(&args, "--out").unwrap_or_else(|| "/app/output/executor-audit.json".to_string()));
-    let work = PathBuf::from(arg_value(&args, "--work").unwrap_or_else(|| "/app/output/runtime".to_string()));
-    let names = load_names(&args);
-    let _ = drive_x(&root, &names, &out, &work)?;
-    Ok(())
-}
-[?2004hroot@ad377fa89207:/app# cat /app/src/lib.rs
-[?2004l#[path = "../types_f/types.rs"]
-pub mod types_f;
-#[path = "../types_f/serde.rs"]
-pub mod serde_f;
-#[path = "../read_h/parse.rs"]
-pub mod read_h;
-#[path = "../core_a/core.rs"]
-pub mod core_a;
-#[path = "../book_b/book.rs"]
-pub mod book_b;
-#[path = "../gate_c/gate.rs"]
-pub mod gate_c;
-#[path = "../host_d/host.rs"]
-pub mod host_d;
-#[path = "../flow_e/flow.rs"]
-pub mod flow_e;
-#[path = "../drive_g/drive.rs"]
-pub mod drive_g;
-#[path = "../spill_i/spill.rs"]
-pub mod spill_i;
-#[path = "../mirror_j/mirror.rs"]
-pub mod mirror_j;
-#[path = "../note_k/note.rs"]
-pub mod note_k;
-[?2004hroot@ad377fa89207:/app# cat /app/types_f/types.rs
-[?2004l#[derive(Clone, Debug)]
-pub enum Entry {
-    Root { ident: String, lane: String, at: u64, seq: usize },
-    Child { from: String, ident: String, lane: String, at: u64, seq: usize },
-    Drop { ident: String },
-}
-
-#[derive(Clone, Debug)]
-pub struct Plan {
-    pub name: String,
-    pub cap: usize,
-    pub entries: Vec<Entry>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Item {
-    pub ident: String,
-    pub parent: String,
-    pub lane: String,
-    pub at: u64,
-    pub seq: usize,
-    pub depth: usize,
-    pub chain: Vec<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Record {
-    pub case_name: String,
-    pub task_name: String,
-    pub parent_name: String,
-    pub depth: usize,
-    pub lane_name: String,
-    pub turn: u64,
-}
-
-#[derive(Clone, Debug)]
-pub struct CaseReport {
-    pub name: String,
-    pub ok: bool,
-    pub finished: bool,
-    pub pending: Vec<String>,
-    pub trace: Vec<Record>,
-    pub ledger: String,
-    pub journal: String,
-}
-[?2004hroot@ad377fa89207:/app# cat /app/types_f/serde.rs
-[?2004luse crate::types_f::{CaseReport, Record};
-
-fn esc(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
-}
-
-pub fn row_json(row: &Record) -> String {
-    format!(
-        "{{\"case\":\"{}\",\"task\":\"{}\",\"parent\":\"{}\",\"depth\":{},\"lane\":\"{}\",\"turn\":{}}}",
-        esc(&row.case_name),
-        esc(&row.task_name),
-        esc(&row.parent_name),
-        row.depth,
-        esc(&row.lane_name),
-        row.turn
-    )
-}
-
-fn string_array(items: &[String]) -> String {
-    format!(
-        "[{}]",
-        items
-            .iter()
-            .map(|s| format!("\"{}\"", esc(s)))
-            .collect::<Vec<_>>()
-            .join(",")
-    )
-}
-
-pub fn case_json(case: &CaseReport) -> String {
-    let trace = case.trace.iter().map(row_json).collect::<Vec<_>>().join(",");
-    format!(
-        "{{\"name\":\"{}\",\"ok\":{},\"finished\":{},\"pending\":{},\"trace\":[{}],\"ledger\":\"{}\",\"journal\":\"{}\"}}",
-        esc(&case.name),
-        if case.ok { "true" } else { "false" },
-        if case.finished { "true" } else { "false" },
-        string_array(&case.pending),
-        trace,
-        esc(&case.ledger),
-        esc(&case.journal)
-    )
-}
-
-pub fn report_json(cases: &[CaseReport]) -> String {
-    let body = cases.iter().map(case_json).collect::<Vec<_>>().join(",");
-    format!("{{\"cases\":[{}]}}\n", body)
-}
-[?2004hroot@ad377fa89207:/app# cat /app/read_h/parse.rs
-[?2004luse std::fs;
-use std::io;
-use std::path::Path;
-
-use crate::types_f::{Entry, Plan};
-
-pub fn read_plan(path: &Path) -> io::Result<Plan> {
-    let text = fs::read_to_string(path)?;
-    let mut cap = 1usize;
-    let mut entries = Vec::new();
-    let name = path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("case")
-        .to_string();
-    for raw in text.lines() {
-        let line = raw.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let parts: Vec<&str> = line.split_whitespace().collect();
-        match parts.as_slice() {
-            ["CAP", value] => cap = value.parse().unwrap_or(1),
-            ["ROOT", ident, lane, at] => {
-                let seq = entries.len();
-                entries.push(Entry::Root { ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
-            }
-            ["CHILD", from, ident, lane, at] => {
-                let seq = entries.len();
-                entries.push(Entry::Child { from: (*from).to_string(), ident: (*ident).to_string(), lane: (*lane).to_string(), at: at.parse().unwrap_or(0), seq });
-            }
-            ["DROP", ident] => entries.push(Entry::Drop { ident: (*ident).to_string() }),
-            _ => {}
-        }
-    }
-    Ok(Plan { name, cap, entries })
-}
-[?2004hroot@ad377fa89207:/app# cat /app/core_a/core.rs
-[?2004luse crate::types_f::{Item, Record};
-
-pub struct S0 {
-    pub rows: Vec<R0>,
-    pub names: Vec<String>,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct R0 {
-    pub case_name: String,
-    pub task_name: String,
-    pub parent_name: String,
-    pub depth: usize,
-    pub lane_name: String,
-    pub base_turn: u64,
-    pub turn: u64,
-    pub seq: usize,
-    pub chain: Vec<String>,
-}
-
-#[derive(Debug)]
-pub enum E0 {
-    Halt,
-}
-
-impl S0 {
-    pub fn new() -> Self {
-        Self { rows: Vec::new(), names: Vec::new() }
-    }
-}
-
-impl R0 {
-    pub fn from_item(case_name: &str, item: &Item) -> Self {
-        Self {
-            case_name: case_name.to_string(),
-            task_name: item.ident.clone(),
-            parent_name: item.parent.clone(),
-            depth: item.depth,
-            lane_name: item.lane.clone(),
-            base_turn: item.at,
-            turn: item.at,
-            seq: item.seq,
-            chain: item.chain.clone(),
-        }
-    }
-
-    pub fn pack_a(&self) -> Record {
-        Record {
-            case_name: self.case_name.clone(),
-            task_name: self.task_name.clone(),
-            parent_name: self.parent_name.clone(),
-            depth: self.depth,
-            lane_name: self.lane_name.clone(),
-            turn: self.turn,
-        }
-    }
-}
-
-pub fn op_a(a: &mut S0, b: R0) -> Result<(), E0> {
-    a.names.push(b.task_name.clone());
-    a.rows.push(b);
-    Ok(())
-}
-[?2004hroot@ad377fa89207:/app# cat /app/book_b/book.rs
-[?2004luse std::collections::BTreeMap;
-
-use crate::core_a::R0;
-
-pub fn fold_b(a: &[R0], b: usize) -> Vec<R0> {
-    let mut by_lane_turn: BTreeMap<(String, u64), Vec<R0>> = BTreeMap::new();
-    for row in a.iter().cloned() {
-        by_lane_turn.entry((row.lane_name.clone(), row.base_turn)).or_default().push(row);
-    }
-    let mut out = Vec::new();
-    for ((_lane, _turn), mut rows) in by_lane_turn {
-        rows.sort_by_key(|row| row.seq);
-        for row in rows.into_iter().take(b.max(1)) {
-            out.push(row);
-        }
-    }
-    out.sort_by(|left, right| left.lane_name.cmp(&right.lane_name).then(left.turn.cmp(&right.turn)).then(left.task_name.cmp(&right.task_name)));
-    out
-}
-[?2004hroot@ad377fa89207:/app# cat /app/gate_c/gate.rs
-[?2004luse std::collections::BTreeSet;
-
-use crate::core_a::R0;
-
-pub struct S1 {
-    pub removed: BTreeSet<String>,
-}
-
-impl S1 {
-    pub fn new(removed: BTreeSet<String>) -> Self {
-        Self { removed }
-    }
-}
-
-pub fn mark_c(a: &S1, b: &R0) -> bool {
-    !a.removed.contains(&b.task_name)
-}
-[?2004hroot@ad377fa89207:/app# cat /app/host_d/host.rs
-[?2004luse std::collections::BTreeMap;
-
-use crate::core_a::E0;
-use crate::types_f::Item;
-
-pub struct S2 {
-    pub items: BTreeMap<String, Item>,
-}
-
-pub struct R1 {
-    pub item: Item,
-}
-
-pub struct R2 {
-    pub item: Item,
-}
-
-impl S2 {
-    pub fn new() -> Self {
-        Self { items: BTreeMap::new() }
-    }
-}
-
-pub fn bind_d(a: &mut S2, b: R1) -> Result<R2, E0> {
-    let mut item = b.item.clone();
-    if item.parent != "-" {
-        item.parent = "-".to_string();
-        item.depth = 0;
-        item.chain = vec![item.ident.clone()];
-    }
-    a.items.insert(item.ident.clone(), item.clone());
-    Ok(R2 { item })
-}
-[?2004hroot@ad377fa89207:/app# cat /app/flow_e/flow.rs
-[?2004luse std::fs::{self, File};
-use std::io::{self, Write};
-use std::path::Path;
-
-use crate::serde_f::row_json;
-use crate::types_f::Record;
-
-pub struct S3 {
-    pub count: usize,
-}
-
-pub fn walk_e(a: &[Record], b: &mut S3) {
-    b.count += a.len();
-}
-
-pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
-    if let Some(parent) = a.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut file = File::create(a)?;
-    for row in b {
-        writeln!(file, "{}", row_json(row))?;
-    }
-    Ok(())
-}
-
-pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
-    if let Some(parent) = a.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let mut file = File::create(a)?;
-    for row in b.iter().rev() {
-        writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
-    }
-    Ok(())
-}
-[?2004hroot@ad377fa89207:/app# cat /app/drive_g/drive.rs
-[?2004luse std::collections::{BTreeMap, BTreeSet};
-use std::io;
-use std::path::{Path, PathBuf};
-
-use crate::book_b::fold_b;
-use crate::core_a::{op_a, R0, S0};
-use crate::flow_e::{emit_e, note_e};
-use crate::gate_c::{mark_c, S1};
-use crate::host_d::{bind_d, R1, S2};
-use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
-
-fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
-    (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
-}
-
-pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
-    let mut host = S2::new();
-    let mut removed: BTreeSet<String> = BTreeSet::new();
-    let mut raw: BTreeMap<String, Item> = BTreeMap::new();
-    for entry in &a.entries {
-        match entry {
-            Entry::Root { ident, lane, at, seq } => {
-                let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()] };
-                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-                raw.insert(ident.clone(), moved.item);
-            }
-            Entry::Child { from, ident, lane, at, seq } => {
-                let parent = raw.get(from).cloned();
-                let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
-                let mut chain = parent.map(|p| p.chain).unwrap_or_default();
-                chain.push(ident.clone());
-                let item = Item { ident: ident.clone(), parent: from.clone(), lane: lane.clone(), at: *at, seq: *seq, depth, chain };
-                let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-                raw.insert(ident.clone(), moved.item);
-            }
-            Entry::Drop { ident } => {
-                removed.insert(ident.clone());
-            }
-        }
-    }
-    let gate = S1::new(removed);
-    let mut state = S0::new();
-    for item in raw.values() {
-        let row = R0::from_item(&a.name, item);
-        if mark_c(&gate, &row) {
-            op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
-        }
-    }
-    let ordered = fold_b(&state.rows, a.cap);
-    let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
-    let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
-    let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
-    pending.sort();
-    let (ledger, journal) = out_paths(b, &a.name);
-    emit_e(&ledger, &trace)?;
-    note_e(&journal, &trace)?;
-    let finished = pending.is_empty();
-    Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string() })
-}
-[?2004hroot@ad377fa89207:/app# cat /app/spill_i/spill.rs
-[?2004lpub fn fold_hint(values: &[usize], cap: usize) -> Vec<usize> {
-    values.iter().copied().filter(|v| *v <= cap).collect()
-}
-
-pub fn bucket_hint(values: &[usize]) -> usize {
-    values.iter().fold(0usize, |acc, v| acc.saturating_add(*v))
-}
-[?2004hroot@ad377fa89207:/app# cat /app/mirror_j/mirror.rs
-[?2004lpub fn emit_hint(name: &str, count: usize) -> String {
-    format!("{}:{}", name, count)
-}
-
-pub fn line_hint(items: &[String]) -> Vec<String> {
-    items.iter().map(|s| s.trim().to_string()).collect()
-}
-[?2004hroot@ad377fa89207:/app# cat /app/note_k/note.rs
-[?2004lpub fn tag_for(name: &str) -> String {
-    name.chars().take(3).collect()
-}
-
-pub fn count_nonempty(lines: &[String]) -> usize {
-    lines.iter().filter(|line| !line.trim().is_empty()).count()
-}
-[?2004hroot@ad377fa89207:/app# cat /app/data/cases/amber.plan
-[?2004lCAP 2
-ROOT amber-root lane-a 0
-CHILD amber-root amber-left lane-a 0
-CHILD amber-left amber-leaf lane-b 1
-ROOT amber-side lane-b 1
-[?2004hroot@ad377fa89207:/app# cat /app/data/cases/cobalt.plan
-[?2004lCAP 1
-ROOT cobalt-root lane-a 0
-CHILD cobalt-root cobalt-a lane-a 0
-CHILD cobalt-root cobalt-b lane-a 0
-CHILD cobalt-root cobalt-c lane-a 0
-CHILD cobalt-c cobalt-tail lane-b 1
-[?2004hroot@ad377fa89207:/app# cat /app/data/cases/drake.plan
-[?2004lCAP 2
-ROOT drake-root lane-a 0
-CHILD drake-root drake-keep lane-b 0
-CHILD drake-root drake-cut lane-a 0
-CHILD drake-cut drake-shadow lane-b 1
-DROP drake-cut
-ROOT drake-late lane-a 2
-[?2004hroot@ad377fa89207:/app# cat /app/data/cases/ember.plan
-[?2004lCAP 1
-ROOT ember-root lane-a 0
-CHILD ember-root ember-left lane-a 0
-CHILD ember-left ember-deep lane-a 0
-CHILD ember-left ember-side lane-b 1
-DROP ember-left
-ROOT ember-after lane-b 1
-[?2004hroot@ad377fa89207:/app# cat /app/data/cases/flint.plan
-[?2004lCAP 2
-ROOT flint-root lane-a 0
-CHILD flint-root flint-a lane-a 0
-CHILD flint-root flint-a lane-a 0
-CHILD flint-root flint-b lane-b 0
-CHILD flint-b flint-c lane-b 0
-DROP flint-c
-[?2004hroot@ad377fa89207:/app# cat /app/data/cases/graphite.plan
-[?2004lCAP 1
-ROOT graphite-root lane-a 0
-CHILD graphite-root graphite-a lane-a 0
-CHILD graphite-root graphite-b lane-b 0
-CHILD graphite-a graphite-c lane-a 1
-CHILD graphite-b graphite-d lane-b 1
-CHILD graphite-d graphite-e lane-b 1
-DROP graphite-d
-ROOT graphite-tail lane-a 2
-[?2004hroot@ad377fa89207:/app# cat > /app/host_d/host.rs << 'EOF'
-[?2004l[?2004h> use std::collections::BTreeMap;
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::core_a::E0;
-[?2004l[?2004h> use crate::types_f::Item;
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct S2 {
-[?2004l[?2004h>     pub items: BTreeMap<String, Item>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct R1 {
-[?2004l[?2004h>     pub item: Item,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct R2 {
-[?2004l[?2004h>     pub item: Item,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> impl S2 {
-[?2004l[?2004h>     pub fn new() -> Self {
-[?2004l[?2004h>         Self { items: BTreeMap::new() }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn bind_d(a: &mut S2, b: R1) -> Result<R2, E0> {
-[?2004l[?2004h>     let item = b.item.clone();
-[?2004l[?2004h>     a.items.insert(item.ident.clone(), item.clone());
-[?2004l[?2004h>     Ok(R2 { item })
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@ad377fa89207:/app# cat > /app/flow_e/flow.rs << 'EOF'
-[?2004l[?2004h> use std::fs::{self, File};
-[?2004l[?2004h> use std::io::{self, Write};
-[?2004l[?2004h> use std::path::Path;
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::serde_f::row_json;
-[?2004l[?2004h> use crate::types_f::Record;
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct S3 {
-[?2004l[?2004h>     pub count: usize,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn walk_e(a: &[Record], b: &mut S3) {
-[?2004l[?2004h>     b.count += a.len();
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn emit_e(a: &Path, b: &[Record]) -> io::Result<()> {
-[?2004l[?2004h>     if let Some(parent) = a.parent() {
-[?2004l[?2004h>         fs::create_dir_all(parent)?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     let mut file = File::create(a)?;
-[?2004l[?2004h>     for row in b {
-[?2004l[?2004h>         writeln!(file, "{}", row_json(row))?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     Ok(())
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn note_e(a: &Path, b: &[Record]) -> io::Result<()> {
-[?2004l[?2004h>     if let Some(parent) = a.parent() {
-[?2004l[?2004h>         fs::create_dir_all(parent)?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     let mut file = File::create(a)?;
-[?2004l[?2004h>     for row in b {
-[?2004l[?2004h>         writeln!(file, "{} {} {} {} {} {}", row.case_name, row.task_name, row.parent_name, row.depth, row.lane_name, row.turn)?;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     Ok(())
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@ad377fa89207:/app# cat > /app/gate_c/gate.rs << 'EOF'
-[?2004l[?2004h> use std::collections::BTreeSet;
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::core_a::R0;
-[?2004l[?2004h> 
-[?2004l[?2004h> pub struct S1 {
-[?2004l[?2004h>     pub removed: BTreeSet<String>,
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> impl S1 {
-[?2004l[?2004h>     pub fn new(removed: BTreeSet<String>) -> Self {
-[?2004l[?2004h>         Self { removed }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn mark_c(a: &S1, b: &R0) -> bool {
-[?2004l[?2004h>     // Check if any element in the chain (the item itself or any ancestor) is removed
-[?2004l[?2004h>     !b.chain.iter().any(|name| a.removed.contains(name))
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@ad377fa89207:/app# cat > /app/book_b/book.rs << 'EOF'
-[?2004l   if current_turn > max_base_turn && accepted_set.len() == a.len() {
-                break;
-            }
-            current_turn += 1;
-            if current_turn > max_base_turn + a.len() as u64 {
-                break; // Safety: prevent infinite loop
-            }
-            continue;
-        }
-        
-        // Sort within this turn: by lane name, then by seq
-        accepted_this_turn.sort_by(|(_, left), (_, right)| {
-            left.lane_name.cmp(&right.lane_name).then(left.seq.cmp(&right.seq))
-        });
-        
-        for (idx, row) in accepted_this_turn {
-            accepted_set.insert(idx);
-            accepted.push(row);
-        }
-        
-        // If all items are accepted, we're done
-        if accepted_set.len() == a.len() {
-            break;
-        }
-        
-        current_turn += 1;
-        if current_turn > max_base_turn + a.len() as u64 {
-            break; // Safety: prevent infinite loop
-        }
-    }
-    
-    accepted
-}
-EOF
-[?2004h> use std::collections::{BTreeMap, BTreeSet};
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::core_a::R0;
-[?2004l[?2004h> 
-[?2004l[?2004h> /// Implements multi-turn CAP acceptance.
-[?2004l[?2004h> /// Each item has a base_turn (arrival turn). At each turn t, items with base_turn <= t
-[?2004l[?2004h> /// that haven't been accepted yet are ready. Within each lane, ready items are sorted
-[?2004l[?2004h> /// by seq (plan-file order). Up to `cap` items per lane are accepted per turn.
-[?2004l[?2004h> /// Overflow remains live for later turns.
-[?2004l[?2004h> pub fn fold_b(a: &[R0], cap: usize) -> Vec<R0> {
-[?2004l[?2004h>     let cap = cap.max(1);
-[?2004l[?2004h>     
-[?2004l[?2004h>     if a.is_empty() {
-[?2004l[?2004h>         return Vec::new();
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let mut accepted: Vec<R0> = Vec::new();
-[?2004l[?2004h>     let mut accepted_set: BTreeSet<usize> = BTreeSet::new(); // track by index in `a`
-[?2004l[?2004h>     
-[?2004l[?2004h>     // Find the range of turns we need to process
-[?2004l[?2004h>     let min_turn = a.iter().map(|r| r.base_turn).min().unwrap_or(0);
-[?2004l[?2004h>     let max_base_turn = a.iter().map(|r| r.base_turn).max().unwrap_or(0);
-[?2004l[?2004h>     
-[?2004l[?2004h>     let mut current_turn = min_turn;
-[?2004l[?2004h>     
-[?2004l[?2004h>     loop {
-[?2004l[?2004h>         // Collect ready items: base_turn <= current_turn and not yet accepted
-[?2004l[?2004h>         let mut ready_by_lane: BTreeMap<String, Vec<(usize, &R0)>> = BTreeMap::new();
-[?2004l[?2004h>         for (idx, row) in a.iter().enumerate() {
-[?2004l[?2004h>             if row.base_turn <= current_turn && !accepted_set.contains(&idx) {
-[?2004l[?2004h>                 ready_by_lane.entry(row.lane_name.clone()).or_default().push((idx, row));
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>         
-[?2004l[?2004h>         if ready_by_lane.is_empty() {
-[?2004l[?2004h>             break;
-[?2004l[?2004h>         }
-[?2004l[?2004h>         
-[?2004l[?2004h>         let mut accepted_this_turn: Vec<(usize, R0)> = Vec::new();
-[?2004l[?2004h>         
-[?2004l[?2004h>         for (_lane, mut items) in ready_by_lane {
-[?2004l[?2004h>             // Sort by seq (plan-file order)
-[?2004l[?2004h>             items.sort_by_key(|(_, row)| row.seq);
-[?2004l[?2004h>             for (idx, row) in items.into_iter().take(cap) {
-[?2004l[?2004h>                 let mut accepted_row = row.clone();
-[?2004l[?2004h>                 accepted_row.turn = current_turn;
-[?2004l[?2004h>                 accepted_this_turn.push((idx, accepted_row));
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>         
-[?2004l[?2004h>         if accepted_this_turn.is_empty() {
-[?2004l[?2004h>             // No progress possible at this turn, try next
-[?2004l[?2004h>             if current_turn > max_base_turn && accepted_set.len() == a.len() {
-[?2004l[?2004h>                 break;
-[?2004l[?2004h>             }
-[?2004l[?2004h>             current_turn += 1;
-[?2004l[?2004h>             if current_turn > max_base_turn + a.len() as u64 {
-[?2004l[?2004h>                 break; // Safety: prevent infinite loop
-[?2004l[?2004h>             }
-[?2004l[?2004h>             continue;
-[?2004l[?2004h>         }
-[?2004l[?2004h>         
-[?2004l[?2004h>         // Sort within this turn: by lane name, then by seq
-[?2004l[?2004h>         accepted_this_turn.sort_by(|(_, left), (_, right)| {
-[?2004l[?2004h>             left.lane_name.cmp(&right.lane_name).then(left.seq.cmp(&right.seq))
-[?2004l[?2004h>         });
-[?2004l[?2004h>         
-[?2004l[?2004h>         for (idx, row) in accepted_this_turn {
-[?2004l[?2004h>             accepted_set.insert(idx);
-[?2004l[?2004h>             accepted.push(row);
-[?2004l[?2004h>         }
-[?2004l[?2004h>         
-[?2004l[?2004h>         // If all items are accepted, we're done
-[?2004l[?2004h>         if accepted_set.len() == a.len() {
-[?2004l[?2004h>             break;
-[?2004l[?2004h>         }
-[?2004l[?2004h>         
-[?2004l[?2004h>         current_turn += 1;
-[?2004l[?2004h>         if current_turn > max_base_turn + a.len() as u64 {
-[?2004l[?2004h>             break; // Safety: prevent infinite loop
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h>     
-[?2004l[?2004h>     accepted
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@ad377fa89207:/app# cat > /app/drive_g/drive.rs << 'EOF'
-[?2004l[?2004h> use std::collections::{BTreeMap, BTreeSet};
-[?2004l bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-                raw.insert(ident.clone(), moved.item.clone());
-                // Deduplicate: only keep first occurrence of each ident
-                if seen_idents.insert(ident.clone()) {
-                    items_ordered.push(moved.item);
-                }
-            }
-            Entry::Drop { ident } => {
-                removed.insert(ident.clone());
-            }
-        }
-    }
-
-    // Build the full removed set: include all descendants of dropped items
-    // This is already handled by mark_c checking the chain, but we also need
-    // to expand removed for the pending calculation
-    let gate = S1::new(removed);
-    let mut state = S0::new();
-    
-    // Iterate in plan-file order (by seq), filtering by gate
-    for item in &items_ordered {
-        let row = R0::from_item(&a.name, item);
-        if mark_c(&gate, &row) {
-            op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row[?2004h> use std::io;
-[?2004l[?2004h> use std::path::{Path, PathBuf};
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::book_b::fold_b;
-[?2004l[?2004h> use crate::core_a::{op_a, R0, S0};
-[?2004l[?2004h> use crate::flow_e::{emit_e, note_e};
-[?2004l[?2004h> use crate::gate_c::{mark_c, S1};
-[?2004l[?2004h> use crate::host_d::{bind_d, R1, S2};
-[?2004l[?2004h> use crate::types_f::{CaseReport, Entry, Item, Plan, Record};
-[?2004l[?2004h> 
-[?2004l[?2004h> fn out_paths(base: &Path, name: &str) -> (PathBuf, PathBuf) {
-[?2004l[?2004h>     (base.join("ledgers").join(format!("{}.jsonl", name)), base.join("journals").join(format!("{}.txt", name)))
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> pub fn drive_g(a: &Plan, b: &Path) -> io::Result<CaseReport> {
-[?2004l[?2004h>     let mut host = S2::new();
-[?2004l[?2004h>     let mut removed: BTreeSet<String> = BTreeSet::new();
-[?2004l[?2004h>     let mut items_ordered: Vec<Item> = Vec::new();
-[?2004l[?2004h>     let mut seen_idents: BTreeSet<String> = BTreeSet::new();
-[?2004l[?2004h> 
-[?2004l[?2004h>     // First pass: collect all items and drops
-[?2004l[?2004h>     let mut raw: BTreeMap<String, Item> = BTreeMap::new();
-[?2004l[?2004h>     for entry in &a.entries {
-[?2004l[?2004h>         match entry {
-[?2004l[?2004h>             Entry::Root { ident, lane, at, seq } => {
-[?2004l[?2004h>                 let item = Item { ident: ident.clone(), parent: "-".to_string(), lane: lane.clone(), at: *at, seq: *seq, depth: 0, chain: vec![ident.clone()] };
-[?2004l[?2004h>                 let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-[?2004l[?2004h>                 raw.insert(ident.clone(), moved.item.clone());
-[?2004l[?2004h>                 // Deduplicate: only keep first occurrence of each ident
-[?2004l[?2004h>                 if seen_idents.insert(ident.clone()) {
-[?2004l[?2004h>                     items_ordered.push(moved.item);
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>             Entry::Child { from, ident, lane, at, seq } => {
-[?2004l[?2004h>                 let parent = raw.get(from).cloned();
-[?2004l[?2004h>                 let depth = parent.as_ref().map(|p| p.depth + 1).unwrap_or(0);
-[?2004l[?2004h>                 let mut chain = parent.map(|p| p.chain.clone()).unwrap_or_default();
-[?2004l[?2004h>                 chain.push(ident.clone());
-[?2004l[?2004h>                 let item = Item { ident: ident.clone(), parent: from.clone(), lane: lane.clone(), at: *at, seq: *seq, depth, chain };
-[?2004l[?2004h>                 let moved = bind_d(&mut host, R1 { item }).map_err(|_| io::Error::new(io::ErrorKind::Other, "state"))?;
-[?2004l[?2004h>                 raw.insert(ident.clone(), moved.item.clone());
-[?2004l[?2004h>                 // Deduplicate: only keep first occurrence of each ident
-[?2004l[?2004h>                 if seen_idents.insert(ident.clone()) {
-[?2004l[?2004h>                     items_ordered.push(moved.item);
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>             Entry::Drop { ident } => {
-[?2004l[?2004h>                 removed.insert(ident.clone());
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     // Build the full removed set: include all descendants of dropped items
-[?2004l[?2004h>     // This is already handled by mark_c checking the chain, but we also need
-[?2004l[?2004h>     // to expand removed for the pending calculation
-[?2004l[?2004h>     let gate = S1::new(removed);
-[?2004l[?2004h>     let mut state = S0::new();
-[?2004l[?2004h>     
-[?2004l[?2004h>     // Iterate in plan-file order (by seq), filtering by gate
-[?2004l[?2004h>     for item in &items_ordered {
-[?2004l[?2004h>         let row = R0::from_item(&a.name, item);
-[?2004l[?2004h>         if mark_c(&gate, &row) {
-[?2004l[?2004h>             op_a(&mut state, row).map_err(|_| io::Error::new(io::ErrorKind::Other, "row"))?;
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let ordered = fold_b(&state.rows, a.cap);
-[?2004l[?2004h>     let trace: Vec<Record> = ordered.iter().map(R0::pack_a).collect();
-[?2004l[?2004h>     let accepted: BTreeSet<String> = trace.iter().map(|row| row.task_name.clone()).collect();
-[?2004l[?2004h>     let mut pending: Vec<String> = state.rows.iter().filter(|row| !accepted.contains(&row.task_name)).map(|row| row.task_name.clone()).collect();
-[?2004l[?2004h>     pending.sort();
-[?2004l[?2004h>     let (ledger, journal) = out_paths(b, &a.name);
-[?2004l[?2004h>     emit_e(&ledger, &trace)?;
-[?2004l[?2004h>     note_e(&journal, &trace)?;
-[?2004l[?2004h>     let finished = pending.is_empty();
-[?2004l[?2004h>     Ok(CaseReport { name: a.name.clone(), ok: finished, finished, pending, trace, ledger: ledger.display().to_string(), journal: journal.display().to_string() })
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@ad377fa89207:/app# cat /app/book_b/book.rs
-[?2004luse std::collections::{BTreeMap, BTreeSet};
-
-use crate::core_a::R0;
-
-/// Implements multi-turn CAP acceptance.
-/// Each item has a base_turn (arrival turn). At each turn t, items with base_turn <= t
-/// that haven't been accepted yet are ready. Within each lane, ready items are sorted
-/// by seq (plan-file order). Up to `cap` items per lane are accepted per turn.
-/// Overflow remains live for later turns.
-pub fn fold_b(a: &[R0], cap: usize) -> Vec<R0> {
-    let cap = cap.max(1);
-    
-    if a.is_empty() {
-        return Vec::new();
-    }
-
-    let mut accepted: Vec<R0> = Vec::new();
-    let mut accepted_set: BTreeSet<usize> = BTreeSet::new(); // track by index in `a`
-    
-    // Find the range of turns we need to process
-    let min_turn = a.iter().map(|r| r.base_turn).min().unwrap_or(0);
-    let max_base_turn = a.iter().map(|r| r.base_turn).max().unwrap_or(0);
-    
-    let mut current_turn = min_turn;
-    
-    loop {
-        // Collect ready items: base_turn <= current_turn and not yet accepted
-        let mut ready_by_lane: BTreeMap<String, Vec<(usize, &R0)>> = BTreeMap::new();
-        for (idx, row) in a.iter().enumerate() {
-            if row.base_turn <= current_turn && !accepted_set.contains(&idx) {
-                ready_by_lane.entry(row.lane_name.clone()).or_default().push((idx, row));
-            }
-        }
-        
-        if ready_by_lane.is_empty() {
-            break;
-        }
-        
-        let mut accepted_this_turn: Vec<(usize, R0)> = Vec::new();
-        
-        for (_lane, mut items) in ready_by_lane {
-            // Sort by seq (plan-file order)
-            items.sort_by_key(|(_, row)| row.seq);
-            for (idx, row) in items.into_iter().take(cap) {
-                let mut accepted_row = row.clone();
-                accepted_row.turn = current_turn;
-                accepted_this_turn.push((idx, accepted_row));
-            }
-        }
-        
-        if accepted_this_turn.is_empty() {
-            // No progress possible at this turn, try next
-            if current_turn > max_base_turn && accepted_set.len() == a.len() {
-                break;
-            }
-            current_turn += 1;
-            if current_turn > max_base_turn + a.len() as u64 {
-                break; // Safety: prevent infinite loop
-            }
-            continue;
-        }
-        
-        // Sort within this turn: by lane name, then by seq
-        accepted_this_turn.sort_by(|(_, left), (_, right)| {
-            left.lane_name.cmp(&right.lane_name).then(left.seq.cmp(&right.seq))
-        });
-        
-        for (idx, row) in accepted_this_turn {
-            accepted_set.insert(idx);
-            accepted.push(row);
-        }
-        
-        // If all items are accepted, we're done
-        if accepted_set.len() == a.len() {
-            break;
-        }
-        
-        current_turn += 1;
-        if current_turn > max_base_turn + a.len() as u64 {
-            break; // Safety: prevent infinite loop
-        }
-    }
-    
-    accepted
-}
-[?2004hroot@ad377fa89207:/app# cargo build --release 2>&1
-[?2004lbash: cargo: command not found
-[?2004hroot@ad377fa89207:/app# which rustc 2>/dev/null || find / -name cargo -type f 2>/dev/null | head -5
-[?2004l/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/bin/cargo
-/usr/local/rustup/toolchains/1.85.0-x86_64-unknown-linux-gnu/etc/bash_completion.d/cargo
-[?2004hroot@ad377fa89207:/app# ls ~/.cargo/bin/ 2>/dev/null || ls /usr/local/cargo/bin/ 2>/dev/null
-[?2004lcargo  cargo-clippy  cargo-fmt	cargo-miri  clippy-driver  rls	rust-analyzer  rust-gdb  rust-gdbgui  rust-lldb  rustc	rustdoc  rustfmt  rustup
-[?2004hroot@ad377fa89207:/app# export PATH="/usr/local/cargo/bin:$PATH"
-[?2004l[?2004hroot@ad377fa89207:/app# cargo build --release 2>&1
-[?2004l[1m[32m   Compiling[0m executor_liveness_lab v0.1.0 (/app)
-[1m[36m    Building[0m [                             ] 0/2: executor_liveness_lab                                                                                       [1m[36m    Building[0m [=============>               ] 1/2: executor-ctl(bin)                                                                                           [K[1m[32m    Finished[0m `release` profile [optimized] target(s) in 1.71s
-[?2004hroot@ad377fa89207:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[?2004hroot@ad377fa89207:/app# cat /app/output/executor-audit.json | python3 -m json.tool 2>/dev/null || cat /app/output/executor-audit.json
-[?2004l{
-    "cases": [
-        {
-            "name": "amber",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "amber",
-                    "task": "amber-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-left",
-                    "parent": "amber-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-leaf",
-                    "parent": "amber-left",
-                    "depth": 2,
-                    "lane": "lane-b",
-                    "turn": 1
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-side",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-b",
-                    "turn": 1
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/amber.jsonl",
-            "journal": "/app/output/runtime/journals/amber.txt"
-        },
-        {
-            "name": "cobalt",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-a",
-                    "parent": "cobalt-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 1
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-tail",
-                    "parent": "cobalt-c",
-                    "depth": 2,
-                    "lane": "lane-b",
-                    "turn": 1
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-b",
-                    "parent": "cobalt-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 2
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-c",
-                    "parent": "cobalt-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 3
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/cobalt.jsonl",
-            "journal": "/app/output/runtime/journals/cobalt.txt"
-        },
-        {
-            "name": "drake",
-            "ok": false,
-            "finished": false,
-            "pending": [
-                "drake-late"
-            ],
-            "trace": [
-                {
-                    "case": "drake",
-                    "task": "drake-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "drake",
-                    "task": "drake-keep",
-                    "parent": "drake-root",
-                    "depth": 1,
-                    "lane": "lane-b",
-                    "turn": 0
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/drake.jsonl",
-            "journal": "/app/output/runtime/journals/drake.txt"
-        },
-        {
-            "name": "ember",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "ember",
-                    "task": "ember-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "ember",
-                    "task": "ember-after",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-b",
-                    "turn": 1
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/ember.jsonl",
-            "journal": "/app/output/runtime/journals/ember.txt"
-        },
-        {
-            "name": "flint",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "flint",
-                    "task": "flint-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "flint",
-                    "task": "flint-a",
-                    "parent": "flint-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "flint",
-                    "task": "flint-b",
-                    "parent": "flint-root",
-                    "depth": 1,
-                    "lane": "lane-b",
-                    "turn": 0
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/flint.jsonl",
-            "journal": "/app/output/runtime/journals/flint.txt"
-        },
-        {
-            "name": "graphite",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "graphite",
-                    "task": "graphite-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-b",
-                    "parent": "graphite-root",
-                    "depth": 1,
-                    "lane": "lane-b",
-                    "turn": 0
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-a",
-                    "parent": "graphite-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 1
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-c",
-                    "parent": "graphite-a",
-                    "depth": 2,
-                    "lane": "lane-a",
-                    "turn": 2
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-tail",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 3
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/graphite.jsonl",
-            "journal": "/app/output/runtime/journals/graphite.txt"
-        }
-    ]
-}
-[?2004hroot@ad377fa89207:/app# cat > /app/book_b/book.rs << 'EOF'
-[?2004l[?2004h> use std::collections::{BTreeMap, BTreeSet};
-[?2004l[?2004h> 
-[?2004l[?2004h> use crate::core_a::R0;
-[?2004l[?2004h> 
-[?2004l[?2004h> /// Implements multi-turn CAP acceptance.
-[?2004l[?2004h> /// Each item has a base_turn (arrival turn). At each turn t, items with base_turn <= t
-[?2004l[?2004h> /// that haven't been accepted yet are ready. Within each lane, ready items are sorted
-[?2004l[?2004h> /// by seq (plan-file order). Up to `cap` items per lane are accepted per turn.
-[?2004l[?2004h> /// Overflow remains live for later turns.
-[?2004l[?2004h> pub fn fold_b(a: &[R0], cap: usize) -> Vec<R0> {
-[?2004l[?2004h>     let cap = cap.max(1);
-[?2004l[?2004h> 
-[?2004l[?2004h>     if a.is_empty() {
-[?2004l[?2004h>         return Vec::new();
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     let mut accepted: Vec<R0> = Vec::new();
-[?2004l[?2004h>     let mut accepted_set: BTreeSet<usize> = BTreeSet::new();
-[?2004l[?2004h> 
-[?2004l[?2004h>     let min_turn = a.iter().map(|r| r.base_turn).min().unwrap_or(0);
-[?2004l[?2004h>     let max_base_turn = a.iter().map(|r| r.base_turn).max().unwrap_or(0);
-[?2004l[?2004h> 
-[?2004l[?2004h>     let mut current_turn = min_turn;
-[?2004l[?2004h> 
-[?2004l[?2004h>     loop {
-[?2004l[?2004h>         // If all items are accepted, done
-[?2004l[?2004h>         if accepted_set.len() == a.len() {
-[?2004l[?2004h>             break;
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         // Collect ready items: base_turn <= current_turn and not yet accepted
-[?2004l[?2004h>         let mut ready_by_lane: BTreeMap<String, Vec<(usize, &R0)>> = BTreeMap::new();
-[?2004l[?2004h>         for (idx, row) in a.iter().enumerate() {
-[?2004l[?2004h>             if row.base_turn <= current_turn && !accepted_set.contains(&idx) {
-[?2004l[?2004h>                 ready_by_lane.entry(row.lane_name.clone()).or_default().push((idx, row));
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         if ready_by_lane.is_empty() {
-[?2004l[?2004h>             // No items ready at this turn, but there might be items with higher base_turn
-[?2004l[?2004h>             if current_turn >= max_base_turn {
-[?2004l[?2004h>                 break; // No more items will ever become ready
-[?2004l[?2004h>             }
-[?2004l[?2004h>             current_turn += 1;
-[?2004l[?2004h>             continue;
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         let mut accepted_this_turn: Vec<(usize, R0)> = Vec::new();
-[?2004l[?2004h> 
-[?2004l[?2004h>         for (_lane, mut items) in ready_by_lane {
-[?2004l[?2004h>             // Sort by seq (plan-file order)
-[?2004l[?2004h>             items.sort_by_key(|(_, row)| row.seq);
-[?2004l[?2004h>             for (idx, row) in items.into_iter().take(cap) {
-[?2004l[?2004h>                 let mut accepted_row = row.clone();
-[?2004l[?2004h>                 accepted_row.turn = current_turn;
-[?2004l[?2004h>                 accepted_this_turn.push((idx, accepted_row));
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         // Sort within this turn: by lane name, then by seq
-[?2004l[?2004h>         accepted_this_turn.sort_by(|(_, left), (_, right)| {
-[?2004l[?2004h>             left.lane_name.cmp(&right.lane_name).then(left.seq.cmp(&right.seq))
-[?2004l[?2004h>         });
-[?2004l[?2004h> 
-[?2004l[?2004h>         for (idx, row) in accepted_this_turn {
-[?2004l[?2004h>             accepted_set.insert(idx);
-[?2004l[?2004h>             accepted.push(row);
-[?2004l[?2004h>         }
-[?2004l[?2004h> 
-[?2004l[?2004h>         current_turn += 1;
-[?2004l[?2004h>         // Safety bound
-[?2004l[?2004h>         if current_turn > max_base_turn + a.len() as u64 + 1 {
-[?2004l[?2004h>             break;
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> 
-[?2004l[?2004h>     accepted
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@ad377fa89207:/app# cargo build --release 2>&1
-[?2004l[1m[32m   Compiling[0m executor_liveness_lab v0.1.0 (/app)
-[1m[36m    Building[0m [                             ] 0/2: executor_liveness_lab                                                                                       [1m[36m    Building[0m [=============>               ] 1/2: executor-ctl(bin)                                                                                           [K[1m[32m    Finished[0m `release` profile [optimized] target(s) in 1.66s
-[?2004hroot@ad377fa89207:/app# bash /app/scripts/run-matrix.sh 2>&1 && python3 -c "
-[?2004l[?2004h> import json
-[?2004l[?2004h> with open('/app/output/executor-audit.json') as f:
-[?2004l[?2004h>     data = json.load(f)
-[?2004l[?2004h> for c in data['cases']:
-[?2004l[?2004h>     print(f\"{c['name']:10s} ok={c['ok']}  finished={c['finished']}  pending={c['pending']}  trace_len={len(c['trace'])}\")
-[?2004l[?2004h> "
-[?2004lamber      ok=True  finished=True  pending=[]  trace_len=4
-cobalt     ok=True  finished=True  pending=[]  trace_len=5
-drake      ok=True  finished=True  pending=[]  trace_len=3
-ember      ok=True  finished=True  pending=[]  trace_len=2
-flint      ok=True  finished=True  pending=[]  trace_len=3
-graphite   ok=True  finished=True  pending=[]  trace_len=5
-[?2004hroot@ad377fa89207:/app# cat /app/output/executor-audit.json | python3 -m json.tool
-[?2004l{
-    "cases": [
-        {
-            "name": "amber",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "amber",
-                    "task": "amber-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-left",
-                    "parent": "amber-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-leaf",
-                    "parent": "amber-left",
-                    "depth": 2,
-                    "lane": "lane-b",
-                    "turn": 1
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-side",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-b",
-                    "turn": 1
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/amber.jsonl",
-            "journal": "/app/output/runtime/journals/amber.txt"
-        },
-        {
-            "name": "cobalt",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-a",
-                    "parent": "cobalt-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 1
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-tail",
-                    "parent": "cobalt-c",
-                    "depth": 2,
-                    "lane": "lane-b",
-                    "turn": 1
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-b",
-                    "parent": "cobalt-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 2
-                },
-                {
-                    "case": "cobalt",
-                    "task": "cobalt-c",
-                    "parent": "cobalt-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 3
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/cobalt.jsonl",
-            "journal": "/app/output/runtime/journals/cobalt.txt"
-        },
-        {
-            "name": "drake",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "drake",
-                    "task": "drake-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "drake",
-                    "task": "drake-keep",
-                    "parent": "drake-root",
-                    "depth": 1,
-                    "lane": "lane-b",
-                    "turn": 0
-                },
-                {
-                    "case": "drake",
-                    "task": "drake-late",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 2
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/drake.jsonl",
-            "journal": "/app/output/runtime/journals/drake.txt"
-        },
-        {
-            "name": "ember",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "ember",
-                    "task": "ember-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "ember",
-                    "task": "ember-after",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-b",
-                    "turn": 1
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/ember.jsonl",
-            "journal": "/app/output/runtime/journals/ember.txt"
-        },
-        {
-            "name": "flint",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "flint",
-                    "task": "flint-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "flint",
-                    "task": "flint-a",
-                    "parent": "flint-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "flint",
-                    "task": "flint-b",
-                    "parent": "flint-root",
-                    "depth": 1,
-                    "lane": "lane-b",
-                    "turn": 0
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/flint.jsonl",
-            "journal": "/app/output/runtime/journals/flint.txt"
-        },
-        {
-            "name": "graphite",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "graphite",
-                    "task": "graphite-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-b",
-                    "parent": "graphite-root",
-                    "depth": 1,
-                    "lane": "lane-b",
-                    "turn": 0
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-a",
-                    "parent": "graphite-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 1
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-c",
-                    "parent": "graphite-a",
-                    "depth": 2,
-                    "lane": "lane-a",
-                    "turn": 2
-                },
-                {
-                    "case": "graphite",
-                    "task": "graphite-tail",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 3
-                }
-            ],
-            "ledger": "/app/output/runtime/ledgers/graphite.jsonl",
-            "journal": "/app/output/runtime/journals/graphite.txt"
-        }
-    ]
-}
-[?2004hroot@ad377fa89207:/app# echo '--- LEDGER amber ---' && cat /app/output/runtime/ledgers/amber.jsonl && echo '--- JOURNAL amber ---' && cat /app/output/runtime/journals/amber.txt
-[?2004l--- LEDGER amber ---
-{"case":"amber","task":"amber-root","parent":"-","depth":0,"lane":"lane-a","turn":0}
-{"case":"amber","task":"amber-left","parent":"amber-root","depth":1,"lane":"lane-a","turn":0}
-{"case":"amber","task":"amber-leaf","parent":"amber-left","depth":2,"lane":"lane-b","turn":1}
-{"case":"amber","task":"amber-side","parent":"-","depth":0,"lane":"lane-b","turn":1}
---- JOURNAL amber ---
-amber amber-root - 0 lane-a 0
-amber amber-left amber-root 1 lane-a 0
-amber amber-leaf amber-left 2 lane-b 1
-amber amber-side - 0 lane-b 1
-[?2004hroot@ad377fa89207:/app# echo '--- LEDGER cobalt ---' && cat /app/output/runtime/ledgers/cobalt.jsonl && echo '--- JOURNAL cobalt ---' && cat /app/output/runtime/journals/cobalt.txt
-[?2004l--- LEDGER cobalt ---
-{"case":"cobalt","task":"cobalt-root","parent":"-","depth":0,"lane":"lane-a","turn":0}
-{"case":"cobalt","task":"cobalt-a","parent":"cobalt-root","depth":1,"lane":"lane-a","turn":1}
-{"case":"cobalt","task":"cobalt-tail","parent":"cobalt-c","depth":2,"lane":"lane-b","turn":1}
-{"case":"cobalt","task":"cobalt-b","parent":"cobalt-root","depth":1,"lane":"lane-a","turn":2}
-{"case":"cobalt","task":"cobalt-c","parent":"cobalt-root","depth":1,"lane":"lane-a","turn":3}
---- JOURNAL cobalt ---
-cobalt cobalt-root - 0 lane-a 0
-cobalt cobalt-a cobalt-root 1 lane-a 1
-cobalt cobalt-tail cobalt-c 2 lane-b 1
-cobalt cobalt-b cobalt-root 1 lane-a 2
-cobalt cobalt-c cobalt-root 1 lane-a 3
-[?2004hroot@ad377fa89207:/app# echo '--- LEDGER drake ---' && cat /app/output/runtime/ledgers/drake.jsonl && echo '--- JOURNAL drake ---' && cat /app/output/runtime/journals/drake.txt
-[?2004l--- LEDGER drake ---
-{"case":"drake","task":"drake-root","parent":"-","depth":0,"lane":"lane-a","turn":0}
-{"case":"drake","task":"drake-keep","parent":"drake-root","depth":1,"lane":"lane-b","turn":0}
-{"case":"drake","task":"drake-late","parent":"-","depth":0,"lane":"lane-a","turn":2}
---- JOURNAL drake ---
-drake drake-root - 0 lane-a 0
-drake drake-keep drake-root 1 lane-b 0
-drake drake-late - 0 lane-a 2
-[?2004hroot@ad377fa89207:/app# bash /app/scripts/run-one.sh amber /app/output/one-test.json /app/output/one-runtime 2>&1 && cat /app/output/one-test.json | python3 -m json.tool
-[?2004l{
-    "cases": [
-        {
-            "name": "amber",
-            "ok": true,
-            "finished": true,
-            "pending": [],
-            "trace": [
-                {
-                    "case": "amber",
-                    "task": "amber-root",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-left",
-                    "parent": "amber-root",
-                    "depth": 1,
-                    "lane": "lane-a",
-                    "turn": 0
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-leaf",
-                    "parent": "amber-left",
-                    "depth": 2,
-                    "lane": "lane-b",
-                    "turn": 1
-                },
-                {
-                    "case": "amber",
-                    "task": "amber-side",
-                    "parent": "-",
-                    "depth": 0,
-                    "lane": "lane-b",
-                    "turn": 1
-                }
-            ],
-            "ledger": "/app/output/one-runtime/ledgers/amber.jsonl",
-            "journal": "/app/output/one-runtime/journals/amber.txt"
-        }
-    ]
-}
-[?2004hroot@ad377fa89207:/app# cp /app/output/executor-audit.json /tmp/first-run.json && bash /app/scripts/run-matrix.sh 2>&1 && diff /tmp/first-run.json /app/output/executor-audit.json && echo 'IDENTICAL'
-[?2004lIDENTICAL
-[?2004hroot@ad377fa89207:/app# 

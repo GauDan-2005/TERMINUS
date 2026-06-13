@@ -1,1013 +1,0 @@
-[?2004hroot@e82a056b0afe:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@e82a056b0afe:/app# clear
-[?2004l[H[J[3J[?2004hroot@e82a056b0afe:/app# find /app -type f | head -80
-[?2004l/app/CMakeLists.txt
-/app/bsr_n/layout.cpp
-/app/config/limits.toml
-/app/csr_m/assemble.cpp
-/app/data/cases/basalt.case
-/app/data/cases/flint.case
-/app/data/cases/garnet.case
-/app/data/cases/mica.case
-/app/data/cases/opal.case
-/app/data/cases/shale.case
-/app/docs/layout.md
-/app/docs/operations.md
-/app/drive_u/run.cpp
-/app/flow_t/report.cpp
-/app/include/case_spec.h
-/app/include/matrix_view.h
-/app/include/solver_report.h
-/app/mirror_w/trace.cpp
-/app/perm_p/order.cpp
-/app/prec_r/apply.cpp
-/app/scale_q/metric.cpp
-/app/scripts/clean-room.sh
-/app/scripts/run-matrix.sh
-/app/scripts/run-one.sh
-/app/solve_s/driver.cpp
-/app/spill_v/bucket.cpp
-/app/src/case_io.cpp
-/app/src/main.cpp
-[?2004hroot@e82a056b0afe:/app# cat /app/docs/layout.md
-[?2004l# Layout notes
-
-Internal modules under `/app` assemble case data into packed layouts used by the iterative driver.
-
-The matrix audit at `/app/output/solver-audit.json` contains a top-level `cases` array. Each element carries name, ok, iterations, final_residual, reported_residual, residual_agrees, and hit_limit as defined below.
-
-- `name` — scenario token
-- `ok` — overall row status
-- `iterations` — PCG iteration count
-- `final_residual` — measured L2 residual after the solve
-- `reported_residual` — value emitted through the metric helper
-- `residual_agrees` — whether the two residual fields match within tolerance
-- `hit_limit` — whether the iteration cap was reached
-
-Per-case output from `run-one.sh` follows the same shape inside a one-element `cases` array written to `/app/output/<name>-audit.json`.
-
-CMake build trees may live under `/app/build`.
-[?2004hroot@e82a056b0afe:/app# cat /app/docs/operations.md
-[?2004l# Operations
-
-The control binary lives at `/app/bin/solverctl`. Scenario specifications are under `/app/data/cases`.
-
-CMake build trees may be created under `/app/build`. Outputs land in `/app/output`.
-[?2004hroot@e82a056b0afe:/app# cat /app/scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-OUT="${APP_ROOT}/output"
-mkdir -p "${OUT}"
-bash "${APP_ROOT}/scripts/clean-room.sh"
-"${APP_ROOT}/bin/solverctl" matrix
-[?2004hroot@e82a056b0afe:/app# cat /app/scripts/run-one.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-NAME="${1:?case name required}"
-OUT="${APP_ROOT}/output"
-mkdir -p "${OUT}"
-bash "${APP_ROOT}/scripts/clean-room.sh"
-"${APP_ROOT}/bin/solverctl" one "${NAME}"
-[?2004hroot@e82a056b0afe:/app# cat /app/CMakeLists.txt
-[?2004lcmake_minimum_required(VERSION 3.16)
-project(solverctl LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-add_executable(solverctl
-    src/main.cpp
-    src/case_io.cpp
-    csr_m/assemble.cpp
-    bsr_n/layout.cpp
-    perm_p/order.cpp
-    prec_r/apply.cpp
-    scale_q/metric.cpp
-    solve_s/driver.cpp
-    flow_t/report.cpp
-    drive_u/run.cpp
-    spill_v/bucket.cpp
-    mirror_w/trace.cpp
-)
-
-target_include_directories(solverctl PRIVATE include)
-
-set_target_properties(solverctl PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-)
-[?2004hroot@e82a056b0afe:/app# cat /app/src/main.cpp
-[?2004l#include "../include/case_spec.h"
-#include "../include/solver_report.h"
-
-#include <stdio.h>
-#include <string.h>
-#include <sys/stat.h>
-
-int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
-
-static const char *CASES[] = {"basalt", "flint", "shale", "garnet", "mica", "opal", NULL};
-
-static int run_named(const char *name, const char *out_dir, SolveResult *res) {
-    char path[512];
-    CaseSpec spec;
-    snprintf(path, sizeof(path), "/app/data/cases/%s.case", name);
-    if (case_load(path, &spec) != 0) {
-        return -1;
-    }
-    return run_u(&spec, out_dir, res);
-}
-
-int main(int argc, char **argv) {
-    const char *out_dir = "/app/output";
-    mkdir(out_dir, 0755);
-    if (argc >= 2 && strcmp(argv[1], "matrix") == 0) {
-        SolveResult cases[6];
-        int n = 0;
-        for (int i = 0; CASES[i]; i++) {
-            if (run_named(CASES[i], out_dir, &cases[n]) != 0) {
-                return 1;
-            }
-            n++;
-        }
-        if (emit_matrix(cases, n, "/app/output/solver-audit.json") != 0) {
-            return 1;
-        }
-        return 0;
-    }
-    if (argc >= 3 && strcmp(argv[1], "one") == 0) {
-        SolveResult res;
-        char audit[512];
-        if (run_named(argv[2], out_dir, &res) != 0) {
-            return 1;
-        }
-        snprintf(audit, sizeof(audit), "/app/output/%s-audit.json", argv[2]);
-        return emit_t(&res, audit) != 0;
-    }
-    fprintf(stderr, "usage: solverctl matrix | solverctl one <case>\n");
-    return 1;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/src/case_io.cpp
-[?2004l#include "../include/case_spec.h"
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-static void trim(char *s) {
-    size_t n = strlen(s);
-    while (n > 0 && (s[n - 1] == '\n' || s[n - 1] == '\r' || s[n - 1] == ' ')) {
-        s[--n] = '\0';
-    }
-}
-
-int case_load(const char *path, CaseSpec *spec) {
-    FILE *fp = fopen(path, "r");
-    char line[512];
-    if (!fp) {
-        return -1;
-    }
-    memset(spec, 0, sizeof(*spec));
-    for (int i = 0; i < MAX_BLOCKS; i++) {
-        spec->perm[i] = i;
-    }
-    while (fgets(line, sizeof(line), fp)) {
-        trim(line);
-        if (line[0] == '#' || line[0] == '\0') {
-            continue;
-        }
-        if (strncmp(line, "name ", 5) == 0) {
-            strncpy(spec->name, line + 5, CASE_NAME_LEN - 1);
-        } else if (strncmp(line, "nblocks ", 8) == 0) {
-            spec->nblocks = atoi(line + 8);
-        } else if (strncmp(line, "bs ", 3) == 0) {
-            spec->bs = atoi(line + 3);
-        } else if (strncmp(line, "reorder ", 8) == 0) {
-            spec->reorder = atoi(line + 8);
-        } else if (strncmp(line, "perm ", 5) == 0) {
-            char *tok = strtok(line + 5, " ");
-            int ix = 0;
-            while (tok && ix < MAX_BLOCKS) {
-                spec->perm[ix++] = atoi(tok);
-                tok = strtok(NULL, " ");
-            }
-        } else if (strncmp(line, "block ", 6) == 0) {
-            BlockEntry *be = &spec->blocks[spec->block_count++];
-            char *tok = strtok(line + 6, " ");
-            be->rb = atoi(tok);
-            tok = strtok(NULL, " ");
-            be->cb = atoi(tok);
-            for (int k = 0; k < spec->bs * spec->bs; k++) {
-                tok = strtok(NULL, " ");
-                be->vals[k] = tok ? atof(tok) : 0.0;
-            }
-        } else if (strncmp(line, "rhs ", 4) == 0) {
-            char *tok = strtok(line + 4, " ");
-            int ix = 0;
-            while (tok && ix < MAX_BLOCKS * MAX_BS) {
-                spec->rhs[ix++] = atof(tok);
-                tok = strtok(NULL, " ");
-            }
-        }
-    }
-    fclose(fp);
-    return 0;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/include/case_spec.h
-[?2004l#pragma once
-
-#include <stddef.h>
-
-#define MAX_BLOCKS 8
-#define MAX_BS 4
-#define MAX_NNZ_BLOCKS 64
-#define CASE_NAME_LEN 32
-
-typedef struct {
-    int rb;
-    int cb;
-    double vals[MAX_BS * MAX_BS];
-} BlockEntry;
-
-typedef struct {
-    char name[CASE_NAME_LEN];
-    int nblocks;
-    int bs;
-    int reorder;
-    int perm[MAX_BLOCKS];
-    int block_count;
-    BlockEntry blocks[MAX_NNZ_BLOCKS];
-    double rhs[MAX_BLOCKS * MAX_BS];
-} CaseSpec;
-
-int case_load(const char *path, CaseSpec *spec);
-[?2004hroot@e82a056b0afe:/app# cat /app/include/matrix_view.h
-[?2004l#pragma once
-
-#include "case_spec.h"
-
-#define MAX_DIM 32
-
-typedef struct {
-    int n;
-    int bs;
-    int nblocks;
-    int reorder;
-    int perm[MAX_BLOCKS];
-    double a[MAX_DIM * MAX_DIM];
-    double b[MAX_DIM];
-} MatrixView;
-
-typedef struct {
-    int n;
-    int bs;
-    int nblocks;
-    int reorder;
-    int perm[MAX_BLOCKS];
-    int row_ptr[MAX_BLOCKS + 1];
-    int col_idx[MAX_NNZ_BLOCKS];
-    double data[MAX_NNZ_BLOCKS * MAX_BS * MAX_BS];
-    double diag_inv[MAX_DIM];
-} BsrPack;
-
-void matrix_from_case(const CaseSpec *spec, MatrixView *view);
-void bsr_matvec(const BsrPack *pack, const double *x, double *y);
-[?2004hroot@e82a056b0afe:/app# cat /app/include/solver_report.h
-[?2004l#pragma once
-
-#define MAX_CASES 8
-
-typedef struct {
-    char name[32];
-    int ok;
-    int iterations;
-    double final_residual;
-    double reported_residual;
-    int residual_agrees;
-    int hit_limit;
-} SolveResult;
-
-int emit_t(const SolveResult *res, const char *audit_path);
-int emit_matrix(const SolveResult *cases, int count, const char *audit_path);
-[?2004hroot@e82a056b0afe:/app# cat /app/drive_u/run.cpp
-[?2004l#include "../include/case_spec.h"
-#include "../include/matrix_view.h"
-#include "../include/solver_report.h"
-
-#include <math.h>
-#include <string.h>
-
-void fn_n(const MatrixView *a, int reorder, BsrPack *c);
-void map_p(const double *a, const int *b, int c, int d, double *e);
-double norm_q(const double *a, int b);
-void matrix_from_case(const CaseSpec *spec, MatrixView *view);
-int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res);
-
-static double l2_norm(const double *v, int n) {
-    double s = 0.0;
-    for (int i = 0; i < n; i++) {
-        s += v[i] * v[i];
-    }
-    return sqrt(s);
-}
-
-int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
-    MatrixView view;
-    BsrPack pack;
-    double rhs[MAX_DIM];
-    double x[MAX_DIM];
-    double r[MAX_DIM];
-    double true_res;
-    double rep_res;
-    int hit;
-    int iters;
-
-    (void)out_dir;
-    matrix_from_case(spec, &view);
-    fn_n(&view, view.reorder, &pack);
-    map_p(view.b, view.perm, view.n, view.bs, rhs);
-    hit = pcg_solve(&pack, rhs, x, &iters, &true_res);
-    bsr_matvec(&pack, x, r);
-    for (int i = 0; i < view.n; i++) {
-        r[i] = rhs[i] - r[i];
-    }
-    true_res = l2_norm(r, view.n);
-    rep_res = norm_q(r, view.n);
-    strncpy(out->name, spec->name, sizeof(out->name) - 1);
-    out->iterations = iters;
-    out->final_residual = true_res;
-    out->reported_residual = rep_res;
-    out->hit_limit = hit;
-    out->residual_agrees = fabs(rep_res - true_res) <= 1e-6 * (1.0 + true_res);
-    out->ok = (!hit) && (true_res < 1e-8) && out->residual_agrees;
-    return 0;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/solve_s/driver.cpp
-[?2004l#include "../include/matrix_view.h"
-
-#include <math.h>
-#include <string.h>
-
-static double l2_norm(const double *v, int n) {
-    double s = 0.0;
-    for (int i = 0; i < n; i++) {
-        s += v[i] * v[i];
-    }
-    return sqrt(s);
-}
-
-void step_r(const BsrPack *a, const double *b, double *c);
-
-int pcg_solve(const BsrPack *pack, const double *rhs, double *x, int *iters, double *final_res) {
-    const int n = pack->n;
-    const int max_iter = 200;
-    const double tol = 1e-9;
-    double r[MAX_DIM];
-    double z[MAX_DIM];
-    double p[MAX_DIM];
-    double ap[MAX_DIM];
-    double rz_old;
-    double alpha;
-    double beta;
-    double rs;
-    int k;
-
-    for (int i = 0; i < n; i++) {
-        x[i] = 0.0;
-    }
-    bsr_matvec(pack, x, r);
-    for (int i = 0; i < n; i++) {
-        r[i] = rhs[i] - r[i];
-    }
-    rs = l2_norm(r, n);
-    if (rs < tol) {
-        *iters = 0;
-        *final_res = rs;
-        return 0;
-    }
-    step_r(pack, r, z);
-    memcpy(p, z, (size_t)n * sizeof(double));
-    rz_old = 0.0;
-    for (int i = 0; i < n; i++) {
-        rz_old += r[i] * z[i];
-    }
-    for (k = 1; k <= max_iter; k++) {
-        bsr_matvec(pack, p, ap);
-        alpha = rz_old;
-        double denom = 0.0;
-        for (int i = 0; i < n; i++) {
-            denom += p[i] * ap[i];
-        }
-        if (fabs(denom) < 1e-30) {
-            break;
-        }
-        alpha /= denom;
-        for (int i = 0; i < n; i++) {
-            x[i] += alpha * p[i];
-            r[i] -= alpha * ap[i];
-        }
-        rs = l2_norm(r, n);
-        if (rs < tol) {
-            *iters = k;
-            *final_res = rs;
-            return 0;
-        }
-        step_r(pack, r, z);
-        beta = 0.0;
-        for (int i = 0; i < n; i++) {
-            beta += r[i] * z[i];
-        }
-        beta /= rz_old;
-        for (int i = 0; i < n; i++) {
-            p[i] = z[i] + beta * p[i];
-        }
-        rz_old = 0.0;
-        for (int i = 0; i < n; i++) {
-            rz_old += r[i] * z[i];
-        }
-    }
-    *iters = max_iter;
-    *final_res = rs;
-    return 1;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/csr_m/assemble.cpp
-[?2004l#include "../include/matrix_view.h"
-
-#include <string.h>
-
-void matrix_from_case(const CaseSpec *spec, MatrixView *view) {
-    int dim = spec->nblocks * spec->bs;
-    int i;
-    memset(view, 0, sizeof(*view));
-    view->n = dim;
-    view->bs = spec->bs;
-    view->nblocks = spec->nblocks;
-    view->reorder = spec->reorder;
-    for (i = 0; i < spec->nblocks; i++) {
-        view->perm[i] = spec->perm[i];
-    }
-    for (i = 0; i < dim * dim; i++) {
-        view->a[i] = 0.0;
-    }
-    for (i = 0; i < spec->block_count; i++) {
-        const BlockEntry *be = &spec->blocks[i];
-        int rb = be->rb;
-        int cb = be->cb;
-        int r;
-        int c;
-        for (r = 0; r < spec->bs; r++) {
-            for (c = 0; c < spec->bs; c++) {
-                int gr = rb * spec->bs + r;
-                int gc = cb * spec->bs + c;
-                view->a[gr * dim + gc] = be->vals[r * spec->bs + c];
-            }
-        }
-    }
-    for (i = 0; i < dim; i++) {
-        view->b[i] = spec->rhs[i];
-    }
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/bsr_n/layout.cpp
-[?2004l#include "../include/matrix_view.h"
-
-#include <math.h>
-#include <string.h>
-
-void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
-    int nb = a->nblocks;
-    int bs = a->bs;
-    int dim = a->n;
-    int ptr = 0;
-    memset(c, 0, sizeof(*c));
-    c->n = dim;
-    c->bs = bs;
-    c->nblocks = nb;
-    c->reorder = reorder;
-    for (int i = 0; i < nb; i++) {
-        c->perm[i] = a->perm[i];
-    }
-    for (int bi = 0; bi < nb; bi++) {
-        int row_blk = reorder ? a->perm[bi] : bi;
-        c->row_ptr[bi] = ptr;
-        for (int bj = 0; bj < nb; bj++) {
-            int col_blk = reorder ? ((bj + 1) % nb) : bj;
-            int has = 0;
-            for (int r = 0; r < bs; r++) {
-                for (int cc = 0; cc < bs; cc++) {
-                    int gr = row_blk * bs + r;
-                    int gc = col_blk * bs + cc;
-                    double v = a->a[gr * dim + gc];
-                    if (fabs(v) > 0.0) {
-                        has = 1;
-                    }
-                }
-            }
-            if (has) {
-                c->col_idx[ptr] = col_blk;
-                for (int r = 0; r < bs; r++) {
-                    for (int cc = 0; cc < bs; cc++) {
-                        int gr = row_blk * bs + r;
-                        int gc = col_blk * bs + cc;
-                        c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];
-                    }
-                }
-                ptr++;
-            }
-        }
-    }
-    c->row_ptr[nb] = ptr;
-    for (int i = 0; i < dim; i++) {
-        c->diag_inv[i] = 1.0;
-    }
-    for (int bi = 0; bi < nb; bi++) {
-        int start = c->row_ptr[bi];
-        int end = c->row_ptr[bi + 1];
-        for (int k = start; k < end; k++) {
-            if (c->col_idx[k] == bi) {
-                for (int r = 0; r < bs; r++) {
-                    double d = c->data[k * bs * bs + r * bs + r];
-                    if (fabs(d) > 1e-14) {
-                        c->diag_inv[bi * bs + r] = 1.0 / d;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
-    int nb = pack->nblocks;
-    int bs = pack->bs;
-    int dim = pack->n;
-    for (int i = 0; i < dim; i++) {
-        y[i] = 0.0;
-    }
-    for (int bi = 0; bi < nb; bi++) {
-        int start = pack->row_ptr[bi];
-        int end = pack->row_ptr[bi + 1];
-        for (int k = start; k < end; k++) {
-            int bj = pack->col_idx[k];
-            for (int r = 0; r < bs; r++) {
-                for (int c = 0; c < bs; c++) {
-                    int gi = bi * bs + r;
-                    int gj = bj * bs + c;
-                    y[gi] += pack->data[k * bs * bs + r * bs + c] * x[gj];
-                }
-            }
-        }
-    }
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/perm_p/order.cpp
-[?2004l#include "../include/matrix_view.h"
-
-#include <string.h>
-
-void map_p(const double *a, const int *b, int c, int d, double *e) {
-    (void)b;
-    (void)c;
-    (void)d;
-    memcpy(e, a, (size_t)c * sizeof(double));
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/prec_r/apply.cpp
-[?2004l#include "../include/matrix_view.h"
-
-void step_r(const BsrPack *a, const double *b, double *c) {
-    int dim = a->n;
-    for (int i = 0; i < dim; i++) {
-        int blk = i / a->bs;
-        int loc = i % a->bs;
-        int src_blk = blk;
-        if (a->reorder) {
-            src_blk = (blk + 1) % a->nblocks;
-        }
-        c[i] = a->diag_inv[src_blk * a->bs + loc] * b[i];
-    }
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/scale_q/metric.cpp
-[?2004l#include "../include/matrix_view.h"
-
-#include <math.h>
-
-double norm_q(const double *a, int b) {
-    double s = 0.0;
-    for (int i = 0; i < b; i++) {
-        s += a[i] * a[i];
-    }
-    return sqrt(s) + 1.0e-4;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/flow_t/report.cpp
-[?2004l#include "../include/solver_report.h"
-
-#include <stdio.h>
-
-static void esc(FILE *fp, const char *s) {
-    fputc('"', fp);
-    for (const char *p = s; *p; p++) {
-        if (*p == '"' || *p == '\\') {
-            fputc('\\', fp);
-        }
-        fputc(*p, fp);
-    }
-    fputc('"', fp);
-}
-
-static void write_case(FILE *fp, const SolveResult *res, int last) {
-    fprintf(fp, "    {\n      \"name\": ");
-    esc(fp, res->name);
-    fprintf(fp, ",\n      \"ok\": %s,\n", res->ok ? "true" : "false");
-    fprintf(fp, "      \"iterations\": %d,\n", res->iterations);
-    fprintf(fp, "      \"final_residual\": %.17g,\n", res->final_residual);
-    fprintf(fp, "      \"reported_residual\": %.17g,\n", res->reported_residual);
-    fprintf(fp, "      \"residual_agrees\": %s,\n", res->residual_agrees ? "true" : "false");
-    fprintf(fp, "      \"hit_limit\": %s\n    }", res->hit_limit ? "true" : "false");
-    if (!last) {
-        fprintf(fp, ",");
-    }
-    fprintf(fp, "\n");
-}
-
-int emit_t(const SolveResult *res, const char *audit_path) {
-    FILE *fp = fopen(audit_path, "w");
-    if (!fp) {
-        return -1;
-    }
-    fprintf(fp, "{\n  \"cases\": [\n");
-    write_case(fp, res, 1);
-    fprintf(fp, "  ]\n}\n");
-    fclose(fp);
-    return 0;
-}
-
-int emit_matrix(const SolveResult *cases, int count, const char *audit_path) {
-    FILE *fp = fopen(audit_path, "w");
-    if (!fp) {
-        return -1;
-    }
-    fprintf(fp, "{\n  \"cases\": [\n");
-    for (int i = 0; i < count; i++) {
-        write_case(fp, &cases[i], i + 1 == count);
-    }
-    fprintf(fp, "  ]\n}\n");
-    fclose(fp);
-    return 0;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/spill_v/bucket.cpp
-[?2004l#include "../include/case_spec.h"
-#include "../include/solver_report.h"
-
-int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out);
-
-int spill_bucket(int v) {
-    return (v % 7) + 1;
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/mirror_w/trace.cpp
-[?2004l#include <stdio.h>
-
-void mirror_trace(const char *msg) {
-    fprintf(stderr, "trace: %s\n", msg);
-}
-[?2004hroot@e82a056b0afe:/app# cat /app/scripts/clean-room.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-APP_ROOT="${APP_ROOT:-/app}"
-rm -rf "${APP_ROOT}/output"
-mkdir -p "${APP_ROOT}/output"
-[?2004hroot@e82a056b0afe:/app# cat /app/config/limits.toml
-[?2004lmax_iterations = 200
-residual_tol = 1.0e-9
-agreement_tol = 1.0e-6
-[?2004hroot@e82a056b0afe:/app# cat /app/data/cases/basalt.case
-[?2004l# basalt — identity layout, diagonal blocks
-name basalt
-nblocks 2
-bs 2
-reorder 0
-perm 0 1
-block 0 0 4 0 0 4
-block 1 1 4 0 0 4
-rhs 1 0 1 0
-[?2004hroot@e82a056b0afe:/app# cat /app/data/cases/flint.case
-[?2004l# flint — identity layout with off-diagonal coupling
-name flint
-nblocks 2
-bs 2
-reorder 0
-perm 0 1
-block 0 0 4 0 0 4
-block 1 1 4 0 0 4
-block 0 1 0 0.5 0 0
-block 1 0 0 0.5 0 0
-rhs 1 0 1 0
-[?2004hroot@e82a056b0afe:/app# cat /app/data/cases/garnet.case
-[?2004l# garnet — three blocks with reorder
-name garnet
-nblocks 3
-bs 2
-reorder 1
-perm 2 0 1
-block 0 0 5 0 0 5
-block 1 1 5 0 0 5
-block 2 2 5 0 0 5
-block 0 1 0 0.4 0 0
-block 1 0 0 0.4 0 0
-block 1 2 0 0.4 0 0
-block 2 1 0 0.4 0 0
-rhs 1 0 1 0 1 0
-[?2004hroot@e82a056b0afe:/app# cat > /app/bsr_n/layout.cpp << 'EOF'
-[?2004l[?2004h> #include "../include/matrix_view.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <math.h>
-[?2004l[?2004h> #include <string.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> void fn_n(const MatrixView *a, int reorder, BsrPack *c) {
-[?2004l[?2004h>     int nb = a->nblocks;
-[?2004l[?2004h>     int bs = a->bs;
-[?2004l[?2004h>     int dim = a->n;
-[?2004l[?2004h>     int ptr = 0;
-[?2004l[?2004h>     memset(c, 0, sizeof(*c));
-[?2004l[?2004h>     c->n = dim;
-[?2004l[?2004h>     c->bs = bs;
-[?2004l[?2004h>     c->nblocks = nb;
-[?2004l[?2004h>     c->reorder = reorder;
-[?2004l[?2004h>     for (int i = 0; i < nb; i++) {
-[?2004l[?2004h>         c->perm[i] = a->perm[i];
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for (int bi = 0; bi < nb; bi++) {
-[?2004l[?2004h>         int row_blk = reorder ? a->perm[bi] : bi;
-[?2004l[?2004h>         c->row_ptr[bi] = ptr;
-[?2004l[?2004h>         for (int bj = 0; bj < nb; bj++) {
-[?2004l[?2004h>             int col_blk = reorder ? a->perm[bj] : bj;
-[?2004l[?2004h>             int has = 0;
-[?2004l[?2004h>             for (int r = 0; r < bs; r++) {
-[?2004l[?2004h>                 for (int cc = 0; cc < bs; cc++) {
-[?2004l[?2004h>                     int gr = row_blk * bs + r;
-[?2004l[?2004h>                     int gc = col_blk * bs + cc;
-[?2004l[?2004h>                     double v = a->a[gr * dim + gc];
-[?2004l[?2004h>                     if (fabs(v) > 0.0) {
-[?2004l[?2004h>                         has = 1;
-[?2004l[?2004h>                     }
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>             if (has) {
-[?2004l[?2004h>                 c->col_idx[ptr] = bj;
-[?2004l[?2004h>                 for (int r = 0; r < bs; r++) {
-[?2004l[?2004h>                     for (int cc = 0; cc < bs; cc++) {
-[?2004l[?2004h>                         int gr = row_blk * bs + r;
-[?2004l[?2004h>                         int gc = col_blk * bs + cc;
-[?2004l[?2004h>                         c->data[ptr * bs * bs + r * bs + cc] = a->a[gr * dim + gc];
-[?2004l[?2004h>                     }
-[?2004l[?2004h>                 }
-[?2004l[?2004h>                 ptr++;
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h>     c->row_ptr[nb] = ptr;
-[?2004l[?2004h>     for (int i = 0; i < dim; i++) {
-[?2004l[?2004h>         c->diag_inv[i] = 1.0;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for (int bi = 0; bi < nb; bi++) {
-[?2004l[?2004h>         int start = c->row_ptr[bi];
-[?2004l[?2004h>         int end = c->row_ptr[bi + 1];
-[?2004l[?2004h>         for (int k = start; k < end; k++) {
-[?2004l[?2004h>             if (c->col_idx[k] == bi) {
-[?2004l[?2004h>                 for (int r = 0; r < bs; r++) {
-[?2004l[?2004h>                     double d = c->data[k * bs * bs + r * bs + r];
-[?2004l[?2004h>                     if (fabs(d) > 1e-14) {
-[?2004l[?2004h>                         c->diag_inv[bi * bs + r] = 1.0 / d;
-[?2004l[?2004h>                     }
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> void bsr_matvec(const BsrPack *pack, const double *x, double *y) {
-[?2004l[?2004h>     int nb = pack->nblocks;
-[?2004l[?2004h>     int bs = pack->bs;
-[?2004l[?2004h>     int dim = pack->n;
-[?2004l[?2004h>     for (int i = 0; i < dim; i++) {
-[?2004l[?2004h>         y[i] = 0.0;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     for (int bi = 0; bi < nb; bi++) {
-[?2004l[?2004h>         int start = pack->row_ptr[bi];
-[?2004l[?2004h>         int end = pack->row_ptr[bi + 1];
-[?2004l[?2004h>         for (int k = start; k < end; k++) {
-[?2004l[?2004h>             int bj = pack->col_idx[k];
-[?2004l[?2004h>             for (int r = 0; r < bs; r++) {
-[?2004l[?2004h>                 for (int c = 0; c < bs; c++) {
-[?2004l[?2004h>                     int gi = bi * bs + r;
-[?2004l[?2004h>                     int gj = bj * bs + c;
-[?2004l[?2004h>                     y[gi] += pack->data[k * bs * bs + r * bs + c] * x[gj];
-[?2004l[?2004h>                 }
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@e82a056b0afe:/app# cat > /app/perm_p/order.cpp << 'EOF'
-[?2004l[?2004h> #include "../include/matrix_view.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <string.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> void map_p(const double *a, const int *b, int c, int d, double *e) {
-[?2004l[?2004h>     int nblocks = c / d;
-[?2004l[?2004h>     for (int i = 0; i < nblocks; i++) {
-[?2004l[?2004h>         int src = b[i];
-[?2004l[?2004h>         for (int r = 0; r < d; r++) {
-[?2004l[?2004h>             e[i * d + r] = a[src * d + r];
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@e82a056b0afe:/app# cat > /app/prec_r/apply.cpp << 'EOF'
-[?2004l[?2004h> #include "../include/matrix_view.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> void step_r(const BsrPack *a, const double *b, double *c) {
-[?2004l[?2004h>     int dim = a->n;
-[?2004l[?2004h>     for (int i = 0; i < dim; i++) {
-[?2004l[?2004h>         int blk = i / a->bs;
-[?2004l[?2004h>         int loc = i % a->bs;
-[?2004l[?2004h>         c[i] = a->diag_inv[blk * a->bs + loc] * b[i];
-[?2004l[?2004h>     }
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@e82a056b0afe:/app# cat > /app/scale_q/metric.cpp << 'EOF'
-[?2004l[?2004h> #include "../include/matrix_view.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <math.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> double norm_q(const double *a, int b) {
-[?2004l[?2004h>     double s = 0.0;
-[?2004l[?2004h>     for (int i = 0; i < b; i++) {
-[?2004l[?2004h>         s += a[i] * a[i];
-[?2004l[?2004h>     }
-[?2004l[?2004h>     return sqrt(s);
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@e82a056b0afe:/app# mkdir -p /app/build && cd /app/build && cmake .. -DCMAKE_BUILD_TYPE=Release
-[?2004l-- The CXX compiler identification is GNU 14.2.0
--- Detecting CXX compiler ABI info
--- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: /usr/bin/c++ - skipped
--- Detecting CXX compile features
--- Detecting CXX compile features - done
--- Configuring done (0.2s)
--- Generating done (0.0s)
--- Build files have been written to: /app/build
-[?2004hroot@e82a056b0afe:/app/build# cd /app/build && make -j$(nproc)
-[?2004l[  7%] [32mBuilding CXX object CMakeFiles/solverctl.dir/csr_m/assemble.cpp.o[0m
-[ 15%] [32mBuilding CXX object CMakeFiles/solverctl.dir/src/main.cpp.o[0m
-[ 23%] [32mBuilding CXX object CMakeFiles/solverctl.dir/src/case_io.cpp.o[0m
-[ 30%] [32mBuilding CXX object CMakeFiles/solverctl.dir/bsr_n/layout.cpp.o[0m
-[ 38%] [32mBuilding CXX object CMakeFiles/solverctl.dir/perm_p/order.cpp.o[0m
-[ 46%] [32mBuilding CXX object CMakeFiles/solverctl.dir/scale_q/metric.cpp.o[0m
-[ 53%] [32mBuilding CXX object CMakeFiles/solverctl.dir/prec_r/apply.cpp.o[0m
-[ 61%] [32mBuilding CXX object CMakeFiles/solverctl.dir/solve_s/driver.cpp.o[0m
-[ 69%] [32mBuilding CXX object CMakeFiles/solverctl.dir/flow_t/report.cpp.o[0m
-[ 76%] [32mBuilding CXX object CMakeFiles/solverctl.dir/drive_u/run.cpp.o[0m
-[ 84%] [32mBuilding CXX object CMakeFiles/solverctl.dir/spill_v/bucket.cpp.o[0m
-[ 92%] [32mBuilding CXX object CMakeFiles/solverctl.dir/mirror_w/trace.cpp.o[0m
-[100%] [32m[1mLinking CXX executable bin/solverctl[0m
-[100%] Built target solverctl
-[?2004hroot@e82a056b0afe:/app/build# mkdir -p /app/bin && cp /app/build/bin/solverctl /app/bin/solverctl
-[?2004l[?2004hroot@e82a056b0afe:/app/build# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@e82a056b0afe:/app/build# cat /app/output/solver-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "basalt",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "flint",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "shale",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "garnet",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "mica",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "opal",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    }
-  ]
-}
-[?2004hroot@e82a056b0afe:/app/build# bash /app/scripts/run-one.sh garnet
-[?2004l[?2004hroot@e82a056b0afe:/app/build# cat /app/output/garnet-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "garnet",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    }
-  ]
-}
-[?2004hroot@e82a056b0afe:/app/build# bash /app/scripts/run-matrix.sh
-[?2004l[?2004hroot@e82a056b0afe:/app/build# cat /app/output/solver-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "basalt",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "flint",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "shale",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "garnet",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "mica",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    },
-    {
-      "name": "opal",
-      "ok": true,
-      "iterations": 1,
-      "final_residual": 0,
-      "reported_residual": 0,
-      "residual_agrees": true,
-      "hit_limit": false
-    }
-  ]
-}
-[?2004hroot@e82a056b0afe:/app/build# cp /app/output/solver-audit.json /tmp/run1.json && bash /app/scripts/run-matrix.sh && diff /tmp/run1.json /app/output/solver-audit.json && echo "IDENTICAL"
-[?2004lIDENTICAL
-[?2004hroot@e82a056b0afe:/app/build# 

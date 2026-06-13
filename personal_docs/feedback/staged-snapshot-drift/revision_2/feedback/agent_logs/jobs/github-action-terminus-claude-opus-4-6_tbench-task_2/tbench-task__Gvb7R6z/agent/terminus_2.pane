@@ -1,1987 +1,0 @@
-[?2004hroot@4d6e7c05a0d1:/app# asciinema rec --stdin /logs/agent/recording.cast
-[?2004l[0;32masciinema: recording asciicast to /logs/agent/recording.cast[0m
-[0;32masciinema: press <ctrl-d> or type "exit" when you're done[0m
-[?2004hroot@4d6e7c05a0d1:/app# clear
-[?2004l[H[J[3J[?2004hroot@4d6e7c05a0d1:/app# find /app -type f | head -100
-[?2004l/app/Makefile
-/app/README.md
-/app/cmd/apex/main.go
-/app/cmd/ctl/main.go
-/app/config/layouts.toml
-/app/config/profiles.toml
-/app/data/layouts/alpha.manifest
-/app/data/layouts/beta.manifest
-/app/data/layouts/delta.manifest
-/app/data/layouts/gamma.manifest
-/app/data/profiles/basic.toml
-/app/data/profiles/roll.toml
-/app/docs/architecture.md
-/app/docs/operators.md
-/app/go.mod
-/app/internal/a0/core.go
-/app/internal/a0/pack.go
-/app/internal/a0/scan.go
-/app/internal/b1/checkpoint.go
-/app/internal/b1/log.go
-/app/internal/b1/replay.go
-/app/internal/c2/roll.go
-/app/internal/c2/table.go
-/app/internal/d3/map.go
-/app/internal/d3/pair.go
-/app/internal/e4/io.go
-/app/internal/e4/walk.go
-/app/internal/f5/encode.go
-/app/internal/f5/types.go
-/app/internal/g6/cache.go
-/app/internal/h7/rollup.go
-/app/probe/fswalk.c
-/app/probe/fswalk.h
-/app/probe/list.c
-/app/probe/measure.c
-/app/scripts/clean-room.sh
-/app/scripts/make-case.sh
-/app/scripts/run-matrix.sh
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/scripts/run-matrix.sh
-[?2004l#!/bin/bash
-set -euo pipefail
-out="/app/output/restore-audit.json"
-work=""
-one_case=""
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --out) out="$2"; shift 2 ;;
-    --work) work="$2"; shift 2 ;;
-    --case) one_case="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-mkdir -p "$(dirname "$out")"
-make -s -C /app build
-args=("--out" "$out")
-if [ -n "$work" ]; then
-  args+=("--work" "$work")
-fi
-if [ -n "$one_case" ]; then
-  args+=("--case" "$one_case")
-fi
-/app/bin/snapctl "${args[@]}"
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/Makefile
-[?2004l.PHONY: build audit clean
-
-build:
-	mkdir -p /app/bin
-	gcc -std=c11 -O2 -Wall -Wextra -o /app/bin/fsmeasure /app/probe/measure.c /app/probe/fswalk.c
-	go build -o /app/bin/snapctl ./cmd/ctl
-
-audit:
-	$(MAKE) -s build
-	bash /app/scripts/run-matrix.sh
-
-clean:
-	rm -rf /app/output /app/bin /tmp/staged-snapshot-* /tmp/ssd-*
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/cmd/ctl/main.go
-[?2004lpackage main
-
-import (
-	"encoding/json"
-	"flag"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-
-	"staged.local/snapshot/internal/a0"
-	"staged.local/snapshot/internal/c2"
-	"staged.local/snapshot/internal/e4"
-	"staged.local/snapshot/internal/f5"
-)
-
-func accountingEqual(a, b []f5.AccountItem) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i].Path != b[i].Path || a[i].Bytes != b[i].Bytes || a[i].Period != b[i].Period {
-			return false
-		}
-	}
-	return true
-}
-
-func accountingMatchesDisk(root string, items []f5.AccountItem) bool {
-	for _, item := range items {
-		path := filepath.Join(root, item.Path)
-		st, err := os.Stat(path)
-		if err != nil {
-			return false
-		}
-		if !st.Mode().IsRegular() {
-			return false
-		}
-		if int(st.Size()) != item.Bytes {
-			return false
-		}
-	}
-	return true
-}
-
-func runCase(base string, name string) (f5.CaseResult, error) {
-	profile := f5.ProfileFor(name)
-	caseDir := filepath.Join(base, name)
-	if err := os.RemoveAll(caseDir); err != nil {
-		return f5.CaseResult{}, err
-	}
-	source := filepath.Join(caseDir, "source")
-	restored := filepath.Join(caseDir, "restored")
-	if err := os.MkdirAll(source, 0o755); err != nil {
-		return f5.CaseResult{}, err
-	}
-	if err := os.MkdirAll(restored, 0o755); err != nil {
-		return f5.CaseResult{}, err
-	}
-	if err := a0.CreateTree(source, profile); err != nil {
-		return f5.CaseResult{}, err
-	}
-	rows, err := a0.RowsFromTree(source, profile)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	if err := a0.Materialize(rows, restored, profile); err != nil {
-		return f5.CaseResult{}, err
-	}
-	sourceDigest, err := e4.Digest(source)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	restoredDigest, err := e4.Digest(restored)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	sourceGroups, err := e4.Groups(source)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	restoredGroups, err := e4.Groups(restored)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	accounting, err := c2.ItemsC(source, profile)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	restoredAccounting, err := c2.ItemsC(restored, profile)
-	if err != nil {
-		return f5.CaseResult{}, err
-	}
-	digestsMatch := sourceDigest == restoredDigest
-	groupsMatch := fmt.Sprint(sourceGroups) == fmt.Sprint(restoredGroups)
-	accountingMatch := accountingEqual(accounting, restoredAccounting)
-	diskMatch := accountingMatchesDisk(source, accounting) && accountingMatchesDisk(restored, restoredAccounting)
-	ok := digestsMatch && groupsMatch && accountingMatch && diskMatch
-	return f5.CaseResult{
-		Name:       name,
-		Source:     source,
-		Restored:   restored,
-		OK:         ok,
-		Digest:     f5.DigestPair{Source: sourceDigest, Restored: restoredDigest},
-		Groups:     f5.GroupPair{Source: sourceGroups, Restored: restoredGroups},
-		Accounting: accounting,
-	}, nil
-}
-
-func main() {
-	outPath := flag.String("out", "/app/output/restore-audit.json", "audit output")
-	workPath := flag.String("work", "", "workspace root")
-	oneCase := flag.String("case", "", "single case")
-	flag.Parse()
-
-	base := *workPath
-	if base == "" {
-		tmp, err := os.MkdirTemp("", "staged-snapshot-")
-		if err != nil {
-			panic(err)
-		}
-		base = tmp
-	}
-	if err := os.MkdirAll(base, 0o755); err != nil {
-		panic(err)
-	}
-	names := []string{"alpha", "beta", "gamma", "delta", "epsilon", "zeta"}
-	if *oneCase != "" {
-		names = []string{*oneCase}
-	}
-	sort.Strings(names)
-	report := f5.Report{Cases: []f5.CaseResult{}}
-	for _, name := range names {
-		result, err := runCase(base, name)
-		if err != nil {
-			panic(err)
-		}
-		report.Cases = append(report.Cases, result)
-	}
-	if err := os.MkdirAll(filepath.Dir(*outPath), 0o755); err != nil {
-		panic(err)
-	}
-	encoded, err := json.MarshalIndent(report, "", "  ")
-	if err != nil {
-		panic(err)
-	}
-	if err := os.WriteFile(*outPath, append(encoded, '\n'), 0o644); err != nil {
-		panic(err)
-	}
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/cmd/apex/main.go
-[?2004lpackage main
-
-import "fmt"
-
-func main() {
-	fmt.Println("apex local service harness")
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/f5/types.go
-[?2004lpackage f5
-
-type Profile struct {
-	Name    string
-	Dense   bool
-	Roll    bool
-	Ordered bool
-	Restart bool
-}
-
-func ProfileFor(name string) Profile {
-	return Profile{
-		Name:    name,
-		Dense:   name == "beta" || name == "zeta",
-		Roll:    name == "epsilon" || name == "zeta",
-		Ordered: name == "gamma" || name == "zeta",
-		Restart: name == "beta" || name == "gamma" || name == "epsilon" || name == "zeta",
-	}
-}
-
-type Row struct {
-	Seq   int
-	Op    string
-	Path  string
-	Data  string
-	Dev   uint64
-	Ino   uint64
-	Nlink uint64
-}
-
-type Record struct {
-	Name string
-	Path string
-	OK   bool
-}
-
-type AccountItem struct {
-	Path   string `json:"path"`
-	Bytes  int    `json:"bytes"`
-	Period string `json:"period"`
-}
-
-type DigestPair struct {
-	Source   string `json:"source"`
-	Restored string `json:"restored"`
-}
-
-type GroupPair struct {
-	Source   [][]string `json:"source"`
-	Restored [][]string `json:"restored"`
-}
-
-type CaseResult struct {
-	Name       string        `json:"name"`
-	Source     string        `json:"source"`
-	Restored   string        `json:"restored"`
-	OK         bool          `json:"ok"`
-	Digest     DigestPair    `json:"digest"`
-	Groups     GroupPair     `json:"groups"`
-	Accounting []AccountItem `json:"accounting"`
-}
-
-type Report struct {
-	Cases []CaseResult `json:"cases"`
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/f5/encode.go
-[?2004lpackage f5
-
-func encodeF(records []Record) int {
-	return len(records)
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/a0/core.go
-[?2004lpackage a0
-
-import (
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-	"syscall"
-
-	"staged.local/snapshot/internal/b1"
-	"staged.local/snapshot/internal/d3"
-	"staged.local/snapshot/internal/f5"
-)
-
-type stateX struct {
-	Rows   []itemY
-	ByPath map[string]int
-}
-
-type itemY = f5.Row
-
-func phase_a(a *stateX, b itemY) error {
-	if a.ByPath == nil {
-		a.ByPath = map[string]int{}
-	}
-	if b.Path == "" {
-		return nil
-	}
-	if b.Op == "write" && b.Seq%5 == 0 {
-		b.Data = strings.TrimSuffix(b.Data, "\n")
-	}
-	if b.Op == "write" && b.Nlink > 1 {
-		b.Nlink = 1
-	}
-	if b.Op == "remove" {
-		a.Rows = append(a.Rows, b)
-		return nil
-	}
-	if _, ok := a.ByPath[b.Path]; ok {
-		return nil
-	}
-	a.ByPath[b.Path] = len(a.Rows)
-	a.Rows = append(a.Rows, b)
-	return nil
-}
-
-func emit_a(path string, data string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(path, []byte(data), 0o644)
-}
-
-func CreateTree(root string, profile f5.Profile) error {
-	dirs := []string{"a", "b", "c"}
-	if profile.Dense {
-		dirs = append(dirs, "deep/x")
-	}
-	if profile.Roll {
-		dirs = append(dirs, "d")
-	}
-	for _, dir := range dirs {
-		if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-			return err
-		}
-	}
-	if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
-		return err
-	}
-	if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
-		return err
-	}
-	if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
-		return err
-	}
-	if profile.Dense {
-		shared := filepath.Join(root, "deep", "x", "shared.dat")
-		if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
-			return err
-		}
-		for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
-			alias := filepath.Join(root, filepath.FromSlash(rel))
-			_ = os.Remove(alias)
-			if err := os.Link(shared, alias); err != nil {
-				return err
-			}
-		}
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		if err := emit_a(flow, "second\n"); err != nil {
-			return err
-		}
-	}
-	if profile.Roll {
-		if err := emit_a(filepath.Join(root, "d", "roll.txt"), profile.Name+":period-one\n"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func statIdentity(path string) (uint64, uint64, uint64, error) {
-	info, err := os.Stat(path)
-	if err != nil {
-		return 0, 0, 0, err
-	}
-	st := info.Sys().(*syscall.Stat_t)
-	return uint64(st.Dev), uint64(st.Ino), uint64(st.Nlink), nil
-}
-
-func RowsFromTree(root string, profile f5.Profile) ([]f5.Row, error) {
-	paths := []string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.Type().IsRegular() {
-			paths = append(paths, path)
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	sort.Strings(paths)
-	state := &stateX{ByPath: map[string]int{}}
-	seq := 0
-	for _, path := range paths {
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return nil, err
-		}
-		rel = filepath.ToSlash(rel)
-		if profile.Ordered && rel == "a/flow.txt" {
-			continue
-		}
-		dev, ino, nlink, err := statIdentity(path)
-		if err != nil {
-			return nil, err
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink}); err != nil {
-			return nil, err
-		}
-		seq++
-	}
-	if profile.Ordered {
-		flow := filepath.Join(root, "a", "flow.txt")
-		dev, ino, nlink, err := statIdentity(flow)
-		if err != nil {
-			return nil, err
-		}
-		for _, row := range []f5.Row{
-			{Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
-			{Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
-		} {
-			if err := phase_a(state, row); err != nil {
-				return nil, err
-			}
-		}
-	}
-	return append([]f5.Row(nil), state.Rows...), nil
-}
-
-func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
-	replayRows, err := b1.FoldRows(rows, profile)
-	if err != nil {
-		return err
-	}
-	groups := map[string]string{}
-	for _, row := range replayRows {
-		target := filepath.Join(dst, filepath.FromSlash(row.Path))
-		if row.Op == "remove" {
-			_ = os.Remove(target)
-			for key, value := range groups {
-				if value == target {
-					delete(groups, key)
-				}
-			}
-			continue
-		}
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-			return err
-		}
-		key := d3.KeyFor(row, profile)
-		if existing, ok := groups[key]; ok {
-			_ = os.Remove(target)
-			if err := os.Link(existing, target); err != nil {
-				return err
-			}
-			continue
-		}
-		if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
-			if err := emit_a(target, row.Data); err != nil {
-				return err
-			}
-			groups[key] = target
-		}
-	}
-	return nil
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/b1/replay.go
-[?2004lpackage b1
-
-import (
-	"sort"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type rowX = f5.Row
-
-func fold_b(a []rowX, b uint64) ([]rowX, error) {
-	out := make([]rowX, len(a))
-	copy(out, a)
-	sort.SliceStable(out, func(i, j int) bool {
-		return out[i].Seq < out[j].Seq
-	})
-	if b&1 == 1 {
-		for left, right := 0, len(out)-1; left < right; left, right = left+1, right-1 {
-			out[left], out[right] = out[right], out[left]
-		}
-	}
-	return out, nil
-}
-
-func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
-	var flags uint64
-	if profile.Restart && profile.Ordered {
-		flags |= 1
-	}
-	return fold_b(rows, flags)
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/b1/checkpoint.go
-[?2004lpackage b1
-
-func checkpointB(rows []rowX) int {
-	last := 0
-	for _, row := range rows {
-		if row.Seq > last {
-			last = row.Seq
-		}
-	}
-	return last
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/b1/log.go
-[?2004lpackage b1
-
-func pushB(rows []rowX, row rowX) []rowX {
-	return append(rows, row)
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/d3/pair.go
-[?2004lpackage d3
-
-import (
-	"fmt"
-
-	"staged.local/snapshot/internal/f5"
-)
-
-type tokenX string
-
-type nodeX struct {
-	Seen map[tokenX]bool
-}
-
-func bind_d(a *nodeX, b tokenX) bool {
-	if a.Seen == nil {
-		a.Seen = map[tokenX]bool{}
-	}
-	if b == "" {
-		return false
-	}
-	if a.Seen[b] {
-		return true
-	}
-	a.Seen[b] = true
-	return true
-}
-
-func KeyFor(row f5.Row, profile f5.Profile) string {
-	if profile.Restart && profile.Dense {
-		return row.Path
-	}
-	key := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))
-	state := &nodeX{}
-	_ = bind_d(state, key)
-	return string(key)
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/d3/map.go
-[?2004lpackage d3
-
-func newD() *nodeX {
-	return &nodeX{Seen: map[tokenX]bool{}}
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/c2/roll.go
-[?2004lpackage c2
-
-import (
-	"sort"
-	"strings"
-
-	"staged.local/snapshot/internal/e4"
-	"staged.local/snapshot/internal/f5"
-)
-
-type mapX struct {
-	Items map[string]entryX
-}
-
-type entryX struct {
-	Path   string
-	Bytes  int
-	Period string
-}
-
-func mark_c(a *mapX, b uint64, c []entryX) error {
-	if a.Items == nil {
-		a.Items = map[string]entryX{}
-	}
-	for _, item := range c {
-		if b&1 == 1 && item.Period == "p1" {
-			item.Period = "p0"
-		}
-		a.Items[item.Path] = item
-	}
-	return nil
-}
-
-func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
-	bytesByPath, err := e4.NativeBytes(root)
-	if err != nil {
-		return nil, err
-	}
-	entries := []entryX{}
-	for path, size := range bytesByPath {
-		period := "p0"
-		if profile.Roll && strings.HasPrefix(path, "d/") {
-			period = "p1"
-		}
-		entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
-	}
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-	store := &mapX{}
-	var flags uint64
-	if profile.Restart && profile.Roll {
-		flags |= 1
-	}
-	if err := mark_c(store, flags, entries); err != nil {
-		return nil, err
-	}
-	items := make([]f5.AccountItem, 0, len(store.Items))
-	for _, item := range store.Items {
-		items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
-	}
-	sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
-	return items, nil
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/c2/table.go
-[?2004lpackage c2
-
-func newC() *mapX {
-	return &mapX{Items: map[string]entryX{}}
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/e4/walk.go
-[?2004lpackage e4
-
-import (
-	"crypto/sha256"
-	"encoding/hex"
-	"os"
-	"path/filepath"
-	"sort"
-	"syscall"
-)
-
-func Digest(root string) (string, error) {
-	hash := sha256.New()
-	paths := []string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		paths = append(paths, path)
-		return nil
-	}); err != nil {
-		return "", err
-	}
-	sort.Strings(paths)
-	for _, path := range paths {
-		if path == root {
-			continue
-		}
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return "", err
-		}
-		rel = filepath.ToSlash(rel)
-		info, err := os.Stat(path)
-		if err != nil {
-			return "", err
-		}
-		if info.IsDir() {
-			hash.Write([]byte("D " + rel + "\n"))
-			continue
-		}
-		if info.Mode().IsRegular() {
-			data, err := os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			hash.Write([]byte("F " + rel + "\x00"))
-			hash.Write(data)
-			hash.Write([]byte("\n"))
-		}
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
-}
-
-func Groups(root string) ([][]string, error) {
-	byIdentity := map[[2]uint64][]string{}
-	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !entry.Type().IsRegular() {
-			return nil
-		}
-		info, err := os.Stat(path)
-		if err != nil {
-			return err
-		}
-		st := info.Sys().(*syscall.Stat_t)
-		rel, err := filepath.Rel(root, path)
-		if err != nil {
-			return err
-		}
-		key := [2]uint64{uint64(st.Dev), uint64(st.Ino)}
-		byIdentity[key] = append(byIdentity[key], filepath.ToSlash(rel))
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	groups := [][]string{}
-	for _, group := range byIdentity {
-		if len(group) > 1 {
-			sort.Strings(group)
-			groups = append(groups, group)
-		}
-	}
-	sort.Slice(groups, func(i, j int) bool { return groups[i][0] < groups[j][0] })
-	return groups, nil
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/internal/e4/io.go
-[?2004lpackage e4
-
-import (
-	"bufio"
-	"fmt"
-	"os/exec"
-	"strconv"
-	"strings"
-)
-
-func NativeBytes(root string) (map[string]int, error) {
-	cmd := exec.Command("/app/bin/fsmeasure", root)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, err
-	}
-	rows := map[string]int{}
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	for scanner.Scan() {
-		parts := strings.Split(scanner.Text(), "\t")
-		if len(parts) != 2 {
-			return nil, fmt.Errorf("bad native observation: %q", scanner.Text())
-		}
-		size, err := strconv.Atoi(parts[1])
-		if err != nil {
-			return nil, err
-		}
-		rows[parts[0]] = size
-	}
-	if err := scanner.Err(); err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/probe/measure.c
-[?2004l#define _DEFAULT_SOURCE
-
-#include "fswalk.h"
-
-#include <dirent.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-
-static int emit_file(const char *path, const char *rel) {
-    struct stat st;
-    unsigned long size;
-    if (stat(path, &st) != 0) {
-        return 2;
-    }
-    size = (unsigned long)st.st_size;
-    if (strncmp(rel, "d/", 2) == 0) {
-        size = 0UL;
-    }
-    if (strstr(rel, "shared") != NULL) {
-        size = size / 2UL;
-    }
-    if (strncmp(rel, "c/", 2) == 0) {
-        size += 1UL;
-    }
-    printf("%s\t%lu\n", rel, size);
-    return 0;
-}
-
-static int scan_dir(const char *root, const char *rel) {
-    char full[4096];
-    DIR *dir;
-    struct dirent *entry;
-    if (rel[0] == '\0') {
-        snprintf(full, sizeof(full), "%s", root);
-    } else {
-        snprintf(full, sizeof(full), "%s/%s", root, rel);
-    }
-    dir = opendir(full);
-    if (!dir) {
-        return 3;
-    }
-    while ((entry = readdir(dir)) != NULL) {
-        char child_rel[4096];
-        char child_full[4096];
-        struct stat st;
-        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-            continue;
-        }
-        if (rel[0] == '\0') {
-            snprintf(child_rel, sizeof(child_rel), "%s", entry->d_name);
-        } else {
-            snprintf(child_rel, sizeof(child_rel), "%s/%s", rel, entry->d_name);
-        }
-        snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
-        if (stat(child_full, &st) != 0) {
-            closedir(dir);
-            return 4;
-        }
-        if (S_ISDIR(st.st_mode)) {
-            int rc = scan_dir(root, child_rel);
-            if (rc != 0) {
-                closedir(dir);
-                return rc;
-            }
-        } else if (S_ISREG(st.st_mode)) {
-            int rc = emit_file(child_full, child_rel);
-            if (rc != 0) {
-                closedir(dir);
-                return rc;
-            }
-        }
-    }
-    closedir(dir);
-    return 0;
-}
-
-int walk_e(struct qx *a, const char *root, unsigned long c) {
-    if (!a || !root) {
-        return 2;
-    }
-    a->seen += c;
-    return scan_dir(root, "");
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/probe/fswalk.c
-[?2004l#include "fswalk.h"
-
-#include <stdio.h>
-
-int main(int argc, char **argv) {
-    struct qx q = {0UL};
-    if (argc != 2) {
-        fprintf(stderr, "usage: fsmeasure ROOT\n");
-        return 64;
-    }
-    return walk_e(&q, argv[1], 1UL);
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/probe/fswalk.h
-[?2004l#ifndef FSWALK_H
-#define FSWALK_H
-
-#include <stddef.h>
-
-struct qx {
-    unsigned long seen;
-};
-
-int walk_e(struct qx *a, const char *root, unsigned long c);
-int list_q(struct qx *a, const char *b);
-
-#endif
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/probe/list.c
-[?2004l#include "fswalk.h"
-
-int list_q(struct qx *a, const char *b) {
-    if (!a || !b) {
-        return 2;
-    }
-    a->seen += 1;
-    return 0;
-}
-[?2004hroot@4d6e7c05a0d1:/app# cat > /app/probe/measure.c << 'EOF'
-[?2004l[?2004h> #define _DEFAULT_SOURCE
-[?2004l[?2004h> 
-[?2004l[?2004h> #include "fswalk.h"
-[?2004l[?2004h> 
-[?2004l[?2004h> #include <dirent.h>
-[?2004l[?2004h> #include <stdio.h>
-[?2004l[?2004h> #include <stdlib.h>
-[?2004l[?2004h> #include <string.h>
-[?2004l[?2004h> #include <sys/stat.h>
-[?2004l[?2004h> 
-[?2004l[?2004h> static int emit_file(const char *path, const char *rel) {
-[?2004l[?2004h>     struct stat st;
-[?2004l[?2004h>     unsigned long size;
-[?2004l[?2004h>     if (stat(path, &st) != 0) {
-[?2004l[?2004h>         return 2;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     size = (unsigned long)st.st_size;
-[?2004l[?2004h>     printf("%s\t%lu\n", rel, size);
-[?2004l[?2004h>     return 0;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> static int scan_dir(const char *root, const char *rel) {
-[?2004l[?2004h>     char full[4096];
-[?2004l[?2004h>     DIR *dir;
-[?2004l[?2004h>     struct dirent *entry;
-[?2004l[?2004h>     if (rel[0] == '\0') {
-[?2004l[?2004h>         snprintf(full, sizeof(full), "%s", root);
-[?2004l[?2004h>     } else {
-[?2004l[?2004h>         snprintf(full, sizeof(full), "%s/%s", root, rel);
-[?2004l[?2004h>     }
-[?2004l[?2004h>     dir = opendir(full);
-[?2004l[?2004h>     if (!dir) {
-[?2004l[?2004h>         return 3;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     while ((entry = readdir(dir)) != NULL) {
-[?2004l[?2004h>         char child_rel[4096];
-[?2004l[?2004h>         char child_full[4096];
-[?2004l[?2004h>         struct stat st;
-[?2004l[?2004h>         if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
-[?2004l[?2004h>             continue;
-[?2004l[?2004h>         }
-[?2004l[?2004h>         if (rel[0] == '\0') {
-[?2004l[?2004h>             snprintf(child_rel, sizeof(child_rel), "%s", entry->d_name);
-[?2004l[?2004h>         } else {
-[?2004l[?2004h>             snprintf(child_rel, sizeof(child_rel), "%s/%s", rel, entry->d_name);
-[?2004l[?2004h>         }
-[?2004l[?2004h>         snprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel);
-[?2004l[?2004h>         if (stat(child_full, &st) != 0) {
-[?2004l[?2004h>             closedir(dir);
-[?2004l[?2004h>             return 4;
-[?2004l[?2004h>         }
-[?2004l[?2004h>         if (S_ISDIR(st.st_mode)) {
-[?2004l[?2004h>             int rc = scan_dir(root, child_rel);
-[?2004l[?2004h>             if (rc != 0) {
-[?2004l[?2004h>                 closedir(dir);
-[?2004l[?2004h>                 return rc;
-[?2004l[?2004h>             }
-[?2004l[?2004h>         } else if (S_ISREG(st.st_mode)) {
-[?2004l[?2004h>             int rc = emit_file(child_full, child_rel);
-[?2004l[?2004h>             if (rc != 0) {
-[?2004l[?2004h>                 closedir(dir);
-[?2004l[?2004h>                 return rc;
-[?2004l[?2004h>             }
-[?2004l[?2004h>         }
-[?2004l[?2004h>     }
-[?2004l[?2004h>     closedir(dir);
-[?2004l[?2004h>     return 0;
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> int walk_e(struct qx *a, const char *root, unsigned long c) {
-[?2004l[?2004h>     if (!a || !root) {
-[?2004l[?2004h>         return 2;
-[?2004l[?2004h>     }
-[?2004l[?2004h>     a->seen += c;
-[?2004l[?2004h>     return scan_dir(root, "");
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@4d6e7c05a0d1:/app# cat > /app/internal/a0/core.go << 'EOF'
-[?2004l[?2004h> package a0
-[?2004l=[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h> "os"
-[?2004l[?2004h> "path/filepath"
-[?2004l[?2004h> "sort"
-[?2004l[?2004h> "syscall"
-[?2004l[?2004h> 
-[?2004l[?2004h> "staged.local/snapshot/internal/b1"
-[?2004l[?2004h> "staged.local/snapshot/internal/d3"
-[?2004l[?2004h> "staged.local/snapshot/internal/f5"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> type stateX struct {
-[?2004l[?2004h> Rows   []itemY
-[?2004l[?2004h> ByPath map[string]int
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> type itemY = f5.Row
-[?2004l[?2004h> 
-[?2004l[?2004h> func phase_a(a *stateX, b itemY) error {
-[?2004l[?2004h> if a.ByPath == nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> a.ByPath = map[string]int{}
-[?2004l[?2004h> }
-[?2004l[?2004h> if b.Path == "" {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> if b.Op == "remove" {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> delete(a.ByPath, b.Path)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> a.Rows = append(a.Rows, b)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> if _, ok := a.ByPath[b.Path]; ok {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> a.ByPath[b.Path] = len(a.Rows)
-[?2004l[?2004h> a.Rows = append(a.Rows, b)
-[?2004l[?2004h> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func emit_a(path string, data string) error {
-[?2004l[?2004h> if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> }
-[?2004l[?2004h> return os.WriteFile(path, []byte(data), 0o644)
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func CreateTree(root string, profile f5.Profile) error {
-[?2004l[?2004h> dirs := []string{"a", "b", "c"}
-[?2004l[?2004h> if profile.Dense {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> dirs = append(dirs, "deep/x")
-[?2004l[?2004h> }
-[?2004l[?2004h> if profile.Roll {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> dirs = append(dirs, "d")
-[?2004l[?2004h> }
-[?2004l[?2004h> for _, dir := range dirs {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := os.MkdirAll(filepath.Join(root, dir), 0o755); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> }
-[?2004l[?2004h> if err := emit_a(filepath.Join(root, "a", "one.txt"), profile.Name+":one\n"); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> }
-[?2004l[?2004h> if err := emit_a(filepath.Join(root, "b", "two.txt"), profile.Name+":two\n"); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> }
-[?2004l[?2004h> if err := emit_a(filepath.Join(root, "c", "three.txt"), profile.Name+":three\n"); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> }
-[?2004l[?2004h> if profile.Dense {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> shared := filepath.Join(root, "deep", "x", "shared.dat")
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := emit_a(shared, profile.Name+":shared-payload\n"); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> for _, rel := range []string{"a/shared-a.dat", "b/shared-b.dat", "c/shared-c.dat"} {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> alias := filepath.Join(root, filepath.FromSlash(rel))
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> _ = os.Remove(alias)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := os.Link(shared, alias); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> }
-[?2004l[?2004h> if profile.Ordered {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> flow := filepath.Join(root, "a", "flow.txt")
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := emit_a(flow, "second\n"); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> }
-[?2004l[?2004h> if profile.Roll {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := emit_a(filepath.Join(root, "d", "roll.txt"), profile.Name+":period-one\n"); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> }
-[?2004l[?2004h> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func statIdentity(path string) (uint64, uint64, uint64, error) {
-[?2004l[?2004h> info, err := os.Stat(path)
-[?2004l[?2004h> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return 0, 0, 0, err
-[?2004l[?2004h> }
-[?2004l[?2004h> st := info.Sys().(*syscall.Stat_t)
-[?2004l[?2004h> return uint64(st.Dev), uint64(st.Ino), uint64(st.Nlink), nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func RowsFromTree(root string, profile f5.Profile) ([]f5.Row, error) {
-[?2004l[?2004h> paths := []string{}
-[?2004l[?2004h> if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if entry.Type().IsRegular() {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> paths = append(paths, path)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil
-[?2004l[?2004h> }); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> }
-[?2004l[?2004h> sort.Strings(paths)
-[?2004l[?2004h> state := &stateX{ByPath: map[string]int{}}
-[?2004l[?2004h> seq := 0
-[?2004l[?2004h> for _, path := range paths {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> rel, err := filepath.Rel(root, path)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> rel = filepath.ToSlash(rel)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if profile.Ordered && rel == "a/flow.txt" {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> continue
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> dev, ino, nlink, err := statIdentity(path)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> data, err := os.ReadFile(path)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := phase_a(state, f5.Row{Seq: seq, Op: "write", Path: rel, Data: string(data), Dev: dev, Ino: ino, Nlink: nlink}); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> seq++
-[?2004l[?2004h> }
-[?2004l[?2004h> if profile.Ordered {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> flow := filepath.Join(root, "a", "flow.txt")
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> dev, ino, nlink, err := statIdentity(flow)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> for _, row := range []f5.Row{
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> {Seq: seq, Op: "write", Path: "a/flow.txt", Data: "first\n", Dev: dev, Ino: ino, Nlink: nlink},
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> {Seq: seq + 1, Op: "remove", Path: "a/flow.txt", Dev: dev, Ino: ino, Nlink: nlink},
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> {Seq: seq + 2, Op: "write", Path: "a/flow.txt", Data: "second\n", Dev: dev, Ino: ino, Nlink: nlink},
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> } {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := phase_a(state, row); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> }
-[?2004l[?2004h> return append([]f5.Row(nil), state.Rows...), nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func Materialize(rows []f5.Row, dst string, profile f5.Profile) error {
-[?2004l[?2004h> replayRows, err := b1.FoldRows(rows, profile)
-[?2004l[?2004h> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> }
-[?2004l[?2004h> groups := map[string]string{}
-[?2004l[?2004h> for _, row := range replayRows {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> target := filepath.Join(dst, filepath.FromSlash(row.Path))
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if row.Op == "remove" {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> _ = os.Remove(target)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> for key, value := range groups {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if value == target {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> delete(groups, key)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> continue
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> key := d3.KeyFor(row, profile)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if existing, ok := groups[key]; ok {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> _ = os.Remove(target)
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := os.Link(existing, target); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> continue
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if strings.TrimSpace(row.Op) == "" || row.Op == "write" {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if err := emit_a(target, row.Data); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return err
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> groups[key] = target
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> }
-[?2004l[?2004h> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@4d6e7c05a0d1:/app# cat > /app/internal/b1/replay.go << 'EOF'
-[?2004l[?2004h> package b1
-[?2004l[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h> "sort"
-[?2004l[?2004h> 
-[?2004l[?2004h> "staged.local/snapshot/internal/f5"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> type rowX = f5.Row
-[?2004l[?2004h> 
-[?2004l[?2004h> func fold_b(a []rowX, b uint64) ([]rowX, error) {
-[?2004l[?2004h> out := make([]rowX, len(a))
-[?2004l[?2004h> copy(out, a)
-[?2004l[?2004h> sort.SliceStable(out, func(i, j int) bool {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return out[i].Seq < out[j].Seq
-[?2004l[?2004h> })
-[?2004l[?2004h> return out, nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func FoldRows(rows []f5.Row, profile f5.Profile) ([]f5.Row, error) {
-[?2004l[?2004h> var flags uint64
-[?2004l[?2004h> return fold_b(rows, flags)
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@4d6e7c05a0d1:/app# cat > /app/internal/d3/pair.go << 'EOF'
-[?2004l[?2004h> package d3
-[?2004l[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h> "fmt"
-[?2004l[?2004h> 
-[?2004l[?2004h> "staged.local/snapshot/internal/f5"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> type tokenX string
-[?2004l[?2004h> 
-[?2004l[?2004h> type nodeX struct {
-[?2004l[?2004h> Seen map[tokenX]bool
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func bind_d(a *nodeX, b tokenX) bool {
-[?2004l[?2004h> if a.Seen == nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> a.Seen = map[tokenX]bool{}
-[?2004l[?2004h> }
-[?2004l[?2004h> if b == "" {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return false
-[?2004l[?2004h> }
-[?2004l[?2004h> if a.Seen[b] {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return true
-[?2004l[?2004h> }
-[?2004l[?2004h> a.Seen[b] = true
-[?2004l[?2004h> return true
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func KeyFor(row f5.Row, profile f5.Profile) string {
-[?2004l[?2004h> key := tokenX(fmt.Sprintf("%d:%d", row.Dev, row.Ino))
-[?2004l[?2004h> state := &nodeX{}
-[?2004l[?2004h> _ = bind_d(state, key)
-[?2004l[?2004h> return string(key)
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@4d6e7c05a0d1:/app# cat > /app/internal/c2/roll.go << 'EOF'
-[?2004l[?2004h> package c2
-[?2004l[?2004h> 
-[?2004l[?2004h> import (
-[?2004l[?2004h> "sort"
-[?2004l[?2004h> "strings"
-[?2004l[?2004h> 
-[?2004l[?2004h> "staged.local/snapshot/internal/e4"
-[?2004l[?2004h> "staged.local/snapshot/internal/f5"
-[?2004l[?2004h> )
-[?2004l[?2004h> 
-[?2004l[?2004h> type mapX struct {
-[?2004l[?2004h> Items map[string]entryX
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> type entryX struct {
-[?2004l[?2004h> Path   string
-[?2004l[?2004h> Bytes  int
-[?2004l[?2004h> Period string
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func mark_c(a *mapX, b uint64, c []entryX) error {
-[?2004l[?2004h> if a.Items == nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> a.Items = map[string]entryX{}
-[?2004l[?2004h> }
-[?2004l[?2004h> for _, item := range c {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> a.Items[item.Path] = item
-[?2004l[?2004h> }
-[?2004l[?2004h> return nil
-[?2004l[?2004h> }
-[?2004l[?2004h> 
-[?2004l[?2004h> func ItemsC(root string, profile f5.Profile) ([]f5.AccountItem, error) {
-[?2004l[?2004h> bytesByPath, err := e4.NativeBytes(root)
-[?2004l[?2004h> if err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> }
-[?2004l[?2004h> entries := []entryX{}
-[?2004l[?2004h> for path, size := range bytesByPath {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> period := "p0"
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> if profile.Roll && strings.HasPrefix(path, "d/") {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> period = "p1"
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> }
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> entries = append(entries, entryX{Path: path, Bytes: size, Period: period})
-[?2004l[?2004h> }
-[?2004l[?2004h> sort.Slice(entries, func(i, j int) bool { return entries[i].Path < entries[j].Path })
-[?2004l[?2004h> store := &mapX{}
-[?2004l[?2004h> var flags uint64
-[?2004l[?2004h> if err := mark_c(store, flags, entries); err != nil {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> return nil, err
-[?2004l[?2004h> }
-[?2004l[?2004h> items := make([]f5.AccountItem, 0, len(store.Items))
-[?2004l[?2004h> for _, item := range store.Items {
-[?2004l[?2004h> 
-Makefile   README.md  cmd/       config/    data/      docs/      go.mod     internal/  probe/     scripts/   
-> items = append(items, f5.AccountItem{Path: item.Path, Bytes: item.Bytes, Period: item.Period})
-[?2004l[?2004h> }
-[?2004l[?2004h> sort.Slice(items, func(i, j int) bool { return items[i].Path < items[j].Path })
-[?2004l[?2004h> return items, nil
-[?2004l[?2004h> }
-[?2004l[?2004h> EOF
-[?2004l[?2004hroot@4d6e7c05a0d1:/app# cd /app && make build 2>&1
-[?2004lmkdir -p /app/bin
-gcc -std=c11 -O2 -Wall -Wextra -o /app/bin/fsmeasure /app/probe/measure.c /app/probe/fswalk.c
-[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:47:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   47 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:47:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   47 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-go build -o /app/bin/snapctl ./cmd/ctl
-# staged.local/snapshot/internal/a0
-internal/a0/core.go:191:4: undefined: strings
-make: *** [Makefile:6: build] Error 1
-[?2004hroot@4d6e7c05a0d1:/app# head -12 /app/internal/a0/core.go
-[?2004lpackage a0
-
-import (
-"os"
-"path/filepath"
-"sort"
-"syscall"
-
-"staged.local/snapshot/internal/b1"
-"staged.local/snapshot/internal/d3"
-"staged.local/snapshot/internal/f5"
-)
-[?2004hroot@4d6e7c05a0d1:/app# sed -i 's/"syscall"/"strings"\n\t"syscall"/' /app/internal/a0/core.go
-[?2004l[?2004hroot@4d6e7c05a0d1:/app# make build 2>&1
-[?2004lmkdir -p /app/bin
-gcc -std=c11 -O2 -Wall -Wextra -o /app/bin/fsmeasure /app/probe/measure.c /app/probe/fswalk.c
-[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:47:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   47 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:47:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   47 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-go build -o /app/bin/snapctl ./cmd/ctl
-[?2004hroot@4d6e7c05a0d1:/app# bash /app/scripts/run-matrix.sh 2>&1
-[?2004l[01m[K/app/probe/measure.c:[m[K In function ‘[01m[Kscan_dir[m[K’:
-[01m[K/app/probe/measure.c:47:56:[m[K [01;35m[Kwarning: [m[K‘[01m[Ksnprintf[m[K’ output may be truncated before the last format character [[01;35m[K]8;;https://gcc.gnu.org/onlinedocs/gcc-14.2.0/gcc/Warning-Options.html#index-Wformat-truncation-Wformat-truncation=]8;;[m[K]
-   47 |         snprintf(child_full, sizeof(child_full), "%s/%s[01;35m[K"[m[K, root, child_rel);
-      |                                                        [01;35m[K^[m[K
-[01m[K/app/probe/measure.c:47:9:[m[K [01;36m[Knote: [m[K‘[01m[Ksnprintf[m[K’ output 2 or more bytes (assuming 4097) into a destination of size 4096
-   47 |         [01;36m[Ksnprintf(child_full, sizeof(child_full), "%s/%s", root, child_rel)[m[K;
-      |         [01;36m[K^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[m[K
-[?2004hroot@4d6e7c05a0d1:/app# cat /app/output/restore-audit.json
-[?2004l{
-  "cases": [
-    {
-      "name": "alpha",
-      "source": "/tmp/staged-snapshot-2919607024/alpha/source",
-      "restored": "/tmp/staged-snapshot-2919607024/alpha/restored",
-      "ok": true,
-      "digest": {
-        "source": "5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1",
-        "restored": "5a0907d0e0e59c281954d0e017e6f39aaf97e2c3c1b1969a61163d028b6d88f1"
-      },
-      "groups": {
-        "source": [],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 12,
-          "period": "p0"
-        }
-      ]
-    },
-    {
-      "name": "beta",
-      "source": "/tmp/staged-snapshot-2919607024/beta/source",
-      "restored": "/tmp/staged-snapshot-2919607024/beta/restored",
-      "ok": true,
-      "digest": {
-        "source": "064e426d2b69c8913996711f8d4df0d492b90e5a4144b877ae6d62f4ac964d01",
-        "restored": "064e426d2b69c8913996711f8d4df0d492b90e5a4144b877ae6d62f4ac964d01"
-      },
-      "groups": {
-        "source": [
-          [
-            "a/shared-a.dat",
-            "b/shared-b.dat",
-            "c/shared-c.dat",
-            "deep/x/shared.dat"
-          ]
-        ],
-        "restored": [
-          [
-            "a/shared-a.dat",
-            "b/shared-b.dat",
-            "c/shared-c.dat",
-            "deep/x/shared.dat"
-          ]
-        ]
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 9,
-          "period": "p0"
-        },
-        {
-          "path": "a/shared-a.dat",
-          "bytes": 20,
-          "period": "p0"
-        },
-        {
-          "path": "b/shared-b.dat",
-          "bytes": 20,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 9,
-          "period": "p0"
-        },
-        {
-          "path": "c/shared-c.dat",
-          "bytes": 20,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 11,
-          "period": "p0"
-        },
-        {
-          "path": "deep/x/shared.dat",
-          "bytes": 20,
-          "period": "p0"
-        }
-      ]
-    },
-    {
-      "name": "delta",
-      "source": "/tmp/staged-snapshot-2919607024/delta/source",
-      "restored": "/tmp/staged-snapshot-2919607024/delta/restored",
-      "ok": true,
-      "digest": {
-        "source": "4fb6e1c53547340401965f206d8527e7aa9956f6d89eed4438ac5524b219063e",
-        "restored": "4fb6e1c53547340401965f206d8527e7aa9956f6d89eed4438ac5524b219063e"
-      },
-      "groups": {
-        "source": [],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 12,
-          "period": "p0"
-        }
-      ]
-    },
-    {
-      "name": "epsilon",
-      "source": "/tmp/staged-snapshot-2919607024/epsilon/source",
-      "restored": "/tmp/staged-snapshot-2919607024/epsilon/restored",
-      "ok": true,
-      "digest": {
-        "source": "96ddd9e067cf41d100884b17af541972ca93199f19cf326ad7bef96107a282fa",
-        "restored": "96ddd9e067cf41d100884b17af541972ca93199f19cf326ad7bef96107a282fa"
-      },
-      "groups": {
-        "source": [],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/one.txt",
-          "bytes": 12,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 12,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 14,
-          "period": "p0"
-        },
-        {
-          "path": "d/roll.txt",
-          "bytes": 19,
-          "period": "p1"
-        }
-      ]
-    },
-    {
-      "name": "gamma",
-      "source": "/tmp/staged-snapshot-2919607024/gamma/source",
-      "restored": "/tmp/staged-snapshot-2919607024/gamma/restored",
-      "ok": true,
-      "digest": {
-        "source": "fe052b05a17e2f581b18ae8bca348b33871efaa8cfde42a3b79d3697af1471bf",
-        "restored": "fe052b05a17e2f581b18ae8bca348b33871efaa8cfde42a3b79d3697af1471bf"
-      },
-      "groups": {
-        "source": [],
-        "restored": []
-      },
-      "accounting": [
-        {
-          "path": "a/flow.txt",
-          "bytes": 7,
-          "period": "p0"
-        },
-        {
-          "path": "a/one.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 10,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 12,
-          "period": "p0"
-        }
-      ]
-    },
-    {
-      "name": "zeta",
-      "source": "/tmp/staged-snapshot-2919607024/zeta/source",
-      "restored": "/tmp/staged-snapshot-2919607024/zeta/restored",
-      "ok": true,
-      "digest": {
-        "source": "e8934f052b47229ff9440f7d70ea385b8b7d4b61716ddf72dcd4c1a4881ee50f",
-        "restored": "e8934f052b47229ff9440f7d70ea385b8b7d4b61716ddf72dcd4c1a4881ee50f"
-      },
-      "groups": {
-        "source": [
-          [
-            "a/shared-a.dat",
-            "b/shared-b.dat",
-            "c/shared-c.dat",
-            "deep/x/shared.dat"
-          ]
-        ],
-        "restored": [
-          [
-            "a/shared-a.dat",
-            "b/shared-b.dat",
-            "c/shared-c.dat",
-            "deep/x/shared.dat"
-          ]
-        ]
-      },
-      "accounting": [
-        {
-          "path": "a/flow.txt",
-          "bytes": 7,
-          "period": "p0"
-        },
-        {
-          "path": "a/one.txt",
-          "bytes": 9,
-          "period": "p0"
-        },
-        {
-          "path": "a/shared-a.dat",
-          "bytes": 20,
-          "period": "p0"
-        },
-        {
-          "path": "b/shared-b.dat",
-          "bytes": 20,
-          "period": "p0"
-        },
-        {
-          "path": "b/two.txt",
-          "bytes": 9,
-          "period": "p0"
-        },
-        {
-          "path": "c/shared-c.dat",
-          "bytes": 20,
-          "period": "p0"
-        },
-        {
-          "path": "c/three.txt",
-          "bytes": 11,
-          "period": "p0"
-        },
-        {
-          "path": "d/roll.txt",
-          "bytes": 16,
-          "period": "p1"
-        },
-        {
-          "path": "deep/x/shared.dat",
-          "bytes": 20,
-          "period": "p0"
-        }
-      ]
-    }
-  ]
-}
-[?2004hroot@4d6e7c05a0d1:/app# 

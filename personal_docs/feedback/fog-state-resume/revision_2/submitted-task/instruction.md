@@ -1,5 +1,0 @@
-The turn-based grid engine under `/app` produces resume audits where restored runs disagree with uninterrupted runs on the same bundled inputs. Repair the engine so the matrix run is clean. `bash /app/scripts/run-matrix.sh` writes `/app/output/resume-audit.json`. Layout maps live under `/app/data`, action scripts under `/app/data/scripts`, and configuration tables under `/app/config`.
-
-The matrix covers rook, bishop, knight, lancer, sentinel, warden, and ranger. The audit JSON uses a top-level `cases` array; each row includes `visibility` plus the move and effect collections described by CaseResult in `/app/internal/sim/types.go`. Move and effect element field names follow MoveRow and EffectRow in that same file. Epoch-style configuration exposes a ward modifier row in effects. A row is clean when ok is true, fresh and resume path summaries show illegal 0, signatures match, and the JSON plus records and log sidecars list the same resolved moves in order.
-
-The matrix leaves `/app/bin/rogctl` executable. `bash /app/scripts/one-case.sh <case>` writes `/app/output/single-<case>.json` matching that matrix row.
