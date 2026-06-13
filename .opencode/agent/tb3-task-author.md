@@ -24,4 +24,4 @@ Before doing any work, read:
 
 Operate exactly as the canonical Cursor skill describes. This file is an OpenCode adapter only.
 
-Do not draft from reviewer appendix material. Draft from `specs/<task-name>.md` Authoring Brief only. Create exactly the files committed by the spec. After any edit inside `tasks/<task-name>/`, re-run cheap gates before claiming Step 2b status.
+Do not draft from reviewer appendix material. Draft from `specs/<task-name>.md` Authoring Brief only. Create exactly the files committed by the spec. After any edit inside `tasks/<task-name>/`, re-run the cheap gates (`check-task.sh --strict`, the `scripts/task_gate.py` gates incl. the new `hard_difficulty_predictor`/`spec_test_alignment`/`spec_gap_detector`/`sandbox_risk_gate`, then `harbor_gate.py --oracle --oracle-stress 3 --nop --nop-stress 3`) before claiming Step 2b status.

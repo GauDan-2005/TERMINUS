@@ -110,7 +110,7 @@ This document is a historical reference for Terminus task creation, evaluation, 
 
 **Consequence of Violation:** Automated acceptance block or metadata correction.
 
-**Rule:** difficulty MUST reflect empirical frontier-model pass rates using the May 2026 order: classify Hard → Medium → Easy. Hard if the best model accuracy is \<= 20%; if that does not apply, Hard if the worst model accuracy is \<= 20%; Medium if `20% < worst accuracy <= 60%`; Easy if `60% < worst accuracy <= 80%`. This repo's default path is hard-only.
+**Rule:** difficulty MUST reflect empirical frontier-model pass rates (hard \<= 20%, medium 21-80%, easy \> 80%). It SHOULD NOT remain unknown in final submissions. Current acceptance gates allow only medium and hard tasks.
 
 **Consequence of Violation:** Rejection for invalid benchmarking or automated acceptance block.
 
@@ -142,7 +142,7 @@ This document is a historical reference for Terminus task creation, evaluation, 
 
 **Consequence of Violation:** CI check\_dockerfile\_references, tests\_or\_solution\_in\_image failures, and anti-cheating rejection.
 
-**Rule:** Verifier/test dependencies MUST be installed in the Dockerfile with pinned versions. Runtime internet is blocked by `[environment].allow_internet = false`; `tests/test.sh` must not install or download dependencies.
+**Rule:** Test-only dependencies MUST NOT be installed in the Dockerfile (they belong in tests/test.sh).
 
 **Consequence of Violation:** CI test\_deps\_in\_image failure.
 
@@ -267,13 +267,13 @@ This document is a historical reference for Terminus task creation, evaluation, 
 
 ## **11\. tests/test.sh**
 
-**CRITICAL RULE:** The verifier entrypoint runs offline. It must use dependencies already baked into the image, run the verifier, and ALWAYS emit a reward artifact on both success and failure.
+**CRITICAL RULE:** The verifier entrypoint must install any test-only dependencies it needs, run the verifier, and ALWAYS emit a reward artifact on both success and failure.
 
 **Rule:** tests/test.sh MUST exist.
 
 **Consequence of Violation:** Missing-file rejection.
 
-**Rule:** Test-only dependencies MUST NOT be installed in tests/test.sh. Install them in `environment/Dockerfile` with pinned versions.
+**Rule:** Test-only dependencies MUST be installed in tests/test.sh, NOT in the Dockerfile.
 
 **Consequence of Violation:** CI test\_deps\_in\_image failure or verifier setup rejection.
 
@@ -285,11 +285,11 @@ This document is a historical reference for Terminus task creation, evaluation, 
 
 **Consequence of Violation:** RewardNotFoundError / RewardFileNotFound.
 
-**Rule:** Standard Python/Pytest tasks MUST preserve the offline `task-creation.mdc` test.sh command order and control flow: create `/logs/verifier`, guard `$PWD = "/"`, run preinstalled `python -m pytest` with CTRF output, then immediately `if [ $? -eq 0 ]; then` write `/logs/verifier/reward.txt` (upstream AutoEval rejects legacy `RC=$?` / `exit "$RC"` footers). UI tasks use a separate offline template (see `task-creation.mdc`).
+**Rule:** Standard Python/Pytest tasks MUST preserve the official `task-creation.mdc` test.sh command order and control flow. The CI checker semantically validates the pre-`pytest` portion (including the required `$PWD` guard) and validates the final 5-line `reward.txt` footer exactly. UI tasks use a separate template (see `task-creation.mdc`).
 
 **Consequence of Violation:** CI check\_test\_sh failure or reviewer feedback for drifting from the maintained template.
 
-**Rule:** For UI tasks, success MUST require BOTH unit test (npm run test) and E2E test (npm run test:e2e) processes to exit 0\. Test deps and Playwright browsers MUST be installed in the Docker image, not at verifier runtime.
+**Rule:** For UI tasks, success MUST require BOTH unit test (npm run test) and E2E test (npm run test:e2e) processes to exit 0\. Test deps and Playwright browsers MUST be installed here at run time.
 
 **Consequence of Violation:** UI verification failure.
 
@@ -397,7 +397,7 @@ This document is a historical reference for Terminus task creation, evaluation, 
 
 * **Oracle MUST pass; NOP MUST fail.**  
 * **No 100% Pass Rate:** Tasks where frontier models score 100% will be rejected as too trivial.  
-* **Empirical Evaluation:** Difficulty is based on the *better* performing model (GPT-5.2 or Claude Opus 4.6). Run 5 attempts per model (10 total) before claiming a difficulty level.
+* **Empirical Evaluation:** External model attempts are not part of this repo's required approval workflow. Do not claim empirical model-stumping evidence unless it was separately run and clearly labeled as non-required context.
 
 ### **C. Diversity and Dataset-Balance Rules**
 
@@ -449,7 +449,7 @@ This document is a historical reference for Terminus task creation, evaluation, 
 
 ### **K. Known Bugs and Source-Grounded Workarounds**
 
-* **Offline pytest runner:** Legacy docs mention uv/uvx verifier setup. Current regular/milestone templates use preinstalled `python -m pytest`; do not download or install verifier tooling at runtime.
+* **uvx vs. uv venv:** Legacy docs mention uv venv. Stick to uvx as shown in the current regular/milestone templates.  
 * **Concurrency:** n-concurrent evaluations can cause port collisions. Ensure tasks are network-isolated if possible.  
 * **Rubric Overwrite:** A known platform UI bug will delete your manual rubric edits if you leave "Generate rubric" checked on your final submission.
 

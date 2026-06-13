@@ -20,7 +20,7 @@ Operate exactly as the canonical Cursor skill describes. This subagent is review
 
 Key constraints:
 
-- Run `python3 task_integrity.py verify tasks/<task-name>` before review.
+- Run `python3 scripts/task_integrity.py verify tasks/<task-name>` before review.
 - If the checksum is stale, missing, or dirty, stop and return to Step 2b.
 - Read the full review surface, not just the instruction and tests.
 - Record concrete PASS/WARN/FAIL findings against the referenced rules.

@@ -71,7 +71,7 @@ historical record of what was decided, not a live template.
 a `-x` list that includes `'CLAUDE.md' '*/CLAUDE.md'`. `zip -x`
 wildcards match across path separators, so
 `environment/CLAUDE.md` is stripped from the tmp-zip before
-`validate_submission_zip.py` ever sees it. The test as described
+`scripts/validate_submission_zip.py` ever sees it. The test as described
 cannot exercise `BANNED_AI_FILENAMES_CI` as defense-in-depth.
 
 **What the implementation actually does (authoritative).**
@@ -102,7 +102,7 @@ rollout.
 — the three patterns above were removed surgically in unit 3.
 Defense-in-depth against those filenames is preserved elsewhere:
 `validate_submission_zip.BANNED_AI_FILENAMES_CI`
-(`validate_submission_zip.py` lines 51-63) still lists `agent.md` and
+(`scripts/validate_submission_zip.py` lines 51-63) still lists `agent.md` and
 `.cursorrules` (alongside `copilot.md`). A submission zip containing
 either is still rejected — just by Phase B's validator step rather
 than by `zip -x`.
@@ -117,9 +117,9 @@ v2.1 §5, not away from it.
 spec's "Effect on existing fixtures and tasks" section does not
 predict that pre-existing test fixtures — even in test files outside
 the rollout's change surface — may need mechanical updates when
-`approve_task.py` gains a new precondition. Unit 4 of the rollout
+`scripts/approve_task.py` gains a new precondition. Unit 4 of the rollout
 discovered this: the new `.step2b-checksum` verification in
-`approve_task.py` caused three existing tests in
+`scripts/approve_task.py` caused three existing tests in
 `repo_tests/test_approve_task.py` to fail because their fixtures
 never wrote a sentinel.
 

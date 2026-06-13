@@ -32,9 +32,9 @@ A CNI item moves into implementation only when at least one of:
 Implementation order, cheapest enforcement first:
 
 1. Add or strengthen a script check (`scripts/check-task.sh`,
-   `validate_submission_zip.py`, etc.).
-2. Add or strengthen `collapse_check.py`.
-3. Add or strengthen `run_static_checks.py`.
+   `scripts/validate_submission_zip.py`, etc.).
+2. Add or strengthen `scripts/collapse_check.py`.
+3. Add or strengthen `scripts/run_static_checks.py`.
 4. Add a scoped Cursor rule under `.cursor/rules/`.
 5. Add or update a workflow skill / prompt.
 6. Only then add prose to a deep rule (`task-creation.mdc`,
@@ -79,7 +79,7 @@ of individual names doesn't buy any concealment.
 difficulty="hard" tasks, `(non-boilerplate environment LOC) / (fix-frontier
 LOC) ≥ 5`. A fix surface of 80 LOC must be embedded in ≥400 LOC of
 actually-exercised surrounding code. Mechanical check in
-`collapse_check.py`: count non-boilerplate LOC in `environment/` excluding
+`scripts/collapse_check.py`: count non-boilerplate LOC in `environment/` excluding
 fix-path files (strip `__init__.py` stubs, data JSON, comments, blank
 lines), compute the ratio, FAIL below 5:1.
 
@@ -114,7 +114,7 @@ ratio on the accepted-task corpus first to pick a defensible threshold.
 `task-creation.mdc`, `construction_manifest` in `validation_schema.json`)
 commits Step 2a to opaque symbol names before Step 2b drafts. The intent is
 that the drafter cannot invent domain-telegraphing names like `pick_lineage`
-during drafting. But the enforcement is `collapse_check.py`'s CR1 check,
+during drafting. But the enforcement is `scripts/collapse_check.py`'s CR1 check,
 which is cooperative: it reads the manifest and confirms the shipped symbols
 match. A drafter that fills in a body but accidentally introduces new
 helper symbols named `resolve_lineage_priority` (not in the manifest) will
@@ -145,7 +145,7 @@ Step 2b.5 after oracle 1x passes.
    but leaving C++/Rust tasks behind.
 
 2. **Manifest enforcement is the cheaper first step.** CR1 in
-   `collapse_check.py` already WARNs on manifest-forbidden collisions. If
+   `scripts/collapse_check.py` already WARNs on manifest-forbidden collisions. If
    the CR1 WARN count stays near zero because authors internalize the
    construction rules, the rename pass is redundant. If CR1 WARNs keep
    surfacing after a few weeks of Composer-2-driven authoring, the rename
@@ -180,7 +180,7 @@ vocabulary mismatch," "recovery-state inconsistency across restart,"
 **Shape of the proposal.** A `patterns/` directory with one file per
 pattern, each containing: the invariant structure, why it's hard, a
 skeleton of environment/tests, an exemplar task, and an anti-pattern
-(what collapse looks like). `collapse_check.py` or a sibling could match
+(what collapse looks like). `scripts/collapse_check.py` or a sibling could match
 new submissions against these shapes and flag "this is pattern X; confirm
 the coupling is genuinely present."
 
@@ -231,7 +231,7 @@ call, which makes the check non-deterministic, or (b) a hand-crafted
 feature set that's brittle and gameable. A sentence-embedding approach
 needs an embedding model; a token-level approach has false positives on
 incidental shared vocabulary. Neither shape is clean enough to ship as
-a mandatory gate. Covered softly by `run_static_checks.py --only
+a mandatory gate. Covered softly by `scripts/run_static_checks.py --only
 instruction_test_vocabulary` which at least forces the instruction to
 carry the vocabulary tests use, and by the strengthened humanization
 language in `.cursor/rules/task-creation.mdc` that calls out template
@@ -245,14 +245,13 @@ under 10%.
 
 ---
 
-## Per-model calibration heuristics (Claude-specific or GPT-specific)
+## External evaluation calibration heuristics
 
-**Problem it would solve.** A task rated "hard" because it scored 0/5 on
-Claude but 4/5 on GPT-5.2 isn't really hard — it's hard-for-one-model.
-Conversely, tasks that Claude passes but GPT fails are currently shipped
-under the same "hard" label, but they're measurably narrower. A per-model
-calibration heuristic would flag these imbalances and force authors to
-diversify the failure mode.
+**Problem it would solve.** If a separately run external evaluation shows a
+task is hard only for one evaluator profile but easy for another, the repo
+should not treat that as required hardness evidence. A calibration heuristic
+could flag those imbalances without making paid/API attempts part of the
+required authoring workflow.
 
 **Shape of the proposal.** After post-upload evaluation data is available, compare per-model
 pass rates. Flag any task where `abs(pass_rate_claude - pass_rate_gpt5) > 0.5`.
@@ -283,7 +282,7 @@ axes rather than targeting specific models.
 **Problem it would solve.** At least one shipped task (`rollback-replay-
 divergence`) contained a test that failed 10/10 under the oracle itself
 — the test's assumption about what a partial-fix profile should produce
-was wrong, so even a complete fix couldn't satisfy it. `verifier_health.py`
+was wrong, so even a complete fix couldn't satisfy it. `scripts/verifier_health.py`
 catches this empirically via its `repeat_oracle` check, but only if the
 reviewer actually runs it before approving. There's no static check.
 
@@ -295,7 +294,7 @@ noting "partial-fix inversion: expected to pass with full oracle."
 Cross-reference with `solution/solve.sh` to confirm the oracle's profile
 actually produces the expected pass.
 
-**Why on hold.** The empirical gate (`verifier_health.py`'s `repeat_oracle`
+**Why on hold.** The empirical gate (`scripts/verifier_health.py`'s `repeat_oracle`
 check, opt-in via `--include-repeat-oracle` in Step 3a-V) catches this
 when run, and Step 2b's 10x oracle preflight (`harbor run -a oracle -k 10
 -n 10`) catches it on the routine path. Adding a static check would
@@ -308,7 +307,7 @@ checklist item in `review-and-submit.mdc`.
 shipping with shipped tests that fail under the oracle despite the
 Step 2b 10x preflight — i.e., a failure mode the preflight systematically
 misses. If that happens, build the check as an AST-level inspector before
-`approve_task.py` consumes any health report.
+`scripts/approve_task.py` consumes any health report.
 
 ---
 
@@ -358,7 +357,7 @@ or the three required v2 subsections (Triviality Ledger, Per-gate
 Pitfall Inventory, Initial Draft Commitments). The
 `tb3-task-author` skill correctly refused to draft, exposing the
 hole. Fix landed as: (a) `lint_spec` strict mode + CLI flag,
-(b) `validate_loop.py finalize` subcommand + GO-branch THEN_RUN
+(b) `scripts/validate_loop.py finalize` subcommand + GO-branch THEN_RUN
 hint, (c) idea-validation.mdc template update, (d) workflow-prompts
 Step 2a post-save instruction, (e) repo_tests pins. No further
 action; entry retained as audit trail.

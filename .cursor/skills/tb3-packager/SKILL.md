@@ -1,6 +1,6 @@
 ---
 name: tb3-packager
-description: "Step 4 final-approval macro for TB3 tasks. Pull when a task has passed Step 2b (with current .step2b-checksum) and Step 3b paper review with no outstanding edits. Walks through the final approval gates: oracle 10x, NOP score 0.0, submission zip validation, approve_task.py exit 0 including instrumentation block emission, and the repo_tests fixture mirror."
+description: "Step 4 final-approval macro for TB3 tasks. Pull when a task has passed Step 2b (with current .step2b-checksum) and Step 3b paper review with no outstanding edits. Walks through the final approval gates: oracle 10x, NOP score 0.0, submission zip validation, scripts/approve_task.py exit 0 including instrumentation block emission, and the repo_tests fixture mirror."
 disable-model-invocation: true
 ---
 
@@ -12,10 +12,19 @@ Stop if any fails.
 
 - `tasks/<task-name>/.step2b-checksum` exists.
 - Step 3b (`tb3-reviewer`) finished with no outstanding FAIL
-  findings.
-- `python3 task_integrity.py verify tasks/<task-name>` exit 0.
+  findings and no unaccepted `scripts/collapse_check.py` WARN findings.
+- `python3 scripts/task_integrity.py verify tasks/<task-name>` exit 0.
   Exit 1 (stale / missing) → return to `tb3-task-author`
   preflight, then `tb3-reviewer` if any edit happened.
+- `task.toml` includes `[environment] allow_internet = false` and
+  pinned verifier tooling is baked into `environment/Dockerfile` (the fixed
+  `test_deps_in_image` CI check accepts this; no runtime installs in
+  `tests/test.sh`).
+- If `tasks/<task-name>/quality_check_adjudication.json` exists,
+  verify it is still a final PASS artifact, not a stale pre-repair
+  record with `task-defect` entries. If all task-defects were repaired
+  and no waiver-only findings remain, remove the stale per-task file,
+  rerun Step 2b preflight, then Step 3b before packaging.
 
 ## 2. Final approval gates
 
@@ -23,15 +32,25 @@ Run in order. Stop on the first failure; do not invoke later
 gates with stale state.
 
 ```bash
-harbor run -p "tasks/<task-name>" -a oracle -k 10 -n 10
-harbor run -p "tasks/<task-name>" -a nop
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle-repeat 10
+python3 scripts/harbor_gate.py tasks/<task-name> --test-repeat 20
 ```
 
-- Oracle 10x — all 10 trials at 1.0. Any sub-1.0 trial means
-  non-determinism; fix in `solution/solve.sh` or `environment/`.
+- Oracle 10x — all 10 trials at 1.0. Any sub-1.0 trial means non-determinism; fix in `solution/solve.sh` or `environment/`.
+- Verifier 20x — all 20 trials at 1.0; anything less is flaky and blocks approval.
   That edit dirty-flags → return to `tb3-task-author` preflight
   and `tb3-reviewer` re-check before retrying §2.
-- NOP must score 0.0.
+
+Run reviewer simulation before packaging:
+
+```bash
+python3 scripts/reviewer_simulation.py tasks/<task-name> --strict \
+    --report-dir /tmp/tb3-gates \
+    --first-look-result /tmp/<task-name>-first-look-result.json \
+    --json > /tmp/tb3-gates/<task-name>-reviewer_simulation.json
+```
+
+If `would_reject=true` or `scores.reviewer_confidence` < 90, fix HIGH/CRITICAL concerns before continuing.
 
 Build the shipping zip per `commands.md` § Packaging (use the
 full `-x` exclusion list there — `__pycache__`, `*.pyc`,
@@ -41,24 +60,29 @@ dotfiles, `output_contract.toml`, `quality_check_adjudication.json`,
 `.claude/`).
 
 ```bash
-python3 validate_submission_zip.py Task_Ready_To_Submit/<task-name>.zip
+python3 scripts/validate_submission_zip.py Task_Ready_To_Submit/<task-name>.zip
 ```
 
 All checks must pass.
 
 ```bash
-python3 approve_task.py --task-dir tasks/<task-name> \
+python3 scripts/approve_task.py --strict --task-dir tasks/<task-name> \
     --zip Task_Ready_To_Submit/<task-name>.zip \
-    --skip-verifier-health
+    --skip-verifier-health \
+    --actionability-report /tmp/tb3-gates/<task-name>-actionability_check.json \
+    --no-hidden-contracts-report /tmp/tb3-gates/<task-name>-no_hidden_contracts.json \
+    --obfuscation-lint-report /tmp/tb3-gates/<task-name>-obfuscation_lint.json \
+    --first-look-result /tmp/<task-name>-first-look-result.json \
+    --oracle-job-dir jobs/<oracle-job-dir> \
+    --nop-job-dir jobs/<nop-job-dir>
 ```
 
-Must exit 0. Add `--verifier-health <path>` and / or
-`--quality-check-adjudication <path>` per `commands.md` only
-when the corresponding Step 3a sub-step was actually run.
+Must exit 0. Add `--verifier-health <path>` per `commands.md` only
+when Step 3a-V was actually run.
 
-## 3. approve_task.py emits the metrics block
+## 3. scripts/approve_task.py emits the metrics block
 
-On successful approval, `approve_task.py` aggregates
+On successful approval, `scripts/approve_task.py` aggregates
 `tasks/<task-name>/.step2b-metrics.jsonl` into the
 `## Per-task authoring metrics` block at
 `specs/<task-name>-validation-log.md`. Confirm it has the
@@ -68,7 +92,7 @@ last two — `cni_references_fired` and `draft_commitments_diff`
 
 ## 4. Mirror task to `repo_tests/fixtures/`
 
-After `approve_task.py` exit 0, copy the parity-test inputs
+After `scripts/approve_task.py` exit 0, copy the parity-test inputs
 into `repo_tests/fixtures/`. The tree is locked at this point
 (any later edit restarts from Step 2b).
 
@@ -114,8 +138,8 @@ Report:
 
 - Oracle 10x score (10/10 at 1.0).
 - NOP score (0.0).
-- `validate_submission_zip.py` exit code.
-- `approve_task.py` exit code.
+- `scripts/validate_submission_zip.py` exit code.
+- `scripts/approve_task.py` exit code.
 - Metrics block confirmed at `specs/<task-name>-validation-log.md`.
 - Fixture mirror confirmed; post-mirror failure count and md5.
 

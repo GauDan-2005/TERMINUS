@@ -61,7 +61,7 @@ Run from repo root:
     stb submissions download {submission_id} -o "<revision_dir>/submitted-task"
     stb submissions fetch-task {submission_id} -o "<revision_dir>/metadata"
 
-Copy the feedback bundle written by `stb submissions feedback` (under `/tmp/feedback_{submission_id}_*/`) into:
+Copy the feedback bundle written by `stb submissions feedback` (read its **"Feedback written to"** line — `stb` 2.2.x writes to `/tmp/claude-<uid>/feedback_{submission_id}_<ISO8601>Z/`, **not** `/tmp/feedback_*`) into:
 
     <revision_dir>/feedback/
 
@@ -138,7 +138,7 @@ cd "/media/gaurav-s-ubuntu/COLLEGE MATERIAL/Work/AirDawg/TERMINUS"
 # List submissions (find task + state)
 stb submissions list --project-id bfe79c33-8ab0-4061-9849-08d3207c9927 --show-folder-names
 
-# Fetch feedback bundle → /tmp/feedback_<id>_*/
+# Fetch feedback bundle → /tmp/claude-<uid>/feedback_<id>_<ISO8601>Z/ (read the "Feedback written to" line)
 stb submissions feedback <SUBMISSION_ID>
 
 # Download submitted zip (extracted)
@@ -204,4 +204,4 @@ Each fetch is a **point-in-time snapshot**. After you `stb submissions update` a
 
 - `stb submissions feedback` has **no delete** command; archiving locally is your history.
 - Use **`stb submissions update`** (not `create`) when revising a NEEDS_REVISION submission to avoid duplicate submission IDs.
-- Older archives live under `personal_docs/reports/` from before this layout; new work uses `personal_docs/feedback/` only.
+- All feedback archives live under `personal_docs/feedback/` — one `revision_{N}/` snapshot per fetch.

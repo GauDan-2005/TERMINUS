@@ -1,6 +1,6 @@
-"""Regression tests for approve_task.py's .step2b-checksum verification.
+"""Regression tests for scripts/approve_task.py's .step2b-checksum verification.
 
-approve_task.py imports task_integrity and verifies the sentinel before
+scripts/approve_task.py imports task_integrity and verifies the sentinel before
 declaring a task approvable. The sentinel is the rollout's mechanical
 dirty-flag: if a contributor edits the task tree after the last preflight
 run, approve_task must refuse to package.
@@ -19,9 +19,9 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
-import approve_task
-import run_static_checks
-import task_integrity
+from scripts import approve_task
+from scripts import run_static_checks
+from scripts import task_integrity
 from repo_tests.cases import FIXTURE_TASKS_DIR
 
 

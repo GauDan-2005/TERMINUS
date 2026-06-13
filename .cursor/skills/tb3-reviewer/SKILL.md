@@ -28,7 +28,7 @@ Stop if any fails.
     root-level layout is rejected.
 - `tasks/<task-name>/.step2b-checksum` exists (Step 2b passed at
   some point).
-- Run `python3 task_integrity.py verify tasks/<task-name>`. If exit
+- Run `python3 scripts/task_integrity.py verify tasks/<task-name>`. If exit
   is 1 (dirty / missing / mismatch), stop and tell the user to
   re-run `./scripts/check-task.sh tasks/<task-name>` and repeat
   oracle 1x + NOP before review.
@@ -64,14 +64,39 @@ verdict per item.
 
 - `review-and-submit.mdc` §1-7 — Instruction, Environment, Oracle
   Solution, Verifiers, Task Metadata, Task Structure, Difficulty
-  Calibration. Confirm `tests/test.sh` matches the standard or UI
-  template per `task-creation.mdc`.
+  Calibration. Confirm `task.toml` has `[environment] allow_internet =
+  false`, verifier deps are pinned in `environment/Dockerfile` (now accepted
+  by the fixed `test_deps_in_image` CI check, not runtime installs in
+  `test.sh`), platform pipeline Dockerfile checks pass (blocking:
+  digest-pinned `FROM`, sanctioned final runtime base, build-context size;
+  warnings: `.dockerignore`, hygiene, layer ordering, multi-stage builds —
+  see `task-creation.mdc` § environment/Dockerfile), and `tests/test.sh`
+  matches the internet-disabled standard or UI template per `task-creation.mdc`. Apt pins are point-in-time: if image build
+  fails with `Version '…' was not found`, refresh Debian apt pins (security
+  updates drop old versions—`libssl3`, `ca-certificates`, etc.); do not remove
+  pins to pass CI.
+- `difficulty-calibration.mdc` Part E — when platform agent accuracies
+  are available, classify Hard → Medium → Easy using best/worst model
+  thresholds.
 - `difficulty-calibration.mdc` Part A — collapse audit (smallest
   plausible patch, frontier, requirement-to-file map, oracle LOC,
-  discoverability, red flags, residual hardness).
+  discoverability, red flags, residual hardness). Confirm the latest
+  Step 2b mechanical record has `scripts/collapse_check.py` at 0 FAIL / 0 WARN.
+  Any remaining WARN needs explicit PASS-with-justification from this
+  review; do not let WARNs pass silently as "non-fatal."
 - `difficulty-calibration.mdc` Part B — per-test feasibility risks
   (single-valid-approach, chain-dependency, order-sensitivity,
   flakiness, niche-technique). Flag any HIGH-risk test.
+- `difficulty-calibration.mdc` Part F — platform auto-eval and agent
+  discrimination. **Mandatory when reviewing post-upload failures.**
+  - `verifier_did_not_run` → Verifier/infra issue, NOT difficulty. Audit
+    `test.sh` for runtime installs, missing `reward.txt`, timeouts. See
+    `docs/PLATFORM_AUTO_EVAL.md`.
+  - Zero agents pass any test (no verifier_did_not_run) → Likely Part B
+    issue (chain-dependent, single-path, niche-knowledge). Recommend
+    `scripts/verifier_health.py` before redesign.
+  - Difficulty check order: verifier must write `reward.txt` before Part E
+    runs; fix verifier issues before worrying about calibration.
 - Cross-reference the spec's `Reviewer Appendix` to confirm the
   drafted task still satisfies the discovery budget and topology
   enumeration committed in Step 2a.
@@ -107,6 +132,10 @@ Classify every finding:
     `task-creation.mdc`. Move the facts into `instruction.md`;
     above length WARN, accept it over re-splitting.
 - **WARN** — surface to the user; do not auto-edit.
+- **Collapse WARN** — normally return to Step 2b for honest cleanup
+  before Step 4. Accept only with a written PASS-with-justification
+  explaining why the warning reflects an acceptable task shape rather
+  than padding, discoverability, tiny diffs, or verifier shallowness.
 - **PASS** — record.
 
 ## 5. After any edits
@@ -116,9 +145,8 @@ Step 3b clean:
 
 - Rerun `./scripts/check-task.sh tasks/<task-name>` (rewrites the
   checksum and metrics).
-- Rerun `harbor run -p "tasks/<task-name>" -a oracle` (1x, no
-  `-k`) and `harbor run -p "tasks/<task-name>" -a nop`. Confirm
-  oracle 1.0, NOP 0.0.
+- Rerun `python3 scripts/harbor_gate.py tasks/<task-name> --oracle` and
+  `--nop`. Confirm oracle 1.0, NOP 0.0.
 - Rerun this skill from §3 to confirm no concept-level regression.
 
 Do not run oracle 10x here — that is Step 4.
@@ -136,4 +164,4 @@ Then say verbatim — pick one:
 > Step 3b complete; no edits needed. Ready for Step 4 packaging (pull `tb3-packager` skill).
 > Step 3b complete after preservation-safe edits. Step 2b PASS re-confirmed. Ready for Step 4 packaging (pull `tb3-packager` skill).
 
-Stop. Do not run `approve_task.py`, `validate_submission_zip.py`, or oracle 10x — Step 4.
+Stop. Do not run `scripts/approve_task.py`, `scripts/validate_submission_zip.py`, or oracle 10x — Step 4.

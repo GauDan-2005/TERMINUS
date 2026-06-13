@@ -10,11 +10,9 @@ Use this rule whenever you are reviewing, repairing, or approving a task for sub
 - **Too hard**: one or more individual tests are gated by a single exact technique or chain-dependent on the full solution
 
 Both are rejection reasons on the platform. Catch them before uploading.
-The default Edition 2 acceptance profile in this repo is hard-only.
+The default Edition 2 acceptance profile in this repo is hard-only for **task metadata** (`difficulty = "hard"` in `task.toml`). **Empirical** difficulty after platform agent runs is classified separately in **Part E** below.
 
-When empirical platform/model results are available, classify in the announced order: **Hard → Medium → Easy**. Hard if the best model's accuracy is ≤20%; if that does not apply, Hard if the worst model's accuracy is ≤20%; Medium if `20% < worst accuracy ≤ 60%`; Easy if `60% < worst accuracy ≤ 80%`. Stop at the first matching category. This ordering matters because a worst-model ≤20% can still qualify as Hard when the best-model condition does not.
-
-**The mechanical stack is the sole gate.** `collapse_check.py` runs eight root-cause checks (RC1-RC8), five compositional contract checks (CR1, CR2, CR7-CR9), and ten gate-extra checks (GX1-GX10). RC6 audits `instruction.md` for spec-completeness via `instruction_audit.py`; RC7 promotes the A12 oracle-LOC heuristic (<30 non-boilerplate lines = FAIL) to a mechanical gate. The GX layer was added after three previously-shipped tasks (`grandchild-exit-leak`, `pipe-close-shadow`, `child-finalization-gap`) collapsed despite passing RC1-RC8 + CR1-CR9; it closes structural gaps the earlier stack missed (LOC inflation via heredoc body-size, no-op frontier rewrites, disclosure comments in env, hardcoded oracle constants in tests, test-side derivation logic without an env home, narrative cause-disclosure). GX9 and GX10 were added after a second batch (`counter-restore-replay`, `slot-lineage-drift`, `key-ring-alias`, `staple-cache-shadow`) collapsed despite passing GX1-GX8: GX9 catches the "instruction enumerates the test answer key" mode and GX10 catches the "instruction names both polarities of a binary field for one case" mode — two opposite-direction ways an `instruction.md` can cheat the difficulty contract. If any of these 23 checks returns FAIL, the task does not ship. `verifier_health.py` (repeat-oracle / randomized-order / partial-oracle ablations) is the empirical backstop. Section A24 below documents the reviewer-facing modes that depend on natural-language judgment and remain outside the mechanical gate. Post-upload evaluation on the platform is outside this repo-local gate.
+**The mechanical stack is the sole gate.** `scripts/collapse_check.py` runs eight root-cause checks (RC1-RC8), five compositional contract checks (CR1, CR2, CR7-CR9), and ten gate-extra checks (GX1-GX10). RC6 audits `instruction.md` for spec-completeness via `scripts/instruction_audit.py`; RC7 promotes the A12 oracle-LOC heuristic (<30 non-boilerplate lines = FAIL) to a mechanical gate. The GX layer was added after three previously-shipped tasks (`grandchild-exit-leak`, `pipe-close-shadow`, `child-finalization-gap`) collapsed despite passing RC1-RC8 + CR1-CR9; it closes structural gaps the earlier stack missed (LOC inflation via heredoc body-size, no-op frontier rewrites, disclosure comments in env, hardcoded oracle constants in tests, test-side derivation logic without an env home, narrative cause-disclosure). GX9 and GX10 were added after a second batch (`counter-restore-replay`, `slot-lineage-drift`, `key-ring-alias`, `staple-cache-shadow`) collapsed despite passing GX1-GX8: GX9 catches the "instruction enumerates the test answer key" mode and GX10 catches the "instruction names both polarities of a binary field for one case" mode — two opposite-direction ways an `instruction.md` can cheat the difficulty contract. If any of these 23 checks returns FAIL, the task does not ship. `scripts/verifier_health.py` (repeat-oracle / randomized-order / partial-oracle ablations) is the empirical backstop. Section A24 below documents the reviewer-facing modes that depend on natural-language judgment and remain outside the mechanical gate. Post-upload evaluation on the platform is outside this repo-local gate.
 
 ## Solver-Visible Surface Policy
 
@@ -22,7 +20,7 @@ Use the authoritative solver-visible file-surface policy from `@task-creation.md
 
 On the current repo policy, the solver-visible file surfaces are `instruction.md`, everything under `environment/`, everything under `tests/`, and the file/directory names within those surfaces. `task.toml`, `output_contract.toml`, `solution/`, specs, jobs, reviewer notes, and packaging artifacts are authoring/package surfaces, not solver-visible file surfaces for this gate.
 
-If you actually ran the broken task, also inspect runtime error output manually. `collapse_check.py` models only the solver-visible file surfaces above.
+If you actually ran the broken task, also inspect runtime error output manually. `scripts/collapse_check.py` models only the solver-visible file surfaces above.
 
 ## When To Run
 
@@ -39,7 +37,7 @@ Do not skip the second pass. Most problems only surface after the draft is concr
 
 A strong real-world idea can still collapse into a trivial task once the files exist. Judge the task at its current stage, not by the original concept.
 
-`collapse_check.py` runs the full mechanical stack (RC1-RC8 + CR1, CR2, CR7-CR9 + GX1-GX10) against the finished task. Any FAIL verdict is blocking — A0-A23 below drive the checks, and the checks drive the approval gate.
+`scripts/collapse_check.py` runs the full mechanical stack (RC1-RC8 + CR1, CR2, CR7-CR9 + GX1-GX10) against the finished task. Any FAIL verdict is blocking — A0-A23 below drive the checks, and the checks drive the approval gate.
 
 ### Fatal question
 
@@ -47,17 +45,17 @@ A strong real-world idea can still collapse into a trivial task once the files e
 
 If the answer is "mostly transcription / recipe filling / tiny local repair," the task is not hard enough.
 
-### A0. Hardness axes (gate check — run first)
+### A0. Shape-aware hardness axes (gate check — run first)
 
 A task must satisfy ALL 5 axes to be hard. Any axis failing is a FAIL:
 
-1. **Discover** — Must the agent find information not in the instruction? (by reading code, running experiments, analyzing behavior). If the instruction alone is sufficient, FAIL.
-2. **Synthesize** — Does the answer span multiple interacting systems? If one file/module contains the complete solution, FAIL.
-3. **Diagnose** — Does the instruction describe symptoms, not causes? If the instruction says what's wrong instead of what's observed, FAIL.
-4. **Navigate coupling** — Do local fixes break distant invariants? If fixes are independent and don't interact, FAIL.
+1. **Discover** — Must the agent discover, infer, design, prove, reverse-engineer, or optimize nontrivial information not directly solved by the instruction? If the instruction alone is sufficient, FAIL.
+2. **Synthesize** — Does the answer span multiple interacting systems, artifacts, constraints, or evidence surfaces? If one obvious file/module/rule contains the complete solution, FAIL.
+3. **Diagnose or Design/Search** — For `repair_existing_system`, does the instruction describe symptoms rather than causes? For non-repair shapes, is there a real design-search, semantic-inference, constrained-optimization, adversarial-generalization, or formal-reasoning burden? If the selected shape collapses to recipe following, FAIL.
+4. **Navigate coupling** — Do local choices break distant invariants, compatibility, resource limits, protocol behavior, or verifier-visible state? If choices are independent and don't interact, FAIL.
 5. **Reason beyond training** — Does the task require domain reasoning that can't be pattern-matched? If the domain is standard textbook material (HMAC, JSON schema, Monte Carlo, sliding windows), FAIL.
 
-**Instruction completeness test:** Can the agent solve this by reading ONLY instruction.md without deeply engaging with the codebase? If yes, the instruction IS the specification and the codebase is decorative. FAIL.
+**Instruction completeness test:** Can the agent solve this by reading ONLY instruction.md without deeply engaging with the codebase, artifacts, constraints, or verifier-visible behavior? If yes, the instruction is a recipe and the remaining surfaces are decorative. FAIL.
 
 ### A1. Residual-hardness test
 
@@ -69,6 +67,11 @@ Reject or regenerate if the residual work is mostly:
 - implementing a known recipe in a tiny scaffold
 - rewriting a few obvious helper files
 - mechanical alignment between prompt bullets and obvious code sites
+
+Post-disclosure collapse is a FAIL: after every tested formula, invariant,
+constant, event rule, and schema is visible, the task must not reduce to
+matching each public rule to one obvious function/module. Do not hide the rule
+to preserve difficulty; reject or redesign the concrete instance.
 
 ### A2. Smallest-successful-patch test
 
@@ -160,11 +163,11 @@ Count non-boilerplate lines in the transitive oracle material (`solve.sh` + call
 - 30-80 lines: RC7 = WARN, pair with other signals
 - 80+ lines: RC7 = PASS, other RCs still govern
 
-`collapse_check.py` runs this automatically; the thresholds (`ORACLE_TRIVIAL_LOC=30`, `ORACLE_BORDERLINE_LOC=80`) live at the top of the RC7 section there.
+`scripts/collapse_check.py` runs this automatically; the thresholds (`ORACLE_TRIVIAL_LOC=30`, `ORACLE_BORDERLINE_LOC=80`) live at the top of the RC7 section there.
 
 ### A13. Instruction specificity audit (now RC6 — mechanical)
 
-`instruction_audit.py` classifies `instruction.md` across six independent signal families:
+`scripts/instruction_audit.py` classifies `instruction.md` across six independent signal families:
 
 - **A. algorithm mentions** — named primitives (Ed25519, SHA-256, HMAC, FNV-1a, canonical JSON, RFC3339, Merkle, ...)
 - **B. schema enumerations** — dense clusters of backticked identifiers near schema nouns; ALL_CAPS reason-token vocabularies
@@ -177,13 +180,14 @@ The classifier maps triggered families to one of:
 
 - **spec-complete → RC6 = FAIL** (3+ families triggered, or 2 strong families)
 - **cause-revealing → RC6 = WARN** (1-2 families triggered)
-- **symptoms-only → RC6 = PASS** (no families triggered)
+- **symptoms-only → RC6 = PASS** for `repair_existing_system` (no families triggered)
+- **design-brief / behavioral-target / constraint-complete → shape-aware PASS** for non-repair shapes only when the construction recipe remains hidden
 
-A hard task's instruction must be symptoms-only. If RC6 reports spec-complete, the agent can skip the hard reasoning by reading the instruction alone — the codebase is decorative.
+A hard repair task's instruction must be symptoms-only. A hard non-repair task must be complete about public constraints and behavior without revealing the route to the solution. If RC6 reports spec-complete recipe, the agent can skip the hard reasoning by reading the instruction alone — the rest of the task is decorative.
 
 ### A14-A23. Gate Extras (GX1-GX10 — closing structural gate gaps)
 
-After three previously-shipped tasks (`grandchild-exit-leak`, `pipe-close-shadow`, `child-finalization-gap`) collapsed to trivial / easy / medium despite passing the RC1-RC8 + CR1-CR9 stack, root-level checks were added in `gate_extras.py`. Each is framed against a property the author cannot evade by switching to a near-equivalent gaming move. All run under the same `collapse_check.py` driver and use the standard FAIL / WARN / PASS contract. A FAIL on any one of them blocks shipping. GX9 and GX10 were added later, after a second batch of four tasks (`counter-restore-replay`, `slot-lineage-drift`, `key-ring-alias`, `staple-cache-shadow`) was rated trivial / easy despite passing the GX1-GX8 layer. The two checks close opposite-direction `instruction.md` cheating modes: GX9 catches **answer recital** (the instruction enumerates the test contract verbatim, making the task trivial) and GX10 catches **polarity contradiction** (the instruction's own prose names both polarities of a binary field for one scenario, so agents fail on instruction-comprehension instead of engineering work). The reviewer-facing principle in section A24 covers the remaining modes — value over-specification and undefined metaphor jargon — that depend on natural-language judgment and cannot be gated reliably without an LLM in the loop.
+After three previously-shipped tasks (`grandchild-exit-leak`, `pipe-close-shadow`, `child-finalization-gap`) collapsed to trivial / easy / medium despite passing the RC1-RC8 + CR1-CR9 stack, root-level checks were added in `scripts/gate_extras.py`. Each is framed against a property the author cannot evade by switching to a near-equivalent gaming move. All run under the same `scripts/collapse_check.py` driver and use the standard FAIL / WARN / PASS contract. A FAIL on any one of them blocks shipping. GX9 and GX10 were added later, after a second batch of four tasks (`counter-restore-replay`, `slot-lineage-drift`, `key-ring-alias`, `staple-cache-shadow`) was rated trivial / easy despite passing the GX1-GX8 layer. The two checks close opposite-direction `instruction.md` cheating modes: GX9 catches **answer recital** (the instruction enumerates the test contract verbatim, making the task trivial) and GX10 catches **polarity contradiction** (the instruction's own prose names both polarities of a binary field for one scenario, so agents fail on instruction-comprehension instead of engineering work). The reviewer-facing principle in section A24 covers the remaining modes — value over-specification and undefined metaphor jargon — that depend on natural-language judgment and cannot be gated reliably without an LLM in the loop.
 
 **A14. GX1 Oracle Comment Leakage** — the disclosure comment problem.
 
@@ -223,7 +227,7 @@ even when the markers exist on disk and the substitutions produce
 real diffs — they are not the substantive fix logic A16 exists to
 measure. `tb3-reviewer` classifies any solve.sh operation whose
 sole purpose is to satisfy A16's line-count floor as a Hard FAIL
-pattern, regardless of whether `collapse_check.py` flagged it
+pattern, regardless of whether `scripts/collapse_check.py` flagged it
 mechanically (the mechanical check counts diff bytes; it cannot
 distinguish substantive from cosmetic).
 
@@ -242,7 +246,7 @@ Walk every test-asserted token (subscript keys + literals in equality compares w
 
 **A19. GX6 Causal Connective Density** — narrative cause-disclosure.
 
-Closed list of ~30 English causal/temporal connectives covering subordinators (`while`, `before`, `after`, `because`, `since`, `until`, `even though`, `still`) AND result clauses (`as a result`, `consequently`, `therefore`, `due to`, `leads to`, `causes`). FAIL when ≥ 4 hits AND > 1.5/100 words; WARN at ≥ 3 hits + > 1.0/100 words. A symptoms-only instruction can describe what is observed without chaining clauses across subsystems with these connectives.
+Closed list of ~30 English causal/temporal connectives covering subordinators (`while`, `before`, `after`, `because`, `since`, `until`, `even though`, `still`) AND result clauses (`as a result`, `consequently`, `therefore`, `due to`, `leads to`, `causes`). FAIL when ≥ 4 hits AND > 1.5/100 words; WARN at ≥ 3 hits + > 1.0/100 words. A symptoms-only repair instruction can describe what is observed without chaining clauses across subsystems with these connectives. Non-repair instructions may use causal language for public constraints, but not to reveal the construction recipe or oracle path.
 
 **A20. GX7 Test-Literal Homing** — extends CR9 to three patterns CR9 misses.
 
@@ -318,7 +322,7 @@ Collapse verdict: {PASS | WARN | FAIL}
 
 ## Part B: Per-Test Feasibility Analysis (Too Hard)
 
-Every individual test must be independently feasible and accept any valid solution approach. This part is a **paper review** of each test function. `verifier_health.py` is **not** a routine step — it is the escalation tool for suspect tests. Run it only when B3, B3.5, or B4 below surface a concrete concern (order-sensitivity, suspected flakiness, or a reviewer-requested partial-oracle ablation). Tasks where Step 2b's oracle + NOP preflight passed cleanly and no suspect test pattern surfaces in this Part B walkthrough do not need to run `verifier_health.py`.
+Every individual test must be independently feasible and accept any valid solution approach. This part is a **paper review** of each test function. `scripts/verifier_health.py` is **not** a routine step — it is the escalation tool for suspect tests. Run it only when B3, B3.5, or B4 below surface a concrete concern (order-sensitivity, suspected flakiness, or a reviewer-requested partial-oracle ablation). Tasks where Step 2b's oracle + NOP preflight passed cleanly and no suspect test pattern surfaces in this Part B walkthrough do not need to run `scripts/verifier_health.py`.
 
 ### B1. Per-test feasibility check
 
@@ -353,31 +357,31 @@ If tests are coupled through shared prerequisites, either:
 - have the test create its own preconditions, or
 - split the coupled requirement into the same test
 
-**Escalate to `verifier_health.py` (Step 3a-V) only if the paper analysis above flags a test as possibly order-sensitive, chain-dependent through shared state, or a reviewer asked for the check.** Otherwise skip this block.
+**Escalate to `scripts/verifier_health.py` (Step 3a-V) only if the paper analysis above flags a test as possibly order-sensitive, chain-dependent through shared state, or a reviewer asked for the check.** Otherwise skip this block.
 
 When escalation applies, run the repo-local verifier-health automation. The default pass runs `randomized_order` and `partial_oracle` in parallel against a shared worker pool; the slow `repeat_oracle` stress test is opt-in (`--include-repeat-oracle`). During iteration, narrow to just the failing check with `--only` / `--skip` / `--focus` (see `@review-and-submit.mdc` "Review-Loop Discipline"):
 
 ```bash
 # default (randomized_order + partial_oracle)
-python3 verifier_health.py --task-dir tasks/<task-name>
+python3 scripts/verifier_health.py --task-dir tasks/<task-name>
 
 # narrow to a specific failing seed or variant while iterating
-python3 verifier_health.py --task-dir tasks/<task-name> --only randomized_order --focus seed=303
+python3 scripts/verifier_health.py --task-dir tasks/<task-name> --only randomized_order --focus seed=303
 
-# save the JSON report for approve_task.py --verifier-health
-python3 verifier_health.py --task-dir tasks/<task-name> \
+# save the JSON report for scripts/approve_task.py --verifier-health
+python3 scripts/verifier_health.py --task-dir tasks/<task-name> \
     --output-json /tmp/<task-name>-verifier-health.json
 ```
 
 Manual fallback only if you are debugging the randomized-order failure itself:
 ```bash
-python -m pytest -o cache_dir=/tmp/pytest_cache tasks/<task-name>/tests/test_outputs.py -rA -p randomly
+uvx -p 3.13 -w pytest==8.4.1 -w pytest-randomly pytest tasks/<task-name>/tests/test_outputs.py -rA -p randomly
 ```
 If any test fails under random order, it depends on execution order or shared global state.
 
 ### B3.5. Flaky test stress-test
 
-Step 2b's 10x oracle preflight (`harbor run -a oracle -k 10 -n 10`) is the routine flake guard. Escalate to `verifier_health.py --include-repeat-oracle` **only** if that preflight showed intermittent failures, or a specific test looks flaky by paper inspection (timers, retries, subprocess calls, randomness). Repeated oracle stress is expensive (~5 extra oracle trials) and adds near-zero signal when the 10x preflight was clean.
+Step 2b's 10x oracle preflight (`harbor run -a oracle -k 10 -n 10`) is the routine flake guard. Escalate to `scripts/verifier_health.py --include-repeat-oracle` **only** if that preflight showed intermittent failures, or a specific test looks flaky by paper inspection (timers, retries, subprocess calls, randomness). Repeated oracle stress is expensive (~5 extra oracle trials) and adds near-zero signal when the 10x preflight was clean.
 
 Flag any test that uses:
 - subprocess calls, service checks, or network connections (needs adequate timeouts)
@@ -395,13 +399,13 @@ When escalation applies, use the repo-local verifier-health automation to genera
 
 ```bash
 # default pass
-python3 verifier_health.py --task-dir tasks/<task-name>
+python3 scripts/verifier_health.py --task-dir tasks/<task-name>
 
 # narrow to a single ablation while iterating
-python3 verifier_health.py --task-dir tasks/<task-name> --only partial_oracle --focus variant=drop_tail_30
+python3 scripts/verifier_health.py --task-dir tasks/<task-name> --only partial_oracle --focus variant=drop_tail_30
 
-# save the JSON report for approve_task.py --verifier-health
-python3 verifier_health.py --task-dir tasks/<task-name> \
+# save the JSON report for scripts/approve_task.py --verifier-health
+python3 scripts/verifier_health.py --task-dir tasks/<task-name> \
     --output-json /tmp/<task-name>-verifier-health.json
 ```
 
@@ -412,7 +416,7 @@ It automatically tries multiple ablations (tail, middle, and second-half style c
 
 Any test that fails here AND requires a niche technique is high-risk for 0/10.
 
-**BLOCKING (only when verifier_health.py was run): If the verifier-health report shows only full-pass ablations, compile-only ablations, or ambiguous ablations, the verifier does not yet prove it discriminates between partial and complete fixes. Fix the tests or the ablation strategy before approving the task. Tasks where Step 3a-V was not run (routine path) are not bound by this BLOCKING rule.**
+**BLOCKING (only when scripts/verifier_health.py was run): If the verifier-health report shows only full-pass ablations, compile-only ablations, or ambiguous ablations, the verifier does not yet prove it discriminates between partial and complete fixes. Fix the tests or the ablation strategy before approving the task. Tasks where Step 3a-V was not run (routine path) are not bound by this BLOCKING rule.**
 
 ### B5. Multi-approach validation
 
@@ -434,27 +438,55 @@ Recommendation: [keep | loosen assertion | restructure]
 
 ---
 
+## Part E: Platform difficulty thresholds (post-upload)
+
+After agent evaluation on the platform, classify empirical difficulty using agent **accuracy** (pass rate across runs). Evaluate thresholds in order **Hard → Medium → Easy** and **stop at the first category the task matches**.
+
+| Label | Rule |
+|-------|------|
+| **HARD** | (1) Accuracy ≤ 20% on the **best** model, **or** (2) if (1) does not apply, accuracy ≤ 20% on the **worst** model |
+| **MEDIUM** | 20% < accuracy ≤ 60% on the **worst** model |
+| **EASY** | 60% < accuracy ≤ 80% on the **worst** model |
+
+**Worked example:**
+
+```text
+terminus-claude-opus-4-6: 100.0% (5/5 runs)  ← best model
+terminus-gpt5-2:          20.0% (1/5 runs)  ← worst model
+```
+
+- HARD condition (1) fails because the best model scored 100% (> 20%).
+- HARD condition (2) passes because the worst model scored 20% (≤ 20%).
+- **Verdict: HARD** (stop at first match).
+
+**Notes:**
+- Repo-local gates (`scripts/collapse_check.py`, oracle/NOP) judge **construction hardness**, not this platform label.
+- `task.toml` still uses `difficulty = "hard"` on the default Edition 2 path regardless of eventual platform bucket, unless project policy explicitly allows shipping medium/easy metadata.
+- Step 2a `calibration_plan.pass_rate_target` (hard_max_pct=20) aligns with the HARD thresholds above.
+
+---
+
 ## Part C: Single Approval Gate
 
-After packaging, run the repo's single approval gate. `verifier_health.py` is an **opt-in diagnostic**: pass `--skip-verifier-health` on the routine path, or attach the report when Step 3a-V was run.
+After packaging, run the repo's single approval gate. `scripts/verifier_health.py` is an **opt-in diagnostic**: pass `--skip-verifier-health` on the routine path, or attach the report when Step 3a-V was run.
 
 ```bash
 # Routine path (no Step 3a-V escalation)
-python3 approve_task.py --task-dir tasks/<task-name> \
+python3 scripts/approve_task.py --task-dir tasks/<task-name> \
     --zip Task_Ready_To_Submit/<task-name>.zip \
     --skip-verifier-health
 
 # Escalated path — Step 3a-V was run
-python3 verifier_health.py --task-dir tasks/<task-name> \
+python3 scripts/verifier_health.py --task-dir tasks/<task-name> \
     --output-json /tmp/<task-name>-verifier-health.json
-python3 approve_task.py --task-dir tasks/<task-name> \
+python3 scripts/approve_task.py --task-dir tasks/<task-name> \
     --zip Task_Ready_To_Submit/<task-name>.zip \
     --verifier-health /tmp/<task-name>-verifier-health.json
 ```
 
 `--verifier-health` and `--skip-verifier-health` are mutually exclusive. Omitting both yields a WARN (no block).
 
-This is the authoritative repo-local approval gate. The always-blocking mechanical components are static checks, `collapse_check.py` (RC1-RC8 + CR1, CR2, CR7-CR9 + GX1-GX10), submission-zip validation, manifest verification, and zip/source parity. `verifier_health.py` and the quality-check adjudication are blocking **only** when they were actually run.
+This is the authoritative repo-local approval gate. The always-blocking mechanical components are static checks, `scripts/collapse_check.py` (RC1-RC7), submission-zip validation, manifest verification, and zip/source parity. `scripts/verifier_health.py` is blocking only when it was actually run.
 
 ---
 
@@ -482,6 +514,74 @@ Investigate and fix before submission:
 
 ---
 
+## Part F: Platform Auto-Eval and Agent Discrimination
+
+This section ties platform-side behavior (auto-eval pipeline) to local authoring decisions.
+
+### F1. Evaluation Pipeline Order
+
+Platform evaluation follows this sequence:
+
+1. **Image Build** — network OK; installs all deps from Dockerfile
+2. **Agent Runs** — `allow_internet = false` enforced
+3. **Verifier Runs test.sh** — same network restriction
+4. **Verifier writes `/logs/verifier/reward.txt`**
+5. **Agent Accuracy Scored** — only if reward.txt exists
+6. **Platform Difficulty Check (Part E)** — runs **here**, not before
+
+**Critical implication**: The difficulty classification only runs after successful agent+verifier cycles. If the verifier fails to produce `reward.txt` (e.g., `verifier_did_not_run`), the difficulty check is **skipped entirely**. Fix verifier issues first, then calibrate difficulty.
+
+### F2. Hard-but-Solvable vs Impossible
+
+| Pattern | Oracle | NOP | Worst Model | Verdict |
+|---------|--------|-----|-------------|---------|
+| **Hard-but-solvable** | 1.0 | 0.0 | ~5-20% | Acceptable |
+| **Too easy** | 1.0 | >0.0 | >60% | Reject/Redesign |
+| **Verifier broken** | 1.0 locally | 0.0 locally | 0% + `verifier_did_not_run` | Fix verifier/infra |
+| **Impossible tests** | 1.0 | 0.0 | 0% (no `verifier_did_not_run`) | Audit Part B |
+
+**Key distinction**: The platform wants **low full-solution rate** (≤20% worst model), NOT **zero agents passing any test**.
+
+### F3. Diagnosing "Zero Agents Pass"
+
+If local oracle 1.0 + NOP 0.0, but platform shows 0/10 or near-zero:
+
+1. **Check for `verifier_did_not_run`** — if present, this is **verifier/infra**, not difficulty. Audit `test.sh` for runtime installs, missing reward.txt, or timeout issues. See `docs/PLATFORM_AUTO_EVAL.md`.
+
+2. **If verifier passed but agents all failed** — run local verifier health check:
+   ```bash
+   python3 scripts/verifier_health.py --task-dir tasks/<task>
+   ```
+   Look for **behavioral** partial-oracle failures (good) vs **compile-only** failures (insufficient discrimination).
+
+3. **Audit per-test feasibility (Part B)** — check for:
+   - Chain-dependent tests requiring full solution upfront
+   - Single-path-only tests (only oracle's exact approach works)
+   - Niche-knowledge gates (require obscure facts)
+
+### F4. Design Targets for Agent Discrimination
+
+To ensure the verifier distinguishes partial from complete fixes:
+
+- **Independent tests** — each test can pass without requiring the full solution
+- **Multiple valid approaches** — ≥2 different valid solutions should pass each core test
+- **Behavioral failures on partial fixes** — partial-oracle ablations should fail on semantic correctness, not just compilation
+
+Run `scripts/verifier_health.py` during Step 3a-V escalation if platform shows 0/10 despite healthy local oracle/NOP.
+
+### F5. Post-Upload Actions
+
+After platform agent runs complete:
+
+1. Check agent accuracy report for worst/best model rates
+2. Apply Part E thresholds (Hard → Medium → Easy; stop at first match)
+3. If worst model is 0%:
+   - With `verifier_did_not_run` → Fix offline verification (see PLATFORM_AUTO_EVAL.md)
+   - Without `verifier_did_not_run` → Audit Part B tests; consider `verifier_health.py` and possible redesign
+4. If worst model is >60% → Task is too easy; redesign or accept Medium/Easy classification per project policy
+
+---
+
 ## Integration With Review Workflow
 
 When reviewing a task, report these in addition to standard checklist items:
@@ -490,5 +590,6 @@ When reviewing a task, report these in addition to standard checklist items:
 2. **Oracle line count** (non-boilerplate)
 3. **Per-test feasibility flags** (list any HIGH-risk tests)
 4. **Partial-oracle results** (if run)
-5. **Difficulty estimate**: trivial / easy / medium / hard / too-hard
-6. **Recommended action**: proceed / loosen specific tests / redesign
+5. **Difficulty estimate**: trivial / easy / medium / hard / too-hard (repo-local construction view)
+6. **Platform difficulty (Part E)**: if agent-run accuracies are available, apply Hard → Medium → Easy thresholds to best/worst models
+7. **Recommended action**: proceed / loosen specific tests / redesign

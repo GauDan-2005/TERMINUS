@@ -70,34 +70,28 @@ approve_task.py catch these, so confirm ALL of them yourself:
 
 ---
 
-# 4. oracle 1x + NOP + run the tests (then clean up Docker)
+# 4. Step 2b cheap gates (loop until green; after ANY task edit re-enter here — dirty-flag)
 
-Give me an oracle command I can run, and run it yourself:
-H=/tmp/opencode/harbor-venv/bin/harbor
-$H run -p "tasks/<task-name>" -a oracle --job-name <task>-oracle-1x -y
-$H run -p "tasks/<task-name>" -a nop --job-name <task>-nop-1x -y
-PASS = oracle mean 1.0, NOP 0.0, 0 errored trials. Then run Docker cleanup
+./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/<task-name>
+python3 scripts/task_gate.py tasks/<task-name> --strict --report-dir /tmp/tb3-gates --skip-harbor
+  # task_gate runs the 5 hard-gates: hard_difficulty_predictor (Python tasks must predict
+  # worst-model pass-rate <= 20%), spec_test_alignment, spec_gap_detector, sandbox_risk_gate.
+Drill individual gates if one fails:
+python3 scripts/run_static_checks.py --task-dir tasks/<task-name> --version edition_2
+python3 scripts/collapse_check.py tasks/<task-name>
+
+---
+
+# 5. oracle + NOP stress (Step 2b correctness gate — replaces the old 1x)
+
+export PATH="/tmp/opencode/harbor-venv/bin:$PATH"   # harbor_gate finds harbor on PATH
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle --oracle-stress 3 --nop --nop-stress 3
+PASS = oracle 3/3 all at 1.0, NOP 3/3 all at 0.0, 0 errored trials. Then Docker cleanup
 (see STEPS_TO_FOLLOW.md "Docker cleanup").
 
 ---
 
-# 5. fix-check-loop (cheapest gate first; build the zip BEFORE approve)
-
-Loop until green; after ANY task edit re-enter at check-task.sh (dirty-flag):
-./scripts/check-task.sh tasks/<task-name>
-python3 run_static_checks.py --task-dir tasks/<task-name> --version edition_2
-python3 collapse_check.py tasks/<task-name>
-
-# build the zip (step 7) THEN:
-
-python3 approve_task.py --task-dir tasks/<task-name> --zip Task_Ready_To_Submit/<task-name>.zip --skip-verifier-health
-quality_check_adjudicate.py is OPT-IN: `stb harbor check` needs Claude-Code creds
-that are unavailable here, so do NOT loop on it — approve_task.py passes without it.
-Clean up Docker after each harbor batch.
-
----
-
-# 6. empirical difficulty (the announcement's REAL hard test; gates measure structure only)
+# 6. empirical difficulty (the announcement's REAL hard test; raw harbor for frontier models)
 
 Confirm HARD per announcement.md (Hard -> Medium -> Easy by frontier accuracy):
 H=/tmp/opencode/harbor-venv/bin/harbor
@@ -107,14 +101,37 @@ Target <=1/6 frontier pass with a deterministic oracle (10/10). Clean up Docker 
 
 ---
 
-# 7. create zip
+# 7. Step 4 final gates -> zip -> approve (build the zip in step 8 BEFORE approve)
 
-Build per validate_submission_zip.py (exclusion set = scripts/check-task.sh:64-73 plus `*/.*`):
-python3 validate_submission_zip.py Task_Ready_To_Submit/<task-name>.zip # must print PASS
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle-repeat 10   # all 10 trials at 1.0
+python3 scripts/harbor_gate.py tasks/<task-name> --test-repeat 20     # all 20 trials at 1.0 (verifier flakiness)
+python3 scripts/first_look_packet.py tasks/<task-name> --out /tmp/<task-name>-first-look.txt
+  # then record the first_look_result JSON per docs/FIRST_LOOK_DRY_RUN.md
+python3 scripts/reviewer_simulation.py tasks/<task-name> --strict --report-dir /tmp/tb3-gates \
+    --first-look-result /tmp/<task-name>-first-look-result.json --json
+  # BLOCK if would_reject=true or reviewer_confidence < 90
+# build the zip (step 8), THEN approve (full --strict flag set in commands.md § approval / STEPS Step 4):
+python3 scripts/approve_task.py --strict --task-dir tasks/<task-name> \
+    --zip Task_Ready_To_Submit/<task-name>.zip --skip-verifier-health \
+    --actionability-report /tmp/tb3-gates/<task-name>-actionability_check.json \
+    --no-hidden-contracts-report /tmp/tb3-gates/<task-name>-no_hidden_contracts.json \
+    --obfuscation-lint-report /tmp/tb3-gates/<task-name>-obfuscation_lint.json \
+    --first-look-result /tmp/<task-name>-first-look-result.json \
+    --oracle-job-dir jobs/<oracle-job-dir> --nop-job-dir jobs/<nop-job-dir>
+scripts/quality_check_adjudicate.py is OPT-IN (Step 3a-Q): `stb harbor check` needs Claude-Code
+creds unavailable here, so do NOT loop on it — approve_task.py passes without it.
+Clean up Docker after each harbor batch.
 
 ---
 
-# 8. generate rubrics (external file — never inside the zip)
+# 8. create zip
+
+Build per scripts/validate_submission_zip.py (exclusion set = the `-x` list in scripts/check-task.sh / commands.md § Packaging, plus `*/.*`):
+python3 scripts/validate_submission_zip.py Task_Ready_To_Submit/<task-name>.zip # must print PASS
+
+---
+
+# 9. generate rubrics (external file — never inside the zip)
 
 Follow /media/gaurav-s-ubuntu/COLLEGE MATERIAL/Work/AirDawg/TERMINUS/TASK_PROPOSAL_RUBRIC.md
 (the ROOT file = scoring rubric; the web/ one is idea-screening). Total positive

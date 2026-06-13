@@ -13,11 +13,11 @@ Convert the TB3 task-authoring harness from prose-rule discipline to mechanical 
 
 This rollout is responding to four converging signals from recent task-authoring work:
 
-1. **Repeated reviewer feedback that prose rules don't fire reliably.** The conversation history this rollout follows shows three back-to-back instruction-eval policy updates (milestone-language warning, AI-scaffolding filename ban, hidden-instructions check in `environment/`) where the pattern was the same each time — a policy existed, agents missed it, the fix was a mechanical check in `run_static_checks.py` or `validate_submission_zip.py`, not more prose. The v2.1 plan generalizes that observation: the harness should make a rule mechanical whenever it can.
+1. **Repeated reviewer feedback that prose rules don't fire reliably.** The conversation history this rollout follows shows three back-to-back instruction-eval policy updates (milestone-language warning, AI-scaffolding filename ban, hidden-instructions check in `environment/`) where the pattern was the same each time — a policy existed, agents missed it, the fix was a mechanical check in `scripts/run_static_checks.py` or `scripts/validate_submission_zip.py`, not more prose. The v2.1 plan generalizes that observation: the harness should make a rule mechanical whenever it can.
 
 2. **Honor-system rules failing under skim-and-comply pressure.** The current `.cursor/rules/*.mdc` set is ~1759 lines across four files. v1's red team showed that always-on prose at this scale gets skimmed; v1's `00-authoring-critical.mdc` proposal addressed the symptom but kept a 150-line file always-on. v2/v2.1 cuts always-on content to ~50 lines and converts the dirty-flag (the rule most often violated) from prose to checksum.
 
-3. **The repo already has a working `specs/` system that v1 didn't reference.** Every existing task has `specs/<task>.md` with Authoring Brief + Reviewer Appendix and a `validate_loop.py` gate. The mistake in v1 was proposing a parallel `docs/exec-plans/` for tasks; v2 corrected this and v2.1 ratifies it. The new mandatory sections (Triviality Ledger / Per-gate Pitfall Inventory / Initial Draft Commitments) extend the existing schema rather than replacing it.
+3. **The repo already has a working `specs/` system that v1 didn't reference.** Every existing task has `specs/<task>.md` with Authoring Brief + Reviewer Appendix and a `scripts/validate_loop.py` gate. The mistake in v1 was proposing a parallel `docs/exec-plans/` for tasks; v2 corrected this and v2.1 ratifies it. The new mandatory sections (Triviality Ledger / Per-gate Pitfall Inventory / Initial Draft Commitments) extend the existing schema rather than replacing it.
 
 4. **Recent enforcement-code changes shipped without written pre-commitment.** The milestone warning, AI-filename ban, and hidden-instructions check were each landed in the same back-and-forth chat, with verification done inline. They worked, but a written exec-plan would have surfaced edge cases earlier (e.g., `milestone_count` as an identifier in backticks). The mandatory `docs/exec-plans/` format introduced here closes that gap going forward — and this rollout is the first instance of that format.
 
@@ -47,7 +47,7 @@ docs/ARCHITECTURE.md                   ≤100 lines
                                        alwaysApply: false.
                                        Bullets numbered to match AGENTS.md.
 
-task_integrity.py                      ~110 lines
+scripts/task_integrity.py                      ~110 lines
                                        Module: CHECKSUM_FILE_NAME constant,
                                        _is_tracked_task_file predicate,
                                        iter_task_files, _compute_manifest,
@@ -58,12 +58,12 @@ task_integrity.py                      ~110 lines
 scripts/check-task.sh                  ~50 lines bash
                                        Phase A: run_static_checks + collapse_check
                                        Phase B: tmp zip + validate_submission_zip
-                                       Phase C: python3 task_integrity.py write
+                                       Phase C: python3 scripts/task_integrity.py write
                                        Exit message: preflight only, names oracle/NOP.
 
-lint_spec.py                           ~80 lines
+scripts/lint_spec.py                           ~80 lines
                                        Validates the three new mandatory sections
-                                       in specs/<task>.md. Called by validate_loop.py.
+                                       in specs/<task>.md. Called by scripts/validate_loop.py.
 
 repo_tests/test_task_integrity.py      round-trip, modified-file diff,
                                        missing-sentinel, forged-JSON,
@@ -103,15 +103,15 @@ AGENTS.md                              full rewrite (was 52 lines).
                                        Routing + 5 must-fire bullets +
                                        forbidden-in-submissions list.
 
-approve_task.py                        ~5 LOC added.
+scripts/approve_task.py                        ~5 LOC added.
                                        import task_integrity
                                        Call verify_step2b_checksum before any
                                        packaging; fail-fast on (not ok).
 
-validate_submission_zip.py             1 line added: .step2b-checksum to
+scripts/validate_submission_zip.py             1 line added: .step2b-checksum to
                                        FORBIDDEN_ROOT_FILES.
 
-validate_loop.py                       Wire lint_spec.run(spec_path) into the
+scripts/validate_loop.py                       Wire lint_spec.run(spec_path) into the
                                        Step 2a gate; fail validation if it
                                        returns a non-empty failure list.
 
@@ -128,9 +128,9 @@ REPO_CONVENTIONS.md                    Add new section "Local generated state:
 commands.md                            Replace the existing Packaging block's
                                        per-task zip command with a pointer to
                                        scripts/check-task.sh for preflight;
-                                       leave the explicit approve_task.py command
+                                       leave the explicit scripts/approve_task.py command
                                        for Step 4. Document
-                                       `python3 task_integrity.py {write|verify}`.
+                                       `python3 scripts/task_integrity.py {write|verify}`.
 
 workflow-prompts.md                    Add "Ralph discipline within the Step
                                        model" subsection (v2.1 §11).
@@ -175,23 +175,23 @@ The verify path returns `(False, ...)` when any tracked task file's SHA256 diffe
 
 **`task_integrity._is_tracked_task_file` — could drift from `validate_submission_zip` exclusions.**
 
-The predicate must match (in spirit) the dotfile / pycache / `*.pyc` filtering already done by `approve_task.py.should_skip_packaged_path`. If they drift, `approve_task.py` could pass the checksum check and then build a zip containing files that didn't exist when the manifest was written. Mitigation: `repo_tests/test_task_integrity.py` includes a *predicate parity* test that runs both predicates over a synthetic task tree containing dotfiles, `__pycache__`, `.pyc` files, and normal files; asserts the two predicates agree on every entry. The test fails loudly if either side adds a new exclusion without updating the other.
+The predicate must match (in spirit) the dotfile / pycache / `*.pyc` filtering already done by `scripts/approve_task.py.should_skip_packaged_path`. If they drift, `scripts/approve_task.py` could pass the checksum check and then build a zip containing files that didn't exist when the manifest was written. Mitigation: `repo_tests/test_task_integrity.py` includes a *predicate parity* test that runs both predicates over a synthetic task tree containing dotfiles, `__pycache__`, `.pyc` files, and normal files; asserts the two predicates agree on every entry. The test fails loudly if either side adds a new exclusion without updating the other.
 
-**`lint_spec.py` — could reject legitimate spec layouts.**
+**`scripts/lint_spec.py` — could reject legitimate spec layouts.**
 
 The lint checks for three section headers and that each has at least one bullet. The closest legitimate construct that could fail is a spec where the author put the Triviality Ledger inside the Reviewer Appendix instead of the Authoring Brief (which is wrong but has happened in similar systems). Mitigation: the lint reports *which* section is missing and where it expected to find it (`Authoring Brief`), so the failure message is actionable rather than cryptic. `repo_tests/test_lint_spec.py` includes a "section-in-wrong-place" case that confirms the lint fails with the expected message.
 
 **`scripts/check-task.sh` Phase B — could false-fail on tasks that legitimately need a forbidden file.**
 
-Phase B builds a tmp zip with the same exclusion list as the documented packaging command in `commands.md`, then runs `validate_submission_zip.py` against it. If a task author intentionally has `output_contract.toml` in their working tree (which is normal — it's required for the existing `--only output_contract` static check), Phase B's zip will exclude it, and the validator won't see it. False-positive risk is therefore on the *exclusion list*, not on the validator: if the task author has a file that they need at authoring time but should not ship, the exclusion list must catch it. Mitigation: the exclusion list in `check-task.sh` mirrors the one in `commands.md`'s packaging block; both are kept in sync by the regression test `test_check_task_sh.py::test_phase_b_exclusions_match_commands_md` (new). If they drift, the test fails.
+Phase B builds a tmp zip with the same exclusion list as the documented packaging command in `commands.md`, then runs `scripts/validate_submission_zip.py` against it. If a task author intentionally has `output_contract.toml` in their working tree (which is normal — it's required for the existing `--only output_contract` static check), Phase B's zip will exclude it, and the validator won't see it. False-positive risk is therefore on the *exclusion list*, not on the validator: if the task author has a file that they need at authoring time but should not ship, the exclusion list must catch it. Mitigation: the exclusion list in `check-task.sh` mirrors the one in `commands.md`'s packaging block; both are kept in sync by the regression test `test_check_task_sh.py::test_phase_b_exclusions_match_commands_md` (new). If they drift, the test fails.
 
 **`AGENTS.md` ≤1500 byte cap — could false-fail review on a legitimate edit.**
 
 If a future change adds 50 bytes to `AGENTS.md` (say a new must-fire bullet because a CNI item just promoted), the cap test will fail. That's not a false positive — it's the cap doing its job — but it requires the author to choose: shorten an existing bullet, demote one to `00-authoring-critical.mdc`, or write an exec-plan justifying the cap raise. The byte cap is intentionally annoying to bump, since the demotion policy (v2.1 §10) is the alternative. No mitigation needed; the cap is the constraint.
 
-**`.step2b-checksum` ban in `validate_submission_zip.py` — guaranteed safe.**
+**`.step2b-checksum` ban in `scripts/validate_submission_zip.py` — guaranteed safe.**
 
-The sentinel starts with `.` so it's already excluded from packaging by `approve_task.py.should_skip_packaged_path`'s dotfile rule. Adding it to `FORBIDDEN_ROOT_FILES` is belt-and-suspenders; the only path by which it could appear in a zip is if a future change to the dotfile filter were to allow it through, in which case the explicit ban catches it. Zero FP risk.
+The sentinel starts with `.` so it's already excluded from packaging by `scripts/approve_task.py.should_skip_packaged_path`'s dotfile rule. Adding it to `FORBIDDEN_ROOT_FILES` is belt-and-suspenders; the only path by which it could appear in a zip is if a future change to the dotfile filter were to allow it through, in which case the explicit ban catches it. Zero FP risk.
 
 ## Effect on existing fixtures and tasks
 
@@ -199,7 +199,7 @@ Two distinct populations to consider: in-repo fixtures (under `repo_tests/fixtur
 
 **Effect on `repo_tests/fixtures/` (5 tasks):**
 
-- `byzantine-storage-rebalance`, `implicit-step-restart`, `lsm-snapshot-recovery`, `release-provenance-drift`, `rollback-replay-divergence`: none of these have `specs/<name>.md` in the repo (they're test fixtures, not real tasks), so the new `lint_spec.py` doesn't apply to them. Verified.
+- `byzantine-storage-rebalance`, `implicit-step-restart`, `lsm-snapshot-recovery`, `release-provenance-drift`, `rollback-replay-divergence`: none of these have `specs/<name>.md` in the repo (they're test fixtures, not real tasks), so the new `scripts/lint_spec.py` doesn't apply to them. Verified.
 - `public-contract-standard`, `public-contract-milestone` (under `repo_tests/fixtures/run_static_checks/`): same reasoning, not real tasks. Unaffected.
 - The new `repo_tests/test_step2b_sentinel_ignored_by_lints.py` will *seed* a `.step2b-checksum` file into a fixture (via `tempfile.TemporaryDirectory`); this is a transient seed, not a permanent fixture change.
 
@@ -209,11 +209,11 @@ Net effect: no fixture changes required. The pre-existing 3 baseline failures (`
 
 Three things change for each task:
 
-1. *Spec backfill.* Each task already has `specs/<name>.md`. None of them have the three new mandatory sections yet. Two options: (a) require backfill before any further authoring work on a task; (b) grandfather existing specs and only require the new sections for new tasks. v2.1 doesn't mandate either — this rollout chooses **(b) grandfathering**, with the rationale that retroactively writing a Triviality Ledger for a task that's already shipped adds no value (the task is already published). New tasks and any in-flight task that re-enters Step 2a get the new sections. `lint_spec.py` reads a sentinel `version: 2` field in the spec's metadata; specs without it skip the lint. New specs default to `version: 2`; existing specs without a `version` field are treated as `version: 1` and unaffected.
+1. *Spec backfill.* Each task already has `specs/<name>.md`. None of them have the three new mandatory sections yet. Two options: (a) require backfill before any further authoring work on a task; (b) grandfather existing specs and only require the new sections for new tasks. v2.1 doesn't mandate either — this rollout chooses **(b) grandfathering**, with the rationale that retroactively writing a Triviality Ledger for a task that's already shipped adds no value (the task is already published). New tasks and any in-flight task that re-enters Step 2a get the new sections. `scripts/lint_spec.py` reads a sentinel `version: 2` field in the spec's metadata; specs without it skip the lint. New specs default to `version: 2`; existing specs without a `version` field are treated as `version: 1` and unaffected.
 
 2. *Checksum stamp on next preflight.* The first time `scripts/check-task.sh` runs against a real task post-rollout, it writes `.step2b-checksum` into the task dir. This is a one-time write per task (the contributor runs preflight, the file appears, gets ignored by git via `.gitignore` and by all source-tree lints via the dotfile filter). No author-visible change beyond seeing the file appear in `ls -la`.
 
-3. *`approve_task.py` gates on the sentinel.* Any task being approved post-rollout requires a fresh checksum. Authors who have approval workflows that don't run preflight first will get a clear error message naming the missing sentinel. This is the intended behavior; not a regression.
+3. *`scripts/approve_task.py` gates on the sentinel.* Any task being approved post-rollout requires a fresh checksum. Authors who have approval workflows that don't run preflight first will get a clear error message naming the missing sentinel. This is the intended behavior; not a regression.
 
 Net effect on tasks: zero file changes required immediately; one-time checksum write on next preflight; spec-section grandfathering policy means no in-flight authoring is blocked.
 
@@ -238,7 +238,7 @@ All listed under `repo_tests/`:
   - `test_forged_json_handled` — write garbage to the sentinel, verify, expect `(False, ...)` with a parse-error message.
   - `test_predicate_parity_with_packaging_skip` — generate a synthetic tree of dotfiles / pycache / pyc / regular files; assert `_is_tracked_task_file` and `approve_task.should_skip_packaged_path` agree on every entry.
   - `test_dotfile_excluded_including_sentinel_itself` — write a sentinel, then verify; the sentinel must not be in its own manifest.
-  - `test_cli_write_and_verify_exit_codes` — invoke `task_integrity.py write` then `verify` via subprocess; assert exit codes 0/0 and 0/1 respectively after a modification.
+  - `test_cli_write_and_verify_exit_codes` — invoke `scripts/task_integrity.py write` then `verify` via subprocess; assert exit codes 0/0 and 0/1 respectively after a modification.
 
 - `test_lint_spec.py` (new):
   - `test_accepts_spec_with_all_three_sections` — happy path on a synthetic spec containing `Authoring Brief` with all three sub-sections, each with at least one bullet.
@@ -257,13 +257,13 @@ All listed under `repo_tests/`:
   - `test_idempotent_consecutive_runs` — run twice; both succeed; checksums are identical.
 
 - `test_approve_task_dirty_flag.py` (new):
-  - `test_approve_refuses_when_sentinel_missing` — fresh fixture, no preflight; assert `approve_task.py` exits non-zero with a message naming `.step2b-checksum`.
+  - `test_approve_refuses_when_sentinel_missing` — fresh fixture, no preflight; assert `scripts/approve_task.py` exits non-zero with a message naming `.step2b-checksum`.
   - `test_approve_refuses_when_sentinel_stale` — preflight, then modify a task file, then approve; assert non-zero with "task files changed" in the message.
   - `test_approve_passes_with_fresh_sentinel` — preflight, then approve; assert exit 0.
   - `test_oracle_run_does_not_dirty_sentinel` — preflight, run oracle 1x against the fixture, approve; assert exit 0 (i.e., oracle output went outside the task tree).
 
 - `test_step2b_sentinel_ignored_by_lints.py` (new):
-  - `test_run_static_checks_ignores_sentinel` — seed sentinel; run all `run_static_checks.py` selectors; assert no failure or warning references the sentinel.
+  - `test_run_static_checks_ignores_sentinel` — seed sentinel; run all `scripts/run_static_checks.py` selectors; assert no failure or warning references the sentinel.
   - `test_collapse_check_ignores_sentinel`.
   - `test_verifier_health_ignores_sentinel`.
 
@@ -289,15 +289,15 @@ Phase 1 is large enough that rollback procedure matters. The procedure is split 
 - Revert `AGENTS.md` to its pre-rollout state. The router pointer to `docs/ARCHITECTURE.md` becomes a dangling reference but doesn't break anything.
 - Remove `docs/ARCHITECTURE.md`. No code depends on it.
 - Remove `.cursor/rules/00-authoring-critical.mdc`. No always-on rule references it (it's agent-requested), so removing it is silent.
-- Remove `lint_spec.py` and revert `validate_loop.py`'s wiring. Existing specs are unaffected (none have `version: 2` yet at rollback time).
+- Remove `scripts/lint_spec.py` and revert `scripts/validate_loop.py`'s wiring. Existing specs are unaffected (none have `version: 2` yet at rollback time).
 - Revert the new section in `REPO_CONVENTIONS.md` and the new pointers in `commands.md` / `workflow-prompts.md`.
 - Remove the new test files. They don't pin anything in the existing test surface.
 
 **Coordinated rollback (requires telling in-flight contributors to stop):**
 
-- Removing `task_integrity.py` and reverting `approve_task.py`'s import.
+- Removing `scripts/task_integrity.py` and reverting `scripts/approve_task.py`'s import.
 - Reverting `scripts/check-task.sh` (or removing it entirely).
-- Reverting `validate_submission_zip.py`'s `.step2b-checksum` ban.
+- Reverting `scripts/validate_submission_zip.py`'s `.step2b-checksum` ban.
 
 These are coordinated because contributors who have already run preflight on their working copy will have `.step2b-checksum` files in `tasks/*/`. Post-revert those files become orphan dotfiles — harmless, but worth a `find tasks/ -name .step2b-checksum -delete` cleanup announcement.
 
@@ -318,13 +318,13 @@ Each phase 2/3 component will land with its own exec-plan and its own rollback s
 The following items map directly to the v2.1 phase-1 exit criteria. Each is a `[ ]` until proven; converts to `[x]` when verified with command output captured in this exec-plan's accompanying log (or in a follow-up update to this file).
 
 - [ ] All real tasks under `tasks/` pass `scripts/check-task.sh` end-to-end (Phase A + B + C exit 0). Command: `for d in tasks/*/; do ./scripts/check-task.sh "$d" || echo FAIL "$d"; done`. Expected: zero `FAIL` lines.
-- [ ] All shipping zips still pass `validate_submission_zip.py`. Command: `for f in Task_Ready_To_Submit/*.zip; do python3 validate_submission_zip.py "$f" | tail -1; done`. Expected: 21 lines of `RESULT: PASS`.
-- [ ] `approve_task.py` refuses when `.step2b-checksum` is stale. Verified by `test_approve_task_dirty_flag.py::test_approve_refuses_when_sentinel_stale`.
-- [ ] `approve_task.py` refuses when `.step2b-checksum` is missing. Verified by `test_approve_task_dirty_flag.py::test_approve_refuses_when_sentinel_missing`.
+- [ ] All shipping zips still pass `scripts/validate_submission_zip.py`. Command: `for f in Task_Ready_To_Submit/*.zip; do python3 scripts/validate_submission_zip.py "$f" | tail -1; done`. Expected: 21 lines of `RESULT: PASS`.
+- [ ] `scripts/approve_task.py` refuses when `.step2b-checksum` is stale. Verified by `test_approve_task_dirty_flag.py::test_approve_refuses_when_sentinel_stale`.
+- [ ] `scripts/approve_task.py` refuses when `.step2b-checksum` is missing. Verified by `test_approve_task_dirty_flag.py::test_approve_refuses_when_sentinel_missing`.
 - [ ] `task_integrity` round-trip test passes. Verified by `test_task_integrity.py::test_round_trip_clean`.
 - [ ] `task_integrity` predicate parity test passes. Verified by `test_task_integrity.py::test_predicate_parity_with_packaging_skip`.
-- [ ] `lint_spec.py` rejects a v2 spec missing each of the three mandatory sections. Verified by `test_lint_spec.py` × 3.
-- [ ] `lint_spec.py` grandfathers v1 specs. Verified by `test_lint_spec.py::test_grandfathers_v1_spec`.
+- [ ] `scripts/lint_spec.py` rejects a v2 spec missing each of the three mandatory sections. Verified by `test_lint_spec.py` × 3.
+- [ ] `scripts/lint_spec.py` grandfathers v1 specs. Verified by `test_lint_spec.py::test_grandfathers_v1_spec`.
 - [ ] `AGENTS.md` fits the byte cap. Verified by `test_doc_size_caps.py::test_agents_md_within_byte_cap`.
 - [ ] `docs/ARCHITECTURE.md` fits the line cap and contains no rule content. Verified by `test_doc_size_caps.py::test_architecture_within_line_cap` and `test_architecture_contains_no_rule_content`.
 - [ ] `00-authoring-critical.mdc` fits the byte cap. Verified by `test_doc_size_caps.py::test_critical_rule_within_byte_cap`.
@@ -346,7 +346,7 @@ When all 20 items are `[x]`, phase 1 is complete and the rollout enters its phas
 
 A few practical points that aren't part of the template but matter for execution:
 
-- **Land `task_integrity.py` and the test before any caller depends on it.** The dependency graph is: `task_integrity.py` → `scripts/check-task.sh` (Phase C) and `task_integrity.py` → `approve_task.py` (verify). If you land the script first, the script breaks. Order: module + tests, then script Phase C, then `approve_task.py` import.
+- **Land `scripts/task_integrity.py` and the test before any caller depends on it.** The dependency graph is: `scripts/task_integrity.py` → `scripts/check-task.sh` (Phase C) and `scripts/task_integrity.py` → `scripts/approve_task.py` (verify). If you land the script first, the script breaks. Order: module + tests, then script Phase C, then `scripts/approve_task.py` import.
 
 - **Dogfood this exec-plan.** The first task that re-enters Step 2a after rollout should produce a v2 spec with the three new sections, and an attempt at filing this exec-plan as a precedent reference in its `Per-gate Pitfall Inventory`. That confirms the new sections are usable in practice, not just theoretically.
 

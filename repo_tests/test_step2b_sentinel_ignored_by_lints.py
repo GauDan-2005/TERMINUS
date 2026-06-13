@@ -23,10 +23,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import collapse_check
-import run_static_checks
-import task_integrity
-import verifier_health
+from scripts import collapse_check
+from scripts import run_static_checks
+from scripts import task_integrity
+from scripts import verifier_health
 from repo_tests.cases import COLLAPSE_CHECK_EXPECTATIONS, FIXTURE_TASKS_DIR
 
 SENTINEL_NAME = task_integrity.CHECKSUM_FILE_NAME

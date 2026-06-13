@@ -25,4 +25,4 @@ Before doing any work, read:
 
 Operate exactly as the canonical Cursor skill describes. This file is an OpenCode adapter only.
 
-Start with `python3 task_integrity.py verify tasks/<task-name>`. If the checksum is stale, missing, or dirty, stop and return to Step 2b. Read the full review surface and report concrete PASS/WARN/FAIL findings. Do not edit; an edit returns the task to Step 2b.
+Start with `python3 scripts/task_integrity.py verify tasks/<task-name>`. If the checksum is stale, missing, or dirty, stop and return to Step 2b. Read the full review surface and report concrete PASS/WARN/FAIL findings. Do not edit; an edit returns the task to Step 2b.

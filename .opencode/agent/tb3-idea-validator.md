@@ -24,4 +24,4 @@ Before doing any work, read:
 
 Operate exactly as those canonical files describe. This file is an OpenCode adapter only.
 
-Do not create or edit `tasks/<task-name>/` during Step 2a. Reject medium/easy ideas and new multi-container/UI-building tasks. Use `validate_loop.py` exactly as documented. Do not claim a GO spec without command output proving the validation loop accepted it.
+Do not create or edit `tasks/<task-name>/` during Step 2a. Reject medium/easy ideas, new multi-container/UI-building tasks, and templated/re-skin ideas (originality floor). Capture an `inspiration_id` in the spec `reference_pattern` for website-inspired ideas; Python ideas must clear the `hard_difficulty_predictor` ≤20% blocker. Use `scripts/validate_loop.py` exactly as documented. Do not claim a GO spec without command output proving the validation loop accepted it.

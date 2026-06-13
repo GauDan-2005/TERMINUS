@@ -8,7 +8,7 @@ checking final test function names against the forbidden list, and
 computing flipping-point concentration math from the `controls_tests`
 arrays. All three were folded into the evidence schema as a new top-level
 `naming_pass` field, validated by a new `_validate_naming_pass` in
-`validate_loop.py`. The fourth audit (decoy rhyme verification) became a
+`scripts/validate_loop.py`. The fourth audit (decoy rhyme verification) became a
 schema-level required field. These tests pin the resulting behavior.
 
 Pinned invariants:
@@ -39,7 +39,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import validate_loop
+from scripts import validate_loop
 
 from repo_tests.test_validate_loop import _valid_evidence
 

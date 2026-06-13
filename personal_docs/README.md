@@ -10,11 +10,13 @@ Authoring notes, runbooks, review artifacts, and reference material for the TERM
 | `CLI_installation.md` | Snorkel `stb` CLI install and usage |
 | `announcement.md` | Project policy updates |
 | `references_announcement/` | Platform reference templates and best-practices |
-| `prompt.md`, `review.md`, `TODO.md` | Active working prompts and checklists |
-| `reviews/` | Per-task review summaries |
-| `reports/` | Execution plans and session reports |
-| `project-docs/` | Long-form session logs and task plans |
-| `difficulty_check_artifact_*/` | Exported difficulty-check job artifacts |
+| `prompt.md`, `review.md`, `TODO.md`, `STATUS.md`, `PROGRESS_doc-gate-sync.md` | Active working prompts, checklists, and submission/progress status |
+| `reports/` | Execution plans and session reports (e.g. `reports/<task>/<task>-plan.md`) |
+| `feedback/`, `feedback.md` | Read-only platform reviewer evidence + the feedback-fetch workflow |
+| `rubrics/`, `rubric_*.md`, `revision_*.md` | Per-task rubric snapshots and revision notes |
+| `docker_requirements.md`, `review_checklist.md`, `ci_checks.md` | Source specs (canonical copies live in `../docs/DOCKER_REQUIREMENTS.md` and `../docs/REVIEW_CHECKLIST.md`) |
+| `Terminal-main-new/` | Latest upstream snapshot (the doc/tooling sync source) |
+| `local-scripts-backup-2026-06-13/` | Backup of the 2 overwritten reviewer-validated scripts |
 
 ## Repo root
 

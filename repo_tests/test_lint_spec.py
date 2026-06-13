@@ -1,4 +1,4 @@
-"""Regression tests for lint_spec.py.
+"""Regression tests for scripts/lint_spec.py.
 
 lint_spec validates that a v2 specs/<task>.md file (one with `version: 2`
 in its metadata) contains three mandatory sub-sections under
@@ -24,7 +24,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import lint_spec
+from scripts import lint_spec
 
 
 V2_HEADER = """\
@@ -49,7 +49,7 @@ PER_GATE_BLOCK = """\
 
 ### Per-gate pitfall inventory
 
-run_static_checks.py:
+scripts/run_static_checks.py:
 - Closest warning: instruction.md mentions 'milestone' — N/A here.
 """
 

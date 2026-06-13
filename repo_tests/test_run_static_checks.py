@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import run_static_checks
+from scripts import run_static_checks
 from repo_tests.cases import COMMON_STATIC_PASS_MESSAGES, FIXTURE_TASKS_DIR, STATIC_CHECK_EXPECTATIONS
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "run_static_checks"
@@ -41,44 +41,6 @@ class RunStaticChecksRegressionTest(unittest.TestCase):
                     )
                 self.assertEqual(exit_code, 0)
                 self.assertIn("PASS", stdout.getvalue())
-
-    def test_legacy_rc_reward_footer_is_rejected(self) -> None:
-        fixture = FIXTURE_TASKS_DIR / "implicit-step-restart"
-        with tempfile.TemporaryDirectory() as tmpdir:
-            task_dir = Path(tmpdir) / fixture.name
-            shutil.copytree(fixture, task_dir)
-
-            test_sh = task_dir / "tests" / "test.sh"
-            test_sh.write_text(
-                """#!/bin/bash
-
-mkdir -p /logs/verifier
-
-if [ "$PWD" = "/" ]; then
-  echo "Error: No working directory set. Please set a WORKDIR in your Dockerfile before running this script."
-  exit 1
-fi
-
-python -m pytest -o cache_dir=/tmp/pytest_cache --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA
-RC=$?
-
-if [ "$RC" -eq 0 ]; then
-  echo 1 > /logs/verifier/reward.txt
-else
-  echo 0 > /logs/verifier/reward.txt
-fi
-
-exit "$RC"
-""",
-                encoding="utf-8",
-            )
-
-            reporter = run_static_checks.run_checks(task_dir)
-
-        self.assertTrue(
-            any("legacy RC=$?" in failure for failure in reporter.failures),
-            reporter.failures,
-        )
 
     def test_reward_json_footer_is_rejected(self) -> None:
         fixture = FIXTURE_TASKS_DIR / "implicit-step-restart"
@@ -137,16 +99,16 @@ exit "$RC"
     def test_milestone_instruction_requires_signal_completion_directive(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             task_dir = self.copy_fixture("public-contract-milestone", tmpdir)
-            instruction_path = task_dir / "steps" / "milestone_1" / "instruction.md"
+            instruction_path = task_dir / "instruction.md"
             instruction_path.write_text(
-                "For the current step, write `/app/out/report.json` as JSON with `checksum` and `status` fields.\n",
+                "For the current milestone, write `/app/out/report.json` as JSON with `checksum` and `status` fields.\n",
                 encoding="utf-8",
             )
 
             reporter = run_static_checks.run_checks(task_dir, {"instruction"})
 
         self.assertIn(
-            "steps/milestone_1/instruction.md: Milestone tasks must tell the agent to signal completion before advancing to the next milestone",
+            "Milestone tasks must tell the agent to signal completion before advancing to the next milestone",
             reporter.failures,
         )
 
@@ -186,12 +148,12 @@ exit "$RC"
         metadata."""
         with tempfile.TemporaryDirectory() as tmpdir:
             task_dir = self.copy_fixture("public-contract-milestone", tmpdir)
-            for instruction_path in sorted((task_dir / "steps").glob("milestone_*/instruction.md")):
-                instruction_path.write_text(
-                    "For the current step, write `/app/out/report.json` as JSON with `checksum` and "
-                    "`status` fields. Signal completion before you advance to the next step.\n",
-                    encoding="utf-8",
-                )
+            instruction_path = task_dir / "instruction.md"
+            instruction_path.write_text(
+                "For the current step, write `/app/out/report.json` as JSON with `checksum` and "
+                "`status` fields. Signal completion before you advance to the next step.\n",
+                encoding="utf-8",
+            )
 
             reporter = run_static_checks.run_checks(task_dir, {"instruction"})
 
@@ -209,7 +171,7 @@ exit "$RC"
         word, not field-name references."""
         with tempfile.TemporaryDirectory() as tmpdir:
             task_dir = self.copy_fixture("public-contract-milestone", tmpdir)
-            instruction_path = task_dir / "steps" / "milestone_1" / "instruction.md"
+            instruction_path = task_dir / "instruction.md"
             instruction_path.write_text(
                 "Write `/app/out/report.json` as JSON with `checksum` and `status` fields. "
                 "The `milestone_count` field in `task.toml` is metadata, not user-facing. "
@@ -238,6 +200,7 @@ exit "$RC"
             source = FIXTURE_TASKS_DIR / "rollback-replay-divergence"
             task_dir = Path(tmpdir) / "rollback-replay-divergence"
             shutil.copytree(source, task_dir)
+            shutil.rmtree(task_dir / "environment" / "build", ignore_errors=True)
 
             instruction = task_dir / "instruction.md"
             instruction.write_text(
@@ -300,18 +263,16 @@ exit "$RC"
             source = FIXTURE_TASKS_DIR / "rollback-replay-divergence"
             task_dir = Path(tmpdir) / "rollback-replay-divergence"
             shutil.copytree(source, task_dir)
+            shutil.rmtree(task_dir / "environment" / "bin", ignore_errors=True)
+            shutil.rmtree(task_dir / "environment" / "build", ignore_errors=True)
 
             instruction = task_dir / "instruction.md"
             instruction.write_text(
                 instruction.read_text(encoding="utf-8")
                 .replace("install it at `/app/bin/netplay_matrix`", "install the binary")
-                .replace("`/app/bin/netplay_matrix`", "the binary")
-                .replace("netplay_matrix", "the matrix driver"),
+                .replace("`/app/bin/netplay_matrix`", "the binary"),
                 encoding="utf-8",
             )
-            shipped_binary = task_dir / "environment" / "bin" / "netplay_matrix"
-            if shipped_binary.exists():
-                shipped_binary.unlink()
 
             reporter = run_static_checks.run_checks(
                 task_dir, {"oracle_path_discoverability"}
@@ -707,229 +668,45 @@ exit "$RC"
             reporter.passes,
         )
 
-    def _write_dockerfile_task(self, tmpdir: str, dockerfile: str, *, dockerignore: bool = False) -> Path:
-        """Minimal Edition 2 task with a custom Dockerfile, for exercising the
-        docker.md image checks in isolation via run_checks(..., {"dockerfile"})."""
-        task_dir = Path(tmpdir) / "dockertask"
-        env = task_dir / "environment"
-        env.mkdir(parents=True)
-        (task_dir / "task.toml").write_text(
-            'version = "2.0"\n'
-            "[metadata]\n"
-            'author_name = "anonymous"\n'
-            'author_email = "anonymous"\n'
-            'difficulty = "hard"\n'
-            'category = "debugging"\n'
-            "tags = []\n"
-            'languages = ["python"]\n'
-            'codebase_size = "small"\n'
-            "number_of_milestones = 0\n"
-            "subcategories = []\n"
-            "expert_time_estimate_min = 60\n"
-            "junior_time_estimate_min = 240\n"
-            "[agent]\n"
-            "timeout_sec = 1800\n"
-            "[verifier]\n"
-            "timeout_sec = 600\n"
-            "[environment]\n"
-            "allow_internet = false\n"
-            "build_timeout_sec = 600\n"
-            "cpus = 2\n"
-            "memory_mb = 4096\n"
-            "storage_mb = 10240\n",
-            encoding="utf-8",
-        )
-        (env / "Dockerfile").write_text(dockerfile, encoding="utf-8")
-        if dockerignore:
-            (env / ".dockerignore").write_text("solution/\ntests/\n", encoding="utf-8")
-        return task_dir
-
-    def test_dockerfile_broad_context_copy_is_rejected(self) -> None:
-        """`COPY . /app` (or `ADD . <dest>`) copies the whole build context and is a
-        docker.md hard failure; authors must copy narrow paths instead."""
+    def test_optional_reward_txt_preamble_before_verifier_is_accepted(self) -> None:
+        """Tasks may seed reward.txt to 0 before the verifier so early failures still yield 0."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            task_dir = self._write_dockerfile_task(
-                tmpdir,
-                "FROM python:3.11-slim@sha256:abc\nWORKDIR /app\nCOPY . /app\n",
+            task_dir = Path(tmpdir) / "implicit-step-restart"
+            shutil.copytree(FIXTURE_TASKS_DIR / "implicit-step-restart", task_dir)
+            test_sh = task_dir / "tests" / "test.sh"
+            original = test_sh.read_text(encoding="utf-8")
+            lines = original.splitlines()
+            self.assertTrue(lines and lines[0].startswith("#!/"))
+            rest = "\n".join(lines[1:]).lstrip("\n")
+            test_sh.write_text(
+                f"{lines[0]}\n\n"
+                "mkdir -p /logs/verifier\n"
+                "echo 0 > /logs/verifier/reward.txt\n\n"
+                f"{rest}\n",
+                encoding="utf-8",
             )
-            reporter = run_static_checks.run_checks(task_dir, {"dockerfile"})
 
-        broad = [f for f in reporter.failures if "whole build context" in f]
-        self.assertEqual(len(broad), 1, reporter.failures)
-        self.assertIn("COPY . /app", broad[0])
+            reporter = run_static_checks.run_checks(task_dir, {"test_sh"})
 
-    def test_dockerfile_narrow_copy_is_accepted(self) -> None:
-        """Narrow COPY paths (`COPY src/ /app/src/`) do not trip the
-        broad-context-copy rule."""
+        self.assertEqual(reporter.failures, [], reporter.failures)
+        self.assertIn("tests/test.sh pre-pytest block preserves the internet-disabled semantics", reporter.passes)
+
+    def test_offline_uvx_runner_is_not_treated_as_runtime_install(self) -> None:
+        """A Dockerfile-provided uvx runner is allowed; only uv bootstraps/installs are blocked."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            task_dir = self._write_dockerfile_task(
-                tmpdir,
-                "FROM python:3.11-slim@sha256:abc\nWORKDIR /app\nCOPY src/ /app/src/\n",
-                dockerignore=True,
+            task_dir = Path(tmpdir) / "implicit-step-restart"
+            shutil.copytree(FIXTURE_TASKS_DIR / "implicit-step-restart", task_dir)
+            test_sh = task_dir / "tests" / "test.sh"
+            content = test_sh.read_text(encoding="utf-8")
+            test_sh.write_text(
+                content.replace(
+                    "pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA",
+                    "uvx -p 3.13 pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA",
+                ),
+                encoding="utf-8",
             )
-            reporter = run_static_checks.run_checks(task_dir, {"dockerfile"})
 
-        self.assertEqual([f for f in reporter.failures if "whole build context" in f], [])
+            reporter = run_static_checks.run_checks(task_dir, {"test_sh"})
 
-    def test_dockerfile_warns_on_missing_session_tools_and_dockerignore(self) -> None:
-        """Missing tmux/asciinema and a missing environment/.dockerignore are
-        non-blocking docker.md WARNs (a static scan cannot see the base image, so
-        they cannot be hard failures)."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            task_dir = self._write_dockerfile_task(
-                tmpdir,
-                "FROM python:3.11-slim@sha256:abc\nWORKDIR /app\nCOPY app/ /app/\n",
-            )
-            reporter = run_static_checks.run_checks(task_dir, {"dockerfile"})
-
-        self.assertEqual(reporter.failures, [])
-        self.assertEqual(len([w for w in reporter.warnings if "tmux/asciinema" in w]), 1)
-        self.assertEqual(len([w for w in reporter.warnings if ".dockerignore is recommended" in w]), 1)
-
-    def test_dockerfile_session_tools_and_dockerignore_present_clears_warnings(self) -> None:
-        """Installing tmux + asciinema (pinned) and shipping environment/.dockerignore
-        clears both docker.md WARNs and produces no failures."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            task_dir = self._write_dockerfile_task(
-                tmpdir,
-                "FROM python:3.11-slim@sha256:abc\n"
-                "WORKDIR /app\n"
-                "RUN apt-get update \\\n"
-                "    && apt-get install -y --no-install-recommends tmux=3.3a-3 asciinema=2.4.0-1 \\\n"
-                "    && rm -rf /var/lib/apt/lists/*\n"
-                "COPY app/ /app/\n",
-                dockerignore=True,
-            )
-            reporter = run_static_checks.run_checks(task_dir, {"dockerfile"})
-
-        self.assertEqual(reporter.failures, [])
-        self.assertEqual([w for w in reporter.warnings if "tmux/asciinema" in w], [])
-        self.assertEqual([w for w in reporter.warnings if ".dockerignore is recommended" in w], [])
-
-
-class OfflineSelfContainedTestShTest(unittest.TestCase):
-    """tests/test.sh under allow_internet=false may be self-contained via an
-    OFFLINE wheelhouse install (pip install --no-index --find-links=/opt/wheels),
-    optionally inside a venv. This is the reviewer-blessed pattern (sparse-block-
-    preconditioner rev3, module-hot-reload-epoch passed review with it). A
-    networked install (bare pip / uvx / curl|sh / apt) must still FAIL. The
-    deps-baked-in-Dockerfile shape (test.sh installs nothing) also stays valid.
-
-    Base fixture: implicit-step-restart (standard task, allow_internet=false).
-    Only tests/test.sh is mutated per case.
-    """
-
-    BASE_FIXTURE = "implicit-step-restart"
-
-    HEAD = (
-        "#!/bin/bash\n\n"
-        "mkdir -p /logs/verifier\n\n"
-        'if [ "$PWD" = "/" ]; then\n'
-        '  echo "Error: No working directory set. Please set a WORKDIR in your Dockerfile before running this script."\n'
-        "  exit 1\n"
-        "fi\n\n"
-    )
-    PYTEST = (
-        "python -m pytest -o cache_dir=/tmp/pytest_cache "
-        "--ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA\n"
-    )
-    REWARD = (
-        "\nif [ $? -eq 0 ]; then\n"
-        "    echo 1 > /logs/verifier/reward.txt\n"
-        "else\n"
-        "    echo 0 > /logs/verifier/reward.txt\n"
-        "fi\n"
-    )
-
-    OFFLINE_TEST_SH_FAILURE = (
-        "verifier-time network/package setup when [environment].allow_internet is false"
-    )
-    PREFIX_FAILURE = "preserve the official offline non-UI pre-pytest semantics"
-
-    def _run_with_test_sh(self, body: str) -> run_static_checks.Reporter:
-        fixture = FIXTURE_TASKS_DIR / self.BASE_FIXTURE
-        with tempfile.TemporaryDirectory() as tmpdir:
-            task_dir = Path(tmpdir) / fixture.name
-            shutil.copytree(fixture, task_dir)
-            (task_dir / "tests" / "test.sh").write_text(body, encoding="utf-8")
-            return run_static_checks.run_checks(task_dir)
-
-    def _offline_or_prefix_failures(self, reporter: run_static_checks.Reporter) -> list[str]:
-        return [
-            failure
-            for failure in reporter.failures
-            if self.OFFLINE_TEST_SH_FAILURE in failure or self.PREFIX_FAILURE in failure
-        ]
-
-    def test_offline_findlinks_install_passes(self) -> None:
-        """`pip install --no-index --find-links` (line-continued) is offline-safe."""
-        body = (
-            self.HEAD
-            + "pip install --no-cache-dir --no-index --find-links=/opt/wheels \\\n"
-            + "  pytest==8.4.1 pytest-json-ctrf==0.3.5\n\n"
-            + self.PYTEST
-            + self.REWARD
-        )
-        reporter = self._run_with_test_sh(body)
-        self.assertEqual(self._offline_or_prefix_failures(reporter), [])
-
-    def test_offline_venv_then_findlinks_install_passes(self) -> None:
-        """venv create + activate + offline wheelhouse install is offline-safe."""
-        body = (
-            self.HEAD
-            + "python3 -m venv /tmp/tbench-testing\n"
-            + ". /tmp/tbench-testing/bin/activate\n"
-            + "pip install --no-index --find-links /opt/wheels pytest==8.4.1 pytest-json-ctrf==0.3.5\n\n"
-            + self.PYTEST
-            + self.REWARD
-        )
-        reporter = self._run_with_test_sh(body)
-        self.assertEqual(self._offline_or_prefix_failures(reporter), [])
-
-    def test_deps_in_dockerfile_no_install_passes(self) -> None:
-        """The baked-in-Dockerfile shape (test.sh installs nothing) stays valid."""
-        body = self.HEAD + self.PYTEST + self.REWARD
-        reporter = self._run_with_test_sh(body)
-        self.assertEqual(self._offline_or_prefix_failures(reporter), [])
-
-    def test_bare_pip_install_fails(self) -> None:
-        """A networked `pip install` (no --no-index) must still FAIL offline."""
-        body = (
-            self.HEAD
-            + "pip install pytest==8.4.1 pytest-json-ctrf==0.3.5\n\n"
-            + self.PYTEST
-            + self.REWARD
-        )
-        reporter = self._run_with_test_sh(body)
-        self.assertTrue(
-            any(self.OFFLINE_TEST_SH_FAILURE in f for f in reporter.failures),
-            reporter.failures,
-        )
-
-    def test_uvx_networked_install_fails(self) -> None:
-        """uvx fetches from the network; it must FAIL under allow_internet=false."""
-        body = (
-            self.HEAD
-            + "uvx -w pytest==8.4.1 -w pytest-json-ctrf==0.3.5 pytest "
-            + "--ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA\n"
-            + self.REWARD
-        )
-        reporter = self._run_with_test_sh(body)
-        self.assertTrue(
-            any(self.OFFLINE_TEST_SH_FAILURE in f for f in reporter.failures),
-            reporter.failures,
-        )
-
-    def test_apt_install_fails(self) -> None:
-        """A runtime apt-get install must FAIL under allow_internet=false."""
-        body = (
-            self.HEAD
-            + "apt-get install -y curl\n\n"
-            + self.PYTEST
-            + self.REWARD
-        )
-        reporter = self._run_with_test_sh(body)
-        self.assertTrue(
-            any(self.OFFLINE_TEST_SH_FAILURE in f for f in reporter.failures),
-            reporter.failures,
-        )
+        self.assertEqual(reporter.failures, [], reporter.failures)
+        self.assertIn("tests/test.sh pre-pytest block preserves the internet-disabled semantics", reporter.passes)

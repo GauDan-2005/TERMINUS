@@ -2,7 +2,7 @@
 
 # Compatibility wrapper for the old Dockerfile reference checker.
 # The authoritative Edition 2 behavior now comes from
-# run_static_checks.py --only dockerfile.
+# scripts/run_static_checks.py --only dockerfile.
 
 set -euo pipefail
 
@@ -62,11 +62,11 @@ if [ "${#TASK_DIRS[@]}" -eq 0 ]; then
 fi
 
 echo "check-dockerfile-references.sh is deprecated."
-echo "Using run_static_checks.py --only dockerfile instead of a separate shell regex checker."
+echo "Using scripts/run_static_checks.py --only dockerfile instead of a separate shell regex checker."
 
 FAILED=0
 for task_dir in "${TASK_DIRS[@]}"; do
-    if ! python3 run_static_checks.py --task-dir "$task_dir" --version edition_2 --only dockerfile; then
+    if ! python3 scripts/run_static_checks.py --task-dir "$task_dir" --version edition_2 --only dockerfile; then
         FAILED=1
     fi
 done

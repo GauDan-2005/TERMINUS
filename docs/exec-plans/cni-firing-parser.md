@@ -24,7 +24,7 @@ The deferred-parser gap is documented in two existing places:
 - `docs/exec-plans/instrumentation.md` "False-positive risk" → "CNI-fired
   list population" (the original deferral, with the choice of (b)
   empty-list-and-defer over (a) wire-machine-readable-footers).
-- `approve_task.py:790-797` (`render_metrics_block` docstring: *"The
+- `scripts/approve_task.py:790-797` (`render_metrics_block` docstring: *"The
   deferred fields `cni_references_fired` and `draft_commitments_diff`
   always render as `[]` and `null` respectively until follow-up
   exec-plans ship parsers."*).
@@ -44,13 +44,13 @@ divergence — same contract as `docs/exec-plans/instrumentation.md`.
   module reads `CNI.md`, parses each `## …` heading into a
   slug + canonical title, and scans the spec/reviewer markdown for
   matches.
-- **Modified: `metrics_collector.py`.** `aggregate(task_dir)` gains
+- **Modified: `scripts/metrics_collector.py`.** `aggregate(task_dir)` gains
   a parallel call to `cni_collector.scan_for_fired_cni(...)` and
   surfaces the result under the `cni_references_fired` key. The new
   read is gated on `TB3_CNI_COLLECTOR=1` env var (defaults on for
   the CLI path, off for library callers and existing tests) so
   pre-existing fixtures don't tip over on the first land.
-- **Modified: `approve_task.py`.** `render_metrics_block` already
+- **Modified: `scripts/approve_task.py`.** `render_metrics_block` already
   reads `cni_references_fired` from the aggregated dict; the body of
   `aggregate()` populates it (no change in `render_metrics_block`'s
   contract). The deferred-fields docstring at lines 790-797 gets
@@ -143,7 +143,7 @@ Walked per pattern.
   env-var opt-in (`TB3_CNI_COLLECTOR=1`) is the primary mechanism
   that keeps existing fixtures unaffected. Default for the library
   entry point is `False`; only the CLI defaults to `True`.
-- **`approve_task.py` test fixtures:** the deferred-fields docstring
+- **`scripts/approve_task.py` test fixtures:** the deferred-fields docstring
   update at lines 790-797 is documentation only; existing
   `repo_tests/test_approve_task.py` cases that pin
   `cni_references_fired == []` should continue to pass when
@@ -173,7 +173,7 @@ Walked per pattern.
   `TB3_CNI_COLLECTOR` unset/`0` returns `[]` regardless of input.
 - **`test_metrics_block_renders_populated_list`** — end-to-end:
   synthetic task + spec + reviewer with two CNI fires under the
-  block, run `approve_task.py --emit-metrics`, assert the rendered
+  block, run `scripts/approve_task.py --emit-metrics`, assert the rendered
   block's `cni_references_fired` line lists both slugs in
   deterministic order separated by commas inside the brackets.
 - **`test_existing_19_corpus_unchanged_until_re_authored`** —
@@ -183,9 +183,9 @@ Walked per pattern.
 
 ## Rollback
 
-1. Revert `cni_collector.py`, the `metrics_collector.py` change,
-   the `approve_task.py` docstring update, and the new test file.
-2. Re-pin the deferred-fields docstring at `approve_task.py:790-797`
+1. Revert `cni_collector.py`, the `scripts/metrics_collector.py` change,
+   the `scripts/approve_task.py` docstring update, and the new test file.
+2. Re-pin the deferred-fields docstring at `scripts/approve_task.py:790-797`
    to the original "always render as `[]` and `null` respectively
    until follow-up exec-plans ship parsers" wording.
 3. Existing logs with populated `cni_references_fired` are
@@ -199,7 +199,7 @@ Walked per pattern.
   `## CNI references fired` block contract.
 - [ ] `metrics_collector.aggregate()` populates the new field when
   `TB3_CNI_COLLECTOR=1`.
-- [ ] `approve_task.py:790-797` docstring updated to reflect the
+- [ ] `scripts/approve_task.py:790-797` docstring updated to reflect the
   promotion of `cni_references_fired` from deferred to live.
 - [ ] `repo_tests/test_cni_collector.py` covers all bullets in the
   Tests section above.

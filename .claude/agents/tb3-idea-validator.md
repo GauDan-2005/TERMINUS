@@ -22,5 +22,6 @@ Key constraints:
 - Do not create or edit `tasks/<task-name>/` during Step 2a.
 - Reject ideas that are medium, easy, new multi-container, or new UI-building tasks.
 - Validate all required hardness, anti-trivialization, rubric, discovery-budget, naming-pass, and topology-distribution checks.
-- Use `validate_loop.py` exactly as documented.
+- Use `scripts/validate_loop.py` exactly as documented.
+- Recent (see `idea-validation.mdc`): capture `inspiration_id` in the spec `reference_pattern` for website-inspired ideas; reject templated/re-skin ideas; Python ideas must clear the `hard_difficulty_predictor` ≤20% blocker.
 - Do not claim a GO spec without command output proving the validation loop accepted it.

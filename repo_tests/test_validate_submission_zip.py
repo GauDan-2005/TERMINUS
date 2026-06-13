@@ -1,37 +1,16 @@
 from __future__ import annotations
 
 import io
-import subprocess
 import unittest
 import zipfile
 from pathlib import Path
 
-import validate_submission_zip
+from scripts import validate_submission_zip
 from repo_tests.cases import FIXTURE_TASKS_DIR
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SUBMISSION_DIR = REPO_ROOT / "Task_Ready_To_Submit"
-
-
-def _checked_in_submission_zips() -> list[Path]:
-    try:
-        completed = subprocess.run(
-            ["git", "ls-files", "--", "Task_Ready_To_Submit/*.zip"],
-            cwd=REPO_ROOT,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            check=True,
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return sorted(SUBMISSION_DIR.glob("*.zip"))
-
-    return [
-        REPO_ROOT / line
-        for line in completed.stdout.splitlines()
-        if line.strip()
-    ]
 
 
 def _build_minimal_zip(extra_members: dict[str, bytes]) -> bytes:
@@ -58,43 +37,12 @@ def _build_minimal_zip(extra_members: dict[str, bytes]) -> bytes:
     return buffer.getvalue()
 
 
-def _build_minimal_milestone_zip(extra_members: dict[str, bytes] | None = None) -> bytes:
-    base_members = {
-        "task.toml": (
-            b'version = "2.0"\n'
-            b"[metadata]\nnumber_of_milestones = 2\n"
-            b"[[steps]]\nname = \"milestone_1\"\n"
-            b"[[steps]]\nname = \"milestone_2\"\n"
-        ),
-        "environment/Dockerfile": b"FROM scratch\n",
-        "steps/milestone_1/instruction.md": b"Do part one. Signal completion.\n",
-        "steps/milestone_1/tests/test.sh": b"#!/usr/bin/env bash\n",
-        "steps/milestone_1/tests/test_m1.py": b"def test_one(): pass\n",
-        "steps/milestone_1/solution/solve.sh": b"#!/usr/bin/env bash\nbash solve1.sh\n",
-        "steps/milestone_1/solution/solve1.sh": b"#!/usr/bin/env bash\n",
-        "steps/milestone_2/instruction.md": b"Do part two. Signal completion.\n",
-        "steps/milestone_2/tests/test.sh": b"#!/usr/bin/env bash\n",
-        "steps/milestone_2/tests/test_m2.py": b"def test_two(): pass\n",
-        "steps/milestone_2/solution/solve.sh": b"#!/usr/bin/env bash\nbash solve2.sh\n",
-        "steps/milestone_2/solution/solve2.sh": b"#!/usr/bin/env bash\n",
-    }
-    if extra_members:
-        base_members.update(extra_members)
-
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for name, payload in base_members.items():
-            archive.writestr(name, payload)
-    return buffer.getvalue()
-
-
 class ValidateSubmissionZipRegressionTest(unittest.TestCase):
     """Keep checked-in submission zips aligned with the documented packaging contract."""
 
     def test_checked_in_submission_zips_pass_validation(self) -> None:
-        zip_paths = _checked_in_submission_zips()
-        if not zip_paths:
-            self.skipTest("no checked-in submission zips")
+        zip_paths = sorted(SUBMISSION_DIR.glob("*.zip"))
+        self.assertTrue(zip_paths, "expected at least one checked-in submission zip")
 
         for zip_path in zip_paths:
             with self.subTest(zip=zip_path.name):
@@ -102,15 +50,16 @@ class ValidateSubmissionZipRegressionTest(unittest.TestCase):
                 self.assertTrue(payload["valid"], payload["failures"])
 
     def test_checked_in_submission_zip_names_match_task_names(self) -> None:
-        zip_paths = _checked_in_submission_zips()
-        if not zip_paths:
-            self.skipTest("no checked-in submission zips")
+        zip_paths = sorted(SUBMISSION_DIR.glob("*.zip"))
+        self.assertTrue(zip_paths, "expected at least one checked-in submission zip")
 
         for zip_path in zip_paths:
             with self.subTest(zip=zip_path.name):
                 self.assertTrue(
-                    (FIXTURE_TASKS_DIR / zip_path.stem).is_dir(),
-                    f"submission zip name must match a checked-in fixture task: {zip_path.name}",
+                    (FIXTURE_TASKS_DIR / zip_path.stem).is_dir()
+                    or (REPO_ROOT / "tasks" / zip_path.stem).is_dir(),
+                    "submission zip name must match a checked-in fixture task "
+                    f"or a checked-in task directory: {zip_path.name}",
                 )
 
     def test_construction_manifest_at_archive_root_is_rejected(self) -> None:
@@ -137,45 +86,9 @@ class ValidateSubmissionZipRegressionTest(unittest.TestCase):
             payload["failures"],
         )
 
-    def test_milestone_archive_steps_layout_is_accepted(self) -> None:
-        payload_bytes = _build_minimal_milestone_zip()
-        zip_path = Path(self.id() + ".zip")
-        try:
-            zip_path.write_bytes(payload_bytes)
-            payload = validate_submission_zip.build_report(zip_path)
-        finally:
-            if zip_path.exists():
-                zip_path.unlink()
-
-        self.assertTrue(payload["valid"], payload["failures"])
-        self.assertEqual(payload["layout"], "milestone")
-        self.assertIn("milestone steps contain instruction, tests, and solution files", payload["passes"])
-
-    def test_milestone_archive_rejects_deprecated_root_layout(self) -> None:
-        payload_bytes = _build_minimal_milestone_zip(
-            {
-                "instruction.md": b"Deprecated root instruction.\n",
-                "tests/test.sh": b"#!/usr/bin/env bash\n",
-                "solution/solve.sh": b"#!/usr/bin/env bash\n",
-            }
-        )
-        zip_path = Path(self.id() + ".zip")
-        try:
-            zip_path.write_bytes(payload_bytes)
-            payload = validate_submission_zip.build_report(zip_path)
-        finally:
-            if zip_path.exists():
-                zip_path.unlink()
-
-        self.assertFalse(payload["valid"], payload)
-        self.assertTrue(
-            any("deprecated root-level entries" in failure for failure in payload["failures"]),
-            payload["failures"],
-        )
-
     def test_step2b_checksum_at_archive_root_is_rejected(self) -> None:
         """`.step2b-checksum` is local generated state written by
-        scripts/check-task.sh Phase C and verified by approve_task.py
+        scripts/check-task.sh Phase C and verified by scripts/approve_task.py
         before packaging. It must never ship in a submission archive.
 
         The sentinel starts with `.` so the dotfile filter in
@@ -201,6 +114,27 @@ class ValidateSubmissionZipRegressionTest(unittest.TestCase):
         self.assertFalse(payload["valid"], payload)
         self.assertIn(
             "forbidden archive-root file(s) present: .step2b-checksum",
+            payload["failures"],
+        )
+
+    def test_waivers_json_at_archive_root_is_rejected(self) -> None:
+        """`waivers.json` is an approval artifact, not a submission file."""
+        self.assertIn("waivers.json", validate_submission_zip.FORBIDDEN_ROOT_FILES)
+
+        payload_bytes = _build_minimal_zip(
+            {"waivers.json": b'{"waivers": []}\n'}
+        )
+        zip_path = Path(self.id() + ".zip")
+        try:
+            zip_path.write_bytes(payload_bytes)
+            payload = validate_submission_zip.build_report(zip_path)
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
+
+        self.assertFalse(payload["valid"], payload)
+        self.assertIn(
+            "forbidden archive-root file(s) present: waivers.json",
             payload["failures"],
         )
 

@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest import mock
 
-import verifier_health
+from scripts import verifier_health
 
 
 def write_trial(
@@ -86,14 +86,14 @@ class VerifierHealthRegressionTest(unittest.TestCase):
             test_sh_path = Path(tmpdir) / "test.sh"
             test_sh_path.write_text(
                 "#!/bin/bash\n\n"
-                "python -m pytest -o cache_dir=/tmp/pytest_cache --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA\n",
+                "uvx   -p 3.13   -w pytest==8.4.1   -w pytest-json-ctrf==0.3.5   pytest --ctrf /logs/verifier/ctrf.json /tests/test_outputs.py -rA\n",
                 encoding="utf-8",
             )
 
             verifier_health.ensure_randomized_pytest(test_sh_path, 202)
             updated = test_sh_path.read_text(encoding="utf-8")
 
-        self.assertNotIn("pytest-randomly==3.16.0", updated)
+        self.assertIn("pytest-randomly==3.16.0", updated)
         self.assertIn("--randomly-seed=202", updated)
         self.assertIn("-p randomly", updated)
 
@@ -199,7 +199,7 @@ class JobDirFromOutputTest(unittest.TestCase):
         )
 
         jobs_dir = (verifier_health.REPO_ROOT / "jobs").resolve()
-        with mock.patch("verifier_health.subprocess.run", return_value=completed):
+        with mock.patch("scripts.verifier_health.subprocess.run", return_value=completed):
             with self.assertRaises(RuntimeError) as ctx:
                 verifier_health.run_harbor_oracle(
                     verifier_health.REPO_ROOT / "tasks" / "does-not-exist",
@@ -273,17 +273,17 @@ class ResolveSelectedChecksTest(unittest.TestCase):
 
 class DefaultJobsTest(unittest.TestCase):
     def test_default_jobs_caps_at_max(self) -> None:
-        with mock.patch("verifier_health.os.cpu_count", return_value=32):
+        with mock.patch("scripts.verifier_health.os.cpu_count", return_value=32):
             self.assertEqual(
                 verifier_health.default_jobs(), verifier_health.MAX_DEFAULT_JOBS
             )
 
     def test_default_jobs_uses_cpu_count_when_lower(self) -> None:
-        with mock.patch("verifier_health.os.cpu_count", return_value=2):
+        with mock.patch("scripts.verifier_health.os.cpu_count", return_value=2):
             self.assertEqual(verifier_health.default_jobs(), 2)
 
     def test_default_jobs_falls_back_to_two_when_cpu_count_unknown(self) -> None:
-        with mock.patch("verifier_health.os.cpu_count", return_value=None):
+        with mock.patch("scripts.verifier_health.os.cpu_count", return_value=None):
             self.assertEqual(verifier_health.default_jobs(), 2)
 
 
@@ -377,10 +377,10 @@ class RunParallelChecksTest(unittest.TestCase):
             return self._dummy_summary("partial_oracle")
 
         with mock.patch(
-            "verifier_health.summarize_randomized_order_check",
+            "scripts.verifier_health.summarize_randomized_order_check",
             side_effect=fake_randomized,
         ), mock.patch(
-            "verifier_health.summarize_partial_oracle_check",
+            "scripts.verifier_health.summarize_partial_oracle_check",
             side_effect=fake_partial,
         ):
             rand, partial = verifier_health._run_parallel_checks(
@@ -403,9 +403,9 @@ class RunParallelChecksTest(unittest.TestCase):
 
     def test_skipped_checks_return_stubs_without_calling_summarize(self) -> None:
         with mock.patch(
-            "verifier_health.summarize_randomized_order_check"
+            "scripts.verifier_health.summarize_randomized_order_check"
         ) as rand_mock, mock.patch(
-            "verifier_health.summarize_partial_oracle_check",
+            "scripts.verifier_health.summarize_partial_oracle_check",
             side_effect=lambda *a, pool=None, **kw: self._dummy_summary(
                 "partial_oracle"
             ),
@@ -442,10 +442,10 @@ class RunParallelChecksTest(unittest.TestCase):
             return self._dummy_summary("partial_oracle")
 
         with mock.patch(
-            "verifier_health.summarize_randomized_order_check",
+            "scripts.verifier_health.summarize_randomized_order_check",
             side_effect=fake_randomized,
         ), mock.patch(
-            "verifier_health.summarize_partial_oracle_check",
+            "scripts.verifier_health.summarize_partial_oracle_check",
             side_effect=fake_partial,
         ):
             verifier_health._run_parallel_checks(
@@ -519,7 +519,7 @@ class CopyTaskDirTest(unittest.TestCase):
 
     def test_copy_task_dir_uniquifies_basename_per_label(self) -> None:
         # Harbor derives the docker image tag from the task-dir basename
-        # (hb__<basename>:latest). When verifier_health.py runs
+        # (hb__<basename>:latest). When scripts/verifier_health.py runs
         # randomized_order and partial_oracle concurrently, each trial
         # must land in a dir whose basename encodes the label so the
         # trials build into distinct image tags instead of racing on a

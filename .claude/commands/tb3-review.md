@@ -18,7 +18,7 @@ Read first, in this order:
 Required pre-check:
 
 ```bash
-python3 task_integrity.py verify tasks/$ARGUMENTS
+python3 scripts/task_integrity.py verify tasks/$ARGUMENTS
 ```
 
 Rules:

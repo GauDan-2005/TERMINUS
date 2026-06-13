@@ -54,7 +54,7 @@ fi
 
 FAILED=0
 for task_dir in "${TASK_DIRS[@]}"; do
-    if ! python3 "$ROOT_DIR/run_static_checks.py" \
+    if ! python3 "$ROOT_DIR/scripts/run_static_checks.py" \
         --task-dir "$task_dir" \
         --version edition_2 \
         --only dockerfile \

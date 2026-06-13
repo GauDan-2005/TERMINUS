@@ -22,5 +22,5 @@ Rules:
 - Use the canonical milestone layout when `number_of_milestones > 0`.
 - Do not create new multi-container or UI-building tasks.
 - Do not put AI-scaffolding names anywhere under `tasks/$ARGUMENTS/`.
-- After edits, run the cheap gates in order: `./scripts/check-task.sh tasks/$ARGUMENTS`, oracle 1x, NOP.
+- After edits, run the cheap gates per `commands.md` § Step 2b: `./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/$ARGUMENTS` and the `scripts/task_gate.py` gates (now incl. `hard_difficulty_predictor` [Python ≤20% blocker], `spec_test_alignment`, `spec_gap_detector`, `sandbox_risk_gate`), then `python3 scripts/harbor_gate.py tasks/$ARGUMENTS --oracle --oracle-stress 3 --nop --nop-stress 3`.
 - Do not claim Step 2b PASS without the relevant command output.

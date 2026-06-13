@@ -35,7 +35,7 @@ CRITICAL_RULE_BYTE_CAP = 4096
 # `docs/exec-plans/harness-v2.1-rollout.md` (Tests section, the
 # `test_architecture_contains_no_rule_content` bullet). Match is
 # case-sensitive so that legitimate code identifiers like
-# `FORBIDDEN_ROOT_FILES` (the Python constant in `validate_submission_zip.py`,
+# `FORBIDDEN_ROOT_FILES` (the Python constant in `scripts/validate_submission_zip.py`,
 # referenced in the codemap as the file's owned constant) do not false-
 # positive on the lowercase rule-prose word `forbidden`.
 ARCHITECTURE_FORBIDDEN_PHRASES = (

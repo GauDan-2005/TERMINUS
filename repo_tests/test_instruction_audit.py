@@ -1,7 +1,7 @@
 """Regression tests for the mechanical instruction-specificity audit.
 
 These tests pin the classifier behaviour on both synthetic and real fixtures
-so that any heuristic tuning in `instruction_audit.py` surfaces here before
+so that any heuristic tuning in `scripts/instruction_audit.py` surfaces here before
 it silently changes task approvals.
 """
 
@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import instruction_audit
+from scripts import instruction_audit
 
 from repo_tests.cases import FIXTURE_TASKS_DIR
 
@@ -98,7 +98,7 @@ class InstructionAuditRegressionTest(unittest.TestCase):
         self.assertIn("fnv", mentions)
 
     def test_release_provenance_drift_classifies_spec_complete(self) -> None:
-        """Pin the current release fixture's schema-heavy instruction profile."""
+        """Schema and C-symbol detail in this fixture should now be strict."""
         report = instruction_audit.audit_instruction(
             FIXTURE_TASKS_DIR / "release-provenance-drift"
         )

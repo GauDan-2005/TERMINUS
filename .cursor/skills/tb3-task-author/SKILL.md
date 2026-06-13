@@ -1,6 +1,6 @@
 ---
 name: tb3-task-author
-description: Step 2b construction macro for TB3 tasks. Pull when drafting files for a new task whose Step 2a spec has been approved by validate_loop.py (specs/<task>.md exists with Authoring Brief sections including Triviality Ledger, Per-gate Pitfall Inventory, and Initial Draft Commitments). Walks through reading the spec, drafting files per the commitments, running scripts/check-task.sh preflight, and capturing instrumentation output before claiming Step 2b PASS.
+description: Step 2b construction macro for TB3 tasks. Pull when drafting files for a new task whose Step 2a spec has been approved by scripts/validate_loop.py (specs/<task>.md exists with Authoring Brief sections including Triviality Ledger, Per-gate Pitfall Inventory, and Initial Draft Commitments). Walks through reading the spec, drafting files per the commitments, running scripts/check-task.sh preflight, and capturing instrumentation output before claiming Step 2b PASS.
 disable-model-invocation: true
 ---
 
@@ -14,9 +14,9 @@ Drives Step 2b drafting only. Review is `tb3-reviewer`; packaging is
 Stop if any fails — do not start drafting.
 
 - `specs/<task-name>.md` exists (Step 2a produced it via
-  `validate_loop.py`).
+  `scripts/validate_loop.py`).
 - The Authoring Brief contains `Triviality Ledger`, `Per-gate Pitfall
-  Inventory`, and `Initial Draft Commitments`. If `lint_spec.py` would
+  Inventory`, and `Initial Draft Commitments`. If `scripts/lint_spec.py` would
   reject the spec, stop and tell the user to re-run Step 2a.
 - `tasks/<task-name>/` does not exist or is empty. Do not edit an
   existing draft from this skill — pull `tb3-reviewer` if files are
@@ -39,9 +39,10 @@ Stop if any fails — do not start drafting.
   listed, the spec is incomplete — flag for amendment and return to
   Step 2a rather than going off-spec.
 - Construction is spec-aware, not spec-discovering: every rule the
-  later gates check (RC1-RC8 + CR1, CR2, CR7-CR9 + GX1-GX10, `review-and-submit.mdc` §1-7,
-  `difficulty-calibration.mdc` Part A and Part B) is documented
-  upstream. Apply each rule while writing the file, not after.
+  later gates check (RC1-RC8, CR1/CR2/CR7-CR9, GX1-GX10,
+  `review-and-submit.mdc` §1-7, `difficulty-calibration.mdc`
+  Part A and Part B) is documented upstream. Apply each rule while
+  writing the file, not after.
 - **Milestone tasks** (`number_of_milestones > 0`): the canonical
   layout is `steps/milestone_N/{instruction.md, tests/{test.sh,
   test_mN.py}, solution/{solve.sh, solveN.sh}}`. Do not create a
@@ -57,6 +58,24 @@ Stop if any fails — do not start drafting.
 - **Task types we no longer accept:** new starts of multi-container
   or UI building tasks must not be drafted. If the spec implies
   either, stop and return to Step 2a for a redesign.
+- **`allow_internet = false`:** set `[environment] allow_internet = false` in
+  `task.toml` (blocking CI). Pre-install pinned verifier tooling in
+  `environment/Dockerfile`; the fixed `test_deps_in_image` CI check accepts
+  this expected layout. `tests/test.sh` must not run `apt-get`, `pip install`,
+  `curl`/`wget`, or `uv` installer scripts at runtime — use the
+  internet-disabled template in `task-creation.mdc`, preferably direct
+  Dockerfile-provided `pytest`.
+- **Dockerfile bake checklist:** Before Harbor runs, verify:
+  1. `python3 scripts/task_runtime_deps.py tasks/<task> --strict` passes
+  2. All pytest + plugins pinned in Dockerfile (`pytest==8.4.1`, `pytest-json-ctrf==0.3.5`)
+  3. Every `FROM` digest-pinned (`check_pinned_images`); final runtime stage uses a sanctioned base (`check_sanctioned_base_images`)
+  4. `environment/` ≤ 100 MiB total; no file > 50 MiB (`check_build_context_size`)
+  5. `environment/.dockerignore` present when context is non-trivial; no `.git`/caches/`node_modules`/`.env` pollution
+  6. Apt packages pinned to explicit versions; consolidated `apt-get` with `--no-install-recommends` and list cleanup
+  7. Dependency manifests installed before bulk source `COPY`; compiled artifacts via multi-stage build when needed
+  8. `ENV PATH=/opt/verifier/bin:${PATH}` set when using /opt/verifier
+  9. **Rebuild image** after any Dockerfile/test.sh changes (stale images hide issues)
+  10. See `docs/PLATFORM_AUTO_EVAL.md` and `task-creation.mdc` § environment/Dockerfile for platform pipeline checks
 - **Environment files & licensing:** no AI-specific filenames
   (`CLAUDE.md`, `skills.md`, `AGENTS.md`, `.cursor/`, …) anywhere in
   the archive; no hidden agent instructions in environment files
@@ -64,35 +83,55 @@ Stop if any fails — do not start drafting.
   prescriptive TODOs aimed at the solver). LICENSE files: omit on
   minimal/small codebases; on large codebases use the
   project-provided repos or MIT/Apache 2.0/BSD only.
+- **Verifier and contract coverage:** every tested behavior, including
+  behavior enforced by shared verifier helpers, must have a
+  solver-visible home in `instruction.md`, a referenced environment
+  contract doc, or a visible code/docstring stub. Every required
+  structured-output field needs value-level test coverage; boolean
+  fields cover both polarities when both states matter. Test docstrings
+  should name observable invariants in plain language.
+- **Clean collapse by construction:** oracle targets should be
+  distributed across real fix roots, use opaque manifest-declared
+  symbols, and avoid instruction/path noun collisions. Oracle writes
+  should be comparable to existing environment files; for inline
+  Python writes, prefer `os.chdir("/app/environment")` plus relative
+  `Path("pkg/file.py").write_text(...)`. Avoid tiny semantic diffs
+  hidden in whole-file rewrites; GX2/GX3 should pass honestly, not via
+  padding.
 
 ## 4. Preflight
 
 ```bash
-./scripts/check-task.sh tasks/<task-name>
+./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/<task-name>
 ```
 
 All three phases must pass:
 
-- Phase A — `run_static_checks.py` then `collapse_check.py`.
-- Phase B — `validate_submission_zip.py` against a tmp-zip preview.
+- Phase A — `scripts/run_static_checks.py` then `scripts/collapse_check.py`.
+- Phase B — `scripts/validate_submission_zip.py` against a tmp-zip preview.
 - Phase C — writes `tasks/<task-name>/.step2b-checksum` and appends
   to `tasks/<task-name>/.step2b-metrics.jsonl`.
 
-A FAIL at any phase is a missed construction-time rule. Read the
-specific failure, identify which rule, apply the minimal fix, rerun
-the script. The checksum will catch any subsequent edit.
+A FAIL or WARN in Phase A is a missed construction-time signal unless
+a human reviewer explicitly accepts it later. The authoring default is
+`scripts/collapse_check.py` with 0 FAIL and 0 WARN before oracle. Read the
+specific check, use `python3 scripts/collapse_check.py tasks/<task-name> --json`
+when needed, apply substantive fixes only, then rerun the script. The
+checksum will catch any subsequent edit.
 
 ## 5. Step 2b PASS criteria
 
-Preflight green AND both of the following per `commands.md`:
+Preflight green, including clean collapse (0 FAIL / 0 WARN), AND both
+of the following per `commands.md`:
 
 ```bash
-harbor run -p "tasks/<task-name>" -a oracle    # 1x — no -k
-harbor run -p "tasks/<task-name>" -a nop
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle --oracle-stress 3 --nop --nop-stress 3
 ```
 
 Oracle must score 1.0; NOP must score 0.0. Do **not** run oracle 10x
-here — that is `tb3-packager`'s job in Step 4.
+here — that is `tb3-packager`'s job in Step 4. Optional platform CI mirror:
+`harbor tasks check tasks/<task-name> -m openai/@openai/gpt-5.2` (see
+`docs/EDITION2_SUBMISSION_GUIDE.md`).
 
 If either fails, fix, then rerun preflight (the checksum is now
 stale) before re-running oracle / NOP. See
@@ -125,5 +164,5 @@ Then say verbatim:
 > Step 2b complete. Ready for Step 3b paper review (pull
 > `tb3-reviewer` skill).
 
-Stop. Do not run `validate_submission_zip.py` standalone, oracle
-10x, or `approve_task.py` here — those are Step 4.
+Stop. Do not run `scripts/validate_submission_zip.py` standalone, oracle
+10x, or `scripts/approve_task.py` here — those are Step 4.

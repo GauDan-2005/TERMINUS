@@ -1,6 +1,6 @@
 ---
 name: tb3-idea-validator
-description: Use when validating a TB3 task idea before file creation, producing Step 2a specs/evidence with validate_loop.py and the idea-validation/difficulty rules.
+description: Use when validating a TB3 task idea before file creation, producing Step 2a specs/evidence with scripts/validate_loop.py and the idea-validation/difficulty rules.
 ---
 
 # tb3-idea-validator
@@ -16,4 +16,4 @@ Read first:
 - `workflow-prompts.md`
 - `commands.md`
 
-Do not create `tasks/<task-name>/` in Step 2a. Reject medium/easy ideas and new multi-container/UI-building tasks. Use `validate_loop.py` exactly as documented. Do not claim a GO spec without command output.
+Do not create `tasks/<task-name>/` in Step 2a. Reject medium/easy ideas and new multi-container/UI-building tasks. Use `scripts/validate_loop.py` exactly as documented. Do not claim a GO spec without command output.

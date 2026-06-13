@@ -15,25 +15,25 @@
       "description": "Run TB3 Step 2a idea validation/spec workflow.",
       "agent": "tb3-idea-validator",
       "subtask": true,
-      "template": "Run the TB3 Step 2a idea-validation workflow for: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/rules/idea-validation.mdc, .cursor/rules/difficulty-calibration.mdc, workflow-prompts.md, and commands.md before acting. Do not create tasks/<task-name>/ during Step 2a. Use validate_loop.py exactly as documented and show command output before claiming a GO spec."
+      "template": "Run the TB3 Step 2a idea-validation workflow for: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/rules/idea-validation.mdc, .cursor/rules/difficulty-calibration.mdc, workflow-prompts.md, and commands.md before acting. Do not create tasks/<task-name>/ during Step 2a. Use scripts/validate_loop.py exactly as documented and show command output before claiming a GO spec. Recent: the spec reference_pattern now takes an inspiration_id (website Task Inspiration ID), the originality floor forbids templated/re-skin ideas, and Python tasks must clear the hard_difficulty_predictor <=20% blocker."
     },
     "tb3-author": {
       "description": "Run TB3 Step 2b task construction workflow.",
       "agent": "tb3-task-author",
       "subtask": true,
-      "template": "Use the tb3-task-author skill and run the TB3 Step 2b construction workflow for task: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/skills/tb3-task-author/SKILL.md, .cursor/rules/task-creation.mdc, .cursor/rules/difficulty-calibration.mdc, commands.md, and specs/$ARGUMENTS.md Authoring Brief before editing. After any task edit, run ./scripts/check-task.sh tasks/$ARGUMENTS, oracle 1x, and NOP before claiming Step 2b PASS."
+      "template": "Use the tb3-task-author skill and run the TB3 Step 2b construction workflow for task: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/skills/tb3-task-author/SKILL.md, .cursor/rules/task-creation.mdc, .cursor/rules/difficulty-calibration.mdc, commands.md, and specs/$ARGUMENTS.md Authoring Brief before editing. After any task edit, run ./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/$ARGUMENTS and the scripts/task_gate.py gates (now incl. hard_difficulty_predictor [Python <=20% blocker], spec_test_alignment, spec_gap_detector, sandbox_risk_gate), then python3 scripts/harbor_gate.py tasks/$ARGUMENTS --oracle --oracle-stress 3 --nop --nop-stress 3 before claiming Step 2b PASS."
     },
     "tb3-review": {
       "description": "Run TB3 Step 3b paper review workflow.",
       "agent": "tb3-reviewer",
       "subtask": true,
-      "template": "Use the tb3-reviewer skill and run the TB3 Step 3b paper-review workflow for task: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/skills/tb3-reviewer/SKILL.md, .cursor/rules/review-and-submit.mdc, .cursor/rules/difficulty-calibration.mdc, .cursor/rules/task-creation.mdc, and commands.md. Start with python3 task_integrity.py verify tasks/$ARGUMENTS. If integrity is stale, stop and return to Step 2b."
+      "template": "Use the tb3-reviewer skill and run the TB3 Step 3b paper-review workflow for task: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/skills/tb3-reviewer/SKILL.md, .cursor/rules/review-and-submit.mdc, .cursor/rules/difficulty-calibration.mdc, .cursor/rules/task-creation.mdc, and commands.md. Start with python3 scripts/task_integrity.py verify tasks/$ARGUMENTS. If integrity is stale, stop and return to Step 2b."
     },
     "tb3-package": {
       "description": "Run TB3 Step 4 final approval and packaging workflow.",
       "agent": "tb3-packager",
       "subtask": true,
-      "template": "Use the tb3-packager skill and run the TB3 Step 4 final approval workflow for task: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/skills/tb3-packager/SKILL.md, .cursor/rules/review-and-submit.mdc, and commands.md. Start with python3 task_integrity.py verify tasks/$ARGUMENTS. Then run oracle 10x, NOP, zip validation, approve_task.py, and fixture mirroring exactly as documented. Stop on first failure and never claim READY, APPROVED, or SUBMIT without command output."
+      "template": "Use the tb3-packager skill and run the TB3 Step 4 final approval workflow for task: $ARGUMENTS. Read AGENTS.md, .cursor/rules/00-authoring-critical.mdc, .cursor/skills/tb3-packager/SKILL.md, .cursor/rules/review-and-submit.mdc, and commands.md. Start with python3 scripts/task_integrity.py verify tasks/$ARGUMENTS. Then run the Step 4 gates exactly as documented: harbor_gate --oracle-repeat 10 (10/10 at 1.0), harbor_gate --test-repeat 20 (20/20 at 1.0), scripts/reviewer_simulation.py --strict (block if reviewer_confidence < 90), zip + scripts/validate_submission_zip.py, scripts/approve_task.py --strict, then fixture mirroring. Stop on first failure and never claim READY, APPROVED, or SUBMIT without command output."
     }
   },
   "permission": "allow",

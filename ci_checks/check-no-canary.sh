@@ -2,7 +2,7 @@
 
 # Compatibility wrapper for the old legacy-canary scan.
 # The authoritative Edition 2 behavior now comes from
-# run_static_checks.py --only canary.
+# scripts/run_static_checks.py --only canary.
 
 set -euo pipefail
 
@@ -62,11 +62,11 @@ if [ "${#TASK_DIRS[@]}" -eq 0 ]; then
 fi
 
 echo "check-no-canary.sh is deprecated."
-echo "Using run_static_checks.py --only canary to reject legacy canary strings."
+echo "Using scripts/run_static_checks.py --only canary to reject legacy canary strings."
 
 FAILED=0
 for task_dir in "${TASK_DIRS[@]}"; do
-    if ! python3 run_static_checks.py --task-dir "$task_dir" --version edition_2 --only canary; then
+    if ! python3 scripts/run_static_checks.py --task-dir "$task_dir" --version edition_2 --only canary; then
         FAILED=1
     fi
 done

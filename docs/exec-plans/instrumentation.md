@@ -37,13 +37,13 @@ preflight to first preflight PASS" because `check-task.sh` has
 no spec-approval signal; see `docs/exec-plans/instrumentation.md`
 for rationale._
 
-- count of run_static_checks.py FAIL exits before first PASS
-- count of run_static_checks.py WARN-only exits before approval
-- count of collapse_check.py FAIL exits before first PASS
-- count of dirty-flag triggers (approve_task.py refused due to
+- count of scripts/run_static_checks.py FAIL exits before first PASS
+- count of scripts/run_static_checks.py WARN-only exits before approval
+- count of scripts/collapse_check.py FAIL exits before first PASS
+- count of dirty-flag triggers (scripts/approve_task.py refused due to
   checksum mismatch)
 - wall-clock time from first preflight to first preflight PASS
-- wall-clock time from first Step 2b PASS to approve_task.py exit 0
+- wall-clock time from first Step 2b PASS to scripts/approve_task.py exit 0
 - list of CNI references that fired during the authoring (e.g.
   "milestone-language warning fired and was rephrased")
 - whether the spec's Initial Draft Commitments matched the final
@@ -52,7 +52,7 @@ for rationale._
   CNI-fired list path (see False-positive risk)
 ```
 
-- **New: `metrics_collector.py`.** Library that owns counter-file
+- **New: `scripts/metrics_collector.py`.** Library that owns counter-file
   format and aggregation. Exposes `record_exit(tool, outcome)` for
   the per-tool hooks and `aggregate(task_dir) -> dict` for the
   approval-time read. Counter file format: append-only JSONL, one
@@ -67,11 +67,11 @@ for rationale._
   wall-clock duration as the literal string `"no Step 2b PASS yet"`
   rather than crashing or emitting `0`; the rendered block surfaces
   that string in place of a duration.
-- **New: `validation_log.py`.** Append helper. Exposes
+- **New: `scripts/validation_log.py`.** Append helper. Exposes
   `append_metrics_block(spec_path, block_text)`. Reads current
   `specs/<task-name>-validation-log.md`, appends the rendered block,
   writes atomically (tmp + rename). Creates the log file if absent.
-- **Modified: `approve_task.py`.** Extend `build_report` (line 538
+- **Modified: `scripts/approve_task.py`.** Extend `build_report` (line 538
   and the dirty-flag branch at line 563) to:
   - Increment the dirty-flag counter via `metrics_collector` when
     `verify_step2b_checksum` returns mismatch, before raising the
@@ -94,29 +94,29 @@ for rationale._
   phases green). Implementation uses `date +%s%N` — POSIX-portable
   if the build host has GNU coreutils; fall back to Python
   one-liner via `metrics_collector` CLI if not.
-- **Modified: `run_static_checks.py`.** FAIL/WARN counter hook.
+- **Modified: `scripts/run_static_checks.py`.** FAIL/WARN counter hook.
   The tool already emits FAIL/WARN as exit codes; the hook is a
   `try/finally` wrapper in the CLI entry point that calls
   `metrics_collector.record_exit("run_static_checks", outcome)`
   with `outcome ∈ {"FAIL", "WARN", "PASS"}`. Hook is
   gated on `TB3_METRICS_TASK_DIR` env var to keep one-shot
   invocations (CI, reviewer spot-checks) unaffected.
-- **Modified: `collapse_check.py`.** Same pattern as
-  `run_static_checks.py`; `outcome ∈ {"FAIL", "PASS"}` (no WARN tier
+- **Modified: `scripts/collapse_check.py`.** Same pattern as
+  `scripts/run_static_checks.py`; `outcome ∈ {"FAIL", "PASS"}` (no WARN tier
   in collapse).
-- **Modified: `task_integrity.py`.** Add a named constant
+- **Modified: `scripts/task_integrity.py`.** Add a named constant
   `EXCLUDED_DOTFILES = (".step2b-checksum", ".step2b-metrics.jsonl")`
   and exclude those names *in addition* to the generic dotfile
   rule. Defense-in-depth: if a future refactor narrows or removes
   the generic dotfile rule, the explicit names remain excluded
   from the checksum manifest. Pinned by a regression test (see
   Tests below).
-- **Modified: `validate_submission_zip.py`.** Add
+- **Modified: `scripts/validate_submission_zip.py`.** Add
   `.step2b-metrics.jsonl` to `FORBIDDEN_ROOT_FILES` (+1 LOC). The
   generic dotfile filter already rejects it implicitly; listing
   the name explicitly makes the rejection survive a future change
   to the implicit filter — same defense-in-depth pattern as the
-  `task_integrity.py` change above. Pinned by a new regression
+  `scripts/task_integrity.py` change above. Pinned by a new regression
   test mirroring the existing checksum-at-archive-root case.
 - **New: `repo_tests/test_instrumentation.py`.** Regression tests
   (see Tests below).
@@ -124,13 +124,13 @@ for rationale._
 Counter file location: `tasks/<task-name>/.step2b-metrics.jsonl`,
 next to `.step2b-checksum`. Dotfile, so it is naturally excluded
 from submission zips by the existing `-x '.*'` in Phase B. The
-exclusion from `task_integrity.py`'s checksum manifest is made
+exclusion from `scripts/task_integrity.py`'s checksum manifest is made
 explicit via the `EXCLUDED_DOTFILES` constant (see Change Surface
 bullet) — this file changes during Phase B/C legitimately, so it
 must be excluded from the manifest exactly like `.step2b-checksum`
 itself, and the explicit constant ensures the protection survives
 any future change to the generic dotfile rule. Likewise,
-`validate_submission_zip.py` rejects the name explicitly through
+`scripts/validate_submission_zip.py` rejects the name explicitly through
 `FORBIDDEN_ROOT_FILES` rather than relying solely on the implicit
 dotfile filter. Include in `.gitignore` alongside
 `.step2b-checksum`.
@@ -152,16 +152,16 @@ legitimate behavior that might trip it:
   is handled by `validation_log.append_metrics_block` using
   tmp-file + rename rather than in-place edit.
 
-- **Log corruption from partial writes.** `approve_task.py` can
+- **Log corruption from partial writes.** `scripts/approve_task.py` can
   be interrupted (Ctrl-C, OOM) between reading the current log
   and writing the appended version. Mitigated by the tmp-file +
-  rename pattern in `validation_log.py`; rename is atomic on the
+  rename pattern in `scripts/validation_log.py`; rename is atomic on the
   same filesystem. If rename fails cross-filesystem, the helper
   falls back to an exclusive-mode append with a `fcntl` advisory
   lock and logs the degraded path.
 
 - **Sentinel-file race with `.step2b-checksum`.** The dirty-flag
-  counter increments *before* `approve_task.py` raises the
+  counter increments *before* `scripts/approve_task.py` raises the
   blocking failure. If the counter write itself fails, the
   blocking failure must still fire; the counter hook is therefore
   wrapped in a broad try/except that logs-and-continues. A dropped
@@ -181,7 +181,7 @@ legitimate behavior that might trip it:
 - **CNI-fired list population.** The plan's fourth-from-last
   bullet — "list of CNI references that fired" — has no
   mechanical source today. The implementation must either (a) wire
-  `run_static_checks.py` and `collapse_check.py` to emit CNI IDs
+  `scripts/run_static_checks.py` and `scripts/collapse_check.py` to emit CNI IDs
   in a machine-readable footer, or (b) defer that bullet to a
   follow-up exec-plan and leave it as an empty list in the
   initial metrics block. The safer choice is (b); promote to (a)
@@ -190,7 +190,7 @@ legitimate behavior that might trip it:
 
 - **"Initial Draft Commitments matched" diff.** Requires a
   non-trivial parser of the spec's `Initial Draft Commitments`
-  section that doesn't currently exist — `lint_spec.py` only
+  section that doesn't currently exist — `scripts/lint_spec.py` only
   enforces presence of the heading, not structured extraction of
   the bulleted file list. The implementation must either (a) ship
   that parser as part of this exec-plan, or (b) defer the parser
@@ -202,9 +202,9 @@ legitimate behavior that might trip it:
   *advisory for demotion review*, not a blocking gate, so a
   null entry is non-fatal.
 
-- **Env-var opt-in for hook gates.** `run_static_checks.py` and
-  `collapse_check.py` are invoked from many places — `check-task.sh`,
-  `approve_task.py`, reviewer one-shots, CI.
+- **Env-var opt-in for hook gates.** `scripts/run_static_checks.py` and
+  `scripts/collapse_check.py` are invoked from many places — `check-task.sh`,
+  `scripts/approve_task.py`, reviewer one-shots, CI.
   `TB3_METRICS_TASK_DIR` opt-in avoids polluting one-shot
   invocations with stray counter writes to a task dir that
   happens to be CWD. `check-task.sh` sets this env var for the
@@ -234,7 +234,7 @@ legitimate behavior that might trip it:
 - **`test_metrics_block_lands_on_successful_approval`** —
   synthetic tasks/<fixture>/ plus specs/<fixture>.md; run
   `check-task.sh` (stubbed tools, real `metrics_collector`),
-  run `approve_task.py` against the resulting zip, assert
+  run `scripts/approve_task.py` against the resulting zip, assert
   `specs/<fixture>-validation-log.md` now contains a
   `## Per-task authoring metrics` heading with all eight
   bullets present.
@@ -250,7 +250,7 @@ legitimate behavior that might trip it:
   with matching `timestamp_ns` order, each tagged with the
   exported `run_id`.
 - **`test_collapse_check_hook_counts_fail`** — same pattern for
-  `collapse_check.py`.
+  `scripts/collapse_check.py`.
 - **`test_no_opt_in_leaves_no_counter`** — invoke both tools
   without `TB3_METRICS_TASK_DIR`; assert no counter file is
   created in CWD or elsewhere.
@@ -259,7 +259,7 @@ legitimate behavior that might trip it:
   `t_spec_approved_ns`) and `t_first_step2b_pass_ns` are both
   present in the counter file and the former is ≤ the latter.
 - **`test_metrics_block_skipped_when_spec_missing`** — grandfathered
-  task with no `specs/<task-name>.md`; assert `approve_task.py`
+  task with no `specs/<task-name>.md`; assert `scripts/approve_task.py`
   still exits 0 and logs a stderr note; counter file exists
   (block skipped, not failed).
 - **`test_concurrent_appends_do_not_corrupt_jsonl`** — two
@@ -300,10 +300,10 @@ legitimate behavior that might trip it:
 ## Rollback
 
 1. Revert the nine change-surface files listed above (two new
-   modules, four modifications to `approve_task.py` /
-   `check-task.sh` / `task_integrity.py` /
-   `validate_submission_zip.py`, two env-var-gated hooks in
-   `run_static_checks.py` / `collapse_check.py`, one new test
+   modules, four modifications to `scripts/approve_task.py` /
+   `check-task.sh` / `scripts/task_integrity.py` /
+   `scripts/validate_submission_zip.py`, two env-var-gated hooks in
+   `scripts/run_static_checks.py` / `scripts/collapse_check.py`, one new test
    file).
 2. Remove `.step2b-metrics.jsonl` from any `tasks/<task-name>/`
    directory where it was written:
@@ -316,17 +316,17 @@ legitimate behavior that might trip it:
 
 ## Verification done
 
-- [x] `metrics_collector.py` and `validation_log.py` shipped,
+- [x] `scripts/metrics_collector.py` and `scripts/validation_log.py` shipped,
   with unit tests for format and concurrency guarantees.
-- [x] `approve_task.py` emits the metrics block on successful
+- [x] `scripts/approve_task.py` emits the metrics block on successful
   approval and increments the dirty-flag counter on refusal.
 - [x] `scripts/check-task.sh` writes both wall-clock markers.
-- [x] `run_static_checks.py` and `collapse_check.py` record
+- [x] `scripts/run_static_checks.py` and `scripts/collapse_check.py` record
   exits when `TB3_METRICS_TASK_DIR` is set, are no-ops when it
   is unset.
 - [x] `.step2b-metrics.jsonl` is excluded from submission zips
   (tested under `test_metrics_file_excluded_from_submission_zip`)
-  and ignored by `task_integrity.py`'s checksum manifest.
+  and ignored by `scripts/task_integrity.py`'s checksum manifest.
 - [x] Baseline `repo_tests` failure count is unchanged
   (`.expected_failure_count` or equivalent preserved).
 - [x] `cases.py` updated if any new pass-message lands.

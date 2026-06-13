@@ -1,7 +1,7 @@
-"""Regression tests for task_integrity.py — the shared checksum module.
+"""Regression tests for scripts/task_integrity.py — the shared checksum module.
 
 The module is the single source of truth for the `.step2b-checksum`
-sentinel that scripts/check-task.sh writes (Phase C) and approve_task.py
+sentinel that scripts/check-task.sh writes (Phase C) and scripts/approve_task.py
 verifies before packaging. These tests pin:
   - the round-trip behavior on a clean task tree
   - the diff messages for added / removed / modified files
@@ -20,12 +20,12 @@ import tempfile
 import unittest
 from pathlib import Path, PurePosixPath
 
-import approve_task
-import task_integrity
+from scripts import approve_task
+from scripts import task_integrity
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-MODULE_PATH = REPO_ROOT / "task_integrity.py"
+MODULE_PATH = REPO_ROOT / "scripts/task_integrity.py"
 
 
 def _seed_task_tree(root: Path) -> dict[str, bytes]:
@@ -210,7 +210,7 @@ class TaskIntegrityRegressionTest(unittest.TestCase):
 
     def test_cli_write_and_verify_exit_codes(self) -> None:
         """The CLI is the entry point for scripts/check-task.sh Phase C
-        and approve_task.py error reporting; its exit codes must be:
+        and scripts/approve_task.py error reporting; its exit codes must be:
           - write on a clean tree: 0
           - verify on a clean tree: 0
           - verify after a modification: 1

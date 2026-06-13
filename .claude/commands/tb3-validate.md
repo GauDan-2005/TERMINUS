@@ -19,7 +19,8 @@ Rules:
 - Do not create or edit `tasks/<task-name>/` during Step 2a.
 - Reject ideas that are medium, easy, new multi-container, or new UI-building tasks.
 - Validate the 5 hardness axes, anti-trivialization checks, rubric axes, discovery budget, instruction specificity, naming pass, and topology distribution.
-- Use `validate_loop.py` exactly as documented. Do not invent flags or output paths.
+- Use `scripts/validate_loop.py` exactly as documented. Do not invent flags or output paths.
+- Recent requirements (see `.cursor/rules/idea-validation.mdc`): record an `inspiration_id` in the spec's `reference_pattern` when the idea is based on a website task-inspiration; reject **templated / re-skinned** ideas (originality floor); Python tasks must clear the `hard_difficulty_predictor` ≤20% worst-model pass-rate blocker.
 - A GO spec must satisfy the v2 spec contract in `.cursor/rules/idea-validation.mdc`.
 - Keep reviewer-only analysis out of `specs/<task-name>.md`; put it in the reviewer appendix path required by the validation workflow.
 

@@ -46,7 +46,7 @@ with these creds — it is opt-in and `approve_task.py` passes without it.
 | `../AGENTS.md` | Always-on routing + must-fire bullets |
 | `../docs/ARCHITECTURE.md` | Which file owns which layer |
 | `../workflow-prompts.md` | The Step 1→4 pipeline + "Ralph discipline" |
-| `../commands.md` | Canonical CLI reference + Docker/harbor bring-up (lines ~336-367) |
+| `../commands.md` | Canonical CLI reference + Docker/harbor bring-up |
 | `../REPO_CONVENTIONS.md` | Intentional waivers (don't "fix" these) |
 | `../.cursor/rules/00-authoring-critical.mdc` | Always-on critical path + forbidden shortcuts |
 | `../.cursor/rules/idea-validation.mdc` | Step 2a: 5 hardness axes, 21 anti-trivialization checks, discovery budget, construction manifest |
@@ -73,13 +73,14 @@ structurally; empirical agent runs enforce it in fact.
 
 ```
 Step 1  Ideate (ChatGPT seed bank)            web/ bundle
-Step 2a Validate idea + author spec            validate_loop.py  (GATE: GO)
+Step 2a Validate idea + author spec            scripts/validate_loop.py  (GATE: GO)
 Step 2b Construct task files                   tasks/<t>/...
-        → static + collapse (cheap)            scripts/check-task.sh
-        → oracle 1x + NOP (minutes)            harbor
-Step 3a (opt) verifier-health / quality-check  verifier_health.py / stb harbor check
+        → static + collapse + 5 hard-gates     scripts/check-task.sh + scripts/task_gate.py
+        → oracle/NOP stress 3/3 (minutes)      scripts/harbor_gate.py --oracle-stress 3 --nop-stress 3
+Step 3a (opt) verifier-health / quality-check  scripts/verifier_health.py / stb harbor check
 Step 3b Paper review (structural + collapse)   review-and-submit.mdc
-Step 4  Oracle 10x → zip → approve             harbor / approve_task.py
+Step 4  Oracle 10x + verifier 20x +            scripts/harbor_gate.py --oracle-repeat 10 / --test-repeat 20
+        reviewer-sim → zip → approve           scripts/reviewer_simulation.py / scripts/approve_task.py --strict
         Empirical difficulty (real agents)     harbor -a terminus-2
         Rubric (external)                       TASK_PROPOSAL_RUBRIC.md
         Submit                                  stb submissions create
@@ -87,7 +88,7 @@ Step 4  Oracle 10x → zip → approve             harbor / approve_task.py
 **Dirty-flag discipline (critical):** editing ANY file under `tasks/<t>/`
 invalidates all prior Step 2b/agent evidence. You must re-enter at the cheapest
 unverified gate: `check-task.sh` (rewrites `.step2b-checksum`) → rebuild zip →
-oracle 1× + NOP. The 10× and the agent matrix only run on a *locked* tree.
+oracle/NOP stress 3/3. The 10×/20× and the agent matrix only run on a *locked* tree.
 `approve_task.py` mechanically refuses on checksum/zip mismatch.
 
 ---
@@ -131,10 +132,10 @@ block verbatim (the 2-vs-7 drift is a real failure mode — keep them identical)
 
 Commands:
 ```bash
-python3 validate_loop.py record <task-name> --evidence specs/<task-name>-attempt-N-evidence.json
-python3 validate_loop.py finalize <task-name>      # enforces v2 lint --strict
-python3 lint_spec.py specs/<task-name>.md --strict
-python3 validate_loop.py status <task-name>
+python3 scripts/validate_loop.py record <task-name> --evidence specs/<task-name>-attempt-N-evidence.json
+python3 scripts/validate_loop.py finalize <task-name>      # enforces v2 lint --strict
+python3 scripts/lint_spec.py specs/<task-name>.md --strict
+python3 scripts/validate_loop.py status <task-name>
 ```
 PASS criteria: `record` prints `ACTION: GO` with `0F, 0W`; `finalize` →
 `OK: … passes strict lint`. Iterate the spec/evidence only (cheap) until GO.
@@ -186,19 +187,26 @@ expert path exists (avoid 0/N unsolvable-by-construction).
 
 ---
 
-## STEP 2b gates — static + collapse + oracle/NOP
+## STEP 2b gates — static + collapse + 5 hard-gates + oracle/NOP stress
 
 One-command preflight (Phase A static + Phase B temp-zip + Phase C checksum):
 ```bash
 export PATH="/tmp/opencode/harbor-venv/bin:$PATH"      # ruff = upstream parity
-./scripts/check-task.sh tasks/<task-name>
+./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/<task-name>
 ```
 PASS = exit 0, "Preflight passed (Phase A + B + C)". Collapse WARN (exit 2) is
 non-blocking but must be justified at Step 3b; collapse FAIL (exit 1) blocks.
+
+The 5 hard-gates (run via `task_gate.py`; they also write the JSON reports `approve_task.py --strict` consumes):
+```bash
+python3 scripts/task_gate.py tasks/<task-name> --strict --report-dir /tmp/tb3-gates --skip-harbor
+# hard_difficulty_predictor (Python tasks must predict worst-model pass-rate <= 20%),
+# spec_test_alignment, spec_gap_detector, sandbox_risk_gate.
+```
 Individual gates if needed:
 ```bash
-python3 run_static_checks.py --task-dir tasks/<task-name> --version edition_2
-python3 collapse_check.py tasks/<task-name>           # 0=PASS 1=FAIL 2=WARN
+python3 scripts/run_static_checks.py --task-dir tasks/<task-name> --version edition_2
+python3 scripts/collapse_check.py tasks/<task-name>           # 0=PASS 1=FAIL 2=WARN
 /tmp/opencode/harbor-venv/bin/ruff check tasks/<task-name>/   # default config
 ```
 Collapse signals to know: RC1 (oracle adds, not deletes), RC6 (symptoms-only),
@@ -208,16 +216,17 @@ CR2 (flip ≤0.5/≥3 locs/≥2 roots), CR8 (≤2 manifest symbols/file), GX1 (n
 correctional vocab in env), GX6 (instruction not causal), GX9/GX10 (no answer
 enumeration / polarity contradiction).
 
-Oracle 1× + NOP (the correctness gate; needs harbor + creds):
+Oracle + NOP **stress 3/3** (the Step 2b correctness gate; needs harbor + creds).
+`harbor_gate.py` runs harbor and enforces that *every* trial hits the expected
+reward, not just the mean:
 ```bash
 eval "$(stb keys show)"
-H=/tmp/opencode/harbor-venv/bin/harbor
-$H run -p "tasks/<task-name>" -a oracle --job-name <name>-oracle-1x -y
-$H run -p "tasks/<task-name>" -a nop    --job-name <name>-nop-1x    -y
-python3 -c "import json;d=json.load(open('jobs/<name>-oracle-1x/result.json'));e=next(iter(d['stats']['evals'].values()));print(e['metrics'][0]['mean'])"
+export PATH="/tmp/opencode/harbor-venv/bin:$PATH"   # harbor_gate finds harbor on PATH
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle --oracle-stress 3 --nop --nop-stress 3
 ```
-PASS = oracle mean **1.0**, NOP mean **0.0**, 0 errored trials. Then Docker
-cleanup (see §Cleanup). Anything off → fix → re-enter at `check-task.sh`.
+PASS = oracle **3/3** all at 1.0, NOP **3/3** all at 0.0, 0 errored trials. Then
+Docker cleanup (see §Cleanup). Anything off → fix → re-enter at `check-task.sh`.
+(Single manual run if you need one: `$H run -p tasks/<t> -a oracle --job-name <t>-oracle-1x -y`.)
 
 Local pre-check before spending harbor: `g++ -std=c++17 …` compile the TUs;
 broken baseline should fail the tests' required keys → guarantees NOP=0.
@@ -252,17 +261,21 @@ hand before zipping; this checklist is part of the acceptance definition:
 
 ## STEP 3a — Optional diagnostics (opt-in, revision-triggered)
 
-- Verifier health (order/partial-oracle): `python3 verifier_health.py
+- Verifier health (order/partial-oracle): `python3 scripts/verifier_health.py
   --task-dir tasks/<t> --output-json /tmp/<t>-vh.json`.
 - Quality check (GPT-5.2/Claude rubric): `stb harbor check tasks/<t> -m
   "openai/gpt-5.2" -o /tmp/<t>-qc.json` then `python3
-  quality_check_adjudicate.py --task-dir tasks/<t> --qc-output /tmp/<t>-qc.json`.
+  scripts/quality_check_adjudicate.py --task-dir tasks/<t> --qc-output /tmp/<t>-qc.json`.
   **Env note:** `stb harbor check` is Claude-Code-based and fails with
   OpenAI/Portkey-only creds ("Claude Code returned an error result"). It is
   opt-in; `approve_task.py` passes without it (quality gate defaults PASS with
   no waiver). Gate-path can be sanity-checked with a synthetic all-pass QC JSON.
   Adjudicate findings as `task-defect` (fix) / `convention-conflict` (waive with
   `enforcing_rule.file`+line) / `unsupported` (waive with negative-lookup).
+- Hard-gate drill-down (3a-A): the `task_gate.py` gates (`spec_test_alignment`,
+  `spec_gap_detector`, `sandbox_risk_gate`, `hard_difficulty_predictor`) run in
+  Step 2b; re-run `python3 scripts/task_gate.py tasks/<t> --strict --report-dir
+  /tmp/tb3-gates --skip-harbor` standalone when chasing one of those findings.
 
 ---
 
@@ -278,12 +291,16 @@ edit → dirty-flag → re-enter Step 2b gates.
 
 ## STEP 4 — Oracle 10×, zip, approve, difficulty, submit
 
-1) Oracle 10× flake guard (only place 10× runs):
+1) Oracle 10× + verifier 20× flake guards + reviewer simulation (only place 10×/20× run):
 ```bash
-$H run -p "tasks/<t>" -a oracle -k 10 -n 10 --job-name <t>-oracle-10x -y
-# PASS: mean 1.0, 10/10, 0 errors, pass_at_k all 1.0
+python3 scripts/harbor_gate.py tasks/<t> --oracle-repeat 10   # PASS: 10/10 all at 1.0
+python3 scripts/harbor_gate.py tasks/<t> --test-repeat 20     # PASS: 20/20 all at 1.0 (verifier flakiness)
+python3 scripts/first_look_packet.py tasks/<t> --out /tmp/<t>-first-look.txt   # then record first_look_result JSON (docs/FIRST_LOOK_DRY_RUN.md)
+python3 scripts/reviewer_simulation.py tasks/<t> --strict --report-dir /tmp/tb3-gates \
+  --first-look-result /tmp/<t>-first-look-result.json --json   # BLOCK if would_reject or reviewer_confidence < 90
 ```
-2) Build the submission zip (exclusion set mirrors `scripts/check-task.sh:64-73`;
+(Raw single oracle 10× if needed: `$H run -p tasks/<t> -a oracle -k 10 -n 10 --job-name <t>-oracle-10x -y`.)
+2) Build the submission zip (exclusion set mirrors the `-x` list in `scripts/check-task.sh` / `commands.md` § Packaging;
 add `*/.*` so nested dotfiles like `state/.keep` don't break source↔zip parity):
 ```bash
 rm -f Task_Ready_To_Submit/<t>.zip
@@ -294,16 +311,23 @@ rm -f Task_Ready_To_Submit/<t>.zip
   -x 'CLAUDE.md' '*/CLAUDE.md' 'AGENTS.md' '*/AGENTS.md' 'skills.md' '*/skills.md' \
   -x '.cursor/*' '*/.cursor/*' '.aider/*' '*/.aider/*' \
   -x '.continue/*' '*/.continue/*' '.claude/*' '*/.claude/*' )
-python3 validate_submission_zip.py Task_Ready_To_Submit/<t>.zip   # RESULT: PASS
+python3 scripts/validate_submission_zip.py Task_Ready_To_Submit/<t>.zip   # RESULT: PASS
 ```
-3) Approval gate (mechanical; re-checks checksum/static/collapse/zip/parity):
+3) Approval gate (`--strict`; re-checks checksum/static/collapse/zip/parity + the Step 2b gate reports):
 ```bash
-python3 approve_task.py --task-dir tasks/<t> \
-  --zip Task_Ready_To_Submit/<t>.zip --skip-verifier-health
+python3 scripts/approve_task.py --strict --task-dir tasks/<t> \
+  --zip Task_Ready_To_Submit/<t>.zip --skip-verifier-health \
+  --actionability-report /tmp/tb3-gates/<t>-actionability_check.json \
+  --no-hidden-contracts-report /tmp/tb3-gates/<t>-no_hidden_contracts.json \
+  --obfuscation-lint-report /tmp/tb3-gates/<t>-obfuscation_lint.json \
+  --first-look-result /tmp/<t>-first-look-result.json \
+  --oracle-job-dir jobs/<oracle-job-dir> --nop-job-dir jobs/<nop-job-dir>
 # PASS: "Approval gate: PASS", "Blocking failures: - none". collapse WARN ok.
 ```
-`--skip-verifier-health` is the routine path. Attach `--verifier-health` /
-`--quality-check-adjudication` only if Step 3a was actually run.
+`--skip-verifier-health` is the routine path; swap in `--verifier-health <json>`
+only if Step 3a-V ran. The `--actionability-report`/`--no-hidden-contracts-report`/
+`--obfuscation-lint-report` paths come from `task_gate.py --report-dir /tmp/tb3-gates`
+(Step 2b); `--first-look-result` from the first-look packet (sub-step 1b).
 
 4) **Empirical difficulty** (the real hard-only test — the mechanical gates do
 NOT measure it). Use the registered reference agent `terminus-2`:
@@ -328,10 +352,9 @@ stb submissions list -p PROJECT_ID
 
 ## Rubric authoring (external artifact — never in the zip)
 
-Rubric files (`rubric.txt`/`rubrics.txt`) are in `validate_submission_zip.py`
+Rubric files (`rubric.txt`/`rubrics.txt`) are in `scripts/validate_submission_zip.py`
 `FORBIDDEN_ROOT_FILES`. Keep the rubric **outside** the repo (e.g.
-`…/AirDawg/<task>-rubric.md`). Follow `TERMINUS/TASK_PROPOSAL_RUBRIC.md`
-(lines 1-19):
+`…/AirDawg/<task>-rubric.md`). Follow `TERMINUS/TASK_PROPOSAL_RUBRIC.md`:
 - Every line starts `Agent ` and ends `, [Score]`.
 - Scores only ±1, ±2, ±3, ±5 (NEVER ±4). Critical ±5 / Major ±3 / Minor ±1-2.
 - Binary; ≥5 checks; **≥3 negative** checks; positive phrasing always.
@@ -379,9 +402,12 @@ workload, do NOT `system prune -af` (it removes unrelated images).
 
 ALL of: `validate_loop` GO (0F/0W) + `lint_spec --strict` PASS · construction
 manifest mirrors spec · `run_static_checks.py` PASS (ruff active) ·
-`collapse_check.py` 0 FAIL (WARN justified) · oracle 1×=1.0 · NOP=0.0 ·
-oracle 10×=10/10 · `validate_submission_zip.py` PASS · source↔zip parity PASS ·
-`approve_task.py` exit 0 · **empirical difficulty ≤1/6 frontier** (with a
+`collapse_check.py` 0 FAIL (WARN justified) · `task_gate.py` 5 hard-gates PASS
+(hard_difficulty_predictor ≤20% worst-model for Python, spec_test_alignment,
+spec_gap_detector, sandbox_risk_gate) · oracle/NOP **stress 3/3** (3×1.0 / 3×0.0) ·
+oracle **10×=10/10** · verifier **20×=20/20** · `reviewer_simulation.py --strict`
+reviewer_confidence ≥ 90 · `validate_submission_zip.py` PASS · source↔zip parity PASS ·
+`approve_task.py --strict` exit 0 · **empirical difficulty ≤1/6 frontier** (with a
 deterministic oracle proving solvability) · **docker.md image checklist verified**
 (reviewer-verified — tmux/asciinema, `.dockerignore`, narrow `COPY`, OCI labels,
 lockfiles; see "STEP 2b — Docker/image compliance") · rubric authored externally &

@@ -45,13 +45,13 @@ from unittest import mock
 
 import zipfile
 
-import approve_task
-import collapse_check
-import metrics_collector
-import run_static_checks
-import task_integrity
-import validate_submission_zip
-import validation_log
+from scripts import approve_task
+from scripts import collapse_check
+from scripts import metrics_collector
+from scripts import run_static_checks
+from scripts import task_integrity
+from scripts import validate_submission_zip
+from scripts import validation_log
 from repo_tests.cases import FIXTURE_TASKS_DIR
 
 
@@ -86,7 +86,7 @@ class MetricsCollectorRecordExitTest(_MetricsEnvCleaner):
     def test_record_exit_writes_required_fields(self) -> None:
         """JSONL records must carry exactly {tool, outcome, timestamp_ns,
         run_id}. The schema is binding (exec-plan Change Surface, §
-        metrics_collector.py)."""
+        scripts/metrics_collector.py)."""
         with tempfile.TemporaryDirectory() as tmp:
             task_dir = Path(tmp)
             os.environ[metrics_collector.TASK_DIR_ENV] = str(task_dir)
@@ -208,7 +208,7 @@ class MetricsCollectorRecordExitTest(_MetricsEnvCleaner):
             n_per_proc = 50
             runner = (
                 f"import sys; sys.path.insert(0, {str(REPO_ROOT)!r}); "
-                f"import metrics_collector; "
+                f"from scripts import metrics_collector; "
                 f"[metrics_collector.record_exit('tool_'+sys.argv[1], 'PASS_'+str(i)) "
                 f"for i in range({n_per_proc})]"
             )
@@ -288,7 +288,7 @@ class MetricsCollectorAggregateTest(_MetricsEnvCleaner):
     def test_aggregate_groups_records_by_run_id(self) -> None:
         """Aggregation must group events by run_id so successive authoring
         loops over the same task dir remain distinguishable. (Exec-plan
-        Change Surface § metrics_collector.py.)"""
+        Change Surface § scripts/metrics_collector.py.)"""
         with tempfile.TemporaryDirectory() as tmp:
             task_dir = Path(tmp)
             os.environ[metrics_collector.TASK_DIR_ENV] = str(task_dir)
@@ -368,7 +368,7 @@ class MetricsCollectorAggregateTest(_MetricsEnvCleaner):
     def test_aggregate_accepts_str_task_dir(self) -> None:
         """Regression: callers may pass `task_dir` as a `str` (e.g. a
         shell smoke test:
-        `python3 -c 'import metrics_collector;
+        `python3 -c 'from scripts import metrics_collector;
         print(metrics_collector.aggregate("tasks/<name>"))'`).
         Before the normalization fix, this crashed at
         `target = task_dir / METRICS_FILE_NAME` with
@@ -445,7 +445,7 @@ class MetricsCollectorAggregateTest(_MetricsEnvCleaner):
 
 class ValidationLogAppendTest(unittest.TestCase):
     """append_metrics_block(spec_path, block_text) — exec-plan §
-    validation_log.py. Reads current `<task-name>-validation-log.md`,
+    scripts/validation_log.py. Reads current `<task-name>-validation-log.md`,
     appends the rendered block, writes atomically (tmp + rename).
     Skips with a stderr note when the spec markdown is missing.
     """
@@ -592,7 +592,7 @@ class ValidationLogAppendTest(unittest.TestCase):
 
 
 class TaskIntegrityExcludedDotfilesTest(unittest.TestCase):
-    """`task_integrity.py` must expose an explicit EXCLUDED_DOTFILES
+    """`scripts/task_integrity.py` must expose an explicit EXCLUDED_DOTFILES
     constant naming the two harness-local dotfiles, and exclude them
     *in addition* to the generic dotfile rule. Defense-in-depth: if a
     future refactor narrows or removes the generic dotfile rule, the
@@ -683,7 +683,7 @@ def _build_minimal_zip_bytes(extra_members: dict[str, bytes]) -> bytes:
 
 class ValidateSubmissionZipMetricsFileTest(unittest.TestCase):
     """`.step2b-metrics.jsonl` must be rejected at the archive root by
-    validate_submission_zip.py — same defense-in-depth pattern as
+    scripts/validate_submission_zip.py — same defense-in-depth pattern as
     `.step2b-checksum`. The generic dotfile filter already keeps it out
     of the source manifest at packaging time, but listing the name in
     FORBIDDEN_ROOT_FILES makes the rejection explicit and survives any
@@ -754,18 +754,23 @@ class CheckTaskShInstrumentationTest(unittest.TestCase):
         self.tmpdir = Path(tempfile.mkdtemp(prefix="check-task-instr-test-"))
         self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
 
-        for stub in ("run_static_checks.py", "collapse_check.py"):
+        scripts_dir = self.tmpdir / "scripts"
+        scripts_dir.mkdir()
+
+        for stub in (
+            "scripts/run_static_checks.py",
+            "scripts/collapse_check.py",
+            "scripts/task_runtime_deps.py",
+        ):
             (self.tmpdir / stub).write_text("import sys\nsys.exit(0)\n")
 
         for real in (
-            "validate_submission_zip.py",
-            "task_integrity.py",
-            "metrics_collector.py",
+            "scripts/validate_submission_zip.py",
+            "scripts/task_integrity.py",
+            "scripts/metrics_collector.py",
         ):
             shutil.copy(REPO_ROOT / real, self.tmpdir / real)
 
-        scripts_dir = self.tmpdir / "scripts"
-        scripts_dir.mkdir()
         self.script_local = scripts_dir / "check-task.sh"
         shutil.copy(SCRIPT_PATH, self.script_local)
         self.script_local.chmod(0o755)
@@ -869,10 +874,10 @@ class CheckTaskShInstrumentationTest(unittest.TestCase):
         """If Phase A FAILs, `t_first_step2b_pass_ns` must not be
         written. Demotion review's missing-second-marker case
         (`aggregate()` returns NO_PASS_SENTINEL) depends on this
-        invariant — see exec-plan Change Surface § metrics_collector.py
+        invariant — see exec-plan Change Surface § scripts/metrics_collector.py
         and Tests § test_aggregate_reports_no_pass_when_second_marker_absent.
         """
-        (self.tmpdir / "run_static_checks.py").write_text(
+        (self.tmpdir / "scripts/run_static_checks.py").write_text(
             "import sys\nsys.exit(1)\n"
         )
 
@@ -920,10 +925,10 @@ class CheckTaskShInstrumentationTest(unittest.TestCase):
     def test_run_id_env_var_visible_to_phase_a_tools(self) -> None:
         """check-task.sh must export TB3_METRICS_RUN_ID for the duration
         of its run; Phase A tools (and any subprocess they spawn) must
-        see it. Stub run_static_checks.py to write the env var to a
+        see it. Stub scripts/run_static_checks.py to write the env var to a
         sentinel file and assert non-empty."""
         sentinel = self.tmpdir / "rsc_env.txt"
-        (self.tmpdir / "run_static_checks.py").write_text(
+        (self.tmpdir / "scripts/run_static_checks.py").write_text(
             "import os, sys\n"
             f"open({str(sentinel)!r}, 'w').write("
             "'task_dir='+(os.environ.get('TB3_METRICS_TASK_DIR') or '')+'\\n'+"
@@ -977,7 +982,7 @@ def _make_reporter(*, failures=0, warnings=0, passes=1) -> "run_static_checks.Re
 
 
 class RunStaticChecksHookTest(_MetricsEnvCleaner):
-    """Env-gated FAIL/WARN/PASS hook in run_static_checks.py.
+    """Env-gated FAIL/WARN/PASS hook in scripts/run_static_checks.py.
 
     The hook is a try/finally wrapper in main() that records the
     check outcome to .step2b-metrics.jsonl when TB3_METRICS_TASK_DIR
@@ -1075,7 +1080,7 @@ class RunStaticChecksHookTest(_MetricsEnvCleaner):
 
     def test_no_op_when_task_dir_env_unset(self) -> None:
         """Reviewer one-shot path: TB3_METRICS_TASK_DIR is unset, so
-        running run_static_checks.py against a task must not create a
+        running scripts/run_static_checks.py against a task must not create a
         metrics file in the task dir or anywhere else.
 
         Half of exec-plan Tests § test_no_opt_in_leaves_no_counter
@@ -1184,7 +1189,7 @@ def _make_collapse_report(*, fails: int = 0, warns: int = 0) -> dict:
 
 
 class CollapseCheckHookTest(_MetricsEnvCleaner):
-    """Env-gated FAIL/PASS hook in collapse_check.py.
+    """Env-gated FAIL/PASS hook in scripts/collapse_check.py.
 
     Same pattern as run_static_checks but with no WARN tier per
     exec-plan: outcome ∈ {"FAIL", "PASS"}. A WARN-only run records
@@ -1232,7 +1237,7 @@ class CollapseCheckHookTest(_MetricsEnvCleaner):
         tier in collapse). Exit code is 2 (WARN) but the metric
         records PASS because the counter only tracks hard failures
         gating Step 2b. Pins the no-WARN-tier semantics from the
-        exec-plan Change Surface § collapse_check.py bullet."""
+        exec-plan Change Surface § scripts/collapse_check.py bullet."""
         with tempfile.TemporaryDirectory() as tmp:
             task_dir = Path(tmp)
             os.environ[metrics_collector.TASK_DIR_ENV] = str(task_dir)
@@ -1390,7 +1395,7 @@ def _zip_from_source(task_dir: Path, zip_path: Path) -> None:
 
 
 class ApproveTaskMetricsTest(_MetricsEnvCleaner):
-    """Metrics emission and dirty-flag counter in approve_task.py.
+    """Metrics emission and dirty-flag counter in scripts/approve_task.py.
 
     Pinned by exec-plan Tests § test_metrics_block_lands_on_successful_approval,
     test_dirty_flag_counter_increments_on_stale_sentinel,
@@ -1597,12 +1602,12 @@ class ApproveTaskMetricsTest(_MetricsEnvCleaner):
         self.assertIn("## Per-task authoring metrics", log_text)
 
         for prefix in (
-            "- count of run_static_checks.py FAIL exits before first PASS",
-            "- count of run_static_checks.py WARN-only exits before approval",
-            "- count of collapse_check.py FAIL exits before first PASS",
+            "- count of scripts/run_static_checks.py FAIL exits before first PASS",
+            "- count of scripts/run_static_checks.py WARN-only exits before approval",
+            "- count of scripts/collapse_check.py FAIL exits before first PASS",
             "- count of dirty-flag triggers",
             "- wall-clock time from first preflight to first preflight PASS",
-            "- wall-clock time from first Step 2b PASS to approve_task.py exit 0",
+            "- wall-clock time from first Step 2b PASS to scripts/approve_task.py exit 0",
             "- list of CNI references that fired during the authoring",
             "- whether the spec's Initial Draft Commitments matched the final file set",
         ):
@@ -1818,12 +1823,14 @@ class EndToEndAuthoringTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpdir = Path(tempfile.mkdtemp(prefix="e2e-authoring-"))
         self.addCleanup(shutil.rmtree, self.tmpdir, ignore_errors=True)
+        scripts_dir = self.tmpdir / "scripts"
+        scripts_dir.mkdir()
 
         for real in (
-            "metrics_collector.py",
-            "validation_log.py",
-            "task_integrity.py",
-            "validate_submission_zip.py",
+            "scripts/metrics_collector.py",
+            "scripts/validation_log.py",
+            "scripts/task_integrity.py",
+            "scripts/validate_submission_zip.py",
         ):
             shutil.copy(REPO_ROOT / real, self.tmpdir / real)
 
@@ -1839,15 +1846,13 @@ class EndToEndAuthoringTest(unittest.TestCase):
             "    metrics_collector.record_exit({tool!r}, 'PASS')\n"
             "sys.exit(0)\n"
         )
-        (self.tmpdir / "run_static_checks.py").write_text(
+        (self.tmpdir / "scripts/run_static_checks.py").write_text(
             stub_template.format(tool="run_static_checks")
         )
-        (self.tmpdir / "collapse_check.py").write_text(
+        (self.tmpdir / "scripts/collapse_check.py").write_text(
             stub_template.format(tool="collapse_check")
         )
 
-        scripts_dir = self.tmpdir / "scripts"
-        scripts_dir.mkdir()
         script_local = scripts_dir / "check-task.sh"
         shutil.copy(SCRIPT_PATH, script_local)
         script_local.chmod(0o755)
@@ -1993,12 +1998,12 @@ class EndToEndAuthoringTest(unittest.TestCase):
         self.assertIn("## Per-task authoring metrics", log_text)
 
         for prefix in (
-            "- count of run_static_checks.py FAIL exits before first PASS",
-            "- count of run_static_checks.py WARN-only exits before approval",
-            "- count of collapse_check.py FAIL exits before first PASS",
+            "- count of scripts/run_static_checks.py FAIL exits before first PASS",
+            "- count of scripts/run_static_checks.py WARN-only exits before approval",
+            "- count of scripts/collapse_check.py FAIL exits before first PASS",
             "- count of dirty-flag triggers",
             "- wall-clock time from first preflight to first preflight PASS",
-            "- wall-clock time from first Step 2b PASS to approve_task.py exit 0",
+            "- wall-clock time from first Step 2b PASS to scripts/approve_task.py exit 0",
             "- list of CNI references that fired during the authoring",
             "- whether the spec's Initial Draft Commitments matched the final file set",
         ):
@@ -2022,12 +2027,12 @@ class EndToEndAuthoringTest(unittest.TestCase):
         .step2b-metrics.jsonl from the produced archive (the generic
         dotfile glob covers it, but a regression here would let the
         metric file leak into Harbor submissions). Override
-        validate_submission_zip.py with a snapshot stub that copies
+        scripts/validate_submission_zip.py with a snapshot stub that copies
         the precheck zip before the script's EXIT trap removes it,
         then inspect the snapshot.
         """
         snapshot_path = self.tmpdir / "snapshot.zip"
-        (self.tmpdir / "validate_submission_zip.py").write_text(
+        (self.tmpdir / "scripts/validate_submission_zip.py").write_text(
             "import shutil, sys\n"
             f"shutil.copy(sys.argv[1], {str(snapshot_path)!r})\n"
             "sys.exit(0)\n"

@@ -2,7 +2,7 @@
 
 # Compatibility wrapper for the old overlap-based file-reference checker.
 # The authoritative Edition 2 behavior now comes from output_contract.toml via
-# run_static_checks.py --only output_contract.
+# scripts/run_static_checks.py --only output_contract.
 
 set -euo pipefail
 
@@ -62,11 +62,11 @@ if [ "${#TASK_DIRS[@]}" -eq 0 ]; then
 fi
 
 echo "check-test-file-references.sh is deprecated."
-echo "Using output_contract.toml and run_static_checks.py --only output_contract instead of overlap-based path inference."
+echo "Using output_contract.toml and scripts/run_static_checks.py --only output_contract instead of overlap-based path inference."
 
 FAILED=0
 for task_dir in "${TASK_DIRS[@]}"; do
-    if ! python3 run_static_checks.py --task-dir "$task_dir" --version edition_2 --only output_contract; then
+    if ! python3 scripts/run_static_checks.py --task-dir "$task_dir" --version edition_2 --only output_contract; then
         FAILED=1
     fi
 done

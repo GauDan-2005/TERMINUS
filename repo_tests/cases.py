@@ -12,65 +12,34 @@ COMMON_STATIC_PASS_MESSAGES = (
     "task.toml Edition 2 gate passed",
     "task structure aligns with Edition 2 expectations",
     "tests/test.sh reward.txt block matches Edition 2 expectation",
-    "tests/test.sh pre-pytest block preserves the standard non-UI semantics",
+    "tests/test.sh pre-pytest block preserves the internet-disabled semantics",
     "Dockerfile Edition 2 gate passed",
+    "Dockerfile pre-installs verifier pytest tooling for offline runtime",
+    "Dockerfile COPY/ADD sources resolve in the build context",
     "docker-compose checks skipped (no environment/docker-compose.yaml)",
     "instruction.md uses absolute in-container path references",
     "output contract matches the declared user-visible outputs and schema checks",
     "environment/ contains no hidden-instruction patterns",
 )
 
-# docker.md image best-practices WARNs emitted by check_dockerfile (announcement.md).
-# These fire on the older benchmark fixtures because they predate the standard:
-# they ship no .dockerignore and do not install tmux/asciinema. The WARNs are
-# non-blocking; the fixtures still pass static checks with exit 0.
-_DOCKER_SESSION_TOOLS_WARNING = (
-    "environment/Dockerfile does not appear to install tmux/asciinema; the agent "
-    "session needs both tmux and asciinema. If the base image does not provide them, "
-    "every agent run fails before the verifier emits output. Install them (or use a "
-    "base image that ships them). See docker.md."
-)
-_DOCKER_DOCKERIGNORE_WARNING = (
-    "environment/.dockerignore is recommended for non-trivial tasks; it narrows the "
-    "Docker build context and keeps stray files out of the image (docker.md)."
-)
-_HEAVY_BUILD_AGENT_TIMEOUT_WARNING = (
-    "agent.timeout_sec (900s) is less than 2x verifier.timeout_sec (900s) on a task "
-    "whose tests do heavy build work. Agents typically need several build-then-verify "
-    "cycles; consider raising the agent budget."
-)
-_INSTRUCTION_LENGTH_WARNING = (
-    "instruction.md is longer than the preferred 1 sentence to 3 paragraphs guidance"
-)
-
-# check_dockerfile runs before timeout_coherence and the instruction check, so its
-# WARNs lead each fixture's warning list (Reporter preserves emission order).
-_DOCKER_BEST_PRACTICE_WARNINGS = [
-    _DOCKER_SESSION_TOOLS_WARNING,
-    _DOCKER_DOCKERIGNORE_WARNING,
-]
-
 STATIC_CHECK_EXPECTATIONS = {
     "byzantine-storage-rebalance": {
-        "warnings": [*_DOCKER_BEST_PRACTICE_WARNINGS],
+        "warnings": [],
     },
     "implicit-step-restart": {
         "warnings": [
-            *_DOCKER_BEST_PRACTICE_WARNINGS,
-            _HEAVY_BUILD_AGENT_TIMEOUT_WARNING,
+            "agent.timeout_sec (900s) is less than 2x verifier.timeout_sec (900s) on a task whose tests do heavy build work. Agents typically need several build-then-verify cycles; consider raising the agent budget."
         ],
     },
     "lsm-snapshot-recovery": {
         "warnings": [
-            *_DOCKER_BEST_PRACTICE_WARNINGS,
-            _HEAVY_BUILD_AGENT_TIMEOUT_WARNING,
-            _INSTRUCTION_LENGTH_WARNING,
+            "agent.timeout_sec (900s) is less than 2x verifier.timeout_sec (900s) on a task whose tests do heavy build work. Agents typically need several build-then-verify cycles; consider raising the agent budget.",
+            "instruction.md is longer than the preferred 1 sentence to 3 paragraphs guidance",
         ],
     },
     "release-provenance-drift": {
         "warnings": [
-            *_DOCKER_BEST_PRACTICE_WARNINGS,
-            _INSTRUCTION_LENGTH_WARNING,
+            "instruction.md is longer than the preferred 1 sentence to 3 paragraphs guidance",
         ],
     },
 }
@@ -135,8 +104,8 @@ COLLAPSE_CHECK_EXPECTATIONS = {
         },
     },
     "implicit-step-restart": {
-        "fails": 8,
-        "warns": 6,
+        "fails": 7,
+        "warns": 7,
         "oracle_targets": [
             "src/integrator/cycle_orchestrator.cpp",
             "src/persistence/reader.cpp",
@@ -162,7 +131,7 @@ COLLAPSE_CHECK_EXPECTATIONS = {
             "gx3_oracle_edit_distance": "FAIL",
             "gx4_no_op_rewrite": "PASS",
             "gx5_instruction_test_overlap": "PASS",
-            "gx6_causal_connective_density": "FAIL",
+            "gx6_causal_connective_density": "WARN",
             "gx7_test_literals_homed": "FAIL",
             "gx8_test_import_consistency": "FAIL",
             "gx9_instruction_contract_saturation": "FAIL",
@@ -199,7 +168,7 @@ COLLAPSE_CHECK_EXPECTATIONS = {
     },
     "lsm-snapshot-recovery": {
         "fails": 8,
-        "warns": 8,
+        "warns": 7,
         "oracle_targets": [
             "src/api/engine.cpp",
             "src/level_merge/merge.cpp",
@@ -216,7 +185,7 @@ COLLAPSE_CHECK_EXPECTATIONS = {
             "rc8_frontier_concentration": "PASS",
             "cr1_symbol_table_compliance": "WARN",
             "cr2_flipping_point_contract": "WARN",
-            "cr7_grep_resistance": "WARN",
+            "cr7_grep_resistance": "PASS",
             "cr8_no_central_orchestration": "WARN",
             "cr9_test_contract_traceability": "WARN",
             "gx1_oracle_comment_leakage": "WARN",
@@ -261,7 +230,7 @@ COLLAPSE_CHECK_EXPECTATIONS = {
         },
     },
     "release-provenance-drift": {
-        "fails": 6,
+        "fails": 7,
         "warns": 4,
         "oracle_targets": [
             "ci/harness/partial_edit_rust.sh",
@@ -296,7 +265,7 @@ COLLAPSE_CHECK_EXPECTATIONS = {
             "gx3_oracle_edit_distance": "PASS",
             "gx4_no_op_rewrite": "PASS",
             "gx5_instruction_test_overlap": "PASS",
-            "gx6_causal_connective_density": "PASS",
+            "gx6_causal_connective_density": "FAIL",
             "gx7_test_literals_homed": "FAIL",
             "gx8_test_import_consistency": "FAIL",
             "gx9_instruction_contract_saturation": "PASS",

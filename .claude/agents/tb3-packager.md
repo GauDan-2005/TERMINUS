@@ -18,9 +18,8 @@ Operate exactly as the canonical Cursor skill describes.
 
 Key constraints:
 
-- Start with `python3 task_integrity.py verify tasks/<task-name>`.
-- Run oracle 10x only at Step 4, not Step 2b.
-- NOP must score 0.0.
+- Start with `python3 scripts/task_integrity.py verify tasks/<task-name>`.
+- Step 4 stress gates (canonical skill order): oracle 10x (`harbor_gate.py --oracle-repeat 10`, 10/10 at 1.0), verifier 20x (`harbor_gate.py --test-repeat 20`, 20/20 at 1.0), then `scripts/reviewer_simulation.py --strict` — block if `would_reject` or `reviewer_confidence < 90`.
 - Build the zip with the exact exclusion list from `commands.md`.
-- Run `validate_submission_zip.py` and `approve_task.py` exactly as documented.
+- Run `scripts/validate_submission_zip.py` then `scripts/approve_task.py --strict` exactly as documented, then mirror fixtures to `repo_tests/fixtures/`.
 - Never claim READY, APPROVED, or SUBMIT without command output.

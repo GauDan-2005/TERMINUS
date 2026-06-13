@@ -1,66 +1,89 @@
 ---
-description: Critical-path policy for TB3 task work. Pull before task edits, gates, submission prep, or approve_task.py. Overrides deeper rules.
+description: Critical path for TB3 task edits, gates, submissions, and scripts/approve_task.py.
 alwaysApply: false
 ---
 
-# TB3 Authoring Critical Path
+# TB3 Critical Path
 
-This rule overrides deeper rules; fix the deeper rule on conflict.
+Short critical path. Deep rules carry details.
 
 ## 0. Verify repo facts
 
-Before naming a path, command, `task.toml` field, output path, or test file, open the source file or `commands.md`.
+Before naming a path, command, field, output, or test file, open source or `commands.md`.
 
-- `/app/...` paths: `instruction.md` or `output_contract.toml`.
-- `task.toml` fields: existing task or static-check output.
-- Test paths: `tests/test.sh` or verifier files.
-- Runtime is offline: `[environment].allow_internet = false`; no dependency installs/fetches in `tests/test.sh`.
+- `/app/...`: `instruction.md` or environment docs/source; `output_contract.toml` is authoring metadata unless mirrored there.
+- `task.toml`: existing tasks/static-check output. Tests: `tests/test.sh` or verifier files.
+- Long run: `python3 scripts/tb3_doctor.py`.
+- Prefer `task_gate.py`/`harbor_gate.py`; if `echo visible` is invisible, start fresh.
+- Host Python is not task-container Python; task `python3` requires Dockerfile support.
+- Every `task.toml` needs `[environment] allow_internet = false` (blocking CI). Verifier deps belong in `environment/Dockerfile`, not runtime installs in `tests/test.sh`; the fixed `test_deps_in_image` CI check now accepts this expected layout. Every task Dockerfile must include pinned installs for both `tmux` and `asciinema`. Platform pipeline also blocks unpinned `FROM`, unsanctioned final runtime bases, and oversized `environment/` build context. New submissions: `minimal` codebase and empirical `easy` difficulty blocked; milestones preferred. See `docs/EDITION2_SUBMISSION_GUIDE.md`, `task-creation.mdc` § environment/Dockerfile, `docs/PLATFORM_AUTO_EVAL.md`.
 
 ## 1. Step 2a before Step 2b
 
-Reject/redesign ideas solvable from `instruction.md` alone. Validate discoverability, synthesis depth, diagnosis, coupling navigation, and reasoning beyond training; see `idea-validation.mdc`.
+If the idea can be solved from `instruction.md` alone, reject/redesign before drafting.
 
-## 2. Spec-driven construction
+## 2. Before task edits
 
-Before task edits, read `specs/<task-name>.md` Authoring Brief plus `task-creation.mdc` and `difficulty-calibration.mdc`. Do not draft from the Reviewer Appendix. If the spec lacks a Triviality Ledger or Per-gate Pitfall Inventory, return to Step 2a.
+Read `specs/<task-name>.md`, `task-creation.mdc`, `difficulty-calibration.mdc`,
+and `docs/HARD_BUT_FAIR_AUTHORING.md`.
+
+Step 2a produces one human handoff artifact: `specs/<task-name>.md`. Legacy
+validate_loop sidecars are internal diagnostics, not Step 2b inputs. If the spec
+lacks required ledgers/profile/actionability/reference fields, return to Step 2a.
+
+`instruction.md` should read like a natural human task prompt. Public
+bug-report headings are optional. It must reveal source-fix intent, verifier
+pipeline, generated-vs-static rules, and tested schemas/invariants/formulas/types
+without revealing the patch file/function.
 
 ## 3. Step 2b gate order
 
-Run cheap preflight first:
-
 ```bash
-./scripts/check-task.sh tasks/<task-name>
+python3 scripts/lint_spec.py specs/<task-name>.md --strict
+python3 scripts/spec_satisfiability.py specs/<task-name>.md --strict
+python3 scripts/spec_satisfiability.py specs/<task-name>.md --task-dir tasks/<task-name> --strict
+python3 scripts/task_gate.py tasks/<task-name> --strict --report-dir /tmp/tb3-gates --skip-harbor
+./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/<task-name>
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle --nop
+python3 scripts/step2b_ready.py tasks/<task-name> --strict --report-dir /tmp/tb3-gates --oracle-job-dir jobs/<oracle> --nop-job-dir jobs/<nop>
+python3 scripts/harbor_gate.py tasks/<task-name> --oracle-repeat 10
+python3 scripts/package_task.py tasks/<task-name> --out Task_Ready_To_Submit/<task-name>.zip --validate
+python3 scripts/first_look_packet.py tasks/<task-name> --out /tmp/<task-name>-first-look.txt
+python3 scripts/approve_task.py --strict --task-dir tasks/<task-name> --zip Task_Ready_To_Submit/<task-name>.zip ...
 ```
 
-Preflight is not Step 2b PASS. Then run 1x oracle and NOP:
-
-```bash
-harbor run -p "tasks/<task-name>" -a oracle
-harbor run -p "tasks/<task-name>" -a nop
-```
-
-Oracle 10x belongs to Step 4 only.
+Preflight is not Step 2b PASS. Repeated oracle is Step 4 only. Task-file edits
+make evidence stale.
 
 ## 4. Dirty flag
 
-`check-task.sh` writes `.step2b-checksum`; `approve_task.py` refuses checksum mismatch. After any task-file edit, rerun gates. Do not delete or forge the checksum.
+`check-task.sh` writes `.step2b-checksum`; `approve_task.py` verifies it. Do not
+delete, forge, or bypass it.
 
 ## 5. Final approval
 
-Before READY / APPROVED / SUBMIT: oracle 10x passes, NOP scores 0.0, zip validates via `validate_submission_zip.py`, and `approve_task.py` exits 0.
+Before READY / APPROVED / SUBMIT: oracle 10x passed, NOP 0.0, zip validation
+passed, strict hidden-contract gate passed or WARN has reviewer decision,
+first-look passed or has packet-hash-bound reviewer note, and `approve_task.py`
+exited 0.
 
 ## 6. Forbidden shortcuts
 
-- Editing tests to fit a broken solution; hiding golden answers; answer-shaped instruction values.
-- Hidden solver hints in `environment/`; AI-scaffolding names anywhere (`CLAUDE.md`, `skills.md`, `AGENTS.md`, `.cursor/`, `.aider/`, …).
-- Replacing anonymous author placeholders with real IDs.
-- Decorative/empty files or cosmetic `solve.sh` padding to game GX3/A16.
-- New multi-container or UI-building tasks.
-- Deprecated root milestone layout; use `steps/milestone_N/` per `task-creation.mdc`.
-- Harbor-only fields not adopted here: `schema_version`, `[task]`, `min_reward`, `[steps.healthcheck]`, `[steps.verifier.env]`, `artifacts`, `multi_step_reward_strategy`, `workdir/setup.sh`.
-- Missing `allow_internet = false` or runtime installs/fetches (`apt`, `pip`, `curl`, `uv`/`uvx`, `npm install`, Playwright installs, etc.).
-- Claiming a command passed without output; bypassing the dirty flag.
+- Editing tests to fit a broken solution.
+- Hiding golden answers under `environment/` or answer-shaped values in `instruction.md`.
+- Writing `instruction.md` as a patch recipe or output-only prompt when the verifier regenerates outputs.
+- Hidden solver instructions in environment files (`HINT:`, `STEP N:`, "to solve this", prescriptive TODOs).
+- AI-specific filenames anywhere in the archive.
+- Real author identifiers instead of anonymous placeholders.
+- Decorative code or empty files to satisfy size requirements.
+- Cosmetic `solve.sh` padding to inflate collapse metrics.
+- New multi-container/UI starts.
+- Deprecated root-level milestone layout; use `steps/milestone_N/`.
+- Unsupported Harbor-only `task.toml` fields from `task-creation.mdc`.
+- Claiming a command passed without command output.
+- Bypassing `.step2b-checksum`.
 
-## 7. Escalation/demotion
+## 7. Escalate or demote
 
-If a failure pattern recurs three times, file a CNI entry before proposing a new critical bullet. Demote bullets idle for 10 task authorings; this file is not append-only.
+Three recurring failures need a CNI entry before another critical bullet. If a
+bullet has not fired in ten task authorings, propose demotion.
