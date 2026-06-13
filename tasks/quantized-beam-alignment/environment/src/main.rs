@@ -53,6 +53,17 @@ fn run_one(c: &Case) -> String {
     let base_rows: Vec<Vec<i32>> = c.rows.iter().enumerate().map(|(i, row)| {
         if c.packed { a0::ax(&meta, row, i) } else { row.clone() }
     }).collect();
+    if c.packed {
+        for (i, row) in c.rows.iter().enumerate() {
+            if base_rows[i] != a0::ax_ref(&meta, row) {
+                eprintln!(
+                    "sanity[a0]: expansion for case {} diverges from the retained reference",
+                    c.name
+                );
+                break;
+            }
+        }
+    }
     let chosen = d3::dx(&(0..base_rows.len()).map(|i| i as i32).collect::<Vec<_>>(), &c.seq);
     let mut vals = Vec::new();
     let mut trace = Vec::new();

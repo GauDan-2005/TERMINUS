@@ -18,12 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux=3.5a-3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Verifier-only test deps are NOT installed into the image (kept out of the
-# agent environment per reviewer feedback). Vendor the wheels at build time so
-# tests/test.sh can install them offline (allow_internet=false) at verify time.
-RUN python -m pip download --no-cache-dir -d /opt/verifier-wheels \
-    pytest==8.4.1 \
-    pytest-json-ctrf==0.3.5
+# Verifier-only test dependencies are installed at build time (network is only
+# available during build). At run time the environment is offline
+# (allow_internet=false) and tests/test.sh performs no installation.
+RUN python -m pip install --no-cache-dir pytest==8.4.1 pytest-json-ctrf==0.3.5
 
 COPY CMakeLists.txt /app/
 COPY include /app/include

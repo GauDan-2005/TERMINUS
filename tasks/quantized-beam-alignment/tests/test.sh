@@ -7,12 +7,6 @@ if [ "$PWD" = "/" ]; then
   exit 1
 fi
 
-# Self-contained verifier setup, offline: build a venv and install pytest from
-# the wheels pre-staged in the image (environment/Dockerfile). No network is used.
-python3 -m venv /tmp/tbench-testing
-. /tmp/tbench-testing/bin/activate
-pip install --no-index --find-links /opt/wheels pytest==8.4.1 pytest-json-ctrf==0.3.5
-
 python -m pytest \
   -o cache_dir=/tmp/pytest_cache \
   --ctrf /logs/verifier/ctrf.json \

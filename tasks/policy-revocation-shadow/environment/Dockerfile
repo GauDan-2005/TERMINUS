@@ -17,7 +17,8 @@ RUN apt-get update \
         tmux=3.3a-3 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip install --break-system-packages --no-cache-dir \
+RUN python3 -m pip download --no-cache-dir --only-binary=:all: \
+    --dest /opt/test-wheels \
     pytest==8.4.1 \
     pytest-json-ctrf==0.3.5
 

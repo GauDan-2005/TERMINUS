@@ -239,8 +239,14 @@ def reference_row(name: str) -> dict:
     pack = pack_from_view(view)
     rhs = map_p(view["b"], view["perm"], view["n"], view["bs"])
     iters, hit, x = pcg_solve(pack, rhs)
-    n = view["n"]
-    resid = [rhs[i] - bsr_matvec(pack, x)[i] for i in range(n)]
+    n, bs, nb = view["n"], view["bs"], view["nblocks"]
+    xo = [0.0] * n
+    for bi in range(nb):
+        dst = view["perm"][bi] if view["reorder"] else bi
+        for t in range(bs):
+            xo[dst * bs + t] = x[bi * bs + t]
+    ax = [sum(view["a"][i][j] * xo[j] for j in range(n)) for i in range(n)]
+    resid = [view["b"][i] - ax[i] for i in range(n)]
     true_res = _l2_norm(resid)
     rep_res = norm_q(resid)
     agrees = abs(rep_res - true_res) <= AGREE_TOL * (1.0 + true_res)

@@ -147,3 +147,59 @@ def test_t12_flow(report_data):
     subprocess.run(["bash", "/app/scripts/run-matrix.sh"], cwd=APP, check=True, timeout=180)
     second = REPORT.read_bytes()
     assert first == second
+
+
+def test_t13_flow(report_data):
+    """Decision rows carry the correct principal, resource, and action for each subject."""
+    expected = {
+        ("alpha", "before"): ("clerk", "vault", "read"),
+        ("beta", "solo"): ("intern", "vault", "read"),
+        ("gamma", "batch"): ("intern", "vault", "write"),
+        ("epsilon", "check"): ("leaf", "api", "invoke"),
+        ("zeta", "a"): ("alpha", "secret", "read"),
+        ("zeta", "b"): ("beta", "secret", "read"),
+    }
+    for (case_name, label), (principal, resource, action) in expected.items():
+        row = row_by_label(case_by_name(report_data, case_name), label)
+        assert row["principal"] == principal, (case_name, label, row)
+        assert row["resource"] == resource, (case_name, label, row)
+        assert row["action"] == action, (case_name, label, row)
+
+
+def _run_engine(trace_text, work_dir):
+    """Write a trace at runtime, run the engine on it, and return the parsed report."""
+    trace_path = work_dir / "alpha.trace"
+    out_path = work_dir / "policy-audit.json"
+    trace_path.write_text(trace_text, encoding="utf-8")
+    subprocess.run(
+        [
+            "cargo", "run", "--offline", "--quiet",
+            "--manifest-path", str(APP / "Cargo.toml"),
+            "--", str(out_path), str(trace_path),
+        ],
+        cwd=str(APP),
+        check=True,
+        timeout=180,
+    )
+    return json.loads(out_path.read_text(encoding="utf-8"))
+
+
+def test_t14_flow(tmp_path):
+    """A trace built at runtime is evaluated live: the same delegated check flips to deny once the
+    grantor is revoked, so no precomputed report can satisfy both variants."""
+    obj, act = "vault", "read"
+    base = f"grant boss {obj}/{act}\ndelegate boss clerk\n"
+    probe = f"check before clerk:{obj}/{act}\n"
+
+    allow = _run_engine(base + probe, tmp_path)
+    row = row_by_label(case_by_name(allow, "alpha"), "before")
+    assert row["principal"] == "clerk"
+    assert row["resource"] == obj
+    assert row["action"] == act
+    assert row["verdict"] == OUTCOME_OK
+    assert row["delegated_from"] == "boss"
+
+    deny = _run_engine(base + "revoke boss -\n" + probe, tmp_path)
+    row2 = row_by_label(case_by_name(deny, "alpha"), "before")
+    assert row2["verdict"] == OUTCOME_NO
+    assert row2["delegated_from"] == ""

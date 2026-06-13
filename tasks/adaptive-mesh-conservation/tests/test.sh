@@ -7,6 +7,8 @@ if [ "$PWD" = "/" ]; then
   exit 1
 fi
 
+pip install --no-index --find-links=/opt/wheelhouse pytest==8.4.1 pytest-json-ctrf==0.3.5
+
 python -m pytest \
   -o cache_dir=/tmp/pytest_cache \
   --ctrf /logs/verifier/ctrf.json \

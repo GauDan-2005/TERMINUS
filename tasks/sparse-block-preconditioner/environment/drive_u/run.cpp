@@ -24,6 +24,7 @@ int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
     BsrPack pack;
     double rhs[MAX_DIM];
     double x[MAX_DIM];
+    double xo[MAX_DIM];
     double r[MAX_DIM];
     double true_res;
     double rep_res;
@@ -35,12 +36,29 @@ int run_u(const CaseSpec *spec, const char *out_dir, SolveResult *out) {
     fn_n(&view, view.reorder, &pack);
     map_p(view.b, view.perm, view.n, view.bs, rhs);
     hit = pcg_solve(&pack, rhs, x, &iters, &true_res);
-    bsr_matvec(&pack, x, r);
-    for (int i = 0; i < view.n; i++) {
-        r[i] = rhs[i] - r[i];
+
+    int nb = view.nblocks;
+    int bs = view.bs;
+    int dim = view.n;
+    for (int i = 0; i < dim; i++) {
+        xo[i] = 0.0;
     }
-    true_res = l2_norm(r, view.n);
-    rep_res = norm_q(r, view.n);
+    for (int bi = 0; bi < nb; bi++) {
+        int dst = view.reorder ? view.perm[bi] : bi;
+        for (int t = 0; t < bs; t++) {
+            xo[dst * bs + t] = x[bi * bs + t];
+        }
+    }
+    for (int i = 0; i < dim; i++) {
+        double acc = 0.0;
+        for (int j = 0; j < dim; j++) {
+            acc += view.a[i * dim + j] * xo[j];
+        }
+        r[i] = view.b[i] - acc;
+    }
+    true_res = l2_norm(r, dim);
+    rep_res = norm_q(r, dim);
+
     strncpy(out->name, spec->name, sizeof(out->name) - 1);
     out->iterations = iters;
     out->final_residual = true_res;

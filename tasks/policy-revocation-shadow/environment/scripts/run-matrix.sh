@@ -1,6 +1,7 @@
 #!/bin/bash
 cd /app
 mkdir -p /app/output
+rm -f /app/output/policy-audit.json
 cargo run --offline --quiet -- \
   /app/output/policy-audit.json \
   /app/traces/alpha.trace \

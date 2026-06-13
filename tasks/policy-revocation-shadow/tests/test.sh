@@ -7,6 +7,10 @@ if [ "$PWD" = "/" ]; then
   exit 1
 fi
 
+python3 -m pip install --no-index --break-system-packages --find-links /opt/test-wheels \
+  pytest==8.4.1 \
+  pytest-json-ctrf==0.3.5
+
 python3 -m pytest \
   -o cache_dir=/tmp/pytest_cache \
   --ctrf /logs/verifier/ctrf.json \

@@ -18,7 +18,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     tmux=3.5a-3 \
     && rm -rf /var/lib/apt/lists/*
 
-RUN python -m pip install --no-cache-dir \
+# Verifier tooling is vendored as wheels at build time (build has network) so the
+# self-contained tests/test.sh installs it offline (--no-index) at verify time,
+# honoring the reviewer's self-contained-runner feedback under allow_internet=false.
+RUN python -m pip download --no-cache-dir --dest /opt/wheelhouse \
     pytest==8.4.1 \
     pytest-json-ctrf==0.3.5
 

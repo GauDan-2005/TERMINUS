@@ -7,12 +7,6 @@ if [ "$PWD" = "/" ]; then
   exit 1
 fi
 
-# Install verifier-only test dependencies here (per reviewer feedback) rather
-# than in the Docker image. Wheels are vendored at build time so this works
-# offline (allow_internet=false); no network access is required.
-pip install --no-cache-dir --no-index --find-links=/opt/verifier-wheels \
-  pytest==8.4.1 pytest-json-ctrf==0.3.5
-
 python -m pytest \
   -o cache_dir=/tmp/pytest_cache \
   --ctrf /logs/verifier/ctrf.json \
