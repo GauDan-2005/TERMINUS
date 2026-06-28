@@ -1,0 +1,795 @@
+{
+  "hardness_axes": [
+    {
+      "id": "discover",
+      "name": "Discover",
+      "verdict": "PASS",
+      "reasoning": "The instruction never states the resolver-v2 unification boundaries (target/host/dev lanes do not merge), the weak `pkg?/feat` fixpoint, or the `dep:` implicit-feature suppression rule; the solver must infer these from the bundled manifests, the deceptive observed samples, and the conceptual model doc, then implement them in the stubbed engine."
+    },
+    {
+      "id": "synthesize",
+      "name": "Synthesize",
+      "verdict": "PASS",
+      "reasoning": "A correct resolution spans five interacting layers (edge/default expansion, lane partition, cfg gating, namespaced/optional handling, weak fixpoint) across the whole multi-crate graph; no single module, manifest, or doc holds the complete behavior."
+    },
+    {
+      "id": "diagnose_or_design",
+      "name": "Diagnose or Design/Search",
+      "verdict": "PASS",
+      "reasoning": "Non-repair reverse-engineering shape: the burden is semantic inference of the exact unification function from observable artifacts and generalizing it, not patching a named defect."
+    },
+    {
+      "id": "navigate_coupling",
+      "name": "Navigate coupling",
+      "verdict": "PASS",
+      "reasoning": "Local choices break distant invariants: enabling an optional link in one lane retroactively activates a deferred weak edge several crates away; a non-default edge re-enabled by a sibling edge changes a downstream set; collapsing the host lane into the target lane silently over-enables proc-macro features."
+    },
+    {
+      "id": "reason_beyond_training",
+      "name": "Reason beyond training",
+      "verdict": "PASS",
+      "reasoning": "Resolver-v2 weak-feature semantics (RFC 2957) plus host/build/dev non-unification are famously misunderstood and are not a textbook union-closure; a naive transitive feature union is exactly the wrong mental model and is what the deceptive samples reward."
+    }
+  ],
+  "anti_trivialization_checks": [
+    {
+      "id": "disclosure_collapse",
+      "name": "Disclosure-collapse",
+      "verdict": "PASS",
+      "reasoning": "Even if the instruction fully states the input format, the output schema, and that results must match resolver-v2, the residual work \u2014 correctly partitioning lanes, suppressing implicit features under `dep:`, and reaching the weak-feature least fixpoint over the whole graph \u2014 remains a real engineering problem, not transcription."
+    },
+    {
+      "id": "hidden_instance",
+      "name": "Hidden-instance",
+      "verdict": "PASS",
+      "reasoning": "Difficulty is not about guessing which bundled manifest is special; the verifier runs the solver against fresh held-out workspaces, so a general resolver is required."
+    },
+    {
+      "id": "single_artifact_repair",
+      "name": "Single-artifact repair",
+      "verdict": "PASS",
+      "reasoning": "There is no one line or one toggle to flip; the solver must build five coordinated propagation stages whose outputs feed each other."
+    },
+    {
+      "id": "generalization",
+      "name": "Generalization",
+      "verdict": "PASS",
+      "reasoning": "Held-out workspaces are authored and seed-generated at verify time with adversarial wiring, so a solver that targets only the bundled samples fails."
+    },
+    {
+      "id": "prompt_honesty",
+      "name": "Prompt-honesty",
+      "verdict": "PASS",
+      "reasoning": "An honest prompt can state the schema and the match-resolver-v2 target without collapsing the search, because the search is the implementation of the unification semantics themselves, which the prompt does not spell out as steps."
+    },
+    {
+      "id": "cheating_vs_difficulty",
+      "name": "Cheating-vs-difficulty",
+      "verdict": "PASS",
+      "reasoning": "Held-out recomputation in an independent Python resolver and fresh workspaces are anti-cheating measures; the legitimate difficulty is the resolution logic itself, not the anti-cheating."
+    },
+    {
+      "id": "mechanical_fix_filter",
+      "name": "Mechanical-fix filter",
+      "verdict": "PASS",
+      "reasoning": "The task is not about verifier dependencies, timeouts, or reward formatting; it is the solver's feature-resolution behavior."
+    },
+    {
+      "id": "localized_fix",
+      "name": "Localized-fix",
+      "verdict": "PASS",
+      "reasoning": "The frontier is five separate engine packages across distinct directories, and the instruction names none of them; the solver must locate and coordinate all five."
+    },
+    {
+      "id": "oracle_locality",
+      "name": "Oracle-locality",
+      "verdict": "PASS",
+      "reasoning": "The oracle writes five substantive stage bodies in five packages plus the fixpoint loop, not one whole-file overwrite of a short helper."
+    },
+    {
+      "id": "small_declarative_cluster",
+      "name": "Small declarative-cluster",
+      "verdict": "PASS",
+      "reasoning": "The solve is a graph propagation algorithm with a fixpoint, not one config block or a literal table mirroring the prompt."
+    },
+    {
+      "id": "grep_collapse",
+      "name": "Grep-collapse",
+      "verdict": "PASS",
+      "reasoning": "Instruction nouns (feature, weak, optional, dependency, ...) do not grep to the opaque per-package `run` functions in m1-m5; paths and symbols are noun-free."
+    },
+    {
+      "id": "pre_factored_helper",
+      "name": "Pre-factored-helper",
+      "verdict": "PASS",
+      "reasoning": "Helper packages r6-r8 do diagnostic/formatting work and do not mirror the five propagation concerns; the shipped stage stubs are naive pass-throughs that emit a plain transitive union."
+    },
+    {
+      "id": "recipe_discount",
+      "name": "Recipe-discount",
+      "verdict": "PASS",
+      "reasoning": "There is no standard recipe: resolver-v2 lane separation plus weak-feature fixpoint plus `dep:` suppression is not a known one-liner and the obvious union approach is wrong."
+    },
+    {
+      "id": "security_aura_discount",
+      "name": "Security-aura discount",
+      "verdict": "PASS",
+      "reasoning": "No security framing is used as a stand-in for hardness; the residual reasoning is the resolution semantics."
+    },
+    {
+      "id": "orthogonal_checklist",
+      "name": "Orthogonal-checklist",
+      "verdict": "PASS",
+      "reasoning": "The five stages are coupled, not independent: the fixpoint depends on which optional links are live, which depends on namespaced handling, default expansion, lane partition, and cfg gating; changing one shifts the others' results."
+    },
+    {
+      "id": "harness_discount",
+      "name": "Harness-discount",
+      "verdict": "PASS",
+      "reasoning": "The multi-crate Cargo build, the bundled data workspaces, and the run scripts are realism, not hardness; the hardness is the engine behavior."
+    },
+    {
+      "id": "one_pass_solvability",
+      "name": "One-pass solvability",
+      "verdict": "PASS",
+      "reasoning": "A frontier model that opens the files and assumes naive feature union passes the deceptive samples but fails the held-out lane-separation and weak-fixpoint cases; converging requires reasoning about coupling and re-running against generated workspaces."
+    },
+    {
+      "id": "hard_only_gate",
+      "name": "Hard-only gate",
+      "verdict": "PASS",
+      "reasoning": "This is clearly hard, not merely respectable: a plausible transitive-union resolver looks correct on the visible cases yet is wrong on exactly the subtleties resolver-v2 was designed to handle."
+    },
+    {
+      "id": "discovery_budget_test",
+      "name": "Discovery/design budget test",
+      "verdict": "PASS",
+      "reasoning": "At least five non-trivial discoveries (lane non-unification, weak `?` fixpoint, `dep:` suppression, non-default re-enable, cfg-gated edge exclusion) are forced from the codebase, samples, and runtime \u2014 none stated as a recipe in the instruction."
+    },
+    {
+      "id": "instruction_specificity_test",
+      "name": "Instruction specificity test",
+      "verdict": "PASS",
+      "reasoning": "Instruction is behavioral-target for a non-repair shape: complete on the public target (input format, CLI, output schema, match-resolver-v2) while silent on the construction route and the per-stage locations."
+    },
+    {
+      "id": "topology_distribution_test",
+      "name": "Topology distribution test",
+      "verdict": "PASS",
+      "reasoning": "Three implementation topologies each require coordinating at least three locations (expansion+lanes+fixpoint; cfg+namespaced+fixpoint; lanes+namespaced+expansion); no single location passes the held-out subsets alone."
+    }
+  ],
+  "rubric_axes": [
+    {
+      "id": "verifiable",
+      "name": "Verifiable",
+      "verdict": "PASS",
+      "reasoning": "An independent Python resolver recomputes the expected feature set per crate per lane for each held-out workspace; comparisons are deterministic sorted-set equality with seeded generation."
+    },
+    {
+      "id": "well_specified",
+      "name": "Well-specified",
+      "verdict": "PASS",
+      "reasoning": "Two engineers reading the instruction, the schema, and the model doc would build equivalent verifiers from the stated input format, lanes, query interface, and match-resolver-v2 contract."
+    },
+    {
+      "id": "solvable",
+      "name": "Solvable",
+      "verdict": "PASS",
+      "reasoning": "An engineer who knows the Cargo features model can solve it in a few hours; the reference solution is a few hundred lines of Rust, well under 100k."
+    },
+    {
+      "id": "difficult",
+      "name": "Difficult",
+      "verdict": "PASS",
+      "reasoning": "Requires real Cargo/resolver-v2 expertise plus careful graph-propagation and fixpoint reasoning; it is not solvable by tricks, a hidden fact, or a single obscure flag."
+    },
+    {
+      "id": "interesting",
+      "name": "Interesting",
+      "verdict": "PASS",
+      "reasoning": "Reconstructing per-crate per-target feature resolution is real toolchain work people are paid to do when building build tools, vendoring, SBOM, and reproducible-build pipelines."
+    },
+    {
+      "id": "outcome_verified",
+      "name": "Outcome-verified",
+      "verdict": "PASS",
+      "reasoning": "Grading checks the resolved feature sets the solver's program emits on held-out workspaces; it does not dictate language, data structures, or algorithm and accepts any program that matches resolver-v2."
+    }
+  ],
+  "instruction_completeness_test": {
+    "verdict": "PASS",
+    "reasoning": "Reading only instruction.md, an agent knows the input format, the query interface, and the output schema but not how the lanes fail to unify, how weak edges reach a fixpoint, or how `dep:` suppresses implicit features; the bundled manifests, the model doc, the deceptive samples, and runtime behavior are essential, so the instruction is not a recipe."
+  },
+  "discovery_budget": [
+    {
+      "discovery": "Under resolver v2 the feature sets of the normal/target lane, the host/build lane (build-dependencies, proc-macros, and their transitive deps), and the dev lane do not unify; a crate appearing in two lanes can carry different enabled features in each.",
+      "planned_location": "environment/m2/src/lib.rs (lane partition stage) and environment/docs/model.md",
+      "why_instruction_must_not_reveal": "Stating the lane-partition rule as steps would turn the hardest, most-misunderstood part of resolver v2 into transcription rather than inference."
+    },
+    {
+      "discovery": "A `pkg?/feat` weak entry enables `feat` on `pkg` only when `pkg` is already enabled by some non-weak path; enabling `pkg` elsewhere must retroactively activate the deferred weak entry, which requires iterating propagation to a least fixpoint rather than a single pass.",
+      "planned_location": "environment/m5/src/lib.rs (weak fixpoint stage)",
+      "why_instruction_must_not_reveal": "Revealing the fixpoint requirement and the activation condition would hand over the coupling that makes the weak-feature cases hard."
+    },
+    {
+      "discovery": "If any feature expression uses `dep:foo`, the implicit same-name feature for the optional dependency `foo` is suppressed, so `foo` becomes reachable only through `dep:foo`; otherwise an optional dependency implicitly defines a feature of its own name.",
+      "planned_location": "environment/m4/src/lib.rs (namespaced/optional stage)",
+      "why_instruction_must_not_reveal": "Naming the suppression rule would collapse the namespaced-feature cases into a lookup instead of a behavior the solver must reconstruct."
+    },
+    {
+      "discovery": "`default-features = false` on an edge drops the dependency's `default` feature unless another edge re-enables `default`, and `default` itself must be expanded transitively into its member features before further propagation.",
+      "planned_location": "environment/m1/src/lib.rs (edge/default expansion stage) and environment/docs/model.md",
+      "why_instruction_must_not_reveal": "Spelling out the re-enable-and-expand ordering would remove the cross-edge reasoning that distinguishes correct from naive expansion."
+    },
+    {
+      "discovery": "A `[target.'cfg(...)'.dependencies]` edge contributes features only when the queried platform triple satisfies the cfg predicate (target_os/target_family/target_arch with all/any/not), so features reachable only through a non-matching edge must be absent for that platform.",
+      "planned_location": "environment/m3/src/lib.rs (cfg gating stage)",
+      "why_instruction_must_not_reveal": "Disclosing the predicate-evaluation-and-exclude rule would convert the platform-matrix cases into a checklist instead of inferred behavior."
+    }
+  ],
+  "instruction_specificity": {
+    "level": "behavioral-target",
+    "reasoning": "Non-repair reverse-engineering shape: the instruction completely specifies the public target (the manifest input format, the query interface, the per-crate per-lane output schema, the requirement to match resolver-v2, and a few observed samples) while withholding the unification algorithm, the weak-feature fixpoint, the `dep:` suppression rule, and the engine-stage locations."
+  },
+  "attack_path": {
+    "summary": "Read the model doc and the manifests, expand each live edge's requested set honoring `default-features`, partition edges into target/host/dev lanes, gate cfg edges against the queried triple, resolve namespaced/optional links, then iterate weak-edge propagation to a fixpoint; self-check against the bundled observed samples.",
+    "reasoning": "Each step constrains the others: lane partition decides which edges propagate; default expansion and namespaced handling decide which links are live; the weak fixpoint depends on all prior stages. A competent engineer follows this path but must derive every rule from the documented Cargo model and the observable artifacts rather than from the instruction."
+  },
+  "smallest_plausible_patch": {
+    "summary": "Implement the five engine stage bodies so the emitted per-crate per-lane feature sets match resolver v2 on held-out workspaces, including weak-edge fixpoint activation and lane non-unification.",
+    "reasoning": "There is no smaller patch: stubbing any stage drops a whole class of behavior (lanes merge, weak edges never activate or over-activate, `dep:` features leak, non-default edges mis-expand, cfg edges leak across platforms), so the genuine change is several hundred lines of coordinated propagation logic plus a fixpoint loop."
+  },
+  "collapse_audit": {
+    "verdict": "PASS",
+    "reasoning": "After full disclosure of the schema and the match-resolver-v2 target, the residual work is the correct implementation of lane separation, weak-feature fixpoint, namespaced suppression, default re-enable/expansion, and cfg gating, recomputed against fresh held-out workspaces by an independent Python resolver; no surface signal shortcuts it and the deceptive samples actively mislead a naive union.",
+    "residual_hardness": "Coordinating five coupled propagation stages and a least fixpoint so the per-crate per-lane feature sets match resolver v2 on unseen workspaces, where the obvious transitive-union approach is provably wrong on the host/dev lanes, weak edges, and `dep:` cases.",
+    "red_flags": [
+      "RC6 may WARN because the JSON output schema and the query interface are intentionally disclosed for actionability.",
+      "Empirical Part E difficulty is pending until frontier-agent runs are available; this evidence argues construction hardness, not the post-upload platform label."
+    ]
+  },
+  "topology_enumeration": [
+    {
+      "id": "T1",
+      "summary": "Single-graph propagation with a post-pass weak-edge fixpoint.",
+      "locations": [
+        "m1/src/lib.rs",
+        "m4/src/lib.rs",
+        "m5/src/lib.rs"
+      ],
+      "why_no_single_location_suffices": "Default expansion in m1 and namespaced/optional resolution in m4 decide which links are live; only then can m5's fixpoint activate deferred weak edges. Missing any one yields wrong or non-converging weak-feature results."
+    },
+    {
+      "id": "T2",
+      "summary": "Lane-first resolution where each lane is closed independently before fixpoint.",
+      "locations": [
+        "m2/src/lib.rs",
+        "m3/src/lib.rs",
+        "m5/src/lib.rs"
+      ],
+      "why_no_single_location_suffices": "Lane partition in m2 and cfg gating in m3 bound which edges exist per lane and platform; the m5 fixpoint must run per lane. Collapsing lanes or skipping cfg gating over-enables features the held-out cases reject."
+    },
+    {
+      "id": "T3",
+      "summary": "Edge-driven worklist that interleaves expansion, namespaced handling, and lane scoping.",
+      "locations": [
+        "m1/src/lib.rs",
+        "m2/src/lib.rs",
+        "m4/src/lib.rs"
+      ],
+      "why_no_single_location_suffices": "A worklist that expands defaults in m1 must respect lane scope from m2 and `dep:` suppression from m4 at every step; ignoring any of the three leaks features across lanes or via suppressed implicit names."
+    }
+  ],
+  "construction_manifest": {
+    "symbol_table": [
+      {
+        "path": "m1/src/lib.rs",
+        "symbol": "run",
+        "kind": "function",
+        "signature": "pub fn run(w: &mut Web, q: &Ask)",
+        "purpose": "expands each live edge's requested set, honoring the no-default flag and re-enable from sibling edges, and unfolds the `default` member into its constituents"
+      },
+      {
+        "path": "m2/src/lib.rs",
+        "symbol": "run",
+        "kind": "function",
+        "signature": "pub fn run(w: &mut Web, q: &Ask)",
+        "purpose": "partitions edges into three propagation lanes so sets stay separate across the host and test lanes"
+      },
+      {
+        "path": "m3/src/lib.rs",
+        "symbol": "run",
+        "kind": "function",
+        "signature": "pub fn run(w: &mut Web, q: &Ask)",
+        "purpose": "evaluates each edge guard against the requested triple and drops edges whose predicate is unmet"
+      },
+      {
+        "path": "m4/src/lib.rs",
+        "symbol": "run",
+        "kind": "function",
+        "signature": "pub fn run(w: &mut Web, q: &Ask)",
+        "purpose": "handles namespaced entries, suppressing the implicit same-name toggle and turning on dormant links when an explicit entry references them"
+      },
+      {
+        "path": "m5/src/lib.rs",
+        "symbol": "run",
+        "kind": "function",
+        "signature": "pub fn run(w: &mut Web, q: &Ask)",
+        "purpose": "iterates propagation to a least fixpoint so deferred `?`-qualified entries take effect only when their link is otherwise live"
+      }
+    ],
+    "flipping_point_contract": {
+      "locations": [
+        {
+          "id": "A",
+          "path": "m1/src/lib.rs",
+          "controls_tests": [
+            "test_t01",
+            "test_t02",
+            "test_t03",
+            "test_t13"
+          ]
+        },
+        {
+          "id": "B",
+          "path": "m2/src/lib.rs",
+          "controls_tests": [
+            "test_t01",
+            "test_t04",
+            "test_t05",
+            "test_t13"
+          ]
+        },
+        {
+          "id": "C",
+          "path": "m3/src/lib.rs",
+          "controls_tests": [
+            "test_t01",
+            "test_t06",
+            "test_t07",
+            "test_t13"
+          ]
+        },
+        {
+          "id": "D",
+          "path": "m4/src/lib.rs",
+          "controls_tests": [
+            "test_t01",
+            "test_t08",
+            "test_t09",
+            "test_t13"
+          ]
+        },
+        {
+          "id": "E",
+          "path": "m5/src/lib.rs",
+          "controls_tests": [
+            "test_t01",
+            "test_t10",
+            "test_t11",
+            "test_t12",
+            "test_t13"
+          ]
+        }
+      ],
+      "no_single_location_flips_majority": true,
+      "concentration_cap": 0.5
+    },
+    "decoy_manifest": [
+      {
+        "path": "r6/src/lib.rs",
+        "kind": "helper",
+        "rhymes_with": "run",
+        "non_fix_purpose": "renders a human-readable tree of the analyzed set for the diagnostic subcommand"
+      },
+      {
+        "path": "r7/src/lib.rs",
+        "kind": "helper",
+        "rhymes_with": "run",
+        "non_fix_purpose": "tallies per-lane counters for the README sample listing only"
+      },
+      {
+        "path": "r8/src/lib.rs",
+        "kind": "helper",
+        "rhymes_with": "run",
+        "non_fix_purpose": "formats triple labels for verbose console output off the resolution path"
+      }
+    ],
+    "code_forbidden_tokens": [
+      "feature",
+      "unification",
+      "resolver",
+      "crate",
+      "workspace",
+      "manifest",
+      "dependency",
+      "target",
+      "platform",
+      "weak",
+      "optional",
+      "default",
+      "host",
+      "dev",
+      "build",
+      "namespaced",
+      "edition",
+      "graph",
+      "kind",
+      "package",
+      "profile",
+      "edge",
+      "member",
+      "triple",
+      "cfg"
+    ]
+  },
+  "naming_pass": {
+    "instruction_nouns_extracted": [
+      "feature",
+      "unification",
+      "resolver",
+      "crate",
+      "workspace",
+      "manifest",
+      "dependency",
+      "target",
+      "platform",
+      "weak",
+      "optional",
+      "default",
+      "host",
+      "dev",
+      "build",
+      "namespaced",
+      "edition",
+      "graph",
+      "kind",
+      "package",
+      "profile",
+      "edge",
+      "member",
+      "triple",
+      "cfg"
+    ],
+    "renames_during_drafting": [
+      {
+        "original": "lanes",
+        "renamed_to": "m2.run",
+        "reason": "a lane-partition function named after the build/host/dev dependency-kind concept would telegraph the hardest stage; renamed to an opaque per-package run."
+      },
+      {
+        "original": "weak_fixpoint",
+        "renamed_to": "m5.run",
+        "reason": "a function named after the weak-feature rule would collide with an instruction noun and reveal the approach; renamed to opaque run."
+      },
+      {
+        "original": "dep_namespace",
+        "renamed_to": "m4.run",
+        "reason": "a function named after namespaced/optional dependency handling would mirror instruction nouns; renamed to opaque run."
+      },
+      {
+        "original": "DepGraph",
+        "renamed_to": "Web",
+        "reason": "the shared graph type named after the dependency graph would expose a forbidden noun on the fix-path signatures; renamed to an opaque Web."
+      }
+    ],
+    "test_names_audited": [
+      "test_t01",
+      "test_t02",
+      "test_t03",
+      "test_t04",
+      "test_t05",
+      "test_t06",
+      "test_t07",
+      "test_t08",
+      "test_t09",
+      "test_t10",
+      "test_t11",
+      "test_t12",
+      "test_t13"
+    ],
+    "concentration_math": {
+      "total_tests": 13,
+      "per_location": [
+        {
+          "location_id": "A",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "B",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "C",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "D",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "E",
+          "test_count": 5,
+          "ratio": 0.38461538461538464
+        }
+      ]
+    },
+    "recomputed_concentration": {
+      "total_tests": 13,
+      "concentration_cap": 0.5,
+      "per_location": [
+        {
+          "location_id": "A",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "B",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "C",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "D",
+          "test_count": 4,
+          "ratio": 0.3076923076923077
+        },
+        {
+          "location_id": "E",
+          "test_count": 5,
+          "ratio": 0.38461538461538464
+        }
+      ]
+    }
+  },
+  "difficulty_mechanism_plan": [
+    {
+      "mechanism": "deceptive_but_valid_local_evidence",
+      "placement": "the bundled observed samples cover only cases where lanes happen to agree, so a naive transitive-union resolver reproduces them exactly",
+      "why_model_misses_it": "a solver validates against the visible samples, sees green, and ships a union resolver that is wrong on the held-out lane-separation and weak cases",
+      "fairness_guardrail": "the instruction states the samples are illustrative evidence, not the full contract, and the schema and match-resolver-v2 target are explicit"
+    },
+    {
+      "mechanism": "buried_local_constraints",
+      "placement": "the lane non-unification rule and the weak-edge activation condition live in the model doc and the manifests' structure, not as a recipe in the instruction",
+      "why_model_misses_it": "a solver that treats features as a single global union over the dependency graph never separates host/dev lanes or defers weak edges",
+      "fairness_guardrail": "the conceptual model is documented in a readable doc the solver may study and the input manifests are small enough to inspect fully"
+    },
+    {
+      "mechanism": "stateful_multi_step_dependencies",
+      "placement": "weak `pkg?/feat` activation depends on whether `pkg` is enabled elsewhere, which depends on namespaced/optional handling, default expansion, lane scope, and cfg gating",
+      "why_model_misses_it": "computing weak activation in a single pass, before later stages enable the link, produces a result that looks locally consistent but misses retroactive activation",
+      "fairness_guardrail": "the dependency between stages is observable by running the engine on the bundled workspaces and comparing lanes"
+    },
+    {
+      "mechanism": "false_green_intermediate_states",
+      "placement": "an engine that implements four of five stages emits feature sets that round-trip through the schema and pass the bundled samples while still failing held-out weak-fixpoint or lane cases",
+      "why_model_misses_it": "schema-valid, sample-passing output reads as success; the shortfall only surfaces against the independent resolver on fresh workspaces",
+      "fairness_guardrail": "the instruction states results are checked against resolver-v2 on workspaces beyond the bundled data"
+    },
+    {
+      "mechanism": "cross_file_cross_format_invariants",
+      "placement": "the TOML manifests, the per-lane query interface, the JSON output, the Rust engine, and the independent Python resolver must agree on the same feature semantics",
+      "why_model_misses_it": "a partial implementation handling one lane emits output that parses and round-trips but disagrees with recomputation under the independent resolver",
+      "fairness_guardrail": "every schema field, the lane vocabulary, and the input format are visible in the instruction or the model doc"
+    }
+  ],
+  "calibration_plan": {
+    "oracle_runs": 3,
+    "no_op_runs": 3,
+    "target_agent_runs": 5,
+    "comparator_agent_runs": 5,
+    "human_sanity": "an engineer who knows the Cargo features model can solve it by reading the model doc, expanding edges with default handling, separating the three lanes, gating cfg edges against the triple, resolving namespaced/optional links, and iterating the weak edges to a fixpoint, self-checking against the observed samples",
+    "shortcut_audit": "tests regenerate output by running the solver's program, build fresh held-out workspaces at verify time, reject static or hardcoded outputs, recompute expected sets with an independent Python resolver rather than trusting any bundled file, and include a contradictory deceptive sample so sample-copying fails",
+    "ablation_plan": "stub each of the five engine stages independently and confirm at least one held-out verifier test fails for that stage only",
+    "pass_rate_target": {
+      "hard_max_pct": 20,
+      "too_easy_threshold_pct": 80,
+      "basis": "stronger target agent; aligns with Part E Hard/Medium/Easy thresholds on worst/best model accuracy. The verifier is offline (pytest baked into the Dockerfile, no runtime installs under allow_internet = false) and post-upload difficulty is classified by Part E after platform agent runs."
+    }
+  },
+  "verifier_scoring_plan": {
+    "metrics": [
+      {
+        "metric": "functional_correctness",
+        "weight": 0.45,
+        "criterion": "per-crate per-lane feature sets match resolver v2 on the bundled and held-out workspaces across the platform matrix"
+      },
+      {
+        "metric": "hidden_invariants",
+        "weight": 0.25,
+        "criterion": "host/dev lanes do not unify with the target lane, weak `?` edges activate only when their link is otherwise live, and `dep:` suppresses implicit features"
+      },
+      {
+        "metric": "state_hygiene",
+        "weight": 0.15,
+        "criterion": "re-running the solver on the same workspace and query yields identical sorted sets and the suite leaves the binary and bundled data in place"
+      },
+      {
+        "metric": "interface_correctness",
+        "weight": 0.1,
+        "criterion": "the documented run command and suite script read the documented inputs and emit the documented per-lane JSON shape"
+      },
+      {
+        "metric": "deliverable_completeness",
+        "weight": 0.05,
+        "criterion": "every crate reachable in the queried lane appears in the output with its resolved set and every bundled workspace is covered by the suite"
+      }
+    ],
+    "overall_threshold": 0.999,
+    "reward_output": "reward.txt",
+    "binary_threshold_rule": "reward is 1 only on pytest exit 0; otherwise reward is 0"
+  },
+  "subtype_milestone_plan": {
+    "subcategories": [],
+    "milestone_count": 0,
+    "sequential_dependency": "not applicable; standard single-step task",
+    "local_only_data": true,
+    "sidecar_or_protocol_notes": "bundled data workspaces and the observed-sample JSON are local development evidence; the verifier loads authored held-out workspaces and seed-generates additional ones at verify time, all offline"
+  },
+  "platform_files": [
+    {
+      "path": "task.toml",
+      "role": "Edition 2 metadata and runtime limits; sets [environment] allow_internet = false"
+    },
+    {
+      "path": "instruction.md",
+      "role": "behavioral-target public contract for the input format, query interface, output schema, and match-resolver-v2 target"
+    },
+    {
+      "path": "output_contract.toml",
+      "role": "local output declaration for the per-lane resolved-feature JSON"
+    },
+    {
+      "path": "tests/test.sh",
+      "role": "verifier entrypoint; invokes pre-installed pytest only, no runtime installs"
+    },
+    {
+      "path": "tests/test_outputs.py",
+      "role": "independent Python resolver reimplementing resolver-v2 semantics over held-out workspaces"
+    },
+    {
+      "path": "solution/solve.sh",
+      "role": "oracle that writes the five engine stage bodies and rebuilds"
+    },
+    {
+      "path": "environment/Dockerfile",
+      "role": "digest-pinned offline Rust image with cargo, pytest, tmux, asciinema"
+    },
+    {
+      "path": "construction_manifest.json",
+      "role": "authoring metadata for frontier, base image, decoys, flipping point"
+    }
+  ],
+  "task_files": [
+    {
+      "path": "environment/Cargo.toml",
+      "role": "workspace manifest for the engine crate (members core, cli, m1-m5, r6-r8)"
+    },
+    {
+      "path": "environment/core/src/lib.rs",
+      "role": "shared types (Web, Ask, lane vocabulary) used across stages"
+    },
+    {
+      "path": "environment/core/src/intake.rs",
+      "role": "TOML manifest reader that builds the graph (shipped working, non-fix)"
+    },
+    {
+      "path": "environment/cli/src/main.rs",
+      "role": "entrypoint that parses the query and prints per-lane resolved JSON"
+    },
+    {
+      "path": "environment/m1/src/lib.rs",
+      "role": "edge/default expansion stage (stub shipped)"
+    },
+    {
+      "path": "environment/m5/src/lib.rs",
+      "role": "weak-edge fixpoint stage (stub shipped)"
+    },
+    {
+      "path": "environment/data/alpha/Cargo.toml",
+      "role": "bundled data workspace analyzed by the engine"
+    },
+    {
+      "path": "environment/docs/model.md",
+      "role": "conceptual resolver-v2 unification-model documentation, no algorithm recipe"
+    },
+    {
+      "path": "environment/evidence/observed.json",
+      "role": "deceptive observed samples for lane-agreeing cases only"
+    },
+    {
+      "path": "environment/scripts/run-suite.sh",
+      "role": "runs the engine over all bundled data workspaces"
+    }
+  ],
+  "fix_frontier": {
+    "count": 5,
+    "distribution": "five engine stages across five opaque packages: edge/default expansion, lane partition, cfg gating, namespaced/optional handling, weak-edge fixpoint",
+    "naming_policy": "opaque package dirs m1-m5 each exposing one `run` function; shared domain types live in a non-fix core package",
+    "forbidden_stems": [
+      "feature",
+      "unification",
+      "resolver",
+      "dependency",
+      "weak",
+      "optional",
+      "default",
+      "namespaced",
+      "lane",
+      "host",
+      "graph",
+      "cfg"
+    ],
+    "helpers_policy": "sibling helper packages r6-r8 do diagnostic/formatting work that never touches the resolved sets",
+    "symbol_thin_preferred": true
+  },
+  "contract_surface": {
+    "boolean_fields_max": 0,
+    "direct_boolean_assertions_max": 0,
+    "preferred_assertion_styles": [
+      "recompute per-crate per-lane feature sets with an independent resolver and compare sorted sets",
+      "run the solver's program on freshly generated held-out workspaces",
+      "assert lane non-unification by comparing the same crate across lanes",
+      "assert weak-edge activation and suppression via derived set membership"
+    ],
+    "forbidden_assertion_styles": [
+      "golden resolved-output files shipped under environment",
+      "static or hardcoded per-crate answer values",
+      "schema-only or existence-only checks",
+      "scenario to field to expected boolean tables",
+      "copying the observed samples into expected outputs"
+    ]
+  },
+  "task_shape": {
+    "type": "reverse_engineering",
+    "instruction_framing": "behavioral-target",
+    "hardness_source": "semantic inference",
+    "collapse_risk": "medium; mitigated by an independent resolver, verify-time-generated held-out workspaces, deceptive lane-agreeing samples, a non-textbook unification model, and a five-stage fix frontier"
+  },
+  "category_profile": {
+    "challenge_family": "reverse-engineering build-toolchain feature resolution under resolver-v2 unification semantics",
+    "profile_name": "build_dependency_toolchain",
+    "allowed_instruction_disclosures": "the manifest input format, the per-lane query interface and run command, the resolved-feature JSON schema, the platform matrix, the match-resolver-v2 target, offline expectations, and illustrative observed samples",
+    "forbidden_instruction_leaks": "the lane non-unification algorithm, the weak-feature fixpoint, the `dep:` suppression rule, the default re-enable/expand ordering, the engine-stage identifiers, and per-crate expected feature sets",
+    "category_specific_hardness_bar": "the resolved feature set derives across lanes, cfg-gated edges, namespaced/optional links, default expansion, and a weak-edge fixpoint; no single edge or manifest suffices and local choices change distant crates' sets",
+    "category_specific_verifier_risks": "pin-one-dep shortcuts, trusting a tamperable bundled output, clean-only single-platform tests, hidden generated-file expectations, or sample-overfit acceptance",
+    "coverage_role": "adds the first build_dependency_toolchain task and the first Cargo/Rust resolver-semantics reverse-engineering challenge, distinct from the existing cgroup allocation and udev precedence tasks"
+  },
+  "satisfiability_risk": {
+    "rc2_planned_name_risk": "low: engine stages are opaque m1-m5, helpers are r6-r8, and data/doc paths use neutral vocabulary while instruction nouns stay off the path",
+    "gx9_contract_risk": "low: the instruction states the schema and a few illustrative samples but no per-crate answer key; expectations are recomputed by the independent resolver on held-out workspaces",
+    "cr1_symbol_frontier_risk": "low: the manifest fixes the five `run` symbols and the oracle modifies only those packages",
+    "hidden_contract_risk": "low: every tested input format, query interface, schema field, and run command is in instruction.md or the model doc"
+  },
+  "actionability_plan": {
+    "verifier_command_visible": "instruction.md names the run command (bash /app/environment/scripts/run.sh <workspace> <root> <triple> <lane>), the suite script, and the pytest verifier command",
+    "source_fix_intent_visible": "instruction.md says the engine sources under /app/environment (core, cli, m1-m5), also reachable through /app, must be implemented and that static output writes are insufficient",
+    "generated_output_rule_visible": "instruction.md identifies the per-lane JSON emitted on stdout and the suite report, and states workspaces beyond /app/environment/data are also resolved at verify time",
+    "exact_formula_home": "the conceptual unification model lives in /app/environment/docs/model.md and the instruction; the precise per-edge rules are inferable from the manifests and observed samples and enforced by held-out tests, not stated as a recipe",
+    "schema_home": "instruction.md names every output JSON field and the observed-sample file shows one concrete example of the per-lane shape"
+  },
+  "waiver_plan": {
+    "waivers_expected": false,
+    "waiver_rationale": "no waiver is planned; any checker warning should be resolved or documented before packaging"
+  },
+  "reference_pattern": {
+    "justification_if_none": "Original task built from the real Cargo resolver-v2 feature-unification model (Cargo Book Features/Resolver chapters and RFC 2957 weak dependency features); not derived from a website task-inspiration, a prior public task, or a reskin of the existing cgroup-budget-solver or udev-rule-precedence-reconstruct tasks. The reference library currently has no promoted entries, so no reference_task_id applies."
+  },
+  "realism_source": {
+    "source_type": "real_system",
+    "evidence_basis": "Cargo's feature resolver v2 (resolver = \"2\"): default-features handling, optional dependencies and the `dep:` namespaced syntax, weak dependency features `pkg?/feat` from RFC 2957, and the host/build/dev/target dependency-kind boundaries that do not unify, as documented in the Cargo Book Features and Resolver chapters",
+    "upstream_or_synthetic_rationale": "the unification semantics come directly from a real, widely-used toolchain; only the specific workspaces and the opaque engine scaffold are authored to keep the task local, offline, and deterministic",
+    "minimization_preserves": "lane non-unification across target/host/dev, the weak-feature least fixpoint, `dep:` implicit-feature suppression, default-features drop/re-enable/expand, and cfg-gated target edges",
+    "synthetic_exception_review": "not a synthetic exception; the model and rules are drawn from a real build toolchain and only the instances are authored"
+  }
+}

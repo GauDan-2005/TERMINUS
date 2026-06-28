@@ -14,6 +14,8 @@ Formatting (CI-enforced on platform):
 - Scores: ±1, ±2, ±3, ±5 — never ±4.
 - ≥3 distinct negative criteria; 10–40 max cumulative positive points
   (non-milestone); per-milestone 10–40 for milestone tasks.
+- **Rubric section headers:** every task starts with `# Rubric 1` on its own line;
+  milestone tasks add `# Rubric 2`, `# Rubric 3`, … per additional milestone.
 - Trace-evidenced actions only; no pytest checks; no meta-checks on instructions.
 
 Full rules: root `TASK_PROPOSAL_RUBRIC.md` (top section), `docs/EDITION2_SUBMISSION_GUIDE.md`.

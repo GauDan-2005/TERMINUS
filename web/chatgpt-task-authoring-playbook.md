@@ -103,7 +103,7 @@ Use these fixed values unless the user explicitly overrides them:
 - `author_email = "anonymous"`
 - `version = "2.0"`
 - standalone drafting default: `difficulty = "hard"`
-- default domain sweep: **full nine-category sweep** (use Opus-weak mode only when explicitly requested)
+- default domain sweep: **full seven-category sweep** (use Opus-weak mode only when explicitly requested; never use blocked `software-engineering` or `debugging` categories)
 - default final Step 1 bank size after Option A: **150 Step-2a-ready seeds** unless the user asks for a different target
 
 Important:
@@ -115,13 +115,16 @@ Important:
 - prefer single-container unless the task clearly needs docker-compose or multiple services
 - default to a non-milestone task unless the screenshot or user explicitly calls for milestones
 
-### Full-nine default and optional Opus-weak mode
+### Full-seven default and optional Opus-weak mode
 
-Generate across all nine accepted categories by default: `system-administration`,
+Generate across all **seven accepted categories** by default: `system-administration`,
 `build-and-dependency-management`, `data-processing`, `games`,
-`software-engineering`, `machine-learning`, `debugging`, `security`, and
-`scientific-computing`. Category is the domain surface; `task_shape` is the
-reason the task is hard. Do not force non-debug categories into repair wrappers.
+`machine-learning`, `security`, and `scientific-computing`.
+
+**Permanently blocked:** `software-engineering`, `debugging`. Do not generate seeds
+under these labels. Remap async/compiler/protocol/repair ideas to the accepted list.
+
+Category is the domain surface; `task_shape` is the reason the task is hard. Do not force non-repair categories into repair wrappers, and do not use blocked category labels as wrappers.
 
 For each seed, assign one of these task shapes:
 
@@ -139,12 +142,11 @@ For each seed, assign one of these task shapes:
    mechanically checked correctness contract.
 
 Opus-weak mode is still available as an explicit narrow mode for campaigns that
-want the four historically high-yield surfaces (`system-administration`,
-`security`, systems-substrate `debugging`, and `scientific-computing`). It is not
-the default and it does not remove `task_shape`; even in Opus-weak mode,
-non-repair shapes should remain non-repair.
+want historically high-yield surfaces (`system-administration`, `security`, and
+`scientific-computing`). It is not the default and it does not restore blocked
+category labels.
 
-Use `bulk-idea-generation.md`'s default **full-nine sweep mode** unless the user
+Use `bulk-idea-generation.md`'s default **full-seven sweep mode** unless the user
 explicitly asks for Opus-weak mode or a narrower domain.
 
 ### Category-profile-aware validation
@@ -275,7 +277,7 @@ For every candidate considered in Phase -1:
 - **reject unconstrained blank-canvas builds** — build-from-scratch is allowed only when the harness supplies real coupling: existing artifacts, protocols, schemas, tools, formal properties, resource limits, adversarial cases, or compatibility constraints that force design search. Pure greenfield programming remains too easy.
 - **reject in-distribution recipes** — HMAC verification, JSON schema validation, Monte Carlo CI, sliding windows, policy checkers, Merkle trees — these have thousands of implementations in training data.
 - **verify the shape-aware hardness axes:** the task must require the agent to (1) discover or infer nontrivial information, (2) synthesize across interacting systems or constraints, (3) either diagnose symptoms for repair tasks or perform design/search/reverse-engineering/formal reasoning for non-repair tasks, (4) navigate coupling, and (5) reason beyond training distribution. If the relevant axis collapses to recipe following, the idea is not hard.
-- **preserve full-nine diversity by default**. Use the four Opus-weak categories only in explicit Opus-weak mode; otherwise keep strong candidates in data-processing, games, machine-learning, software-engineering, and build/dependency when their `task_shape` supplies real hardness.
+- **preserve full-seven diversity by default**. Use Opus-weak mode only when explicitly requested; otherwise keep strong candidates across all seven accepted categories when their `task_shape` supplies real hardness. Never use blocked `software-engineering` or `debugging` category labels.
 - **prefer candidates that exploit execution-class failure modes**: wrong source of truth, destructive step repetition, long-horizon coherence, wrong format-or-place, verifier-bypass bait, multi-phase state threading, not-waiting for long-running processes, terminal-state corruption, edge-case inputs the obvious test misses. These are the TB 2.0 paper's evidenced failure modes. Map each surfaced candidate against the trajectory-level taxonomy (Execution ~50% / Coherence ~25% / Verification ~25%) and the four named-hard domain clusters (Complex System Builds, Long-Horizon Coherence, Robust Verification, Adversarial & Creative Reasoning). See `bulk-idea-generation.md`'s "Empirical evidence basis" section for the full taxonomy, per-category attack surface, and the 16-20% hard-band resolution-rate calibration target.
 - **validate the category profile**: choose a profile, fill the required
   profile/risk/actionability/waiver fields, and reject candidates that match

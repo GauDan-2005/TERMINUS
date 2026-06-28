@@ -1,0 +1,3052 @@
+{
+  "task_name": "cgroup-budget-solver",
+  "attempt": 4,
+  "best_score": [
+    0,
+    0
+  ],
+  "best_attempt": 4,
+  "plateau_count": 0,
+  "candidates": [],
+  "history": [
+    {
+      "attempt": 1,
+      "fails": 6,
+      "warns": 0,
+      "evidence_path": "specs/.runs/cgroup-budget-solver/attempt-1-evidence.json",
+      "evidence": {
+        "hardness_axes": [],
+        "anti_trivialization_checks": [],
+        "rubric_axes": [],
+        "instruction_completeness_test": {
+          "verdict": "PASS",
+          "reasoning": "Reading only instruction.md, an agent knows the interface, schema, constraints, and objective but not how to construct a feasible optimal assignment; the environment evaluator, docs, and runtime behavior are essential, so the instruction is not a recipe."
+        },
+        "discovery_budget": [
+          {
+            "discovery": "A leaf's effective memory.min is bounded by every ancestor and proportionally down-scaled when siblings oversubscribe, so floors must be reserved at every level without oversubscribing any delegated budget.",
+            "planned_location": "internal/refeval/protect.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Stating the reservation algorithm would turn the floor family into transcription instead of forcing the agent to reason about propagation."
+          },
+          {
+            "discovery": "Each node's reclaimable budget for the best-effort tier is its delegated budget minus the min it reserved, so the fairness allocation is entangled with the floor reservation.",
+            "planned_location": "internal/refeval/objective.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Revealing how to compute and split reclaimable budget would hand over the coupling that makes the objective hard."
+          },
+          {
+            "discovery": "The worst-leaf low ratio is capped by the most-constrained subtree (the largest ratio every node can supply to its subtree out of its reclaimable budget), not by any single leaf.",
+            "planned_location": "internal/refeval/objective.go (independent optimum) mirrored in the Python verifier",
+            "why_instruction_must_not_reveal": "Spelling out the optimum as a formula/step list would collapse the search to plugging numbers."
+          },
+          {
+            "discovery": "A leaf's global CPU share is the product of per-level normalized weights, so weights must be solved level by level, not set per leaf.",
+            "planned_location": "internal/refeval/checks.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Naming the level-by-level construction would remove the path-product reasoning."
+          }
+        ],
+        "instruction_specificity": {
+          "level": "constraint-complete",
+          "reasoning": "Non-repair optimization shape: the instruction completely specifies the public target (interface, schema, the five constraints, the down-scaling and path-product rules, the reclaimable-budget definition, the objective, and the tolerance) while withholding the construction algorithm and the solver-stage locations."
+        },
+        "attack_path": {
+          "summary": "Read the model, reserve floors bottom-up, set decreasing maxima with headroom, solve weights per level, allocate io within device pools, then water-fill reclaimable budget to the binding subtree; self-check with the reference evaluator.",
+          "reasoning": "Each step is constrained by the others: floors set the reclaimable budget; maxima bound headroom; weights must compose to the leaf share; the objective is bounded by feasibility. A competent engineer follows this path but must derive each construction from the documented semantics."
+        },
+        "smallest_plausible_patch": {
+          "summary": "Implement the five solver-stage bodies so the emitted assignment is feasible on every family and the worst-leaf low ratio reaches the optimum.",
+          "reasoning": "There is no smaller patch: stubbing any one stage drops its constraint family or the objective below tolerance, and the optimum requires the binding-subtree reasoning, so the genuine change is several hundred lines of coordinated logic."
+        },
+        "collapse_audit": {
+          "verdict": "PASS",
+          "reasoning": "After full disclosure the residual work is the constructive coordinated allocation and the binding-subtree optimum, recomputed against verify-time-generated trees by an independent verifier; no surface signal shortcuts it.",
+          "residual_hardness": "Coordinating floor reservation, reclaimable-budget fairness, max/headroom limits, path-product weights, and device pools across the whole tree so that the assignment is feasible and reaches the independently computed optimum on unseen trees.",
+          "red_flags": []
+        },
+        "topology_enumeration": [
+          {
+            "id": "T1",
+            "summary": "Bottom-up floor reservation with reclaimable water-filling.",
+            "locations": [
+              "internal/qa/a.go",
+              "internal/qe/e.go",
+              "internal/refeval/objective.go"
+            ],
+            "why_no_single_location_suffices": "Floors reserved in qa determine the reclaimable budget qe water-fills, and the objective is scored against the optimum in objective.go; missing any one yields infeasibility or a sub-optimal ratio."
+          },
+          {
+            "id": "T2",
+            "summary": "Level-by-level weight solving composed into leaf shares.",
+            "locations": [
+              "internal/qc/c.go",
+              "internal/types/types.go",
+              "docs/cgroup-model.md"
+            ],
+            "why_no_single_location_suffices": "Per-level weights must be derived from the tree structure in types and the path-product rule in docs; a per-leaf weight ignores sibling normalization and fails the share tolerance."
+          },
+          {
+            "id": "T3",
+            "summary": "Feasible-region construction bounding the objective.",
+            "locations": [
+              "internal/qb/b.go",
+              "internal/qd/d.go",
+              "internal/qe/e.go"
+            ],
+            "why_no_single_location_suffices": "Max-hierarchy/headroom in qb and device pools in qd constrain the region qe optimizes; an objective step that ignores those produces an infeasible assignment."
+          }
+        ],
+        "construction_manifest": {
+          "symbol_table": [
+            {
+              "path": "internal/qa/a.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "reserves the protected memory floor at every node so effective floors survive down-scaling"
+            },
+            {
+              "path": "internal/qb/b.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "sets the non-increasing upper limits and the throttle gap for each node"
+            },
+            {
+              "path": "internal/qc/c.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "chooses integer relative weights per level so each leaf path-product meets its target"
+            },
+            {
+              "path": "internal/qd/d.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "allocates per-device throughput caps within each pool above each leaf floor"
+            },
+            {
+              "path": "internal/qe/e.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "distributes the best-effort reclaimable tier to maximize the worst-off subtree ratio"
+            }
+          ],
+          "flipping_point_contract": {
+            "locations": [
+              {
+                "id": "A",
+                "path": "internal/qa/a.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t02",
+                  "test_t03",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "B",
+                "path": "internal/qb/b.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t04",
+                  "test_t05",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "C",
+                "path": "internal/qc/c.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t06",
+                  "test_t07",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "D",
+                "path": "internal/qd/d.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t08",
+                  "test_t09",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "E",
+                "path": "internal/qe/e.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t10",
+                  "test_t11",
+                  "test_t12",
+                  "test_t13"
+                ]
+              }
+            ],
+            "no_single_location_flips_majority": true,
+            "concentration_cap": 0.5
+          },
+          "decoy_manifest": [
+            {
+              "path": "internal/r6/r.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "renders an ASCII summary of a tree for dry-run console output"
+            },
+            {
+              "path": "internal/r7/s.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "aggregates per-node counters for the documentation report only"
+            },
+            {
+              "path": "internal/r8/t.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "formats device pool labels for diagnostic listings off the assignment path"
+            }
+          ],
+          "code_forbidden_tokens": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ]
+        },
+        "naming_pass": {
+          "instruction_nouns_extracted": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ],
+          "renames_during_drafting": [
+            {
+              "original": "reserve",
+              "renamed_to": "qa.Apply",
+              "reason": "a floor-reservation function named after the protected-floor concept would telegraph the fix; renamed to an opaque per-package Apply."
+            },
+            {
+              "original": "weights",
+              "renamed_to": "qc.Apply",
+              "reason": "a weight-solving function named after cpu weight would collide with the instruction noun; renamed to opaque Apply."
+            },
+            {
+              "original": "waterfill",
+              "renamed_to": "qe.Apply",
+              "reason": "an objective function named after the fairness allocation would reveal the approach; renamed to opaque Apply."
+            }
+          ],
+          "test_names_audited": [
+            "test_t01",
+            "test_t02",
+            "test_t03",
+            "test_t04",
+            "test_t05",
+            "test_t06",
+            "test_t07",
+            "test_t08",
+            "test_t09",
+            "test_t10",
+            "test_t11",
+            "test_t12",
+            "test_t13"
+          ],
+          "concentration_math": {
+            "total_tests": 13,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          },
+          "recomputed_concentration": {
+            "total_tests": 13,
+            "concentration_cap": 0.5,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          }
+        },
+        "difficulty_mechanism_plan": [
+          {
+            "mechanism": "buried_local_constraints",
+            "placement": "effective-protection down-scaling and reclaimable-budget definitions live in the reference evaluator and docs, not as a recipe in the instruction",
+            "why_model_misses_it": "a solver can satisfy a configured floor while the effective floor is down-scaled to zero by an unfunded ancestor",
+            "fairness_guardrail": "the down-scaling rule is documented and implemented in a readable evaluator the solver may call"
+          },
+          {
+            "mechanism": "stateful_multi_step_dependencies",
+            "placement": "the mem_low fairness budget at each node depends on how much mem_min that node reserved, which depends on subtree floors",
+            "why_model_misses_it": "optimizing fairness independently of floor reservation overcommits a node or wastes budget, missing the optimum",
+            "fairness_guardrail": "the reclaimable-budget definition is stated in the instruction and docs"
+          },
+          {
+            "mechanism": "deceptive_but_valid_local_evidence",
+            "placement": "per-leaf weights set to the global target look locally correct but miss the path-product after sibling normalization",
+            "why_model_misses_it": "a locally plausible weight passes a single-node sanity check yet fails the global share tolerance",
+            "fairness_guardrail": "the path-product rule and the [1,10000] integer range are stated in the instruction"
+          },
+          {
+            "mechanism": "cross_file_cross_format_invariants",
+            "placement": "scenario JSON, assignment JSON, report JSON, the Go evaluator, and the Python verifier must agree on the same numeric semantics",
+            "why_model_misses_it": "a partial implementation handling one resource emits a report that round-trips but fails recomputation under the independent evaluator",
+            "fairness_guardrail": "every schema field, formula, and tolerance is visible in the instruction or docs"
+          },
+          {
+            "mechanism": "false_green_intermediate_states",
+            "placement": "an assignment meeting the four feasibility families but splitting reclaimable budget evenly produces a feasible-looking report whose worst-leaf ratio is below the optimum",
+            "why_model_misses_it": "feasibility alone reads as success; the objective shortfall is only caught against the independently computed optimum",
+            "fairness_guardrail": "the objective and within-tolerance acceptance are stated in the instruction"
+          }
+        ],
+        "calibration_plan": {
+          "oracle_runs": 10,
+          "no_op_runs": 3,
+          "target_agent_runs": 5,
+          "comparator_agent_runs": 5,
+          "human_sanity": "a systems engineer can solve by reading the cgroup-v2 docs, reserving floors bottom-up, setting decreasing max with headroom, solving weights level by level, allocating io within device pools, and water-filling reclaimable budget to the binding subtree",
+          "shortcut_audit": "tests regenerate assignments by running the binary, generate fresh trees at verify time, reject static report writes, recompute in Python instead of trusting the environment evaluator, and reject overcommitting assignments",
+          "ablation_plan": "stub each of the five solver stages independently and confirm at least one verifier test fails for that stage only",
+          "pass_rate_target": {
+            "hard_max_pct": 20,
+            "too_easy_threshold_pct": 80,
+            "basis": "stronger target agent; aligns with Part E Hard/Medium/Easy thresholds on worst/best model accuracy. Verifier is offline (pytest baked into the Dockerfile, no runtime installs under allow_internet = false) and post-upload difficulty is classified by Part E after platform agent runs."
+          }
+        },
+        "verifier_scoring_plan": {
+          "metrics": [
+            {
+              "metric": "functional_correctness",
+              "weight": 0.45,
+              "criterion": "effective floors, max hierarchy, headroom, path-product shares, and device sums hold on bundled and generated trees"
+            },
+            {
+              "metric": "hidden_invariants",
+              "weight": 0.25,
+              "criterion": "the worst-leaf mem_low ratio reaches the independently computed optimum within tolerance and no node oversubscribes its reclaimable budget"
+            },
+            {
+              "metric": "state_hygiene",
+              "weight": 0.15,
+              "criterion": "re-running the solver on the same tree yields identical feasibility and objective and the suite leaves the binary and report in place"
+            },
+            {
+              "metric": "interface_correctness",
+              "weight": 0.1,
+              "criterion": "cgsolve, solve-one.sh, and run-suite.sh read the documented inputs and write the documented assignment/report shape"
+            },
+            {
+              "metric": "deliverable_completeness",
+              "weight": 0.05,
+              "criterion": "every node appears in the assignment with all six fields and every bundled scenario appears in the report"
+            }
+          ],
+          "overall_threshold": 0.999,
+          "reward_output": "reward.txt",
+          "binary_threshold_rule": "reward is 1 only on pytest exit 0; otherwise reward is 0"
+        },
+        "subtype_milestone_plan": {
+          "subcategories": [],
+          "milestone_count": 0,
+          "sequential_dependency": "not applicable; standard single-step task",
+          "local_only_data": true,
+          "sidecar_or_protocol_notes": "run-suite.sh regenerates one JSON report from bundled trees; verifier tests invoke cgsolve on temporary generated trees"
+        },
+        "platform_files": [
+          {
+            "path": "task.toml",
+            "role": "Edition 2 metadata and runtime limits; sets [environment] allow_internet = false"
+          },
+          {
+            "path": "instruction.md",
+            "role": "constraint-complete public contract for interface, schema, constraints, and objective"
+          },
+          {
+            "path": "output_contract.toml",
+            "role": "local output declaration for the generated report"
+          },
+          {
+            "path": "tests/test.sh",
+            "role": "verifier entrypoint; invokes pre-installed pytest only"
+          },
+          {
+            "path": "tests/test_outputs.py",
+            "role": "independent Python verifier reimplementing the cgroup-v2 semantics"
+          },
+          {
+            "path": "solution/solve.sh",
+            "role": "oracle that writes the five solver-stage bodies and rebuilds"
+          },
+          {
+            "path": "environment/Dockerfile",
+            "role": "digest-pinned offline Go image with pytest, tmux, asciinema"
+          },
+          {
+            "path": "construction_manifest.json",
+            "role": "authoring metadata for frontier, base image, decoys, flipping point"
+          }
+        ],
+        "task_files": [
+          {
+            "path": "environment/cmd/cgsolve/main.go",
+            "role": "entrypoint reading a scenario and writing an assignment"
+          },
+          {
+            "path": "environment/internal/types/types.go",
+            "role": "shared scenario/assignment/report types"
+          },
+          {
+            "path": "environment/internal/refeval/protect.go",
+            "role": "readable reference effective-protection model"
+          },
+          {
+            "path": "environment/internal/refeval/objective.go",
+            "role": "readable reference objective and independent optimum"
+          },
+          {
+            "path": "environment/internal/qa/a.go",
+            "role": "memory-floor reservation stage (stub shipped)"
+          },
+          {
+            "path": "environment/internal/qe/e.go",
+            "role": "reclaimable fairness stage (stub shipped)"
+          },
+          {
+            "path": "environment/data/scenarios/aspen.json",
+            "role": "bundled scenario tree"
+          },
+          {
+            "path": "environment/docs/cgroup-model.md",
+            "role": "worked cgroup-v2 protection-model documentation"
+          },
+          {
+            "path": "environment/scripts/run-suite.sh",
+            "role": "runs the solver over all bundled trees and writes the report"
+          }
+        ],
+        "fix_frontier": {
+          "count": 5,
+          "distribution": "five solver stages across five opaque packages: memory-floor reservation, max/headroom limits, cpu path-product weights, io device allocation, reclaimable max-min fairness",
+          "naming_policy": "opaque package dirs qa-qe with one Apply function each; shared domain types in a non-fix package",
+          "forbidden_stems": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "headroom",
+            "budget",
+            "share",
+            "fairness",
+            "objective",
+            "scenario",
+            "assignment",
+            "reclaimable",
+            "floor"
+          ],
+          "helpers_policy": "sibling helper packages r6-r8 do diagnostic/formatting work that never touches the assignment",
+          "symbol_thin_preferred": true
+        },
+        "contract_surface": {
+          "boolean_fields_max": 1,
+          "direct_boolean_assertions_max": 1,
+          "preferred_assertion_styles": [
+            "recompute effective protections with an independent evaluator",
+            "recompute and compare the worst-leaf optimum within tolerance",
+            "verify per-constraint numeric margins",
+            "run the binary on freshly generated trees"
+          ],
+          "forbidden_assertion_styles": [
+            "golden assignment files",
+            "static report writes",
+            "hardcoded per-scenario answer values",
+            "schema or existence-only checks",
+            "scenario to field to expected boolean tables"
+          ]
+        },
+        "task_shape": {
+          "type": "optimization_under_constraints",
+          "instruction_framing": "constraint-complete",
+          "hardness_source": "constrained optimization",
+          "collapse_risk": "medium; mitigated by an independent verifier evaluator, verify-time-generated trees, a non-textbook protection-redistribution model, and a five-stage fix frontier"
+        },
+        "category_profile": {
+          "challenge_family": "constrained resource-budget allocation over a delegated cgroup hierarchy",
+          "profile_name": "config_policy_precedence",
+          "allowed_instruction_disclosures": "the run interface, the scenario/assignment/report schema, the five hard constraints, the cgroup-v2 down-scaling rule, the path-product cpu rule, the reclaimable-budget definition, the objective, and the within-tolerance acceptance",
+          "forbidden_instruction_leaks": "the solver-stage identifiers, the constructive allocation algorithm, the optimum as a recipe, per-scenario expected numbers, and which stage controls which test",
+          "category_specific_hardness_bar": "the effective resource policy derives across delegated budgets, ancestor protection propagation, sibling weight normalization, and device pools; no single node assignment suffices and local choices break distant feasibility and the objective",
+          "category_specific_verifier_risks": "trusting the tamperable environment evaluator, accepting overcommitting assignments, brittle exact-value thresholds, or scenarios that allow a per-leaf shortcut",
+          "coverage_role": "adds the first Go optimization/search task and the first constrained-allocation challenge to an otherwise all-repair bank"
+        },
+        "satisfiability_risk": {
+          "rc2_planned_name_risk": "low: solver stages are opaque qa-qe and domain types live in a non-fix package",
+          "gx9_contract_risk": "low: the instruction states constraints and the objective but no per-scenario expected values; expectations are recomputed",
+          "cr1_symbol_frontier_risk": "low: the manifest fixes the five stage symbols and the oracle uses them verbatim",
+          "hidden_contract_risk": "low: every tested interface, schema field, formula, and tolerance is in instruction.md or docs"
+        },
+        "actionability_plan": {
+          "verifier_command_visible": "instruction.md names /app/bin/cgsolve <in> <out>, bash /app/scripts/solve-one.sh <in> <out>, bash /app/scripts/run-suite.sh, and the pytest verifier command",
+          "source_fix_intent_visible": "instruction.md says solver sources live under /app/internal and /app/cmd (also via /app/environment) and static assignment writes are insufficient",
+          "generated_output_rule_visible": "instruction.md identifies /app/output/plan-report.json and per-call assignment outputs and that trees not under /app/data are also solved",
+          "exact_formula_home": "instruction.md and /app/docs state the down-scaling rule, path-product rule, reclaimable-budget definition, objective, and tolerance",
+          "schema_home": "instruction.md names every scenario, assignment, and report field; docs carry the worked semantics"
+        },
+        "waiver_plan": {
+          "waivers_expected": false,
+          "waiver_rationale": "no waiver is planned; any checker warning should be resolved or documented before packaging"
+        },
+        "reference_pattern": {
+          "justification_if_none": "Original synthetic task built from the cgroup-v2 memory-protection model and systemd delegated-slice budgeting; not derived from a website inspiration, a prior public task, or a template reskin. The reference library currently has no promoted entries."
+        },
+        "realism_source": {
+          "source_type": "real_system",
+          "evidence_basis": "Linux cgroup-v2 memory controller protection model (memory.min/memory.low proportional distribution and down-scaling, memory.high/memory.max), cpu.weight relative sibling distribution, io.max, and systemd delegated-slice budgeting",
+          "upstream_or_synthetic_rationale": "protection-redistribution and delegation semantics come from the kernel cgroup-v2 documentation and systemd resource control; trees and the fairness objective are synthetic to keep data local and deterministic",
+          "minimization_preserves": "ancestor protection propagation with proportional down-scaling, no-overcommit of delegated budgets, max-hierarchy inheritance, relative cpu weights as path-products, device io pools, and reclaimable best-effort distribution",
+          "synthetic_exception_review": "not a synthetic exception; the model and constraints are drawn from a real subsystem, only the instances and objective threshold are generated"
+        }
+      },
+      "evidence_errors": [
+        "hardness_axes is missing required ids: discover, synthesize, diagnose_or_design, navigate_coupling, reason_beyond_training.",
+        "hardness_axes contains unexpected ids: H1, H2, H3, H4, H5.",
+        "anti_trivialization_checks is missing required ids: disclosure_collapse, hidden_instance, single_artifact_repair, generalization, prompt_honesty, cheating_vs_difficulty, mechanical_fix_filter, localized_fix, oracle_locality, small_declarative_cluster, grep_collapse, pre_factored_helper, recipe_discount, security_aura_discount, orthogonal_checklist, harness_discount, one_pass_solvability, hard_only_gate, discovery_budget_test, instruction_specificity_test, topology_distribution_test.",
+        "anti_trivialization_checks contains unexpected ids: AT1, AT2, AT3, AT4, AT5, AT6, AT7, AT8, AT9, AT10, AT11, AT12, AT13, AT14, AT15, AT16, AT17, AT18, AT19, AT20, AT21.",
+        "rubric_axes is missing required ids: verifiable, well_specified, solvable, difficult, interesting, outcome_verified.",
+        "rubric_axes contains unexpected ids: R1, R2, R3, R4, R5, R6."
+      ],
+      "evidence_warnings": [],
+      "blocking_failures": [
+        "hardness_axes is missing required ids: discover, synthesize, diagnose_or_design, navigate_coupling, reason_beyond_training.",
+        "hardness_axes contains unexpected ids: H1, H2, H3, H4, H5.",
+        "anti_trivialization_checks is missing required ids: disclosure_collapse, hidden_instance, single_artifact_repair, generalization, prompt_honesty, cheating_vs_difficulty, mechanical_fix_filter, localized_fix, oracle_locality, small_declarative_cluster, grep_collapse, pre_factored_helper, recipe_discount, security_aura_discount, orthogonal_checklist, harness_discount, one_pass_solvability, hard_only_gate, discovery_budget_test, instruction_specificity_test, topology_distribution_test.",
+        "anti_trivialization_checks contains unexpected ids: AT1, AT2, AT3, AT4, AT5, AT6, AT7, AT8, AT9, AT10, AT11, AT12, AT13, AT14, AT15, AT16, AT17, AT18, AT19, AT20, AT21.",
+        "rubric_axes is missing required ids: verifiable, well_specified, solvable, difficult, interesting, outcome_verified.",
+        "rubric_axes contains unexpected ids: R1, R2, R3, R4, R5, R6."
+      ],
+      "strict": true
+    },
+    {
+      "attempt": 2,
+      "fails": 1,
+      "warns": 0,
+      "evidence_path": "specs/.runs/cgroup-budget-solver/attempt-2-evidence.json",
+      "evidence": {
+        "hardness_axes": [
+          {
+            "id": "discover",
+            "name": "Discover",
+            "verdict": "PASS",
+            "reasoning": "The constructive allocation, the binding-subtree optimum, and the down-scaling consequences are not in instruction.md; the solver must read the cgroup-v2 model docs and reference evaluator and derive how to reserve floors and water-fill reclaimable budget."
+          },
+          {
+            "id": "synthesize",
+            "name": "Synthesize",
+            "verdict": "PASS",
+            "reasoning": "A valid assignment spans five interacting constraint families plus the objective across every node of the tree; no single node, file, or formula holds the complete answer."
+          },
+          {
+            "id": "diagnose_or_design",
+            "name": "Diagnose or Design/Search",
+            "verdict": "PASS",
+            "reasoning": "Non-repair shape: the burden is constrained optimization over a coupled feasible region, including computing the worst-leaf max-min optimum on a tree with reclaimable-budget sharing."
+          },
+          {
+            "id": "navigate_coupling",
+            "name": "Navigate coupling",
+            "verdict": "PASS",
+            "reasoning": "Local choices break distant invariants: an unfunded ancestor down-scales a leaf floor to zero; reserving more min shrinks the reclaimable budget the objective optimizes; per-level weights compose into the leaf path-product."
+          },
+          {
+            "id": "reason_beyond_training",
+            "name": "Reason beyond training",
+            "verdict": "PASS",
+            "reasoning": "cgroup-v2 proportional protection down-scaling, reclaimable best-effort distribution, and relative cpu weights as path-products are subsystem-specific and not a standard textbook recipe."
+          }
+        ],
+        "anti_trivialization_checks": [
+          {
+            "id": "disclosure_collapse",
+            "name": "Disclosure-collapse",
+            "verdict": "PASS",
+            "reasoning": "Even with every constraint and the objective stated, the constructive coordination and the binding-subtree optimum remain a real search; full disclosure does not make it easy."
+          },
+          {
+            "id": "hidden_instance",
+            "name": "Hidden-instance",
+            "verdict": "PASS",
+            "reasoning": "Difficulty is not about which instance is broken; the solver must generalize to verify-time-generated trees."
+          },
+          {
+            "id": "single_artifact_repair",
+            "name": "Single-artifact repair",
+            "verdict": "PASS",
+            "reasoning": "There is no single manifest or flag to flip; the solver builds five coordinated assignment families."
+          },
+          {
+            "id": "generalization",
+            "name": "Generalization",
+            "verdict": "PASS",
+            "reasoning": "Tests run on freshly generated trees, so a solver that targets only bundled instances fails."
+          },
+          {
+            "id": "prompt_honesty",
+            "name": "Prompt-honesty",
+            "verdict": "PASS",
+            "reasoning": "An honest prompt states the constraints and objective without collapsing the search; it cannot, because the work is the constructive optimization."
+          },
+          {
+            "id": "cheating_vs_difficulty",
+            "name": "Cheating-vs-difficulty",
+            "verdict": "PASS",
+            "reasoning": "The independent Python verifier and generated trees are anti-cheating; the legitimate difficulty is the allocation itself."
+          },
+          {
+            "id": "mechanical_fix_filter",
+            "name": "Mechanical-fix filter",
+            "verdict": "PASS",
+            "reasoning": "The task is not about verifier deps, timeouts, or reward formatting; it is the solver logic."
+          },
+          {
+            "id": "localized_fix",
+            "name": "Localized-fix",
+            "verdict": "PASS",
+            "reasoning": "The frontier is five separate solver stages, not one tiny function, and the instruction does not name them."
+          },
+          {
+            "id": "oracle_locality",
+            "name": "Oracle-locality",
+            "verdict": "PASS",
+            "reasoning": "The oracle writes five substantive stage bodies across five packages, not one whole-file overwrite."
+          },
+          {
+            "id": "small_declarative_cluster",
+            "name": "Small declarative-cluster",
+            "verdict": "PASS",
+            "reasoning": "The solve is constructive numeric allocation over a tree, not one config block or literal table."
+          },
+          {
+            "id": "grep_collapse",
+            "name": "Grep-collapse",
+            "verdict": "PASS",
+            "reasoning": "Instruction nouns (memory, weight, share, ...) do not grep to the opaque qa-qe stage functions."
+          },
+          {
+            "id": "pre_factored_helper",
+            "name": "Pre-factored-helper",
+            "verdict": "PASS",
+            "reasoning": "Helper packages do diagnostic/formatting work and do not mirror the constraint families; the stage stubs are empty pass-throughs."
+          },
+          {
+            "id": "recipe_discount",
+            "name": "Recipe-discount",
+            "verdict": "PASS",
+            "reasoning": "There is no standard recipe; tree max-min under cgroup-v2 protection redistribution is not a known one-liner."
+          },
+          {
+            "id": "security_aura_discount",
+            "name": "Security-aura discount",
+            "verdict": "PASS",
+            "reasoning": "No security aura is used as a stand-in for hardness; the residual reasoning is the optimization."
+          },
+          {
+            "id": "orthogonal_checklist",
+            "name": "Orthogonal-checklist",
+            "verdict": "PASS",
+            "reasoning": "The families are coupled: floor reservation trades against reclaimable budget; weights compose across levels; feasibility bounds the objective."
+          },
+          {
+            "id": "harness_discount",
+            "name": "Harness-discount",
+            "verdict": "PASS",
+            "reasoning": "Docker, scenario generation, and scripts are realism; the hardness is the solver."
+          },
+          {
+            "id": "one_pass_solvability",
+            "name": "One-pass solvability",
+            "verdict": "PASS",
+            "reasoning": "A frontier model cannot one-shot the coordinated assignment and the optimum after opening files; it must reason about coupling and recompute against generated trees."
+          },
+          {
+            "id": "hard_only_gate",
+            "name": "Hard-only gate",
+            "verdict": "PASS",
+            "reasoning": "This is clearly hard, not merely respectable: a feasible-looking even-split assignment still fails the objective."
+          },
+          {
+            "id": "instruction_specificity_test",
+            "name": "Instruction specificity test",
+            "verdict": "PASS",
+            "reasoning": "Instruction is constraint-complete for a non-repair shape: complete on the public target, silent on the construction route."
+          },
+          {
+            "id": "topology_distribution_test",
+            "name": "Topology distribution test",
+            "verdict": "PASS",
+            "reasoning": "Three solution topologies each require coordinating at least three locations (floors+reclaimable+limits; weights across levels; objective+feasibility+budget); no single location suffices."
+          }
+        ],
+        "rubric_axes": [
+          {
+            "id": "verifiable",
+            "name": "Verifiable",
+            "verdict": "PASS",
+            "reasoning": "Deterministic Python recomputation of effective protections, constraints, and the optimum; seeded generation gives reproducible runs."
+          },
+          {
+            "id": "well_specified",
+            "name": "Well-specified",
+            "verdict": "PASS",
+            "reasoning": "Two engineers reading the instruction and docs would build equivalent verifiers from the stated schema, constraints, and objective."
+          },
+          {
+            "id": "solvable",
+            "name": "Solvable",
+            "verdict": "PASS",
+            "reasoning": "An expert can solve in a few hours; the solution is a few hundred lines of Go, well under 100k."
+          },
+          {
+            "id": "difficult",
+            "name": "Difficult",
+            "verdict": "PASS",
+            "reasoning": "Requires cgroup-v2 and resource-control expertise plus constrained-optimization reasoning; not solvable by tricks or hidden facts."
+          },
+          {
+            "id": "interesting",
+            "name": "Interesting",
+            "verdict": "PASS",
+            "reasoning": "Allocating cgroup limits across a delegated systemd slice tree under guarantees and fairness is real operations work someone is paid to do."
+          },
+          {
+            "id": "outcome_verified",
+            "name": "Outcome-verified",
+            "verdict": "PASS",
+            "reasoning": "Grading checks feasibility and the achieved objective within tolerance; it does not dictate the algorithm and accepts many valid assignments."
+          }
+        ],
+        "instruction_completeness_test": {
+          "verdict": "PASS",
+          "reasoning": "Reading only instruction.md, an agent knows the interface, schema, constraints, and objective but not how to construct a feasible optimal assignment; the environment evaluator, docs, and runtime behavior are essential, so the instruction is not a recipe."
+        },
+        "discovery_budget": [
+          {
+            "discovery": "A leaf's effective memory.min is bounded by every ancestor and proportionally down-scaled when siblings oversubscribe, so floors must be reserved at every level without oversubscribing any delegated budget.",
+            "planned_location": "internal/refeval/protect.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Stating the reservation algorithm would turn the floor family into transcription instead of forcing the agent to reason about propagation."
+          },
+          {
+            "discovery": "Each node's reclaimable budget for the best-effort tier is its delegated budget minus the min it reserved, so the fairness allocation is entangled with the floor reservation.",
+            "planned_location": "internal/refeval/objective.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Revealing how to compute and split reclaimable budget would hand over the coupling that makes the objective hard."
+          },
+          {
+            "discovery": "The worst-leaf low ratio is capped by the most-constrained subtree (the largest ratio every node can supply to its subtree out of its reclaimable budget), not by any single leaf.",
+            "planned_location": "internal/refeval/objective.go (independent optimum) mirrored in the Python verifier",
+            "why_instruction_must_not_reveal": "Spelling out the optimum as a formula/step list would collapse the search to plugging numbers."
+          },
+          {
+            "discovery": "A leaf's global CPU share is the product of per-level normalized weights, so weights must be solved level by level, not set per leaf.",
+            "planned_location": "internal/refeval/checks.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Naming the level-by-level construction would remove the path-product reasoning."
+          }
+        ],
+        "instruction_specificity": {
+          "level": "constraint-complete",
+          "reasoning": "Non-repair optimization shape: the instruction completely specifies the public target (interface, schema, the five constraints, the down-scaling and path-product rules, the reclaimable-budget definition, the objective, and the tolerance) while withholding the construction algorithm and the solver-stage locations."
+        },
+        "attack_path": {
+          "summary": "Read the model, reserve floors bottom-up, set decreasing maxima with headroom, solve weights per level, allocate io within device pools, then water-fill reclaimable budget to the binding subtree; self-check with the reference evaluator.",
+          "reasoning": "Each step is constrained by the others: floors set the reclaimable budget; maxima bound headroom; weights must compose to the leaf share; the objective is bounded by feasibility. A competent engineer follows this path but must derive each construction from the documented semantics."
+        },
+        "smallest_plausible_patch": {
+          "summary": "Implement the five solver-stage bodies so the emitted assignment is feasible on every family and the worst-leaf low ratio reaches the optimum.",
+          "reasoning": "There is no smaller patch: stubbing any one stage drops its constraint family or the objective below tolerance, and the optimum requires the binding-subtree reasoning, so the genuine change is several hundred lines of coordinated logic."
+        },
+        "collapse_audit": {
+          "verdict": "PASS",
+          "reasoning": "After full disclosure the residual work is the constructive coordinated allocation and the binding-subtree optimum, recomputed against verify-time-generated trees by an independent verifier; no surface signal shortcuts it.",
+          "residual_hardness": "Coordinating floor reservation, reclaimable-budget fairness, max/headroom limits, path-product weights, and device pools across the whole tree so that the assignment is feasible and reaches the independently computed optimum on unseen trees.",
+          "red_flags": []
+        },
+        "topology_enumeration": [
+          {
+            "id": "T1",
+            "summary": "Bottom-up floor reservation with reclaimable water-filling.",
+            "locations": [
+              "internal/qa/a.go",
+              "internal/qe/e.go",
+              "internal/refeval/objective.go"
+            ],
+            "why_no_single_location_suffices": "Floors reserved in qa determine the reclaimable budget qe water-fills, and the objective is scored against the optimum in objective.go; missing any one yields infeasibility or a sub-optimal ratio."
+          },
+          {
+            "id": "T2",
+            "summary": "Level-by-level weight solving composed into leaf shares.",
+            "locations": [
+              "internal/qc/c.go",
+              "internal/types/types.go",
+              "docs/cgroup-model.md"
+            ],
+            "why_no_single_location_suffices": "Per-level weights must be derived from the tree structure in types and the path-product rule in docs; a per-leaf weight ignores sibling normalization and fails the share tolerance."
+          },
+          {
+            "id": "T3",
+            "summary": "Feasible-region construction bounding the objective.",
+            "locations": [
+              "internal/qb/b.go",
+              "internal/qd/d.go",
+              "internal/qe/e.go"
+            ],
+            "why_no_single_location_suffices": "Max-hierarchy/headroom in qb and device pools in qd constrain the region qe optimizes; an objective step that ignores those produces an infeasible assignment."
+          }
+        ],
+        "construction_manifest": {
+          "symbol_table": [
+            {
+              "path": "internal/qa/a.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "reserves the protected memory floor at every node so effective floors survive down-scaling"
+            },
+            {
+              "path": "internal/qb/b.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "sets the non-increasing upper limits and the throttle gap for each node"
+            },
+            {
+              "path": "internal/qc/c.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "chooses integer relative weights per level so each leaf path-product meets its target"
+            },
+            {
+              "path": "internal/qd/d.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "allocates per-device throughput caps within each pool above each leaf floor"
+            },
+            {
+              "path": "internal/qe/e.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "distributes the best-effort reclaimable tier to maximize the worst-off subtree ratio"
+            }
+          ],
+          "flipping_point_contract": {
+            "locations": [
+              {
+                "id": "A",
+                "path": "internal/qa/a.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t02",
+                  "test_t03",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "B",
+                "path": "internal/qb/b.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t04",
+                  "test_t05",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "C",
+                "path": "internal/qc/c.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t06",
+                  "test_t07",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "D",
+                "path": "internal/qd/d.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t08",
+                  "test_t09",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "E",
+                "path": "internal/qe/e.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t10",
+                  "test_t11",
+                  "test_t12",
+                  "test_t13"
+                ]
+              }
+            ],
+            "no_single_location_flips_majority": true,
+            "concentration_cap": 0.5
+          },
+          "decoy_manifest": [
+            {
+              "path": "internal/r6/r.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "renders an ASCII summary of a tree for dry-run console output"
+            },
+            {
+              "path": "internal/r7/s.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "aggregates per-node counters for the documentation report only"
+            },
+            {
+              "path": "internal/r8/t.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "formats device pool labels for diagnostic listings off the assignment path"
+            }
+          ],
+          "code_forbidden_tokens": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ]
+        },
+        "naming_pass": {
+          "instruction_nouns_extracted": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ],
+          "renames_during_drafting": [
+            {
+              "original": "reserve",
+              "renamed_to": "qa.Apply",
+              "reason": "a floor-reservation function named after the protected-floor concept would telegraph the fix; renamed to an opaque per-package Apply."
+            },
+            {
+              "original": "weights",
+              "renamed_to": "qc.Apply",
+              "reason": "a weight-solving function named after cpu weight would collide with the instruction noun; renamed to opaque Apply."
+            },
+            {
+              "original": "waterfill",
+              "renamed_to": "qe.Apply",
+              "reason": "an objective function named after the fairness allocation would reveal the approach; renamed to opaque Apply."
+            }
+          ],
+          "test_names_audited": [
+            "test_t01",
+            "test_t02",
+            "test_t03",
+            "test_t04",
+            "test_t05",
+            "test_t06",
+            "test_t07",
+            "test_t08",
+            "test_t09",
+            "test_t10",
+            "test_t11",
+            "test_t12",
+            "test_t13"
+          ],
+          "concentration_math": {
+            "total_tests": 13,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          },
+          "recomputed_concentration": {
+            "total_tests": 13,
+            "concentration_cap": 0.5,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          }
+        },
+        "difficulty_mechanism_plan": [
+          {
+            "mechanism": "buried_local_constraints",
+            "placement": "effective-protection down-scaling and reclaimable-budget definitions live in the reference evaluator and docs, not as a recipe in the instruction",
+            "why_model_misses_it": "a solver can satisfy a configured floor while the effective floor is down-scaled to zero by an unfunded ancestor",
+            "fairness_guardrail": "the down-scaling rule is documented and implemented in a readable evaluator the solver may call"
+          },
+          {
+            "mechanism": "stateful_multi_step_dependencies",
+            "placement": "the mem_low fairness budget at each node depends on how much mem_min that node reserved, which depends on subtree floors",
+            "why_model_misses_it": "optimizing fairness independently of floor reservation overcommits a node or wastes budget, missing the optimum",
+            "fairness_guardrail": "the reclaimable-budget definition is stated in the instruction and docs"
+          },
+          {
+            "mechanism": "deceptive_but_valid_local_evidence",
+            "placement": "per-leaf weights set to the global target look locally correct but miss the path-product after sibling normalization",
+            "why_model_misses_it": "a locally plausible weight passes a single-node sanity check yet fails the global share tolerance",
+            "fairness_guardrail": "the path-product rule and the [1,10000] integer range are stated in the instruction"
+          },
+          {
+            "mechanism": "cross_file_cross_format_invariants",
+            "placement": "scenario JSON, assignment JSON, report JSON, the Go evaluator, and the Python verifier must agree on the same numeric semantics",
+            "why_model_misses_it": "a partial implementation handling one resource emits a report that round-trips but fails recomputation under the independent evaluator",
+            "fairness_guardrail": "every schema field, formula, and tolerance is visible in the instruction or docs"
+          },
+          {
+            "mechanism": "false_green_intermediate_states",
+            "placement": "an assignment meeting the four feasibility families but splitting reclaimable budget evenly produces a feasible-looking report whose worst-leaf ratio is below the optimum",
+            "why_model_misses_it": "feasibility alone reads as success; the objective shortfall is only caught against the independently computed optimum",
+            "fairness_guardrail": "the objective and within-tolerance acceptance are stated in the instruction"
+          }
+        ],
+        "calibration_plan": {
+          "oracle_runs": 10,
+          "no_op_runs": 3,
+          "target_agent_runs": 5,
+          "comparator_agent_runs": 5,
+          "human_sanity": "a systems engineer can solve by reading the cgroup-v2 docs, reserving floors bottom-up, setting decreasing max with headroom, solving weights level by level, allocating io within device pools, and water-filling reclaimable budget to the binding subtree",
+          "shortcut_audit": "tests regenerate assignments by running the binary, generate fresh trees at verify time, reject static report writes, recompute in Python instead of trusting the environment evaluator, and reject overcommitting assignments",
+          "ablation_plan": "stub each of the five solver stages independently and confirm at least one verifier test fails for that stage only",
+          "pass_rate_target": {
+            "hard_max_pct": 20,
+            "too_easy_threshold_pct": 80,
+            "basis": "stronger target agent; aligns with Part E Hard/Medium/Easy thresholds on worst/best model accuracy. Verifier is offline (pytest baked into the Dockerfile, no runtime installs under allow_internet = false) and post-upload difficulty is classified by Part E after platform agent runs."
+          }
+        },
+        "verifier_scoring_plan": {
+          "metrics": [
+            {
+              "metric": "functional_correctness",
+              "weight": 0.45,
+              "criterion": "effective floors, max hierarchy, headroom, path-product shares, and device sums hold on bundled and generated trees"
+            },
+            {
+              "metric": "hidden_invariants",
+              "weight": 0.25,
+              "criterion": "the worst-leaf mem_low ratio reaches the independently computed optimum within tolerance and no node oversubscribes its reclaimable budget"
+            },
+            {
+              "metric": "state_hygiene",
+              "weight": 0.15,
+              "criterion": "re-running the solver on the same tree yields identical feasibility and objective and the suite leaves the binary and report in place"
+            },
+            {
+              "metric": "interface_correctness",
+              "weight": 0.1,
+              "criterion": "cgsolve, solve-one.sh, and run-suite.sh read the documented inputs and write the documented assignment/report shape"
+            },
+            {
+              "metric": "deliverable_completeness",
+              "weight": 0.05,
+              "criterion": "every node appears in the assignment with all six fields and every bundled scenario appears in the report"
+            }
+          ],
+          "overall_threshold": 0.999,
+          "reward_output": "reward.txt",
+          "binary_threshold_rule": "reward is 1 only on pytest exit 0; otherwise reward is 0"
+        },
+        "subtype_milestone_plan": {
+          "subcategories": [],
+          "milestone_count": 0,
+          "sequential_dependency": "not applicable; standard single-step task",
+          "local_only_data": true,
+          "sidecar_or_protocol_notes": "run-suite.sh regenerates one JSON report from bundled trees; verifier tests invoke cgsolve on temporary generated trees"
+        },
+        "platform_files": [
+          {
+            "path": "task.toml",
+            "role": "Edition 2 metadata and runtime limits; sets [environment] allow_internet = false"
+          },
+          {
+            "path": "instruction.md",
+            "role": "constraint-complete public contract for interface, schema, constraints, and objective"
+          },
+          {
+            "path": "output_contract.toml",
+            "role": "local output declaration for the generated report"
+          },
+          {
+            "path": "tests/test.sh",
+            "role": "verifier entrypoint; invokes pre-installed pytest only"
+          },
+          {
+            "path": "tests/test_outputs.py",
+            "role": "independent Python verifier reimplementing the cgroup-v2 semantics"
+          },
+          {
+            "path": "solution/solve.sh",
+            "role": "oracle that writes the five solver-stage bodies and rebuilds"
+          },
+          {
+            "path": "environment/Dockerfile",
+            "role": "digest-pinned offline Go image with pytest, tmux, asciinema"
+          },
+          {
+            "path": "construction_manifest.json",
+            "role": "authoring metadata for frontier, base image, decoys, flipping point"
+          }
+        ],
+        "task_files": [
+          {
+            "path": "environment/cmd/cgsolve/main.go",
+            "role": "entrypoint reading a scenario and writing an assignment"
+          },
+          {
+            "path": "environment/internal/types/types.go",
+            "role": "shared scenario/assignment/report types"
+          },
+          {
+            "path": "environment/internal/refeval/protect.go",
+            "role": "readable reference effective-protection model"
+          },
+          {
+            "path": "environment/internal/refeval/objective.go",
+            "role": "readable reference objective and independent optimum"
+          },
+          {
+            "path": "environment/internal/qa/a.go",
+            "role": "memory-floor reservation stage (stub shipped)"
+          },
+          {
+            "path": "environment/internal/qe/e.go",
+            "role": "reclaimable fairness stage (stub shipped)"
+          },
+          {
+            "path": "environment/data/scenarios/aspen.json",
+            "role": "bundled scenario tree"
+          },
+          {
+            "path": "environment/docs/cgroup-model.md",
+            "role": "worked cgroup-v2 protection-model documentation"
+          },
+          {
+            "path": "environment/scripts/run-suite.sh",
+            "role": "runs the solver over all bundled trees and writes the report"
+          }
+        ],
+        "fix_frontier": {
+          "count": 5,
+          "distribution": "five solver stages across five opaque packages: memory-floor reservation, max/headroom limits, cpu path-product weights, io device allocation, reclaimable max-min fairness",
+          "naming_policy": "opaque package dirs qa-qe with one Apply function each; shared domain types in a non-fix package",
+          "forbidden_stems": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "headroom",
+            "budget",
+            "share",
+            "fairness",
+            "objective",
+            "scenario",
+            "assignment",
+            "reclaimable",
+            "floor"
+          ],
+          "helpers_policy": "sibling helper packages r6-r8 do diagnostic/formatting work that never touches the assignment",
+          "symbol_thin_preferred": true
+        },
+        "contract_surface": {
+          "boolean_fields_max": 1,
+          "direct_boolean_assertions_max": 1,
+          "preferred_assertion_styles": [
+            "recompute effective protections with an independent evaluator",
+            "recompute and compare the worst-leaf optimum within tolerance",
+            "verify per-constraint numeric margins",
+            "run the binary on freshly generated trees"
+          ],
+          "forbidden_assertion_styles": [
+            "golden assignment files",
+            "static report writes",
+            "hardcoded per-scenario answer values",
+            "schema or existence-only checks",
+            "scenario to field to expected boolean tables"
+          ]
+        },
+        "task_shape": {
+          "type": "optimization_under_constraints",
+          "instruction_framing": "constraint-complete",
+          "hardness_source": "constrained optimization",
+          "collapse_risk": "medium; mitigated by an independent verifier evaluator, verify-time-generated trees, a non-textbook protection-redistribution model, and a five-stage fix frontier"
+        },
+        "category_profile": {
+          "challenge_family": "constrained resource-budget allocation over a delegated cgroup hierarchy",
+          "profile_name": "config_policy_precedence",
+          "allowed_instruction_disclosures": "the run interface, the scenario/assignment/report schema, the five hard constraints, the cgroup-v2 down-scaling rule, the path-product cpu rule, the reclaimable-budget definition, the objective, and the within-tolerance acceptance",
+          "forbidden_instruction_leaks": "the solver-stage identifiers, the constructive allocation algorithm, the optimum as a recipe, per-scenario expected numbers, and which stage controls which test",
+          "category_specific_hardness_bar": "the effective resource policy derives across delegated budgets, ancestor protection propagation, sibling weight normalization, and device pools; no single node assignment suffices and local choices break distant feasibility and the objective",
+          "category_specific_verifier_risks": "trusting the tamperable environment evaluator, accepting overcommitting assignments, brittle exact-value thresholds, or scenarios that allow a per-leaf shortcut",
+          "coverage_role": "adds the first Go optimization/search task and the first constrained-allocation challenge to an otherwise all-repair bank"
+        },
+        "satisfiability_risk": {
+          "rc2_planned_name_risk": "low: solver stages are opaque qa-qe and domain types live in a non-fix package",
+          "gx9_contract_risk": "low: the instruction states constraints and the objective but no per-scenario expected values; expectations are recomputed",
+          "cr1_symbol_frontier_risk": "low: the manifest fixes the five stage symbols and the oracle uses them verbatim",
+          "hidden_contract_risk": "low: every tested interface, schema field, formula, and tolerance is in instruction.md or docs"
+        },
+        "actionability_plan": {
+          "verifier_command_visible": "instruction.md names /app/bin/cgsolve <in> <out>, bash /app/scripts/solve-one.sh <in> <out>, bash /app/scripts/run-suite.sh, and the pytest verifier command",
+          "source_fix_intent_visible": "instruction.md says solver sources live under /app/internal and /app/cmd (also via /app/environment) and static assignment writes are insufficient",
+          "generated_output_rule_visible": "instruction.md identifies /app/output/plan-report.json and per-call assignment outputs and that trees not under /app/data are also solved",
+          "exact_formula_home": "instruction.md and /app/docs state the down-scaling rule, path-product rule, reclaimable-budget definition, objective, and tolerance",
+          "schema_home": "instruction.md names every scenario, assignment, and report field; docs carry the worked semantics"
+        },
+        "waiver_plan": {
+          "waivers_expected": false,
+          "waiver_rationale": "no waiver is planned; any checker warning should be resolved or documented before packaging"
+        },
+        "reference_pattern": {
+          "justification_if_none": "Original synthetic task built from the cgroup-v2 memory-protection model and systemd delegated-slice budgeting; not derived from a website inspiration, a prior public task, or a template reskin. The reference library currently has no promoted entries."
+        },
+        "realism_source": {
+          "source_type": "real_system",
+          "evidence_basis": "Linux cgroup-v2 memory controller protection model (memory.min/memory.low proportional distribution and down-scaling, memory.high/memory.max), cpu.weight relative sibling distribution, io.max, and systemd delegated-slice budgeting",
+          "upstream_or_synthetic_rationale": "protection-redistribution and delegation semantics come from the kernel cgroup-v2 documentation and systemd resource control; trees and the fairness objective are synthetic to keep data local and deterministic",
+          "minimization_preserves": "ancestor protection propagation with proportional down-scaling, no-overcommit of delegated budgets, max-hierarchy inheritance, relative cpu weights as path-products, device io pools, and reclaimable best-effort distribution",
+          "synthetic_exception_review": "not a synthetic exception; the model and constraints are drawn from a real subsystem, only the instances and objective threshold are generated"
+        }
+      },
+      "evidence_errors": [
+        "anti_trivialization_checks entry 'discovery_budget_test' must use name 'Discovery/design budget test', found 'Discovery / design budget'."
+      ],
+      "evidence_warnings": [],
+      "blocking_failures": [
+        "anti_trivialization_checks entry 'discovery_budget_test' must use name 'Discovery/design budget test', found 'Discovery / design budget'."
+      ],
+      "strict": true
+    },
+    {
+      "attempt": 3,
+      "fails": 0,
+      "warns": 0,
+      "evidence_path": "specs/.runs/cgroup-budget-solver/attempt-3-evidence.json",
+      "evidence": {
+        "hardness_axes": [
+          {
+            "id": "discover",
+            "name": "Discover",
+            "verdict": "PASS",
+            "reasoning": "The constructive allocation, the binding-subtree optimum, and the down-scaling consequences are not in instruction.md; the solver must read the cgroup-v2 model docs and reference evaluator and derive how to reserve floors and water-fill reclaimable budget."
+          },
+          {
+            "id": "synthesize",
+            "name": "Synthesize",
+            "verdict": "PASS",
+            "reasoning": "A valid assignment spans five interacting constraint families plus the objective across every node of the tree; no single node, file, or formula holds the complete answer."
+          },
+          {
+            "id": "diagnose_or_design",
+            "name": "Diagnose or Design/Search",
+            "verdict": "PASS",
+            "reasoning": "Non-repair shape: the burden is constrained optimization over a coupled feasible region, including computing the worst-leaf max-min optimum on a tree with reclaimable-budget sharing."
+          },
+          {
+            "id": "navigate_coupling",
+            "name": "Navigate coupling",
+            "verdict": "PASS",
+            "reasoning": "Local choices break distant invariants: an unfunded ancestor down-scales a leaf floor to zero; reserving more min shrinks the reclaimable budget the objective optimizes; per-level weights compose into the leaf path-product."
+          },
+          {
+            "id": "reason_beyond_training",
+            "name": "Reason beyond training",
+            "verdict": "PASS",
+            "reasoning": "cgroup-v2 proportional protection down-scaling, reclaimable best-effort distribution, and relative cpu weights as path-products are subsystem-specific and not a standard textbook recipe."
+          }
+        ],
+        "anti_trivialization_checks": [
+          {
+            "id": "disclosure_collapse",
+            "name": "Disclosure-collapse",
+            "verdict": "PASS",
+            "reasoning": "Even with every constraint and the objective stated, the constructive coordination and the binding-subtree optimum remain a real search; full disclosure does not make it easy."
+          },
+          {
+            "id": "hidden_instance",
+            "name": "Hidden-instance",
+            "verdict": "PASS",
+            "reasoning": "Difficulty is not about which instance is broken; the solver must generalize to verify-time-generated trees."
+          },
+          {
+            "id": "single_artifact_repair",
+            "name": "Single-artifact repair",
+            "verdict": "PASS",
+            "reasoning": "There is no single manifest or flag to flip; the solver builds five coordinated assignment families."
+          },
+          {
+            "id": "generalization",
+            "name": "Generalization",
+            "verdict": "PASS",
+            "reasoning": "Tests run on freshly generated trees, so a solver that targets only bundled instances fails."
+          },
+          {
+            "id": "prompt_honesty",
+            "name": "Prompt-honesty",
+            "verdict": "PASS",
+            "reasoning": "An honest prompt states the constraints and objective without collapsing the search; it cannot, because the work is the constructive optimization."
+          },
+          {
+            "id": "cheating_vs_difficulty",
+            "name": "Cheating-vs-difficulty",
+            "verdict": "PASS",
+            "reasoning": "The independent Python verifier and generated trees are anti-cheating; the legitimate difficulty is the allocation itself."
+          },
+          {
+            "id": "mechanical_fix_filter",
+            "name": "Mechanical-fix filter",
+            "verdict": "PASS",
+            "reasoning": "The task is not about verifier deps, timeouts, or reward formatting; it is the solver logic."
+          },
+          {
+            "id": "localized_fix",
+            "name": "Localized-fix",
+            "verdict": "PASS",
+            "reasoning": "The frontier is five separate solver stages, not one tiny function, and the instruction does not name them."
+          },
+          {
+            "id": "oracle_locality",
+            "name": "Oracle-locality",
+            "verdict": "PASS",
+            "reasoning": "The oracle writes five substantive stage bodies across five packages, not one whole-file overwrite."
+          },
+          {
+            "id": "small_declarative_cluster",
+            "name": "Small declarative-cluster",
+            "verdict": "PASS",
+            "reasoning": "The solve is constructive numeric allocation over a tree, not one config block or literal table."
+          },
+          {
+            "id": "grep_collapse",
+            "name": "Grep-collapse",
+            "verdict": "PASS",
+            "reasoning": "Instruction nouns (memory, weight, share, ...) do not grep to the opaque qa-qe stage functions."
+          },
+          {
+            "id": "pre_factored_helper",
+            "name": "Pre-factored-helper",
+            "verdict": "PASS",
+            "reasoning": "Helper packages do diagnostic/formatting work and do not mirror the constraint families; the stage stubs are empty pass-throughs."
+          },
+          {
+            "id": "recipe_discount",
+            "name": "Recipe-discount",
+            "verdict": "PASS",
+            "reasoning": "There is no standard recipe; tree max-min under cgroup-v2 protection redistribution is not a known one-liner."
+          },
+          {
+            "id": "security_aura_discount",
+            "name": "Security-aura discount",
+            "verdict": "PASS",
+            "reasoning": "No security aura is used as a stand-in for hardness; the residual reasoning is the optimization."
+          },
+          {
+            "id": "orthogonal_checklist",
+            "name": "Orthogonal-checklist",
+            "verdict": "PASS",
+            "reasoning": "The families are coupled: floor reservation trades against reclaimable budget; weights compose across levels; feasibility bounds the objective."
+          },
+          {
+            "id": "harness_discount",
+            "name": "Harness-discount",
+            "verdict": "PASS",
+            "reasoning": "Docker, scenario generation, and scripts are realism; the hardness is the solver."
+          },
+          {
+            "id": "one_pass_solvability",
+            "name": "One-pass solvability",
+            "verdict": "PASS",
+            "reasoning": "A frontier model cannot one-shot the coordinated assignment and the optimum after opening files; it must reason about coupling and recompute against generated trees."
+          },
+          {
+            "id": "hard_only_gate",
+            "name": "Hard-only gate",
+            "verdict": "PASS",
+            "reasoning": "This is clearly hard, not merely respectable: a feasible-looking even-split assignment still fails the objective."
+          },
+          {
+            "id": "discovery_budget_test",
+            "name": "Discovery/design budget test",
+            "verdict": "PASS",
+            "reasoning": "At least three non-trivial discoveries (down-scaling consequence, reclaimable-budget coupling, binding-subtree optimum) are forced from the codebase and runtime, not stated as a recipe."
+          },
+          {
+            "id": "instruction_specificity_test",
+            "name": "Instruction specificity test",
+            "verdict": "PASS",
+            "reasoning": "Instruction is constraint-complete for a non-repair shape: complete on the public target, silent on the construction route."
+          },
+          {
+            "id": "topology_distribution_test",
+            "name": "Topology distribution test",
+            "verdict": "PASS",
+            "reasoning": "Three solution topologies each require coordinating at least three locations (floors+reclaimable+limits; weights across levels; objective+feasibility+budget); no single location suffices."
+          }
+        ],
+        "rubric_axes": [
+          {
+            "id": "verifiable",
+            "name": "Verifiable",
+            "verdict": "PASS",
+            "reasoning": "Deterministic Python recomputation of effective protections, constraints, and the optimum; seeded generation gives reproducible runs."
+          },
+          {
+            "id": "well_specified",
+            "name": "Well-specified",
+            "verdict": "PASS",
+            "reasoning": "Two engineers reading the instruction and docs would build equivalent verifiers from the stated schema, constraints, and objective."
+          },
+          {
+            "id": "solvable",
+            "name": "Solvable",
+            "verdict": "PASS",
+            "reasoning": "An expert can solve in a few hours; the solution is a few hundred lines of Go, well under 100k."
+          },
+          {
+            "id": "difficult",
+            "name": "Difficult",
+            "verdict": "PASS",
+            "reasoning": "Requires cgroup-v2 and resource-control expertise plus constrained-optimization reasoning; not solvable by tricks or hidden facts."
+          },
+          {
+            "id": "interesting",
+            "name": "Interesting",
+            "verdict": "PASS",
+            "reasoning": "Allocating cgroup limits across a delegated systemd slice tree under guarantees and fairness is real operations work someone is paid to do."
+          },
+          {
+            "id": "outcome_verified",
+            "name": "Outcome-verified",
+            "verdict": "PASS",
+            "reasoning": "Grading checks feasibility and the achieved objective within tolerance; it does not dictate the algorithm and accepts many valid assignments."
+          }
+        ],
+        "instruction_completeness_test": {
+          "verdict": "PASS",
+          "reasoning": "Reading only instruction.md, an agent knows the interface, schema, constraints, and objective but not how to construct a feasible optimal assignment; the environment evaluator, docs, and runtime behavior are essential, so the instruction is not a recipe."
+        },
+        "discovery_budget": [
+          {
+            "discovery": "A leaf's effective memory.min is bounded by every ancestor and proportionally down-scaled when siblings oversubscribe, so floors must be reserved at every level without oversubscribing any delegated budget.",
+            "planned_location": "internal/refeval/protect.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Stating the reservation algorithm would turn the floor family into transcription instead of forcing the agent to reason about propagation."
+          },
+          {
+            "discovery": "Each node's reclaimable budget for the best-effort tier is its delegated budget minus the min it reserved, so the fairness allocation is entangled with the floor reservation.",
+            "planned_location": "internal/refeval/objective.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Revealing how to compute and split reclaimable budget would hand over the coupling that makes the objective hard."
+          },
+          {
+            "discovery": "The worst-leaf low ratio is capped by the most-constrained subtree (the largest ratio every node can supply to its subtree out of its reclaimable budget), not by any single leaf.",
+            "planned_location": "internal/refeval/objective.go (independent optimum) mirrored in the Python verifier",
+            "why_instruction_must_not_reveal": "Spelling out the optimum as a formula/step list would collapse the search to plugging numbers."
+          },
+          {
+            "discovery": "A leaf's global CPU share is the product of per-level normalized weights, so weights must be solved level by level, not set per leaf.",
+            "planned_location": "internal/refeval/checks.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Naming the level-by-level construction would remove the path-product reasoning."
+          }
+        ],
+        "instruction_specificity": {
+          "level": "constraint-complete",
+          "reasoning": "Non-repair optimization shape: the instruction completely specifies the public target (interface, schema, the five constraints, the down-scaling and path-product rules, the reclaimable-budget definition, the objective, and the tolerance) while withholding the construction algorithm and the solver-stage locations."
+        },
+        "attack_path": {
+          "summary": "Read the model, reserve floors bottom-up, set decreasing maxima with headroom, solve weights per level, allocate io within device pools, then water-fill reclaimable budget to the binding subtree; self-check with the reference evaluator.",
+          "reasoning": "Each step is constrained by the others: floors set the reclaimable budget; maxima bound headroom; weights must compose to the leaf share; the objective is bounded by feasibility. A competent engineer follows this path but must derive each construction from the documented semantics."
+        },
+        "smallest_plausible_patch": {
+          "summary": "Implement the five solver-stage bodies so the emitted assignment is feasible on every family and the worst-leaf low ratio reaches the optimum.",
+          "reasoning": "There is no smaller patch: stubbing any one stage drops its constraint family or the objective below tolerance, and the optimum requires the binding-subtree reasoning, so the genuine change is several hundred lines of coordinated logic."
+        },
+        "collapse_audit": {
+          "verdict": "PASS",
+          "reasoning": "After full disclosure the residual work is the constructive coordinated allocation and the binding-subtree optimum, recomputed against verify-time-generated trees by an independent verifier; no surface signal shortcuts it.",
+          "residual_hardness": "Coordinating floor reservation, reclaimable-budget fairness, max/headroom limits, path-product weights, and device pools across the whole tree so that the assignment is feasible and reaches the independently computed optimum on unseen trees.",
+          "red_flags": []
+        },
+        "topology_enumeration": [
+          {
+            "id": "T1",
+            "summary": "Bottom-up floor reservation with reclaimable water-filling.",
+            "locations": [
+              "internal/qa/a.go",
+              "internal/qe/e.go",
+              "internal/refeval/objective.go"
+            ],
+            "why_no_single_location_suffices": "Floors reserved in qa determine the reclaimable budget qe water-fills, and the objective is scored against the optimum in objective.go; missing any one yields infeasibility or a sub-optimal ratio."
+          },
+          {
+            "id": "T2",
+            "summary": "Level-by-level weight solving composed into leaf shares.",
+            "locations": [
+              "internal/qc/c.go",
+              "internal/types/types.go",
+              "docs/cgroup-model.md"
+            ],
+            "why_no_single_location_suffices": "Per-level weights must be derived from the tree structure in types and the path-product rule in docs; a per-leaf weight ignores sibling normalization and fails the share tolerance."
+          },
+          {
+            "id": "T3",
+            "summary": "Feasible-region construction bounding the objective.",
+            "locations": [
+              "internal/qb/b.go",
+              "internal/qd/d.go",
+              "internal/qe/e.go"
+            ],
+            "why_no_single_location_suffices": "Max-hierarchy/headroom in qb and device pools in qd constrain the region qe optimizes; an objective step that ignores those produces an infeasible assignment."
+          }
+        ],
+        "construction_manifest": {
+          "symbol_table": [
+            {
+              "path": "internal/qa/a.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "reserves the protected memory floor at every node so effective floors survive down-scaling"
+            },
+            {
+              "path": "internal/qb/b.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "sets the non-increasing upper limits and the throttle gap for each node"
+            },
+            {
+              "path": "internal/qc/c.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "chooses integer relative weights per level so each leaf path-product meets its target"
+            },
+            {
+              "path": "internal/qd/d.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "allocates per-device throughput caps within each pool above each leaf floor"
+            },
+            {
+              "path": "internal/qe/e.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "distributes the best-effort reclaimable tier to maximize the worst-off subtree ratio"
+            }
+          ],
+          "flipping_point_contract": {
+            "locations": [
+              {
+                "id": "A",
+                "path": "internal/qa/a.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t02",
+                  "test_t03",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "B",
+                "path": "internal/qb/b.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t04",
+                  "test_t05",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "C",
+                "path": "internal/qc/c.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t06",
+                  "test_t07",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "D",
+                "path": "internal/qd/d.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t08",
+                  "test_t09",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "E",
+                "path": "internal/qe/e.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t10",
+                  "test_t11",
+                  "test_t12",
+                  "test_t13"
+                ]
+              }
+            ],
+            "no_single_location_flips_majority": true,
+            "concentration_cap": 0.5
+          },
+          "decoy_manifest": [
+            {
+              "path": "internal/r6/r.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "renders an ASCII summary of a tree for dry-run console output"
+            },
+            {
+              "path": "internal/r7/s.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "aggregates per-node counters for the documentation report only"
+            },
+            {
+              "path": "internal/r8/t.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "formats device pool labels for diagnostic listings off the assignment path"
+            }
+          ],
+          "code_forbidden_tokens": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ]
+        },
+        "naming_pass": {
+          "instruction_nouns_extracted": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ],
+          "renames_during_drafting": [
+            {
+              "original": "reserve",
+              "renamed_to": "qa.Apply",
+              "reason": "a floor-reservation function named after the protected-floor concept would telegraph the fix; renamed to an opaque per-package Apply."
+            },
+            {
+              "original": "weights",
+              "renamed_to": "qc.Apply",
+              "reason": "a weight-solving function named after cpu weight would collide with the instruction noun; renamed to opaque Apply."
+            },
+            {
+              "original": "waterfill",
+              "renamed_to": "qe.Apply",
+              "reason": "an objective function named after the fairness allocation would reveal the approach; renamed to opaque Apply."
+            }
+          ],
+          "test_names_audited": [
+            "test_t01",
+            "test_t02",
+            "test_t03",
+            "test_t04",
+            "test_t05",
+            "test_t06",
+            "test_t07",
+            "test_t08",
+            "test_t09",
+            "test_t10",
+            "test_t11",
+            "test_t12",
+            "test_t13"
+          ],
+          "concentration_math": {
+            "total_tests": 13,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          },
+          "recomputed_concentration": {
+            "total_tests": 13,
+            "concentration_cap": 0.5,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          }
+        },
+        "difficulty_mechanism_plan": [
+          {
+            "mechanism": "buried_local_constraints",
+            "placement": "effective-protection down-scaling and reclaimable-budget definitions live in the reference evaluator and docs, not as a recipe in the instruction",
+            "why_model_misses_it": "a solver can satisfy a configured floor while the effective floor is down-scaled to zero by an unfunded ancestor",
+            "fairness_guardrail": "the down-scaling rule is documented and implemented in a readable evaluator the solver may call"
+          },
+          {
+            "mechanism": "stateful_multi_step_dependencies",
+            "placement": "the mem_low fairness budget at each node depends on how much mem_min that node reserved, which depends on subtree floors",
+            "why_model_misses_it": "optimizing fairness independently of floor reservation overcommits a node or wastes budget, missing the optimum",
+            "fairness_guardrail": "the reclaimable-budget definition is stated in the instruction and docs"
+          },
+          {
+            "mechanism": "deceptive_but_valid_local_evidence",
+            "placement": "per-leaf weights set to the global target look locally correct but miss the path-product after sibling normalization",
+            "why_model_misses_it": "a locally plausible weight passes a single-node sanity check yet fails the global share tolerance",
+            "fairness_guardrail": "the path-product rule and the [1,10000] integer range are stated in the instruction"
+          },
+          {
+            "mechanism": "cross_file_cross_format_invariants",
+            "placement": "scenario JSON, assignment JSON, report JSON, the Go evaluator, and the Python verifier must agree on the same numeric semantics",
+            "why_model_misses_it": "a partial implementation handling one resource emits a report that round-trips but fails recomputation under the independent evaluator",
+            "fairness_guardrail": "every schema field, formula, and tolerance is visible in the instruction or docs"
+          },
+          {
+            "mechanism": "false_green_intermediate_states",
+            "placement": "an assignment meeting the four feasibility families but splitting reclaimable budget evenly produces a feasible-looking report whose worst-leaf ratio is below the optimum",
+            "why_model_misses_it": "feasibility alone reads as success; the objective shortfall is only caught against the independently computed optimum",
+            "fairness_guardrail": "the objective and within-tolerance acceptance are stated in the instruction"
+          }
+        ],
+        "calibration_plan": {
+          "oracle_runs": 10,
+          "no_op_runs": 3,
+          "target_agent_runs": 5,
+          "comparator_agent_runs": 5,
+          "human_sanity": "a systems engineer can solve by reading the cgroup-v2 docs, reserving floors bottom-up, setting decreasing max with headroom, solving weights level by level, allocating io within device pools, and water-filling reclaimable budget to the binding subtree",
+          "shortcut_audit": "tests regenerate assignments by running the binary, generate fresh trees at verify time, reject static report writes, recompute in Python instead of trusting the environment evaluator, and reject overcommitting assignments",
+          "ablation_plan": "stub each of the five solver stages independently and confirm at least one verifier test fails for that stage only",
+          "pass_rate_target": {
+            "hard_max_pct": 20,
+            "too_easy_threshold_pct": 80,
+            "basis": "stronger target agent; aligns with Part E Hard/Medium/Easy thresholds on worst/best model accuracy. Verifier is offline (pytest baked into the Dockerfile, no runtime installs under allow_internet = false) and post-upload difficulty is classified by Part E after platform agent runs."
+          }
+        },
+        "verifier_scoring_plan": {
+          "metrics": [
+            {
+              "metric": "functional_correctness",
+              "weight": 0.45,
+              "criterion": "effective floors, max hierarchy, headroom, path-product shares, and device sums hold on bundled and generated trees"
+            },
+            {
+              "metric": "hidden_invariants",
+              "weight": 0.25,
+              "criterion": "the worst-leaf mem_low ratio reaches the independently computed optimum within tolerance and no node oversubscribes its reclaimable budget"
+            },
+            {
+              "metric": "state_hygiene",
+              "weight": 0.15,
+              "criterion": "re-running the solver on the same tree yields identical feasibility and objective and the suite leaves the binary and report in place"
+            },
+            {
+              "metric": "interface_correctness",
+              "weight": 0.1,
+              "criterion": "cgsolve, solve-one.sh, and run-suite.sh read the documented inputs and write the documented assignment/report shape"
+            },
+            {
+              "metric": "deliverable_completeness",
+              "weight": 0.05,
+              "criterion": "every node appears in the assignment with all six fields and every bundled scenario appears in the report"
+            }
+          ],
+          "overall_threshold": 0.999,
+          "reward_output": "reward.txt",
+          "binary_threshold_rule": "reward is 1 only on pytest exit 0; otherwise reward is 0"
+        },
+        "subtype_milestone_plan": {
+          "subcategories": [],
+          "milestone_count": 0,
+          "sequential_dependency": "not applicable; standard single-step task",
+          "local_only_data": true,
+          "sidecar_or_protocol_notes": "run-suite.sh regenerates one JSON report from bundled trees; verifier tests invoke cgsolve on temporary generated trees"
+        },
+        "platform_files": [
+          {
+            "path": "task.toml",
+            "role": "Edition 2 metadata and runtime limits; sets [environment] allow_internet = false"
+          },
+          {
+            "path": "instruction.md",
+            "role": "constraint-complete public contract for interface, schema, constraints, and objective"
+          },
+          {
+            "path": "output_contract.toml",
+            "role": "local output declaration for the generated report"
+          },
+          {
+            "path": "tests/test.sh",
+            "role": "verifier entrypoint; invokes pre-installed pytest only"
+          },
+          {
+            "path": "tests/test_outputs.py",
+            "role": "independent Python verifier reimplementing the cgroup-v2 semantics"
+          },
+          {
+            "path": "solution/solve.sh",
+            "role": "oracle that writes the five solver-stage bodies and rebuilds"
+          },
+          {
+            "path": "environment/Dockerfile",
+            "role": "digest-pinned offline Go image with pytest, tmux, asciinema"
+          },
+          {
+            "path": "construction_manifest.json",
+            "role": "authoring metadata for frontier, base image, decoys, flipping point"
+          }
+        ],
+        "task_files": [
+          {
+            "path": "environment/cmd/cgsolve/main.go",
+            "role": "entrypoint reading a scenario and writing an assignment"
+          },
+          {
+            "path": "environment/internal/types/types.go",
+            "role": "shared scenario/assignment/report types"
+          },
+          {
+            "path": "environment/internal/refeval/protect.go",
+            "role": "readable reference effective-protection model"
+          },
+          {
+            "path": "environment/internal/refeval/objective.go",
+            "role": "readable reference objective and independent optimum"
+          },
+          {
+            "path": "environment/internal/qa/a.go",
+            "role": "memory-floor reservation stage (stub shipped)"
+          },
+          {
+            "path": "environment/internal/qe/e.go",
+            "role": "reclaimable fairness stage (stub shipped)"
+          },
+          {
+            "path": "environment/data/scenarios/aspen.json",
+            "role": "bundled scenario tree"
+          },
+          {
+            "path": "environment/docs/cgroup-model.md",
+            "role": "worked cgroup-v2 protection-model documentation"
+          },
+          {
+            "path": "environment/scripts/run-suite.sh",
+            "role": "runs the solver over all bundled trees and writes the report"
+          }
+        ],
+        "fix_frontier": {
+          "count": 5,
+          "distribution": "five solver stages across five opaque packages: memory-floor reservation, max/headroom limits, cpu path-product weights, io device allocation, reclaimable max-min fairness",
+          "naming_policy": "opaque package dirs qa-qe with one Apply function each; shared domain types in a non-fix package",
+          "forbidden_stems": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "headroom",
+            "budget",
+            "share",
+            "fairness",
+            "objective",
+            "scenario",
+            "assignment",
+            "reclaimable",
+            "floor"
+          ],
+          "helpers_policy": "sibling helper packages r6-r8 do diagnostic/formatting work that never touches the assignment",
+          "symbol_thin_preferred": true
+        },
+        "contract_surface": {
+          "boolean_fields_max": 1,
+          "direct_boolean_assertions_max": 1,
+          "preferred_assertion_styles": [
+            "recompute effective protections with an independent evaluator",
+            "recompute and compare the worst-leaf optimum within tolerance",
+            "verify per-constraint numeric margins",
+            "run the binary on freshly generated trees"
+          ],
+          "forbidden_assertion_styles": [
+            "golden assignment files",
+            "static report writes",
+            "hardcoded per-scenario answer values",
+            "schema or existence-only checks",
+            "scenario to field to expected boolean tables"
+          ]
+        },
+        "task_shape": {
+          "type": "optimization_under_constraints",
+          "instruction_framing": "constraint-complete",
+          "hardness_source": "constrained optimization",
+          "collapse_risk": "medium; mitigated by an independent verifier evaluator, verify-time-generated trees, a non-textbook protection-redistribution model, and a five-stage fix frontier"
+        },
+        "category_profile": {
+          "challenge_family": "constrained resource-budget allocation over a delegated cgroup hierarchy",
+          "profile_name": "config_policy_precedence",
+          "allowed_instruction_disclosures": "the run interface, the scenario/assignment/report schema, the five hard constraints, the cgroup-v2 down-scaling rule, the path-product cpu rule, the reclaimable-budget definition, the objective, and the within-tolerance acceptance",
+          "forbidden_instruction_leaks": "the solver-stage identifiers, the constructive allocation algorithm, the optimum as a recipe, per-scenario expected numbers, and which stage controls which test",
+          "category_specific_hardness_bar": "the effective resource policy derives across delegated budgets, ancestor protection propagation, sibling weight normalization, and device pools; no single node assignment suffices and local choices break distant feasibility and the objective",
+          "category_specific_verifier_risks": "trusting the tamperable environment evaluator, accepting overcommitting assignments, brittle exact-value thresholds, or scenarios that allow a per-leaf shortcut",
+          "coverage_role": "adds the first Go optimization/search task and the first constrained-allocation challenge to an otherwise all-repair bank"
+        },
+        "satisfiability_risk": {
+          "rc2_planned_name_risk": "low: solver stages are opaque qa-qe and domain types live in a non-fix package",
+          "gx9_contract_risk": "low: the instruction states constraints and the objective but no per-scenario expected values; expectations are recomputed",
+          "cr1_symbol_frontier_risk": "low: the manifest fixes the five stage symbols and the oracle uses them verbatim",
+          "hidden_contract_risk": "low: every tested interface, schema field, formula, and tolerance is in instruction.md or docs"
+        },
+        "actionability_plan": {
+          "verifier_command_visible": "instruction.md names /app/bin/cgsolve <in> <out>, bash /app/scripts/solve-one.sh <in> <out>, bash /app/scripts/run-suite.sh, and the pytest verifier command",
+          "source_fix_intent_visible": "instruction.md says solver sources live under /app/internal and /app/cmd (also via /app/environment) and static assignment writes are insufficient",
+          "generated_output_rule_visible": "instruction.md identifies /app/output/plan-report.json and per-call assignment outputs and that trees not under /app/data are also solved",
+          "exact_formula_home": "instruction.md and /app/docs state the down-scaling rule, path-product rule, reclaimable-budget definition, objective, and tolerance",
+          "schema_home": "instruction.md names every scenario, assignment, and report field; docs carry the worked semantics"
+        },
+        "waiver_plan": {
+          "waivers_expected": false,
+          "waiver_rationale": "no waiver is planned; any checker warning should be resolved or documented before packaging"
+        },
+        "reference_pattern": {
+          "justification_if_none": "Original synthetic task built from the cgroup-v2 memory-protection model and systemd delegated-slice budgeting; not derived from a website inspiration, a prior public task, or a template reskin. The reference library currently has no promoted entries."
+        },
+        "realism_source": {
+          "source_type": "real_system",
+          "evidence_basis": "Linux cgroup-v2 memory controller protection model (memory.min/memory.low proportional distribution and down-scaling, memory.high/memory.max), cpu.weight relative sibling distribution, io.max, and systemd delegated-slice budgeting",
+          "upstream_or_synthetic_rationale": "protection-redistribution and delegation semantics come from the kernel cgroup-v2 documentation and systemd resource control; trees and the fairness objective are synthetic to keep data local and deterministic",
+          "minimization_preserves": "ancestor protection propagation with proportional down-scaling, no-overcommit of delegated budgets, max-hierarchy inheritance, relative cpu weights as path-products, device io pools, and reclaimable best-effort distribution",
+          "synthetic_exception_review": "not a synthetic exception; the model and constraints are drawn from a real subsystem, only the instances and objective threshold are generated"
+        }
+      },
+      "evidence_errors": [],
+      "evidence_warnings": [],
+      "blocking_failures": [],
+      "strict": true
+    },
+    {
+      "attempt": 4,
+      "fails": 0,
+      "warns": 0,
+      "evidence_path": "specs/.runs/cgroup-budget-solver/attempt-4-evidence.json",
+      "evidence": {
+        "hardness_axes": [
+          {
+            "id": "discover",
+            "name": "Discover",
+            "verdict": "PASS",
+            "reasoning": "The constructive allocation, the binding-subtree optimum, and the down-scaling consequences are not in instruction.md; the solver must read the cgroup-v2 model docs and reference evaluator and derive how to reserve floors and water-fill reclaimable budget."
+          },
+          {
+            "id": "synthesize",
+            "name": "Synthesize",
+            "verdict": "PASS",
+            "reasoning": "A valid assignment spans five interacting constraint families plus the objective across every node of the tree; no single node, file, or formula holds the complete answer."
+          },
+          {
+            "id": "diagnose_or_design",
+            "name": "Diagnose or Design/Search",
+            "verdict": "PASS",
+            "reasoning": "Non-repair shape: the burden is constrained optimization over a coupled feasible region, including computing the worst-leaf max-min optimum on a tree with reclaimable-budget sharing."
+          },
+          {
+            "id": "navigate_coupling",
+            "name": "Navigate coupling",
+            "verdict": "PASS",
+            "reasoning": "Local choices break distant invariants: an unfunded ancestor down-scales a leaf floor to zero; reserving more min shrinks the reclaimable budget the objective optimizes; per-level weights compose into the leaf path-product."
+          },
+          {
+            "id": "reason_beyond_training",
+            "name": "Reason beyond training",
+            "verdict": "PASS",
+            "reasoning": "cgroup-v2 proportional protection down-scaling, reclaimable best-effort distribution, and relative cpu weights as path-products are subsystem-specific and not a standard textbook recipe."
+          }
+        ],
+        "anti_trivialization_checks": [
+          {
+            "id": "disclosure_collapse",
+            "name": "Disclosure-collapse",
+            "verdict": "PASS",
+            "reasoning": "Even with every constraint and the objective stated, the constructive coordination and the binding-subtree optimum remain a real search; full disclosure does not make it easy."
+          },
+          {
+            "id": "hidden_instance",
+            "name": "Hidden-instance",
+            "verdict": "PASS",
+            "reasoning": "Difficulty is not about which instance is broken; the solver must generalize to verify-time-generated trees."
+          },
+          {
+            "id": "single_artifact_repair",
+            "name": "Single-artifact repair",
+            "verdict": "PASS",
+            "reasoning": "There is no single manifest or flag to flip; the solver builds five coordinated assignment families."
+          },
+          {
+            "id": "generalization",
+            "name": "Generalization",
+            "verdict": "PASS",
+            "reasoning": "Tests run on freshly generated trees, so a solver that targets only bundled instances fails."
+          },
+          {
+            "id": "prompt_honesty",
+            "name": "Prompt-honesty",
+            "verdict": "PASS",
+            "reasoning": "An honest prompt states the constraints and objective without collapsing the search; it cannot, because the work is the constructive optimization."
+          },
+          {
+            "id": "cheating_vs_difficulty",
+            "name": "Cheating-vs-difficulty",
+            "verdict": "PASS",
+            "reasoning": "The independent Python verifier and generated trees are anti-cheating; the legitimate difficulty is the allocation itself."
+          },
+          {
+            "id": "mechanical_fix_filter",
+            "name": "Mechanical-fix filter",
+            "verdict": "PASS",
+            "reasoning": "The task is not about verifier deps, timeouts, or reward formatting; it is the solver logic."
+          },
+          {
+            "id": "localized_fix",
+            "name": "Localized-fix",
+            "verdict": "PASS",
+            "reasoning": "The frontier is five separate solver stages, not one tiny function, and the instruction does not name them."
+          },
+          {
+            "id": "oracle_locality",
+            "name": "Oracle-locality",
+            "verdict": "PASS",
+            "reasoning": "The oracle writes five substantive stage bodies across five packages, not one whole-file overwrite."
+          },
+          {
+            "id": "small_declarative_cluster",
+            "name": "Small declarative-cluster",
+            "verdict": "PASS",
+            "reasoning": "The solve is constructive numeric allocation over a tree, not one config block or literal table."
+          },
+          {
+            "id": "grep_collapse",
+            "name": "Grep-collapse",
+            "verdict": "PASS",
+            "reasoning": "Instruction nouns (memory, weight, share, ...) do not grep to the opaque qa-qe stage functions."
+          },
+          {
+            "id": "pre_factored_helper",
+            "name": "Pre-factored-helper",
+            "verdict": "PASS",
+            "reasoning": "Helper packages do diagnostic/formatting work and do not mirror the constraint families; the stage stubs are empty pass-throughs."
+          },
+          {
+            "id": "recipe_discount",
+            "name": "Recipe-discount",
+            "verdict": "PASS",
+            "reasoning": "There is no standard recipe; tree max-min under cgroup-v2 protection redistribution is not a known one-liner."
+          },
+          {
+            "id": "security_aura_discount",
+            "name": "Security-aura discount",
+            "verdict": "PASS",
+            "reasoning": "No security aura is used as a stand-in for hardness; the residual reasoning is the optimization."
+          },
+          {
+            "id": "orthogonal_checklist",
+            "name": "Orthogonal-checklist",
+            "verdict": "PASS",
+            "reasoning": "The families are coupled: floor reservation trades against reclaimable budget; weights compose across levels; feasibility bounds the objective."
+          },
+          {
+            "id": "harness_discount",
+            "name": "Harness-discount",
+            "verdict": "PASS",
+            "reasoning": "Docker, scenario generation, and scripts are realism; the hardness is the solver."
+          },
+          {
+            "id": "one_pass_solvability",
+            "name": "One-pass solvability",
+            "verdict": "PASS",
+            "reasoning": "A frontier model cannot one-shot the coordinated assignment and the optimum after opening files; it must reason about coupling and recompute against generated trees."
+          },
+          {
+            "id": "hard_only_gate",
+            "name": "Hard-only gate",
+            "verdict": "PASS",
+            "reasoning": "This is clearly hard, not merely respectable: a feasible-looking even-split assignment still fails the objective."
+          },
+          {
+            "id": "discovery_budget_test",
+            "name": "Discovery/design budget test",
+            "verdict": "PASS",
+            "reasoning": "At least three non-trivial discoveries (down-scaling consequence, reclaimable-budget coupling, binding-subtree optimum) are forced from the codebase and runtime, not stated as a recipe."
+          },
+          {
+            "id": "instruction_specificity_test",
+            "name": "Instruction specificity test",
+            "verdict": "PASS",
+            "reasoning": "Instruction is constraint-complete for a non-repair shape: complete on the public target, silent on the construction route."
+          },
+          {
+            "id": "topology_distribution_test",
+            "name": "Topology distribution test",
+            "verdict": "PASS",
+            "reasoning": "Three solution topologies each require coordinating at least three locations (floors+reclaimable+limits; weights across levels; objective+feasibility+budget); no single location suffices."
+          }
+        ],
+        "rubric_axes": [
+          {
+            "id": "verifiable",
+            "name": "Verifiable",
+            "verdict": "PASS",
+            "reasoning": "Deterministic Python recomputation of effective protections, constraints, and the optimum; seeded generation gives reproducible runs."
+          },
+          {
+            "id": "well_specified",
+            "name": "Well-specified",
+            "verdict": "PASS",
+            "reasoning": "Two engineers reading the instruction and docs would build equivalent verifiers from the stated schema, constraints, and objective."
+          },
+          {
+            "id": "solvable",
+            "name": "Solvable",
+            "verdict": "PASS",
+            "reasoning": "An expert can solve in a few hours; the solution is a few hundred lines of Go, well under 100k."
+          },
+          {
+            "id": "difficult",
+            "name": "Difficult",
+            "verdict": "PASS",
+            "reasoning": "Requires cgroup-v2 and resource-control expertise plus constrained-optimization reasoning; not solvable by tricks or hidden facts."
+          },
+          {
+            "id": "interesting",
+            "name": "Interesting",
+            "verdict": "PASS",
+            "reasoning": "Allocating cgroup limits across a delegated systemd slice tree under guarantees and fairness is real operations work someone is paid to do."
+          },
+          {
+            "id": "outcome_verified",
+            "name": "Outcome-verified",
+            "verdict": "PASS",
+            "reasoning": "Grading checks feasibility and the achieved objective within tolerance; it does not dictate the algorithm and accepts many valid assignments."
+          }
+        ],
+        "instruction_completeness_test": {
+          "verdict": "PASS",
+          "reasoning": "Reading only instruction.md, an agent knows the interface, schema, constraints, and objective but not how to construct a feasible optimal assignment; the environment evaluator, docs, and runtime behavior are essential, so the instruction is not a recipe."
+        },
+        "discovery_budget": [
+          {
+            "discovery": "A leaf's effective memory.min is bounded by every ancestor and proportionally down-scaled when siblings oversubscribe, so floors must be reserved at every level without oversubscribing any delegated budget.",
+            "planned_location": "internal/refeval/protect.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Stating the reservation algorithm would turn the floor family into transcription instead of forcing the agent to reason about propagation."
+          },
+          {
+            "discovery": "Each node's reclaimable budget for the best-effort tier is its delegated budget minus the min it reserved, so the fairness allocation is entangled with the floor reservation.",
+            "planned_location": "internal/refeval/objective.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Revealing how to compute and split reclaimable budget would hand over the coupling that makes the objective hard."
+          },
+          {
+            "discovery": "The worst-leaf low ratio is capped by the most-constrained subtree (the largest ratio every node can supply to its subtree out of its reclaimable budget), not by any single leaf.",
+            "planned_location": "internal/refeval/objective.go (independent optimum) mirrored in the Python verifier",
+            "why_instruction_must_not_reveal": "Spelling out the optimum as a formula/step list would collapse the search to plugging numbers."
+          },
+          {
+            "discovery": "A leaf's global CPU share is the product of per-level normalized weights, so weights must be solved level by level, not set per leaf.",
+            "planned_location": "internal/refeval/checks.go and docs/cgroup-model.md",
+            "why_instruction_must_not_reveal": "Naming the level-by-level construction would remove the path-product reasoning."
+          }
+        ],
+        "instruction_specificity": {
+          "level": "constraint-complete",
+          "reasoning": "Non-repair optimization shape: the instruction completely specifies the public target (interface, schema, the five constraints, the down-scaling and path-product rules, the reclaimable-budget definition, the objective, and the tolerance) while withholding the construction algorithm and the solver-stage locations."
+        },
+        "attack_path": {
+          "summary": "Read the model, reserve floors bottom-up, set decreasing maxima with headroom, solve weights per level, allocate io within device pools, then water-fill reclaimable budget to the binding subtree; self-check with the reference evaluator.",
+          "reasoning": "Each step is constrained by the others: floors set the reclaimable budget; maxima bound headroom; weights must compose to the leaf share; the objective is bounded by feasibility. A competent engineer follows this path but must derive each construction from the documented semantics."
+        },
+        "smallest_plausible_patch": {
+          "summary": "Implement the five solver-stage bodies so the emitted assignment is feasible on every family and the worst-leaf low ratio reaches the optimum.",
+          "reasoning": "There is no smaller patch: stubbing any one stage drops its constraint family or the objective below tolerance, and the optimum requires the binding-subtree reasoning, so the genuine change is several hundred lines of coordinated logic."
+        },
+        "collapse_audit": {
+          "verdict": "PASS",
+          "reasoning": "After full disclosure the residual work is the constructive coordinated allocation and the binding-subtree optimum, recomputed against verify-time-generated trees by an independent verifier; no surface signal shortcuts it.",
+          "residual_hardness": "Coordinating floor reservation, reclaimable-budget fairness, max/headroom limits, path-product weights, and device pools across the whole tree so that the assignment is feasible and reaches the independently computed optimum on unseen trees.",
+          "red_flags": []
+        },
+        "topology_enumeration": [
+          {
+            "id": "T1",
+            "summary": "Bottom-up floor reservation with reclaimable water-filling.",
+            "locations": [
+              "qa/a.go",
+              "qe/e.go",
+              "internal/refeval/objective.go"
+            ],
+            "why_no_single_location_suffices": "Floors reserved in qa determine the reclaimable budget qe water-fills, and the objective is scored against the optimum in objective.go; missing any one yields infeasibility or a sub-optimal ratio."
+          },
+          {
+            "id": "T2",
+            "summary": "Level-by-level weight solving composed into leaf shares.",
+            "locations": [
+              "qc/c.go",
+              "internal/types/types.go",
+              "docs/cgroup-model.md"
+            ],
+            "why_no_single_location_suffices": "Per-level weights must be derived from the tree structure in types and the path-product rule in docs; a per-leaf weight ignores sibling normalization and fails the share tolerance."
+          },
+          {
+            "id": "T3",
+            "summary": "Feasible-region construction bounding the objective.",
+            "locations": [
+              "qb/b.go",
+              "qd/d.go",
+              "qe/e.go"
+            ],
+            "why_no_single_location_suffices": "Max-hierarchy/headroom in qb and device pools in qd constrain the region qe optimizes; an objective step that ignores those produces an infeasible assignment."
+          }
+        ],
+        "construction_manifest": {
+          "symbol_table": [
+            {
+              "path": "qa/a.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "reserves the protected memory floor at every node so effective floors survive down-scaling"
+            },
+            {
+              "path": "qb/b.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "sets the non-increasing upper limits and the throttle gap for each node"
+            },
+            {
+              "path": "qc/c.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "chooses integer relative weights per level so each leaf path-product meets its target"
+            },
+            {
+              "path": "qd/d.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "allocates per-device throughput caps within each pool above each leaf floor"
+            },
+            {
+              "path": "qe/e.go",
+              "symbol": "Apply",
+              "kind": "function",
+              "signature": "func Apply(s *types.Scenario, a *types.Assignment) error",
+              "purpose": "distributes the best-effort reclaimable tier to maximize the worst-off subtree ratio"
+            }
+          ],
+          "flipping_point_contract": {
+            "locations": [
+              {
+                "id": "A",
+                "path": "qa/a.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t02",
+                  "test_t03",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "B",
+                "path": "qb/b.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t04",
+                  "test_t05",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "C",
+                "path": "qc/c.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t06",
+                  "test_t07",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "D",
+                "path": "qd/d.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t08",
+                  "test_t09",
+                  "test_t13"
+                ]
+              },
+              {
+                "id": "E",
+                "path": "qe/e.go",
+                "controls_tests": [
+                  "test_t01",
+                  "test_t10",
+                  "test_t11",
+                  "test_t12",
+                  "test_t13"
+                ]
+              }
+            ],
+            "no_single_location_flips_majority": true,
+            "concentration_cap": 0.5
+          },
+          "decoy_manifest": [
+            {
+              "path": "internal/r6/r.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "renders an ASCII summary of a tree for dry-run console output"
+            },
+            {
+              "path": "internal/r7/s.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "aggregates per-node counters for the documentation report only"
+            },
+            {
+              "path": "internal/r8/t.go",
+              "kind": "helper",
+              "rhymes_with": "Apply",
+              "non_fix_purpose": "formats device pool labels for diagnostic listings off the assignment path"
+            }
+          ],
+          "code_forbidden_tokens": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ]
+        },
+        "naming_pass": {
+          "instruction_nouns_extracted": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "guarantee",
+            "headroom",
+            "limit",
+            "budget",
+            "delegation",
+            "device",
+            "bandwidth",
+            "share",
+            "fairness",
+            "objective",
+            "node",
+            "leaf",
+            "slice",
+            "service",
+            "scenario",
+            "assignment",
+            "solver",
+            "suite",
+            "report",
+            "threshold",
+            "tier",
+            "root",
+            "parent",
+            "child",
+            "sibling",
+            "capacity",
+            "floor",
+            "throughput",
+            "reclaimable"
+          ],
+          "renames_during_drafting": [
+            {
+              "original": "reserve",
+              "renamed_to": "qa.Apply",
+              "reason": "a floor-reservation function named after the protected-floor concept would telegraph the fix; renamed to an opaque per-package Apply."
+            },
+            {
+              "original": "weights",
+              "renamed_to": "qc.Apply",
+              "reason": "a weight-solving function named after cpu weight would collide with the instruction noun; renamed to opaque Apply."
+            },
+            {
+              "original": "waterfill",
+              "renamed_to": "qe.Apply",
+              "reason": "an objective function named after the fairness allocation would reveal the approach; renamed to opaque Apply."
+            }
+          ],
+          "test_names_audited": [
+            "test_t01",
+            "test_t02",
+            "test_t03",
+            "test_t04",
+            "test_t05",
+            "test_t06",
+            "test_t07",
+            "test_t08",
+            "test_t09",
+            "test_t10",
+            "test_t11",
+            "test_t12",
+            "test_t13"
+          ],
+          "concentration_math": {
+            "total_tests": 13,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          },
+          "recomputed_concentration": {
+            "total_tests": 13,
+            "concentration_cap": 0.5,
+            "per_location": [
+              {
+                "location_id": "A",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "B",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "C",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "D",
+                "test_count": 4,
+                "ratio": 0.3076923076923077
+              },
+              {
+                "location_id": "E",
+                "test_count": 5,
+                "ratio": 0.38461538461538464
+              }
+            ]
+          }
+        },
+        "difficulty_mechanism_plan": [
+          {
+            "mechanism": "buried_local_constraints",
+            "placement": "effective-protection down-scaling and reclaimable-budget definitions live in the reference evaluator and docs, not as a recipe in the instruction",
+            "why_model_misses_it": "a solver can satisfy a configured floor while the effective floor is down-scaled to zero by an unfunded ancestor",
+            "fairness_guardrail": "the down-scaling rule is documented and implemented in a readable evaluator the solver may call"
+          },
+          {
+            "mechanism": "stateful_multi_step_dependencies",
+            "placement": "the mem_low fairness budget at each node depends on how much mem_min that node reserved, which depends on subtree floors",
+            "why_model_misses_it": "optimizing fairness independently of floor reservation overcommits a node or wastes budget, missing the optimum",
+            "fairness_guardrail": "the reclaimable-budget definition is stated in the instruction and docs"
+          },
+          {
+            "mechanism": "deceptive_but_valid_local_evidence",
+            "placement": "per-leaf weights set to the global target look locally correct but miss the path-product after sibling normalization",
+            "why_model_misses_it": "a locally plausible weight passes a single-node sanity check yet fails the global share tolerance",
+            "fairness_guardrail": "the path-product rule and the [1,10000] integer range are stated in the instruction"
+          },
+          {
+            "mechanism": "cross_file_cross_format_invariants",
+            "placement": "scenario JSON, assignment JSON, report JSON, the Go evaluator, and the Python verifier must agree on the same numeric semantics",
+            "why_model_misses_it": "a partial implementation handling one resource emits a report that round-trips but fails recomputation under the independent evaluator",
+            "fairness_guardrail": "every schema field, formula, and tolerance is visible in the instruction or docs"
+          },
+          {
+            "mechanism": "false_green_intermediate_states",
+            "placement": "an assignment meeting the four feasibility families but splitting reclaimable budget evenly produces a feasible-looking report whose worst-leaf ratio is below the optimum",
+            "why_model_misses_it": "feasibility alone reads as success; the objective shortfall is only caught against the independently computed optimum",
+            "fairness_guardrail": "the objective and within-tolerance acceptance are stated in the instruction"
+          }
+        ],
+        "calibration_plan": {
+          "oracle_runs": 10,
+          "no_op_runs": 3,
+          "target_agent_runs": 5,
+          "comparator_agent_runs": 5,
+          "human_sanity": "a systems engineer can solve by reading the cgroup-v2 docs, reserving floors bottom-up, setting decreasing max with headroom, solving weights level by level, allocating io within device pools, and water-filling reclaimable budget to the binding subtree",
+          "shortcut_audit": "tests regenerate assignments by running the binary, generate fresh trees at verify time, reject static report writes, recompute in Python instead of trusting the environment evaluator, and reject overcommitting assignments",
+          "ablation_plan": "stub each of the five solver stages independently and confirm at least one verifier test fails for that stage only",
+          "pass_rate_target": {
+            "hard_max_pct": 20,
+            "too_easy_threshold_pct": 80,
+            "basis": "stronger target agent; aligns with Part E Hard/Medium/Easy thresholds on worst/best model accuracy. Verifier is offline (pytest baked into the Dockerfile, no runtime installs under allow_internet = false) and post-upload difficulty is classified by Part E after platform agent runs."
+          }
+        },
+        "verifier_scoring_plan": {
+          "metrics": [
+            {
+              "metric": "functional_correctness",
+              "weight": 0.45,
+              "criterion": "effective floors, max hierarchy, headroom, path-product shares, and device sums hold on bundled and generated trees"
+            },
+            {
+              "metric": "hidden_invariants",
+              "weight": 0.25,
+              "criterion": "the worst-leaf mem_low ratio reaches the independently computed optimum within tolerance and no node oversubscribes its reclaimable budget"
+            },
+            {
+              "metric": "state_hygiene",
+              "weight": 0.15,
+              "criterion": "re-running the solver on the same tree yields identical feasibility and objective and the suite leaves the binary and report in place"
+            },
+            {
+              "metric": "interface_correctness",
+              "weight": 0.1,
+              "criterion": "cgsolve, solve-one.sh, and run-suite.sh read the documented inputs and write the documented assignment/report shape"
+            },
+            {
+              "metric": "deliverable_completeness",
+              "weight": 0.05,
+              "criterion": "every node appears in the assignment with all six fields and every bundled scenario appears in the report"
+            }
+          ],
+          "overall_threshold": 0.999,
+          "reward_output": "reward.txt",
+          "binary_threshold_rule": "reward is 1 only on pytest exit 0; otherwise reward is 0"
+        },
+        "subtype_milestone_plan": {
+          "subcategories": [],
+          "milestone_count": 0,
+          "sequential_dependency": "not applicable; standard single-step task",
+          "local_only_data": true,
+          "sidecar_or_protocol_notes": "run-suite.sh regenerates one JSON report from bundled trees; verifier tests invoke cgsolve on temporary generated trees"
+        },
+        "platform_files": [
+          {
+            "path": "task.toml",
+            "role": "Edition 2 metadata and runtime limits; sets [environment] allow_internet = false"
+          },
+          {
+            "path": "instruction.md",
+            "role": "constraint-complete public contract for interface, schema, constraints, and objective"
+          },
+          {
+            "path": "output_contract.toml",
+            "role": "local output declaration for the generated report"
+          },
+          {
+            "path": "tests/test.sh",
+            "role": "verifier entrypoint; invokes pre-installed pytest only"
+          },
+          {
+            "path": "tests/test_outputs.py",
+            "role": "independent Python verifier reimplementing the cgroup-v2 semantics"
+          },
+          {
+            "path": "solution/solve.sh",
+            "role": "oracle that writes the five solver-stage bodies and rebuilds"
+          },
+          {
+            "path": "environment/Dockerfile",
+            "role": "digest-pinned offline Go image with pytest, tmux, asciinema"
+          },
+          {
+            "path": "construction_manifest.json",
+            "role": "authoring metadata for frontier, base image, decoys, flipping point"
+          }
+        ],
+        "task_files": [
+          {
+            "path": "environment/cmd/cgsolve/main.go",
+            "role": "entrypoint reading a scenario and writing an assignment"
+          },
+          {
+            "path": "environment/internal/types/types.go",
+            "role": "shared scenario/assignment/report types"
+          },
+          {
+            "path": "environment/internal/refeval/protect.go",
+            "role": "readable reference effective-protection model"
+          },
+          {
+            "path": "environment/internal/refeval/objective.go",
+            "role": "readable reference objective and independent optimum"
+          },
+          {
+            "path": "environment/qa/a.go",
+            "role": "memory-floor reservation stage (stub shipped)"
+          },
+          {
+            "path": "environment/qe/e.go",
+            "role": "reclaimable fairness stage (stub shipped)"
+          },
+          {
+            "path": "environment/data/scenarios/aspen.json",
+            "role": "bundled scenario tree"
+          },
+          {
+            "path": "environment/docs/cgroup-model.md",
+            "role": "worked cgroup-v2 protection-model documentation"
+          },
+          {
+            "path": "environment/scripts/run-suite.sh",
+            "role": "runs the solver over all bundled trees and writes the report"
+          }
+        ],
+        "fix_frontier": {
+          "count": 5,
+          "distribution": "five solver stages across five opaque packages: memory-floor reservation, max/headroom limits, cpu path-product weights, io device allocation, reclaimable max-min fairness",
+          "naming_policy": "opaque package dirs qa-qe with one Apply function each; shared domain types in a non-fix package",
+          "forbidden_stems": [
+            "cgroup",
+            "memory",
+            "weight",
+            "protection",
+            "headroom",
+            "budget",
+            "share",
+            "fairness",
+            "objective",
+            "scenario",
+            "assignment",
+            "reclaimable",
+            "floor"
+          ],
+          "helpers_policy": "sibling helper packages r6-r8 do diagnostic/formatting work that never touches the assignment",
+          "symbol_thin_preferred": true
+        },
+        "contract_surface": {
+          "boolean_fields_max": 1,
+          "direct_boolean_assertions_max": 1,
+          "preferred_assertion_styles": [
+            "recompute effective protections with an independent evaluator",
+            "recompute and compare the worst-leaf optimum within tolerance",
+            "verify per-constraint numeric margins",
+            "run the binary on freshly generated trees"
+          ],
+          "forbidden_assertion_styles": [
+            "golden assignment files",
+            "static report writes",
+            "hardcoded per-scenario answer values",
+            "schema or existence-only checks",
+            "scenario to field to expected boolean tables"
+          ]
+        },
+        "task_shape": {
+          "type": "optimization_under_constraints",
+          "instruction_framing": "constraint-complete",
+          "hardness_source": "constrained optimization",
+          "collapse_risk": "medium; mitigated by an independent verifier evaluator, verify-time-generated trees, a non-textbook protection-redistribution model, and a five-stage fix frontier"
+        },
+        "category_profile": {
+          "challenge_family": "constrained resource-budget allocation over a delegated cgroup hierarchy",
+          "profile_name": "config_policy_precedence",
+          "allowed_instruction_disclosures": "the run interface, the scenario/assignment/report schema, the five hard constraints, the cgroup-v2 down-scaling rule, the path-product cpu rule, the reclaimable-budget definition, the objective, and the within-tolerance acceptance",
+          "forbidden_instruction_leaks": "the solver-stage identifiers, the constructive allocation algorithm, the optimum as a recipe, per-scenario expected numbers, and which stage controls which test",
+          "category_specific_hardness_bar": "the effective resource policy derives across delegated budgets, ancestor protection propagation, sibling weight normalization, and device pools; no single node assignment suffices and local choices break distant feasibility and the objective",
+          "category_specific_verifier_risks": "trusting the tamperable environment evaluator, accepting overcommitting assignments, brittle exact-value thresholds, or scenarios that allow a per-leaf shortcut",
+          "coverage_role": "adds the first Go optimization/search task and the first constrained-allocation challenge to an otherwise all-repair bank"
+        },
+        "satisfiability_risk": {
+          "rc2_planned_name_risk": "low: solver stages are opaque qa-qe and domain types live in a non-fix package",
+          "gx9_contract_risk": "low: the instruction states constraints and the objective but no per-scenario expected values; expectations are recomputed",
+          "cr1_symbol_frontier_risk": "low: the manifest fixes the five stage symbols and the oracle uses them verbatim",
+          "hidden_contract_risk": "low: every tested interface, schema field, formula, and tolerance is in instruction.md or docs"
+        },
+        "actionability_plan": {
+          "verifier_command_visible": "instruction.md names /app/bin/cgsolve <in> <out>, bash /app/scripts/solve-one.sh <in> <out>, bash /app/scripts/run-suite.sh, and the pytest verifier command",
+          "source_fix_intent_visible": "instruction.md says solver sources live under /app/internal and /app/cmd (also via /app/environment) and static assignment writes are insufficient",
+          "generated_output_rule_visible": "instruction.md identifies /app/output/plan-report.json and per-call assignment outputs and that trees not under /app/data are also solved",
+          "exact_formula_home": "instruction.md and /app/docs state the down-scaling rule, path-product rule, reclaimable-budget definition, objective, and tolerance",
+          "schema_home": "instruction.md names every scenario, assignment, and report field; docs carry the worked semantics"
+        },
+        "waiver_plan": {
+          "waivers_expected": false,
+          "waiver_rationale": "no waiver is planned; any checker warning should be resolved or documented before packaging"
+        },
+        "reference_pattern": {
+          "justification_if_none": "Original synthetic task built from the cgroup-v2 memory-protection model and systemd delegated-slice budgeting; not derived from a website inspiration, a prior public task, or a template reskin. The reference library currently has no promoted entries."
+        },
+        "realism_source": {
+          "source_type": "real_system",
+          "evidence_basis": "Linux cgroup-v2 memory controller protection model (memory.min/memory.low proportional distribution and down-scaling, memory.high/memory.max), cpu.weight relative sibling distribution, io.max, and systemd delegated-slice budgeting",
+          "upstream_or_synthetic_rationale": "protection-redistribution and delegation semantics come from the kernel cgroup-v2 documentation and systemd resource control; trees and the fairness objective are synthetic to keep data local and deterministic",
+          "minimization_preserves": "ancestor protection propagation with proportional down-scaling, no-overcommit of delegated budgets, max-hierarchy inheritance, relative cpu weights as path-products, device io pools, and reclaimable best-effort distribution",
+          "synthetic_exception_review": "not a synthetic exception; the model and constraints are drawn from a real subsystem, only the instances and objective threshold are generated"
+        }
+      },
+      "evidence_errors": [],
+      "evidence_warnings": [],
+      "blocking_failures": [],
+      "strict": true
+    }
+  ],
+  "schema_path": "specs/validation_schema.json",
+  "emit_legacy_reviewer": false
+}

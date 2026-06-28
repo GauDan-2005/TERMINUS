@@ -41,7 +41,7 @@ Attach this bundle (`chatgpt-task-authoring-playbook.md`, `implementation-collap
 
 Then say:
 
-> Run **Option A** from `option-a-seed-refinement.md` in **step2a-bank mode** against the attached bulk-ideas file. The final target is **150 Step-2a-ready seeds**. Repair or replace weak seeds instead of collapsing to a tiny shortlist. Keep all nine accepted categories broadly balanced, preserve the task_shape/category-profile/satisfiability/actionability/waiver fields, keep Topology distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` file.
+> Run **Option A** from `option-a-seed-refinement.md` in **step2a-bank mode** against the attached bulk-ideas file. The final target is **150 Step-2a-ready seeds**. Repair or replace weak seeds instead of collapsing to a tiny shortlist. **Reject or remap** any seed with blocked categories (`software-engineering`, `debugging`). Keep all **seven accepted categories** broadly balanced, preserve the task_shape/category-profile/satisfiability/actionability/waiver fields, keep Topology and seed_id distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` file.
 
 If you want a different final bank size, replace `150` with your target.
 
@@ -80,6 +80,11 @@ Every retained seed must include:
 ### A. Screen every candidate against the hard-only bar
 
 For each input seed, apply these filters:
+
+0. **blocked category filter (BLOCKING)**
+   - reject `category = software-engineering` or `category = debugging`
+   - reject seeds whose only framing is a generic debugging exercise without an accepted domain
+   - remap repair ideas to `repair_existing_system` under an accepted category before retaining
 
 1. **symptom-framing hygiene**
    - reject templated explanatory suffixes
@@ -184,7 +189,7 @@ Each seed ends in one of three buckets:
 
 ### D. Category-balance rule
 
-Keep the final bank broadly balanced across all nine accepted categories and across task_shape unless the user asked for a narrower domain or opus-weak profile.
+Keep the final bank broadly balanced across all **seven accepted categories** and across task_shape unless the user asked for a narrower domain or opus-weak profile. **Remove or remap** any seed whose category is `software-engineering` or `debugging`.
 
 If one category saturates early, replenish from a narrower subsystem inside that category before backfilling from another category. If backfill is still necessary, say so in the summary.
 
@@ -316,13 +321,7 @@ Screened against: `implementation-collapse-audit.md`, `chatgpt-task-authoring-pl
 ### Category: `games`
 ...
 
-### Category: `software-engineering`
-...
-
 ### Category: `machine-learning`
-...
-
-### Category: `debugging`
 ...
 
 ### Category: `security`
@@ -332,7 +331,7 @@ Screened against: `implementation-collapse-audit.md`, `chatgpt-task-authoring-pl
 ...
 ````
 
-Rank seeds strongest-first within category.
+Rank seeds strongest-first within category. **Do not emit sections for blocked categories** (`software-engineering`, `debugging`).
 
 ---
 
@@ -346,6 +345,35 @@ If the user explicitly asks for `finalist mode`, use this instead:
 - grouped by category if that makes sense
 
 If the user does **not** say `finalist mode`, stay in `step2a-bank` mode.
+
+---
+
+## Task Originality Requirement
+
+Every task must be substantively different from previous tasks.
+
+The following are NOT considered new tasks:
+
+* Renaming entities while keeping the same challenge structure
+* Swapping domain vocabulary only
+* Reusing the same bug pattern with different names
+* Reusing the same verifier structure with cosmetic edits
+* Reusing the same solution path with rewritten instructions
+* Reusing the same test logic with renamed concepts
+
+A task should introduce meaningful novelty in one or more of:
+
+* Engineering system design
+* Failure modes
+* Recovery semantics
+* State management
+* Data flow
+* Architecture
+* Build/debug workflow
+* Validation logic
+* Multi-component interaction
+
+Reject ideas that appear to be template variants of previously created tasks.
 
 ---
 
@@ -364,7 +392,7 @@ If the user does **not** say `finalist mode`, stay in `step2a-bank` mode.
 
 Use this exact wording as a safe default:
 
-> Run **Option A** from `option-a-seed-refinement.md` in **step2a-bank mode** against the attached bulk-ideas file. The final target is **150 Step-2a-ready seeds**. Repair or replace weak seeds instead of collapsing to a tiny shortlist. Keep all nine accepted categories broadly balanced, preserve the task_shape/category-profile/satisfiability/actionability/waiver fields, keep Topology distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` file.
+> Run **Option A** from `option-a-seed-refinement.md` in **step2a-bank mode** against the attached bulk-ideas file. The final target is **150 Step-2a-ready seeds**. Repair or replace weak seeds instead of collapsing to a tiny shortlist. **Reject or remap** any seed with blocked categories (`software-engineering`, `debugging`). Keep all **seven accepted categories** broadly balanced, preserve the task_shape/category-profile/satisfiability/actionability/waiver fields, keep Topology and seed_id distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` file.
 
 ---
 

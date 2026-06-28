@@ -16,22 +16,43 @@ Use this file as the canonical authoring reference inside the standalone `web` b
    What should the task accomplish? What problem should the agent solve?
 
 2. **Programming language(s)**
-   Use the primary implementation languages the task actually needs.
+   Use the primary **agent implementation** language(s) the task actually needs —
+   not the verifier harness language. **9 families** are accepted (10 common
+   `task.toml` tags):
+
+   | # | Family | Tags |
+   |---|--------|------|
+   | 1 | Python | `python` |
+   | 2 | JavaScript | `javascript` |
+   | 3 | TypeScript | `typescript` |
+   | 4 | Go | `go` |
+   | 5 | Rust | `rust` |
+   | 6 | Java | `java` |
+   | 7 | C / C++ | `c`, `cpp` |
+   | 8 | Ruby | `ruby` |
+   | 9 | Bash / Shell | `bash`, `shell` |
+
+   Full rules, canonical Docker bases, and Python HARD gate:
+   `../.cursor/rules/task-creation.mdc` § Accepted implementation languages.
+
+   **Do not default to Python.** Spread languages across seed banks and ask the
+   author to pick from all 9 families when language is not already fixed.
 
 3. **Difficulty**
    The default Edition 2 path in this bundle pursues `hard` only, and the final label must still be supported empirically.
 
 4. **Category**
-   Allowed values:
+   Allowed values (**7 only** — two categories are permanently blocked):
    - `system-administration`
    - `build-and-dependency-management`
    - `data-processing`
    - `games`
-   - `software-engineering`
    - `machine-learning`
-   - `debugging`
    - `security`
    - `scientific-computing`
+
+   **BLOCKED for new tasks:** `software-engineering`, `debugging`. Remap repair/debug
+   ideas to an accepted category + `repair_existing_system` when appropriate.
 
    Category is not enough for Step 1. Each seed also needs a `task_shape.type`
    and a `category_profile.profile_name` from `docs/CATEGORY_PROFILES.md` / the
@@ -69,13 +90,13 @@ Treat the `hard` default during ideation as provisional until benchmarked. If la
 
 Apply these gates while shaping the task:
 
-- `minimal` codebase size is blocked on the platform and treated as a blocking failure in this repo. The environment must have 20+ files (excluding Dockerfile/docker-compose) for `small` (20-200), or 200+ for `large`
+- `codebase_size` accepted values: `minimal` (0–19), `small` (20–200), `large` (200+). Count files under `environment/` excluding Dockerfile/docker-compose; metadata must match actual count. **This repo keeps `minimal` blocked** as acceptance insurance (enforced by `scripts/run_static_checks.py`) — target `small`/`large`.
 - `easy` and `medium` are blocked for this bundle; accepted tasks should end up `hard`
 - Python tasks are accepted only when the empirical difficulty is `hard`
 - **Python HARD blocker (local):** if `predicted_worst_model_pass_rate` > 20% from
   `hard_difficulty_predictor.py`, strict gates FAIL — medium Python tasks are
   frequently rejected on the platform
-- during ideation, avoid Python unless there is a compelling reason to choose it
+- during ideation, **do not default to Python** — pick the natural implementation language from the **9 accepted families** (see Intake Rules § Programming language(s)); Python requires empirical HARD and the local predictor gate
 - every task Dockerfile must install pinned **`tmux`** and **`asciinema`** at build
   time — missing either can cause all agent runs to fail with setup timeouts
 - prefer single-container tasks; multi-container should be rare and justified
@@ -95,7 +116,7 @@ allow_internet = false
 When the verifier runs, the container has **no network**. That means:
 
 - **Forbidden in `tests/test.sh`:** `apt-get install`, `pip install`, `curl`/`wget` (including uv installer scripts), `uv` bootstrap, `npm install`, or any other runtime dependency download.
-- **Required in `environment/Dockerfile`:** pre-install pinned pytest (and plugins), optional offline `uv`/`uvx` support if you use it, and any CLIs the verifier invokes. The fixed `test_deps_in_image` CI check now accepts this expected Dockerfile-baked verifier layout. Use digest-pinned `FROM` on every stage, a sanctioned final runtime base, pinned apt versions, and the platform Dockerfile evaluation checks documented in `task-creation.mdc` § environment/Dockerfile and `docs/PLATFORM_AUTO_EVAL.md`.
+- **Required in `environment/Dockerfile`:** pre-install pinned pytest (and plugins), optional offline `uv`/`uvx` support if you use it, and any CLIs the verifier invokes. The fixed `test_deps_in_image` CI check now accepts this expected Dockerfile-baked verifier layout. Use digest-pinned `FROM` on every stage, a **canonical** final runtime base (or non-canonical with credible Dockerfile/`README.md` justification), pinned apt versions, and the platform Dockerfile evaluation checks documented in `task-creation.mdc` § environment/Dockerfile and `docs/PLATFORM_AUTO_EVAL.md`.
 
 **Platform Dockerfile pipeline (upload-time)**
 
@@ -104,7 +125,7 @@ When the verifier runs, the container has **no network**. That means:
 | **Blocking** | `check_pinned_images`, `check_sanctioned_base_images`, `check_build_context_size` |
 | **Warning** | `check_dockerignore`, `check_dockerfile_hygiene`, `check_offline_tests`, `check_apt_usage`, `check_reproducible_builds`, `check_layer_volatility`, `check_no_build_tools_in_runtime`, `check_file_extraction`, `check_heredoc_usage`, `check_recursive_permissions` |
 
-Blocking failures: unpinned `FROM`, unsanctioned final runtime base, or `environment/` > 100 MiB (or any file > 50 MiB). Warnings won't block today but should be fixed before submission.
+Blocking failures: unpinned `FROM`, non-canonical final runtime base without credible justification, or `environment/` > 100 MiB (or any file > 50 MiB). Warnings won't block today but should be fixed before submission.
 
 Standard offline `tests/test.sh` shape:
 

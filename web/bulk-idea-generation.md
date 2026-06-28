@@ -17,7 +17,7 @@ The output of this file is a single markdown document you save as a downloadable
 
 Use this flow unless you have a strong reason to do something narrower.
 
-- **Prompt 1 — Option B**: generate a **goal-sized** seed bank in full nine-category mode.
+- **Prompt 1 — Option B**: generate a **goal-sized** seed bank in **full-seven** mode (seven accepted categories; blocked categories excluded).
 - **Prompt 2 — Option A**: turn that seed bank into the **final Step-2a-ready bank** at the requested size.
 
 The two-prompt default is optimized for **bank yield and category/shape diversity**, not for producing a tiny finalist list.
@@ -34,7 +34,7 @@ Attach this bundle (`chatgpt-task-authoring-playbook.md`, `implementation-collap
 
 Then say:
 
-> Run **Option B** from `bulk-idea-generation.md` in **goal-sized full-nine mode**, not opus-weak mode. The final target after Option A is **150 Step-2a-ready seeds**. Generate a balanced bank across all nine accepted categories. Do not force every task into an existing-system debugging shape. For each seed, assign both a category and a task_shape: `repair_existing_system`, `constrained_build`, `reverse_engineering`, `optimization_under_constraints`, `adversarial_generalization`, or `formal_reasoning`. For `repair_existing_system` tasks, require symptoms-only diagnosis. For non-repair tasks, require hardness from constraints, hidden design tradeoffs, adversarial cases, resource limits, or formal correctness rather than from debugging a broken implementation. Keep topology families distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` seed-bank file.
+> Run **Option B** from `bulk-idea-generation.md` in **goal-sized full-seven mode**, not opus-weak mode. The final target after Option A is **150 Step-2a-ready seeds**. Generate a balanced bank across all **seven accepted categories** (`software-engineering` and `debugging` are permanently blocked — do not use them). Do not force every task into an existing-system debugging shape. For each seed, assign a unique `seed_id` and distinct Topology token. Assign both a category and a task_shape: `repair_existing_system`, `constrained_build`, `reverse_engineering`, `optimization_under_constraints`, `adversarial_generalization`, or `formal_reasoning`. For `repair_existing_system` tasks, require symptoms-only diagnosis under an **accepted** category. For non-repair tasks, require hardness from constraints, hidden design tradeoffs, adversarial cases, resource limits, or formal correctness rather than from debugging a broken implementation. Keep topology families distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` seed-bank file.
 
 If you want a different final bank size, replace `150` with your target.
 
@@ -50,21 +50,26 @@ Every retained seed must include:
 - `verifier_scoring_plan`: functional correctness 0.45, documented invariants 0.25, state hygiene 0.15, interface correctness 0.10, deliverable completeness 0.05, plus binary threshold rule. **Documented invariants** means behaviors fully disclosed in instruction but verified indirectly — not requirements hidden in tests.
 - `subtype_milestone_plan`: accepted subcategories, milestone count, sequential dependency, local-only data, and sidecar/protocol notes.
 
-## Accepted categories for the default full-nine sweep
+## Accepted categories for the default full-seven sweep
 
-The default generator uses all nine accepted categories:
+The default generator uses all **seven accepted** categories (two legacy categories are **blocked** for new tasks):
 
 1. `system-administration`
 2. `build-and-dependency-management`
 3. `data-processing`
 4. `games`
-5. `software-engineering`
-6. `machine-learning`
-7. `debugging`
-8. `security`
-9. `scientific-computing`
+5. `machine-learning`
+6. `security`
+7. `scientific-computing`
+
+**BLOCKED — never use in new seeds or `task.toml`:**
+
+- `software-engineering` → remap to build/data/games/ML/system-administration by substrate
+- `debugging` → remap to an accepted category + `repair_existing_system` when diagnosis is the work
 
 No single category should dominate the bank. If a category saturates, narrow the subsystem family or switch task_shape before padding with duplicate repair patterns.
+
+Each seed must carry a unique `seed_id` (kebab-case) and a **Topology** token distinct from all prior seeds (check with `python3 scripts/seed_uniqueness_check.py`).
 
 ---
 
@@ -140,17 +145,9 @@ Use constrained-build, reverse-engineering, adversarial-generalization, and form
 
 Use constrained-build, adversarial-generalization, optimization, and formal-reasoning shapes around terminal puzzles, simulators, game-rule inference, search under move budgets, state-space proofs, and engine compatibility.
 
-### `software-engineering`
-
-Use all six shapes, but avoid standard CRUD or course-project builds. Prefer async semantics, language/runtime corner cases, compiler or VM behavior, constrained implementation, protocol compatibility, and cross-module invariants.
-
 ### `machine-learning`
 
 Use constrained-build, adversarial-generalization, optimization, reverse-engineering, and repair shapes around deterministic evaluation, data leakage, split provenance, resource caps, model cards, feature pipelines, and robust held-out behavior.
-
-### `debugging`
-
-Use `repair_existing_system` only when the substrate is substantial enough: multi-stage state, low observability, misleading checks, cross-file coupling, or destructive repair phases. Do not use debugging as the default wrapper for other categories.
 
 ### `security`
 
@@ -185,12 +182,12 @@ The strongest seeds combine one primary lever with one or two reinforcing levers
 
 ## Goal-sized mode semantics
 
-In **goal-sized full-nine mode**:
+In **goal-sized full-seven mode**:
 
 - Do **not** use a fixed quota like 25-per-category.
 - Size the bank to the **requested final output after Option A**.
 - Default to **150 final Step-2a-ready seeds** if the user does not specify a target.
-- Generate a **broadly category-balanced** bank across all nine accepted categories.
+- Generate a **broadly category-balanced** bank across all **seven accepted categories** (exclude blocked categories).
 - Generate a **task-shape-balanced** bank across the six task shapes when possible.
 - Prefer narrower subsystem framings over filler if a category or task_shape starts repeating itself.
 - Keep **Topology** distinct within each category and task_shape.
@@ -292,7 +289,7 @@ The point is not to hide the public contract. The point is to avoid turning the 
 
 ### Opus-weak mode
 
-Use only when the user explicitly wants the narrower four-category sweep. The four-category mode covers `system-administration`, `security`, `debugging` with systems substrate, and `scientific-computing`, but it is **not** the default.
+Use only when the user explicitly wants the narrower four-category sweep. Opus-weak mode covers `system-administration`, `security`, and `scientific-computing`, plus repair-shaped seeds under those domains — **not** the blocked `debugging` category label. It is **not** the default.
 
 Example:
 
@@ -322,7 +319,7 @@ The output must be a single markdown document using this exact structure.
 Generated by Option B. This file is the input to Option A.
 
 Generator metadata:
-- Mode: `<goal-sized-full-nine | goal-sized-opus-weak | goal-sized-narrow-domain | fast>`
+- Mode: `<goal-sized-full-seven | goal-sized-opus-weak | goal-sized-narrow-domain | fast>`
 - Final target after Option A: `<e.g. 150>`
 - Total seeds in this file: `<count>`
 - Categories/domains: `<comma-separated list>`
@@ -410,6 +407,35 @@ Generator metadata:
 
 ---
 
+## Task Originality Requirement
+
+Every task must be substantively different from previous tasks.
+
+The following are NOT considered new tasks:
+
+* Renaming entities while keeping the same challenge structure
+* Swapping domain vocabulary only
+* Reusing the same bug pattern with different names
+* Reusing the same verifier structure with cosmetic edits
+* Reusing the same solution path with rewritten instructions
+* Reusing the same test logic with renamed concepts
+
+A task should introduce meaningful novelty in one or more of:
+
+* Engineering system design
+* Failure modes
+* Recovery semantics
+* State management
+* Data flow
+* Architecture
+* Build/debug workflow
+* Validation logic
+* Multi-component interaction
+
+Reject ideas that appear to be template variants of previously created tasks.
+
+---
+
 ## Operating rules
 
 1. **Do not pad.** If a category or task_shape starts repeating topology families, narrow the subsystem angle or switch shape instead of cloning templates.
@@ -425,7 +451,7 @@ Generator metadata:
 
 Use this exact wording as a safe default:
 
-> Run **Option B** from `bulk-idea-generation.md` in **goal-sized full-nine mode**, not opus-weak mode. The final target after Option A is **150 Step-2a-ready seeds**. Generate a balanced bank across all nine accepted categories. Do not force every task into an existing-system debugging shape. For each seed, assign both a category and a task_shape: `repair_existing_system`, `constrained_build`, `reverse_engineering`, `optimization_under_constraints`, `adversarial_generalization`, or `formal_reasoning`. For `repair_existing_system` tasks, require symptoms-only diagnosis. For non-repair tasks, require hardness from constraints, hidden design tradeoffs, adversarial cases, resource limits, or formal correctness rather than from debugging a broken implementation. Keep topology families distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` seed-bank file.
+> Run **Option B** from `bulk-idea-generation.md` in **goal-sized full-seven mode**, not opus-weak mode. The final target after Option A is **150 Step-2a-ready seeds**. Generate a balanced bank across all **seven accepted categories** (`software-engineering` and `debugging` are permanently blocked — do not use them). Do not force every task into an existing-system debugging shape. For each seed, assign a unique `seed_id` and distinct Topology token. Assign both a category and a task_shape: `repair_existing_system`, `constrained_build`, `reverse_engineering`, `optimization_under_constraints`, `adversarial_generalization`, or `formal_reasoning`. For `repair_existing_system` tasks, require symptoms-only diagnosis under an **accepted** category. For non-repair tasks, require hardness from constraints, hidden design tradeoffs, adversarial cases, resource limits, or formal correctness rather than from debugging a broken implementation. Keep topology families distinct within category and task_shape, include category/task-shape/challenge-family/difficulty-mechanism/subcategory distribution summaries and topology collision notes, and return one downloadable `.md` seed-bank file.
 
 ---
 

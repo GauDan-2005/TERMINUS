@@ -1,0 +1,27 @@
+---
+description: WSL dev host — Docker Desktop with native socket support
+alwaysApply: true
+---
+
+# WSL: Docker Desktop with native socket
+
+On this machine:
+- The native Ubuntu Docker daemon socket `/var/run/docker.sock` EXISTS and works
+- The `default` context points to `unix:///var/run/docker.sock` and functions correctly
+- Docker Desktop's `desktop-linux` context uses Windows-only `npipe://` transport and doesn't work from WSL
+
+## Shell / CLI
+
+- The `default` context works: `docker context use default && docker ps`
+- Alternative: Use the WSL bind mount socket if needed: `export DOCKER_HOST=unix:///mnt/wsl/docker-desktop-bind-mounts/Ubuntu-22.04/docker.sock`
+- Do NOT use `desktop-linux` context (it uses Windows-only `npipe://` transport)
+
+## Harbor / oracle / NOP / verifier_health
+
+- Scripts automatically detect and use the working socket via `scripts/harbor_docker_env.harbor_env()`
+- The scripts prefer `/var/run/docker.sock` when available, falling back to WSL bind mount if needed
+- Do not set `DOCKER_CONTEXT=desktop-linux` for gates
+
+## Sandbox Note
+
+Inside the sandbox, `/var/run/docker.sock` may not be visible due to filesystem restrictions. Harbor scripts handle this by detecting the available socket.
