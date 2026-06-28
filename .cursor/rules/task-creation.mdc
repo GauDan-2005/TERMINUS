@@ -14,7 +14,7 @@ alwaysApply: false
 
 ## Construction-to-Spec: the primary authoring discipline
 
-This file is the construction specification for Step 2b. Everything in it is a rule you apply *while drafting*, not a reference you hope to have consulted. Every mechanical and review check that runs after Step 2b — `spec_satisfiability.py`, `scripts/run_static_checks.py`, `task_runtime_deps.py`, `actionability_check.py`, `no_hidden_contracts.py`, `obfuscation_lint.py`, dynamic smoke, `scripts/collapse_check.py` RC1-RC7, `@review-and-submit.mdc` §1-7, `@difficulty-calibration.mdc` Part A and Part B — examines something this file already documents. The expected outcome of a disciplined draft is **one-shot PASS through every check**, with the checks functioning as hallucination catchers, not design oracles.
+This file is the construction specification for Step 2b. Everything in it is a rule you apply *while drafting*, not a reference you hope to have consulted. Every mechanical and review check that runs after Step 2b — `spec_satisfiability.py`, `scripts/run_static_checks.py`, `task_runtime_deps.py`, `actionability_check.py`, `no_hidden_contracts.py`, `obfuscation_lint.py`, dynamic smoke, `scripts/collapse_check.py` RC1-RC8, `@review-and-submit.mdc` §1-7, `@difficulty-calibration.mdc` Part A and Part B — examines something this file already documents. The expected outcome of a disciplined draft is **one-shot PASS through every check**, with the checks functioning as hallucination catchers, not design oracles.
 
 Before touching any file, internalize the full rule set:
 
@@ -78,7 +78,7 @@ sibling helpers,
 reduced fix-symbol fanout, no import/string tricks. GX6 -> symptom causation
 is okay; patch causation is not; rewrite as observable behavior.
 
-### RC1-RC7 as construction constraints
+### RC1-RC8 as construction constraints
 
 `scripts/collapse_check.py` checks seven root causes. Each maps to a specific construction rule:
 
@@ -91,6 +91,7 @@ is okay; patch causation is not; rewrite as observable behavior.
 | RC5 | Reference artifacts    | No answer-shaped golden/reference/broken fixtures on solver-visible surfaces (`instruction.md`, `tests/`, `environment/`). Embed expected values in test code. |
 | RC6 | Instruction specificity| `instruction.md` uses shape-appropriate specificity: symptoms-only about the implementation patch for `repair_existing_system`; design-brief / behavioral-target / constraint-complete for non-repair shapes. Disclose externally tested schemas/invariants/formulas/types/sizes/profile constants, but do not disclose repair causes, algorithm recipes, implementation-internal schema dumps, patch-selecting thresholds, file/function locations, oracle transcripts, construction paths, or binding phrases that collapse the selected task shape. |
 | RC7 | Oracle triviality      | `solve.sh` non-boilerplate LOC ≥ 30 (≥ 80 is comfortable). If the genuine fix is <30 LOC, the task is too simple — redesign the concept, do not pad.         |
+| RC8 | Frontier concentration | Oracle/fix targets must not all cluster in one subsystem with small target files (that collapses the task to a localized patch). Diagnostic WARN, not FAIL; the binding gate is CR2 (flip ≤ 0.5, ≥ 3 locations, ≥ 2 module roots). |
 
 RC6 catches the over-specification direction (instruction names the fix). The under-specification direction (instruction points at a hints file under `environment/`) is governed by Instruction honesty rule 4 — see the "Instruction prose rules" section below.
 
@@ -98,7 +99,7 @@ Construction is spec-aware, not spec-discovering. While writing each file, pre-v
 
 ### Fix-surface construction rules (CR1-CR7)
 
-RC1-RC7 catch structural collapse. CR1-CR7 catch **fix-surface telegraphing**: the code-level signals that let a frontier reader identify the fix site from the file tree alone, before reading any bodies. A draft can pass every RC and still collapse because the drafter picked a clean name for the decision function and filed it in a directory named after the task's core concept. These rules close that channel.
+RC1-RC8 catch structural collapse. CR1-CR7 catch **fix-surface telegraphing**: the code-level signals that let a frontier reader identify the fix site from the file tree alone, before reading any bodies. A draft can pass every RC and still collapse because the drafter picked a clean name for the decision function and filed it in a directory named after the task's core concept. These rules close that channel.
 
 Every CR rule below is enforced mechanically by `scripts/collapse_check.py` and traces back to a specific observed trivialization mode in the Apr 2026 audit (5 of 10 shipped tasks trivialized because of signals these rules now catch).
 
@@ -1112,6 +1113,55 @@ Every assertion must fail against the NOP baseline (what the agent sees before d
 - If asserting an exact value, it must be the only correct answer
 - Each test should be passable by at least two valid solution approaches
 - Avoid tests requiring niche knowledge most agents would not try
+
+### Common test patterns
+
+Concrete shapes for `tests/test_outputs.py` assertions (all run offline against the agent's produced state):
+
+```python
+# File output — parse and assert on content, not just existence.
+import csv
+def test_csv_rows():
+    """Output CSV has the expected schema and non-empty rows."""
+    with open("/app/output/data.csv") as f:
+        rows = list(csv.DictReader(f))
+    assert rows and {"id", "name"} <= rows[0].keys()
+
+# Database state — query and assert domain-correct values.
+import sqlite3
+def test_users_loaded():
+    """All 100 users were imported."""
+    conn = sqlite3.connect("/app/data.db")
+    count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    conn.close()
+    assert count == 100
+
+# CLI / command output — run the in-image entrypoint and assert behavior.
+import subprocess
+def test_cli_help():
+    """`cli --help` exits 0 and documents usage."""
+    r = subprocess.run(["python", "/app/cli.py", "--help"], capture_output=True, text=True)
+    assert r.returncode == 0 and "Usage:" in r.stdout
+```
+For a service task, assert on a `requests.get` to the in-container endpoint the same way (status code plus response body).
+
+### Anti-patterns to avoid
+
+```python
+# BAD: brittle exact-string match.   GOOD: assert on key content.
+assert log == "Processing complete\n"          # brittle
+assert "complete" in log.lower()               # robust
+
+# BAD: hardcode a value the implementation may legitimately vary.  GOOD: assert the guaranteed property/range.
+assert generate_id() == 42                      # brittle
+assert 1 <= generate_id() <= 100               # robust
+
+# BAD: order-dependent tests sharing global state.  GOOD: each test sets up its own state.
+def test_1_setup(): global DATA; DATA = load()  # test_2 fails if this didn't run first
+def test_2_use():   process(DATA)
+def test_process(): assert process(load()) is not None
+```
+These mirror the per-test feasibility rules above and the RC3/RC4 value-correctness requirement: assert domain-correct content, computed in test code, independent per test.
 
 ## Packaging
 

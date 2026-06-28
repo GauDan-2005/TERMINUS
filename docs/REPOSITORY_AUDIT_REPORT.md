@@ -23,6 +23,17 @@ The repository already had a mature gate stack (static checks, collapse audit, h
 
 ---
 
+## Upgrade log (post-audit)
+
+| Date | Change |
+|------|--------|
+| 2026-06-13 | Full portal sync (Jun 3 + Jun 12): `minimal` codebase re-allowed on the platform; `rc=$?` preferred in `test.sh`; quality guidelines, review/solvable-vs-passing, long-context, feedback categories; new `docs/PORTAL_ACCEPTANCE_GUIDE.md`. Repo retains stricter acceptance-insurance gates (incl. `minimal` blocked locally). |
+| 2026-06-12 | Platform difficulty-check models upgraded to **GPT-5.5** and **Claude Opus 4.8** (from GPT-5.2 / Opus 4.6). EASY/MEDIUM/HARD thresholds unchanged; repo docs and example commands synced in `docs/EDITION2_SUBMISSION_GUIDE.md`, `difficulty-calibration.mdc` Part E, `commands.md`, and related surfaces. |
+| 2026-06-12 | Platform **canonical base image list** (10 digest-pinned ECR images) and non-canonical justification gate synced in `docs/PLATFORM_AUTO_EVAL.md`, `task-creation.mdc`, `docs/EDITION2_SUBMISSION_GUIDE.md`, `docs/PORTAL_ACCEPTANCE_GUIDE.md`, `AGENTS.md`, and related surfaces. Replaced stale "Future Canonical Base Image Requirement" placeholders. |
+| 2026-06-16 | **Language diversity rules:** 9 accepted implementation language families documented in `task-creation.mdc` § Accepted implementation languages; Step 1/2a/2b prompts and workflow require asking the author (AskQuestion) when language is unset — do not default to Python. |
+
+---
+
 ## Phase 1 — File-by-File Audit
 
 Severity key: **CRITICAL** blocks submission; **HIGH** likely review rejection; **MEDIUM** causes rework; **LOW** hygiene.
@@ -69,7 +80,7 @@ Severity key: **CRITICAL** blocks submission; **HIGH** likely review rejection; 
 | `step3a.md` | Step 3a diagnostics | **Fixed** | **CRITICAL:** was duplicate of step3b |
 | `step3b.md` | Paper review | **Current** | None |
 | `step4.md` | Final approval | **Updated** | Reviewer simulation + oracle stress |
-| `Step5.md` | Rubric generation | **Current** | None |
+| `Step5.md` | Rubric + portal submission form (Part A rubric, Part B base image / reviewer fields) | **Current** | None |
 | `seed-banks/opus-weak-step2a-ready-150.md` | Seed data | **Stale refs** | **MEDIUM:** retired doc paths in header |
 
 ### Validation scripts (`scripts/`)

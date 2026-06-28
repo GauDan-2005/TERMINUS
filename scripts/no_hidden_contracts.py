@@ -45,6 +45,26 @@ STD_IMPORTS = {
 }
 DIGEST_RE = re.compile(r"\b(?:sha-?1|sha-?224|sha-?256|sha-?384|sha-?512|md5|crc32|blake2b?|hmac)\b", re.I)
 CLI_FLAG_RE = re.compile(r"(?<![\w-])--[A-Za-z0-9][A-Za-z0-9_-]*")
+# Flags belonging to the pytest verifier harness (tests/test.sh / pytest invocation), never
+# passed by the solver. Requiring a solver-visible home for these would force the instruction to
+# expose the verifier command/runner, which platform review explicitly forbids (see CLAUDE.md
+# "Source of truth": a gate that contradicts a review is updated to match the review).
+PYTEST_HARNESS_FLAGS = {
+    "--tb",
+    "--disable-warnings",
+    "--ctrf",
+    "--cache-dir",
+    "--co",
+    "--collect-only",
+    "--maxfail",
+    "--durations",
+    "--junitxml",
+    "--result-log",
+    "--no-header",
+    "--no-summary",
+    "--color",
+    "--rootdir",
+}
 PATH_RE = re.compile(r"/app/[A-Za-z0-9_./=-]+")
 KEY_RE = re.compile(r"\[\s*['\"]([A-Za-z_][A-Za-z0-9_-]*)['\"]\s*\]")
 LEN_COMPARE_RE = re.compile(
@@ -469,6 +489,8 @@ def extract_python_items(path: Path, task_dir: Path, homes: list[Home], strict: 
     for line_no, line in enumerate(text.splitlines(), start=1):
         location = f"{rel}:{line_no}"
         for flag in CLI_FLAG_RE.findall(line):
+            if flag in PYTEST_HARNESS_FLAGS:
+                continue
             items.append(make_item("cli_flag", flag, location, homes, "Document tested CLI flags or argument splits."))
         for path_value in PATH_RE.findall(line):
             if "/app/output" in path_value:
@@ -499,6 +521,8 @@ def extract_shell_items(path: Path, task_dir: Path, homes: list[Home]) -> list[C
                 )
             )
         for flag in CLI_FLAG_RE.findall(line):
+            if flag in PYTEST_HARNESS_FLAGS:
+                continue
             items.append(make_item("cli_flag", flag, location, homes, "Document tested CLI flags or argument splits."))
         for path_value in PATH_RE.findall(line):
             if "/app/output" in path_value:

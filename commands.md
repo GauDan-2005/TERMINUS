@@ -73,14 +73,11 @@ Troubleshooting: `docs/PLATFORM_AUTO_EVAL.md` — platform auto-eval failures,
 verifier_did_not_run diagnosis, and "hard vs impossible" agent rejection
 patterns. Full Edition 2 portal sync: `docs/EDITION2_SUBMISSION_GUIDE.md`.
 
-### Platform static checks (`harbor tasks check`)
+### Platform static checks (upload CI)
 
 Optional mirror of upload-time CI (complements repo `run_static_checks.py`; does
-not replace Harbor oracle/NOP or `.step2b-checksum`):
-
-```bash
-harbor tasks check <task-folder> -m openai/@openai/gpt-5.2
-```
+not replace Harbor oracle/NOP or `.step2b-checksum`). Exact upstream harbor CLI
+invocation is in `docs/EDITION2_SUBMISSION_GUIDE.md` § Platform CI checks.
 
 **Blocking:** `pinned_dependencies`, `check_pinned_images`,
 `check_sanctioned_base_images`, `check_build_context_size`, `typos`,
@@ -151,6 +148,7 @@ python3 scripts/no_hidden_contracts.py tasks/<task> --strict
 python3 scripts/obfuscation_lint.py tasks/<task> --strict
 python3 scripts/waiver_lint.py tasks/<task> --strict
 python3 scripts/collapse_check.py tasks/<task>
+python3 scripts/dockerfile_check.py tasks/<task>   # image best-practices (digest pin, tmux+asciinema, .dockerignore, OCI labels): 0 PASS / 2 WARN / 1 FAIL
 python3 scripts/post_disclosure_collapse.py tasks/<task>
 python3 scripts/hard_difficulty_predictor.py tasks/<task> --strict --json \
     > /tmp/tb3-gates/<task>-hard_difficulty_predictor.json
@@ -221,6 +219,15 @@ python3 scripts/step2b_ready.py tasks/<task> --strict \
 
 # Full oracle stress. Run 10x exactly once through the wrapper.
 python3 scripts/harbor_gate.py tasks/<task> --oracle-repeat 10
+
+# Empirical difficulty (REQUIRED, not optional): run real frontier agents and read
+# the pass rate. The proxies hard_difficulty_predictor.py / reviewer_simulation.py
+# only ESTIMATE this and must NOT be used to defer or skip it. Target <=1/6 frontier
+# pass. Use the platform's current eval models (GPT-5.5 + Opus 4.8) — update
+# agent_test.py MODELS if it still defaults to older model ids. Needs live Portkey creds.
+eval "$(stb keys show)"
+./scripts/agent_test.sh run tasks/<task> --runs 5
+./scripts/agent_test.sh report --latest --task <task>
 
 # Create and validate the shipping zip.
 python3 scripts/package_task.py tasks/<task> --out Task_Ready_To_Submit/<task>.zip --validate
@@ -464,6 +471,13 @@ python3 scripts/approve_task.py --strict --task-dir tasks/<task-name> \
     --first-look-result /tmp/<task-name>-first-look-result.json \
     --oracle-job-dir jobs/<oracle-job-dir> \
     --nop-job-dir jobs/<nop-job-dir>
+
+# Step 3a-Q adjudication path — add when a quality-check adjudication artifact
+# exists (tasks/<task-name>/quality_check_adjudication.json, or a /tmp report).
+python3 scripts/approve_task.py --strict --task-dir tasks/<task-name> \
+    --zip Task_Ready_To_Submit/<task-name>.zip \
+    --skip-verifier-health \
+    --quality-check-adjudication /tmp/<task-name>-quality-check-adjudication.json
 
 # Machine-readable JSON (add --json to any invocation above).
 ```
@@ -741,6 +755,21 @@ Do not commit `.step2b-checksum` (different contributors will produce different
 values for the same task in different working states). The recommended
 `.gitignore` entry is `tasks/*/.step2b-checksum`.
 
+## Originality Check
+
+Before packaging, confirm the task is not a reskin of a previous submission:
+
+* Core debugging path differs
+* Failure modes differ
+* Solution strategy differs
+* Tests are not copied with renamed entities
+
+If substantial overlap exists with a prior submission, redesign the task.
+
+`scripts/reviewer_simulation.py` includes informational `template_risk`
+(`LOW` / `MEDIUM` / `HIGH`) in its JSON report. This is a warning only and does
+not block packaging yet.
+
 ## Packaging
 
 Build the shipping zip for Step 4 with `scripts/package_task.py`; it excludes
@@ -795,6 +824,31 @@ Verify the archive root shape:
 The validator additionally rejects `output_contract.toml` / `construction_manifest.json` / `waivers.json` / `quality_check_adjudication.json` / `rubric*.txt` / `.step2b-checksum` at archive root and any AI-scaffolding filename (CLAUDE.md, AGENTS.md, skills.md, .cursor/, .aider/, .continue/, .claude/) at any archive depth, case-insensitively. See `REPO_CONVENTIONS.md` § "AI-scaffolding filenames are banned anywhere in the submission archive" for the full ban list and rationale.
 
 ## Docker Troubleshooting
+
+### WSL2: Docker Desktop bridge vs native Linux engine
+
+Docker Desktop can leave the active `docker` context on `desktop-linux` with a
+Windows-only endpoint (`npipe://...`) while the compatibility socket under
+`~/.docker/desktop/docker.sock` never appears in WSL. In that situation the
+native Linux daemon on `unix:///var/run/docker.sock` may still work.
+
+Prefer the default context and verify the CLI:
+
+```bash
+docker context use default
+docker ps
+```
+
+If `docker info` / `docker ps` still fail, force the engine for this shell
+(Harbor/oracle/NOP inherit `DOCKER_HOST` because `scripts/harbor_gate.py` runs
+`harbor` with your environment):
+
+```bash
+export DOCKER_HOST=unix:///var/run/docker.sock
+docker ps
+```
+
+Avoid depending on `desktop-linux` from Ubuntu when that bridge is broken.
 
 ```bash
 # Start Docker daemon (Cloud VM)

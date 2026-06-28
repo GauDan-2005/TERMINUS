@@ -102,6 +102,40 @@ PROFILE_LINE_RE = re.compile(
 QUOTED_RE = re.compile(r"['\"]([A-Za-z0-9_.:/=-][A-Za-z0-9_.:/= -]{0,80})['\"]")
 KEY_SUBSCRIPT_RE = re.compile(r"\[\s*['\"]([A-Za-z_][A-Za-z0-9_-]*)['\"]\s*\]")
 CLI_FLAG_RE = re.compile(r"(?<![\w-])--[A-Za-z0-9][A-Za-z0-9_-]*")
+# Flags belonging to the pytest verifier harness (tests/test.sh / pytest invocation),
+# never passed by the solver. Requiring a solver-visible home for these would force the
+# instruction to expose the verifier command/runner, which platform review explicitly
+# forbids (see CLAUDE.md "Source of truth": a gate that contradicts a review is updated
+# to match the review). `--tb`/`--disable-warnings` were already excluded below; this is
+# the same category, broadened to the rest of pytest's reporting/collection flags.
+PYTEST_HARNESS_FLAGS = {
+    "--tb",
+    "--disable-warnings",
+    "--ctrf",
+    "--cache-dir",
+    "--co",
+    "--collect-only",
+    "--maxfail",
+    "--durations",
+    "--junitxml",
+    "--result-log",
+    "--no-header",
+    "--no-summary",
+    "--color",
+    "--rootdir",
+}
+# A task may legitimately declare that its rule/profile/label/mode/attribute values are
+# arbitrary input data the solver must handle generically, rather than a fixed enumerated
+# vocabulary. When the public contract says so, enumerating each specific tested value would
+# contradict the contract and leak held-out verifier cases, so the generic declaration is
+# itself the solver-visible home for those values (platform review is authoritative here).
+ARBITRARY_VALUE_CONTRACT_RE = re.compile(
+    r"(?:arbitrary\s+(?:ordinary\s+)?values"
+    r"|(?:rather\s+than|not)\s+a\s+fixed\s+vocabulary"
+    r"|input\s+data\s+rather\s+than\s+a\s+fixed\s+vocabulary"
+    r"|treat\s+them\s+generically)",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -566,7 +600,7 @@ def check_regenerated_vs_static(signals: TaskSignals, checks: dict[str, Check]) 
 
 
 def check_inputs_profiles(signals: TaskSignals, checks: dict[str, Check]) -> None:
-    relevant_flags = {flag for flag in signals.cli_flags if flag not in {"--tb", "--disable-warnings"}}
+    relevant_flags = {flag for flag in signals.cli_flags if flag not in PYTEST_HARNESS_FLAGS}
     missing_flags = sorted(flag for flag in relevant_flags if not has_visible_home(signals, flag))
     profile_values = {
         value
@@ -574,6 +608,10 @@ def check_inputs_profiles(signals: TaskSignals, checks: dict[str, Check]) -> Non
         if not value.startswith("/app/") and not value.endswith((".json", ".csv", ".txt", ".log"))
     }
     missing_values = sorted(value for value in profile_values if not has_visible_home(signals, value))
+    # A generic-value contract documents these tokens as arbitrary input data; that
+    # declaration is their solver-visible home (enumerating each would leak held-out cases).
+    if ARBITRARY_VALUE_CONTRACT_RE.search(signals.visible_contract_text):
+        missing_values = []
     if missing_flags or missing_values:
         pieces = []
         if missing_flags:

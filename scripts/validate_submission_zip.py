@@ -82,6 +82,16 @@ BANNED_AI_DIRECTORY_NAMES_CI = frozenset({
 FORBIDDEN_MEMBER_SUBSTRINGS = (
     ":Zone.Identifier",
 )
+# Dotfiles that MUST ship inside the submission archive even though the
+# packaging/approval filters strip dotfiles by default. environment/.dockerignore
+# is the Docker build-context ignore file: the platform builds the task image
+# from the unpacked archive, so the .dockerignore has to travel with it to take
+# effect. Platform reviewer feedback (async-executor-liveness rev_2) explicitly
+# required .dockerignore in the zip, which overrides the local "strip all
+# dotfiles" packaging convention (FEEDBACK > documented policy). This allowlist
+# is the single source of truth shared by package_task.py (what gets zipped) and
+# approve_task.py (the source/zip parity manifest), so the two never drift.
+PACKAGED_DOTFILE_ALLOWLIST = frozenset({".dockerignore"})
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:

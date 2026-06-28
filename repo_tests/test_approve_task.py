@@ -269,7 +269,12 @@ class ApproveTaskRegressionTest(unittest.TestCase):
         self.assertTrue(payload["approved"], payload["blocking_failures"])
         self.assertEqual(payload["mechanical_status"], "WARN")
 
-    def test_missing_actionability_report_fails_strict_approval(self) -> None:
+    def test_missing_actionability_report_does_not_block_strict_approval(self) -> None:
+        """Reconciled 2026-06-15 (personal_docs/gate-reconciliations.md):
+        actionability_check.py is NON-BLOCKING in strict approval (it flags
+        verifier mechanics and FAILs on platform-accepted baselines; the
+        platform's quality_check is authoritative). A missing actionability
+        report must therefore NOT block, and must not appear in blocking_failures."""
         fixture = FIXTURE_TASKS_DIR / "implicit-step-restart"
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_root = Path(tmpdir)
@@ -297,9 +302,8 @@ class ApproveTaskRegressionTest(unittest.TestCase):
                     **strict_kwargs,
                 )
 
-        self.assertFalse(payload["approved"])
-        self.assertEqual(payload["hard_but_fair"]["actionability"]["status"], "FAIL")
-        self.assertTrue(
+        self.assertTrue(payload["approved"], payload["blocking_failures"])
+        self.assertFalse(
             any("actionability_check.py" in message for message in payload["blocking_failures"]),
             payload["blocking_failures"],
         )

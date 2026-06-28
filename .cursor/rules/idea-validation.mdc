@@ -12,7 +12,30 @@ The default Edition 2 acceptance profile in this repo is hard-only for **metadat
 
 ## Task types we no longer accept
 
-Reject ideas that would land as either of the following before drafting any spec:
+Reject ideas that would land as any of the following before drafting any spec:
+
+### Blocked Task Categories
+
+The following **category blocks** apply to all new task submissions:
+
+| Blocked Category | Reason | Action |
+|------------------|--------|--------|
+| **software-engineering** | Category no longer accepted for new submissions | REJECT — remap to `build-and-dependency-management`, `data-processing`, `games`, `machine-learning`, or `system-administration` based on substrate |
+| **debugging** | Category no longer accepted for new submissions | REJECT — use `repair_existing_system` task shape under an **accepted** category; never set `category = debugging` |
+
+**IMPORTANT:** The `category` field in `task.toml` MUST NOT be `software-engineering` or `debugging` for new tasks. These categories are permanently blocked for new submissions.
+
+**Step 1 / seed bank:** Do not generate seeds under blocked categories. Do not generate seeds whose framing, tags, or challenge family exist only because the task is "a debugging exercise." Repair work is fine; the category metadata must be a real domain from the seven accepted values.
+
+**Uniqueness:** Before Step 2a, run `python3 scripts/seed_uniqueness_check.py check` with a new `seed_id` and distinct Topology token. Register after GO with `seed_uniqueness_check.py register`. Reject topology/slug/failure-mode collisions with existing specs or tasks.
+
+**Proximity rejection:** Also REJECT seeds that:
+- Name `Category: debugging` or `Category: software-engineering` in metadata
+- Use `profile_name: debugging` or challenge families that assume the blocked category label
+- Would trivially remap by renaming the category without changing substrate, failure modes, or tests
+- Reuse the same topology token as an existing spec/seed (check `seed_uniqueness_check.py audit`)
+
+### Blocked Infrastructure Types
 
 - **Multi-container** tasks (anything that would set `is_multi_container = true` or ship `environment/docker-compose.yaml` with multiple services).
 - **UI building** tasks (anything that would slot under subcategory `ui_building` or rely on a UI test harness).
@@ -100,7 +123,6 @@ waiver_plan:
   waiver_rationale:
 reference_pattern:
   reference_task_id: # or justification_if_none
-  inspiration_id: # website Task Inspiration ID if this task uses a site inspiration; omit if none
 realism_source:
   source_type: real_bug | real_system | real_spec | real_constraint | synthetic_exception
   evidence_basis:
@@ -246,6 +268,49 @@ from `controls_tests` and rejects any location whose ratio exceeds
 the cap. Your `naming_pass.concentration_math` must agree with
 that computation; disagreement is a hard failure.
 
+## Anti-Templating: Task Similarity Requirements
+
+### Similarity Thresholds (Step 5 Packaging Gate)
+
+Before final approval, every new task MUST undergo similarity analysis against all previously created tasks. The `scripts/reviewer_simulation.py` tool reports `template_risk` and `template_similarity_percent`.
+
+**Acceptable Similarity Bands:**
+
+| Similarity % | Risk Level | Action |
+|--------------|------------|--------|
+| **0-10%** | LOW | Accept - task is sufficiently distinct |
+| **10-15%** | MEDIUM | Accept with documentation - similarity is acceptable but document the overlap in reviewer notes |
+| **15-25%** | MEDIUM-HIGH | Review required - analyze which similarity axes exceed thresholds and document justification |
+| **>25%** | HIGH | BLOCK - task must be redesigned to reduce similarity |
+
+**Similarity Axes Analyzed:**
+- `challenge_structure`: Instruction narrative structure and problem framing
+- `failure_modes`: Error patterns, bug types, and symptom descriptions  
+- `solution_path`: Fix approach, algorithm, or implementation strategy
+- `test_pattern`: Test structure, assertion styles, and verification patterns
+- `terminology_only`: Vocabulary and naming conventions
+
+**Maximum Single-Axis Similarity:** No single axis should exceed **35%** similarity with any existing task.
+
+### Redesign Requirements for High Similarity
+
+If similarity exceeds 25% (or any single axis exceeds 35%), the task MUST be redesigned:
+
+1. **Change the core problem domain** - Shift to a different technical domain or subsystem
+2. **Alter the failure mode** - Use different bug classes or error patterns
+3. **Modify the solution strategy** - Require different debugging or reasoning approaches
+4. **Restructure the codebase** - Different file layout, component organization, or architectural patterns
+5. **Transform test verification** - Different assertion styles, output formats, or verification approaches
+
+### Similarity Documentation (10-15% Range)
+
+When similarity falls in the 10-15% acceptable range, document in reviewer notes:
+- Which similarity axes show elevated overlap
+- Why the overlap does not constitute templating
+- How the core debugging path or solution strategy differs
+
+Example: `"template_similarity=12% with task-x, primarily terminology overlap in config-parsing domain; solution path differs (regex-based vs state-machine approach)"`
+
 ## Structured Evidence Contract
 
 Every Step 2a attempt must produce a JSON evidence sidecar matching `specs/validation_schema.json`.
@@ -329,11 +394,11 @@ When the winning variant is GO, produce one authoring spec using this structure.
 - version: 2
 - Task name: [kebab-case slug]
 - Title: [3-4 word human title]
-- Category: [one of 9 accepted values]
+- Category: [one of 7 accepted values — NOT software-engineering or debugging]
 - Task shape: [repair_existing_system | constrained_build | reverse_engineering | optimization_under_constraints | adversarial_generalization | formal_reasoning]
-- Languages: [array]
+- Languages: [array — tags from the 9 accepted families in @task-creation.mdc § Accepted implementation languages; do not default to python unless the agent fix surface is Python]
 - Difficulty: hard
-- Codebase size: [small (20-200 files under environment/ excl. Docker files) / large (200+). Under 20 is `minimal`, which is a blocking failure on the default Edition 2 path.]
+- Codebase size: [minimal (0-19) / small (20-200) / large (200+) files under environment/ excl. Docker files — must match actual count] (this repo blocks `minimal` as acceptance insurance via `scripts/run_static_checks.py` — target `small`/`large`)
 - Subcategories: [array or []]
 - Tags: [3-6 values]
 - Milestones: [0 or count]
@@ -445,9 +510,9 @@ Use at least four `mechanism:` entries. Timing, latency, and oracle-replication 
 
 **Advanced hardness floor (blocking via `hard_difficulty_predictor.py`):** at least three distinct `why_model_misses_it` entries AND at least one must target an advanced category: state recovery, replay semantics, cache invalidation, distributed consistency, multi-component interaction, long-context reasoning, journal reconstruction, or build/CI failure recovery. Generic implementation mistakes alone (delimiter/encoding/ordering on a CSV parser) do not qualify.
 
-**No templated tasks (originality floor).** The idea must be substantively different from your previous submissions — not a keyword swap or a re-skin reusing the same structure, solution approach, or test patterns. A plug-and-play variant of a task you already submitted is rejected (and templated submissions can mean removal from project Terminus). Distinct `task_shape` + `Topology` is necessary but not sufficient; the *problem* must be meaningfully new. Self-check with `ci_checks/check-similarity.py` against prior tasks.
-
 **Python HARD blocker:** if `languages` includes `python`, `hard_difficulty_predictor.py` must estimate `predicted_worst_model_pass_rate` ≤ 20% before approval. Medium Python tasks are invalid on the default Edition 2 path.
+
+**Language selection:** if the seed idea does not already specify a language, stop and ask the author to pick from all **9 accepted families** in `@task-creation.mdc` § Accepted implementation languages (use AskQuestion when available). Do not assign Python by default.
 
 ### calibration_plan
 
@@ -500,16 +565,11 @@ Use at least four `mechanism:` entries. Timing, latency, and oracle-replication 
 
 - reference_task_id: [reference task id, if available]
 - justification_if_none: [why no reference task exists, if absent]
-- inspiration_id: [website **Task Inspiration ID** if this task is based on a project-site
-  inspiration; copy it from the inspiration's gallery page. Omit/blank if not based on a website
-  inspiration. Pasted into the submission form's "Task Inspiration ID" field.]
 
 Reference mapping is required for new tasks. Use
 `docs/reference_tasks/index.json` as the source of promoted reference ids. If no
 entry fits, write a concrete `justification_if_none`; do not invent a reference
-id and do not copy a reference task's files. `inspiration_id` is independent of
-`reference_task_id`: the former records a website task-inspiration you drew from,
-the latter a promoted in-repo reference task. Validate with
+id and do not copy a reference task's files. Validate with
 `python3 scripts/reference_task_check.py specs/<task-name>.md --strict` before
 Step 2b.
 

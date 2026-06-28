@@ -7,6 +7,16 @@ sources — they include TB3-specific gates (`collapse_check`, `step2b_ready`,
 
 Training portal: [Terminus EC Training](https://snorkel-ai.github.io/Terminus-EC-Training-stateful/)
 
+For first-pass portal acceptance — platform-vs-repo differences, the released
+canonical base images (Jun 12 2026), the portal changelog, and the
+pre-submission checklist — see [`docs/PORTAL_ACCEPTANCE_GUIDE.md`](PORTAL_ACCEPTANCE_GUIDE.md).
+The canonical base-image table is in [`docs/PLATFORM_AUTO_EVAL.md`](PLATFORM_AUTO_EVAL.md).
+
+> **Repo stance on `codebase_size`.** The portal re-allows `minimal`, but this
+> repo keeps `minimal` **blocked** as acceptance insurance (treat `codebase_size`
+> as `small`/`large`). This is an intentional stricter-local-gate divergence,
+> enforced by `scripts/run_static_checks.py`.
+
 ---
 
 ## What's new in Edition 2
@@ -183,7 +193,7 @@ Milestone tasks: per-step `[steps.agent]` / `[steps.verifier]` timeouts; optiona
 | Severity | Check | Rule |
 |----------|-------|------|
 | **Block** | `check_pinned_images` | Every `FROM` uses `@sha256:…` |
-| **Block** | `check_sanctioned_base_images` | Final runtime: `python` slim, `mcr.microsoft.com`, `ghcr.io/snorkel-ai`, or `scratch` |
+| **Block** | `check_sanctioned_base_images` | Final runtime base must be a canonical base (full list in `DOCKER_REQUIREMENTS.md`); common: `python` slim, `mcr.microsoft.com`, `ghcr.io/snorkel-ai`, or `scratch` |
 | **Block** | `check_build_context_size` | `environment/` ≤ 100 MiB; no file > 50 MiB |
 | Warn | `check_dockerignore` | `.dockerignore` for non-trivial contexts |
 | Warn | `check_dockerfile_hygiene` | No `.git`, `.env`, caches, `node_modules/` in context |
@@ -222,7 +232,7 @@ Optional local mirror of upload-time static checks (does not replace repo
 `run_static_checks.py` or Harbor oracle evidence):
 
 ```bash
-harbor tasks check <task-folder> -m openai/@openai/gpt-5.2
+harbor tasks check <task-folder> -m openai/@openai/gpt-5.5
 ```
 
 **Must pass (blocking):**
@@ -260,7 +270,7 @@ Evaluate **Hard → Medium → Easy**; stop at first match:
 | **MEDIUM** | 20% < worst ≤ 60% | Acceptable on platform in some categories; **not recommended** locally |
 | **EASY** | 60% < worst ≤ 80% | **Reject** |
 
-**Reject** if worst model >80%. Models: GPT-5.2, Claude Opus 4.6 (5+ runs each).
+**Reject** if worst model >80%. Models: GPT-5.5, Claude Opus 4.8 (5+ runs each).
 
 Local pre-check: `hard_difficulty_predictor.py` pass-rate estimates are heuristic
 — they do not replace platform benchmarks but block Python tasks with
@@ -299,8 +309,8 @@ harbor run -a oracle -p <task-folder>
 harbor run -a nop -p <task-folder>
 
 # Frontier agents (via stb when assigned)
-stb harbor run -m @openai/gpt-5.2 -p <task-folder>
-stb harbor run -m @anthropic/claude-opus-4-6 -p <task-folder>
+stb harbor run -m @openai/gpt-5.5 -p <task-folder>
+stb harbor run -m @anthropic/claude-opus-4-8 -p <task-folder>
 ```
 
 Repo gates use `python3 scripts/harbor_gate.py` — see `commands.md`.

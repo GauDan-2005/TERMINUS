@@ -180,23 +180,20 @@ class CheckTaskShRegressionTest(unittest.TestCase):
         self.assertIn("actionability_check.py returned exit 1", result.stdout)
         self.assertIn("Preflight passed", result.stdout)
 
-    def test_local_lint_failure_blocks_in_strict_mode(self) -> None:
-        """Strict mode turns the new local lints into blockers for new
-        tasks and final rollout checks."""
+    def test_actionability_lint_is_nonblocking_even_in_strict_mode(self) -> None:
+        """Reconciled 2026-06-15 (personal_docs/gate-reconciliations.md):
+        actionability_check.py and no_hidden_contracts.py are NON-BLOCKING (WARN)
+        even in strict mode, matching scripts/approve_task.py. A failing
+        actionability lint must NOT emit the strict-blocking message."""
         (self.tmpdir / "scripts" / "actionability_check.py").write_text(
             "import sys\nprint('actionability fixture fail')\nsys.exit(1)\n"
         )
 
         result = self._run("--strict", "tasks/synth")
 
-        self.assertNotEqual(
-            result.returncode,
-            0,
-            msg="strict mode should block on local lint failure",
-        )
         combined = result.stdout + result.stderr
-        self.assertIn("hard-but-fair local lints (strict)", combined)
-        self.assertIn("actionability_check.py returned exit 1 in strict mode", combined)
+        self.assertIn("non-blocking per the 2026-06-15 gate reconciliation", combined)
+        self.assertNotIn("actionability_check.py returned exit 1 in strict mode", combined)
 
     def test_runtime_dependency_failure_warns_by_default(self) -> None:
         """Runtime dependency drift is phased like the other hard-but-fair

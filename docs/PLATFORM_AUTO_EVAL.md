@@ -24,14 +24,14 @@ flag issues but do not block today — fix warnings anyway to avoid revision cyc
 | Check | What it enforces |
 |-------|------------------|
 | `check_pinned_images` | Every `FROM` uses `@sha256:…` digest pinning (all stages, including builders) |
-| `check_sanctioned_base_images` | Final runtime stage base is sanctioned (`python` slim, `mcr.microsoft.com`, `ghcr.io/snorkel-ai`) or exempt (`scratch`) |
+| `check_sanctioned_base_images` | Final runtime stage base is a canonical/sanctioned base — full list in `DOCKER_REQUIREMENTS.md` (common: `python` slim, `mcr.microsoft.com`, `ghcr.io/snorkel-ai`) or exempt (`scratch`) |
 | `check_build_context_size` | `environment/` ≤ 100 MiB total; no single file > 50 MiB |
 
-> **Canonical base image (new, rolling out).** Beyond digest pinning, each task should build from the
-> **canonical base image for its language** (per-language list pending release on the project site;
-> sanctioned families documented in `docs/DOCKER_REQUIREMENTS.md`). A pinned-but-non-canonical base
+> **Canonical base image (released Jun 12, 2026).** Beyond digest pinning, each task should build from the
+> **canonical base image for its language** (released per-language list in the canonical table below;
+> sanctioned families also documented in `docs/DOCKER_REQUIREMENTS.md`). A pinned-but-non-canonical base
 > requires a justification in the submission form's canonical-base field (and `construction_manifest.json`
-> `base_image`). A new canonical-base eval check looks for that justification when the base is
+> `base_image`). The canonical-base eval check looks for that justification when the base is
 > non-canonical.
 
 **Examples**
@@ -51,6 +51,31 @@ FROM python:3.13-slim@sha256:<digest>
 COPY huge_dataset/ /data/
 # ✅ small seed script; mount or fetch large data at runtime
 ```
+
+### Canonical Terminal-Bench base images (Jun 12, 2026)
+
+Prefer these digest-pinned **final runtime** bases. Builder stages may use other pinned toolchain images. All refs use prefix `public.ecr.aws/docker/library/`.
+
+| Family | Digest-pinned reference | Covers |
+|--------|-------------------------|--------|
+| **Python** | `python:3.13-slim-bookworm@sha256:01f42367a0a94ad4bc17111776fd66e3500c1d87c15bbd6055b7371d39c124fb` | Python 3.10–3.13 majors + slim/non-slim |
+| **Node.js** | `node:22-bookworm-slim@sha256:f3a68cf41a855d227d1b0ab832bed9749469ef38cf4f58182fb8c893bc462383` | Node 18/20/22/24 + slim/non-slim |
+| **Go** | `golang:1.24-bookworm@sha256:1a6d4452c65dea36aac2e2d606b01b4a029ec90cc1ae53890540ce6173ea77ac` | Go 1.21–1.26 + alpine/bullseye/bookworm |
+| **Rust** | `rust:1.85-slim@sha256:9f841bbe9e7d8e37ceb96ed907265a3a0df7f44e3737d0b100e7907a679acb36` | Rust 1.75–1.95 + slim/non-slim |
+| **Java (JDK)** | `eclipse-temurin:21-jdk-jammy@sha256:25d1276565738d3c805e632a4542c3a7598866ef967f4def6544c15de3a74b14` | Java 17/21 jdk-jammy/noble |
+| **C/C++ (GCC)** | `gcc:13-bookworm@sha256:930f2ebe239275fa67226654cb79273ea34eee672ae61c8a39f689c37fb7ac5c` | GCC 12/13/14/15 |
+| **Ruby** | `ruby:3.3-slim-bookworm@sha256:e76733e94b3a5893e4a141024ef3a583dc10781dc24becebf74f9c9f9a33e3df` | Ruby 3.2/3.3/3.4 + slim/non-slim |
+| **Maven** | `maven:3.9.9-eclipse-temurin-21@sha256:3a4ab3276a087bf276f79cae96b1af04f53731bec53fb2e651aca79e4b10211e` | Maven + temurin-17/21 |
+| **Debian** | `debian:bookworm-slim@sha256:4724b8cc51e33e398f0e2e15e18d5ec2851ff0c2280647e1310bc1642182655d` | Debian bookworm/bullseye/12.x slim |
+| **Ubuntu** | `ubuntu:24.04@sha256:0d39fcc8335d6d74d5502f6df2d30119ff4790ebbb60b364818d5112d9e3e932` | Ubuntu 22.04/24.04/jammy |
+
+**Non-canonical bases:** Allowed when there is a genuine reason (runtime not in the list, hardware-specific image, niche distro). Put a **credible justification** in a Dockerfile comment or task `README.md`. Missing, vague, or boilerplate justifications are **blocked**. Reviewers may reject if a canonical entry would have worked.
+
+Acceptable justification examples:
+
+- "The canonical Java image is JDK-only; this task requires a full JRE-plus-system-libraries setup."
+- "Targeting a new language not yet in the canonical list (e.g., Zig, Crystal)."
+- "Stress-testing behavior specific to a Red Hat-derived distribution that Debian-derived canonical images don't reproduce."
 
 ### Warning checks
 

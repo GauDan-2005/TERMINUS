@@ -30,6 +30,11 @@ Do not continue on FAIL. Treat WARN as a spec redesign or waiver decision.
 Return to Step 2a when honest repair changes category profile, output schema,
 public contract shape, file topology, symbol frontier, or instruction disclosure level.
 
+**Language check:** before creating task files, confirm `Languages:` in the spec
+uses tag(s) from the 9 accepted families in `@task-creation.mdc` § Accepted
+implementation languages. If missing or ambiguous, stop and ask the author with
+the full 9-family list — do not default to Python.
+
 Use the authoring spec's metadata, public contract, failure topology, environment shape,
 required artifacts, construction manifest, discovery budget, and test plan to create all task files.
 The brief is intentionally non-exhaustive: design the exact internal file tree and implementation scaffolding yourself while preserving public contract and difficulty profile.
@@ -66,7 +71,7 @@ Create every required file per task type (see `docs/EDITION2_SUBMISSION_GUIDE.md
 
 For milestone tasks, use the milestone layout from @task-creation.mdc. New UI and multi-container tasks are not accepted.
 
-Set `task.toml` `[environment] allow_internet = false` (blocking CI). Pre-install all pinned verifier dependencies in `environment/Dockerfile` per site Dockerfile/image best practices and platform pipeline Dockerfile checks in @task-creation.mdc § environment/Dockerfile (blocking: digest-pinned every `FROM`, sanctioned final runtime base, `environment/` ≤100 MiB / no file >50 MiB; apt pins are point-in-time—Debian security updates remove old versions from mirrors; refresh with `apt-cache madison <pkg>` when builds fail, do not drop pins); the fixed `test_deps_in_image` CI check now accepts this expected layout. Use the internet-disabled `tests/test.sh` template from @task-creation.mdc (prefer Dockerfile-provided `pytest`; no apt-get, pip, curl, or uv bootstrap in test.sh). Preserve command order/control flow/reward footer.
+Set `task.toml` `[environment] allow_internet = false` (blocking CI). Pre-install all pinned verifier dependencies in `environment/Dockerfile` per site Dockerfile/image best practices and platform pipeline Dockerfile checks in @task-creation.mdc § environment/Dockerfile (blocking: digest-pinned every `FROM`, canonical final runtime base or justified non-canonical, `environment/` ≤100 MiB / no file >50 MiB; apt pins are point-in-time—Debian security updates remove old versions from mirrors; refresh with `apt-cache madison <pkg>` when builds fail, do not drop pins); the fixed `test_deps_in_image` CI check now accepts this expected layout. Use the internet-disabled `tests/test.sh` template from @task-creation.mdc (prefer Dockerfile-provided `pytest`; no apt-get, pip, curl, or uv bootstrap in test.sh). Preserve command order/control flow/reward footer.
 
 Do not place generated outputs, answer files, goldens, build artifacts, bin/, out/, output/, dist/, target/, node_modules/, __pycache__, or AI scaffolding under environment/.
 
@@ -97,10 +102,26 @@ If yes, eliminate the signal and re-verify.
 Run:
 
 python3 scripts/spec_satisfiability.py specs/<task-name>.md --task-dir tasks/<task-name> --strict
+python3 scripts/hard_difficulty_predictor.py tasks/<task-name>
 python3 scripts/task_runtime_deps.py tasks/<task-name> --strict
 python3 scripts/task_gate.py tasks/<task-name> --strict --report-dir /tmp/tb3-gates --skip-harbor
 ./scripts/check-task.sh --strict --report-dir /tmp/tb3-gates tasks/<task-name>
 python3 scripts/harbor_gate.py tasks/<task-name> --oracle --oracle-stress 3 --nop --nop-stress 3
+
+## Genuine test gate (before Harbor)
+
+For each test in `tests/test_outputs.py` (or milestone tests), confirm Part B of
+`@difficulty-calibration.mdc`:
+
+- Every asserted contract is documented in `instruction.md` or visible env (CR9/GX7).
+- Tests are independent — no chain-dependent prerequisites without env setup.
+- ≥2 valid solution approaches should pass core tests.
+- No test exists only to match oracle literals when alternatives are valid.
+- Partial-oracle ablations should fail on behavior (escalate to `verifier_health.py` if weak).
+
+If tests were written to pass only the oracle path or hide requirements, **redesign tests**
+before claiming Step 2b progress. Easy/trivial agent pass patterns mean **replace tests**,
+not tweak constants.
 
 If Harbor is unavailable, record HARBOR_UNAVAILABLE and stop after local gates; Step 2b cannot be final-complete until Harbor oracle/NOP evidence exists.
 

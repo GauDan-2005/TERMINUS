@@ -31,6 +31,20 @@ ALLOWED_CATEGORIES = {
     "system-administration",
 }
 
+# Categories that are valid Edition 2 categories in general, but BLOCKED for
+# this project by the platform's static checks. Observed as a hard FAIL in
+# upstream CodeBuild (run_static_checks edition_2, 2026-06-27):
+#   "Category 'software-engineering' is blocked for this project
+#    (must not be one of: debugging, software-engineering)"
+# The platform check is authoritative, so we mirror it locally to catch the
+# rejection before upload instead of after. (cargo-feature-unification was
+# rejected for category=software-engineering and moved to
+# build-and-dependency-management.)
+BLOCKED_CATEGORIES = {
+    "debugging",
+    "software-engineering",
+}
+
 ALLOWED_SUBCATEGORIES = {
     "api_integration",
     "db_interaction",
@@ -39,8 +53,15 @@ ALLOWED_SUBCATEGORIES = {
     "ui_building",
 }
 
+# Reconciled 2026-06-15 to the platform's actual acceptance bar. The platform
+# difficulty check accepts "at least MEDIUM" (async-executor-liveness was graded
+# "✅ MEDIUM" and returned NEEDS_REVISION only for the declared-vs-measured label
+# mismatch, not for being medium; the reviewer explicitly sanctioned relabeling to
+# medium). The prior hard-only set was stricter than the platform and the reviewer.
+# See personal_docs/gate-reconciliations.md.
 ALLOWED_DIFFICULTIES = {
     "hard",
+    "medium",
 }
 
 ALLOWED_CODEBASE_SIZES = {
@@ -854,8 +875,12 @@ def substantive_shell_lines(content: str) -> list[str]:
 STANDARD_NON_UI_TEST_SH_PREFIX_PATTERNS = (
     ("workdir guard", re.compile(r'^if\s+\[\s+"\$PWD"\s*=\s*"/"\s*\];\s+then$')),
     (
+        # The trailing "before running this script." clause is present in every
+        # official skeleton (default-template, references_announcement/*_Task_Skeleton)
+        # and every platform-accepted task, so it must be accepted here. Reconciled
+        # 2026-06-15; see personal_docs/gate-reconciliations.md.
         "workdir guard message",
-        re.compile(r'^echo\s+"Error:\s+No\s+working\s+directory\s+set\.\s+Please\s+set\s+a\s+WORKDIR\s+in\s+your\s+Dockerfile\."$'),
+        re.compile(r'^echo\s+"Error:\s+No\s+working\s+directory\s+set\.\s+Please\s+set\s+a\s+WORKDIR\s+in\s+your\s+Dockerfile(?:\s+before\s+running\s+this\s+script)?\."$'),
     ),
     ("workdir guard exit", re.compile(r"^exit\s+1$")),
     ("workdir guard close", re.compile(r"^fi$")),
@@ -1069,6 +1094,11 @@ def check_task_toml(task_dir: Path, task_data: dict, reporter: Reporter) -> None
     category = get_task_field(task_data, "category")
     if category not in ALLOWED_CATEGORIES:
         reporter.fail(f"category must be one of the repo Edition 2 categories, found {category!r}")
+    elif category in BLOCKED_CATEGORIES:
+        reporter.fail(
+            f"category {category!r} is blocked for this project "
+            f"(must not be one of: {', '.join(sorted(BLOCKED_CATEGORIES))})"
+        )
 
     tags = get_task_field(task_data, "tags")
     if not isinstance(tags, list) or not all(isinstance(tag, str) and tag.strip() for tag in tags):
@@ -1079,8 +1109,8 @@ def check_task_toml(task_dir: Path, task_data: dict, reporter: Reporter) -> None
     languages = normalize_string_list(get_task_field(task_data, "languages"))
     if not languages:
         reporter.fail("languages must be a non-empty list of strings")
-    elif "python" in {language.lower() for language in languages} and difficulty != "hard":
-        reporter.fail("Python tasks are only accepted when the empirical difficulty is 'hard'")
+    elif "python" in {language.lower() for language in languages} and difficulty not in ALLOWED_DIFFICULTIES:
+        reporter.fail("Python tasks are only accepted when the empirical difficulty is 'hard' or 'medium'")
 
     codebase_size = get_task_field(task_data, "codebase_size")
     if codebase_size not in ALLOWED_CODEBASE_SIZES:
@@ -1452,7 +1482,15 @@ def check_test_sh(task_dir: Path, task_data: dict, reporter: Reporter) -> None:
     if standard_test_outputs.exists():
         if not PYTEST_DIRECT_PATTERN.search(content) or "/tests/test_outputs.py" not in content:
             reporter.fail("tests/test.sh must run /tests/test_outputs.py via pytest")
-        if not (UV_PYTEST_PATTERN.search(content) or re.search(r"^\s*(?:pytest|/opt/verifier/bin/pytest)\b", content, re.MULTILINE)):
+        # `python -m pytest` / `python3 -m pytest` runs the Dockerfile-installed
+        # pytest module (the python on PATH), exactly like a bare `pytest`. Every
+        # official skeleton uses this form, so it must be accepted as a valid
+        # Dockerfile-provided invocation. Reconciled 2026-06-15; see
+        # personal_docs/gate-reconciliations.md.
+        if not (
+            UV_PYTEST_PATTERN.search(content)
+            or re.search(r"^\s*(?:pytest|/opt/verifier/bin/pytest|python3?\s+-m\s+pytest)\b", content, re.MULTILINE)
+        ):
             reporter.fail(
                 "tests/test.sh must invoke Dockerfile-provided pytest on PATH or an offline uvx runner"
             )

@@ -14,6 +14,8 @@ The default Edition 2 acceptance profile in this repo is hard-only for **task me
 
 **The mechanical stack is the sole gate.** `scripts/collapse_check.py` runs eight root-cause checks (RC1-RC8), five compositional contract checks (CR1, CR2, CR7-CR9), and ten gate-extra checks (GX1-GX10). RC6 audits `instruction.md` for spec-completeness via `scripts/instruction_audit.py`; RC7 promotes the A12 oracle-LOC heuristic (<30 non-boilerplate lines = FAIL) to a mechanical gate. The GX layer was added after three previously-shipped tasks (`grandchild-exit-leak`, `pipe-close-shadow`, `child-finalization-gap`) collapsed despite passing RC1-RC8 + CR1-CR9; it closes structural gaps the earlier stack missed (LOC inflation via heredoc body-size, no-op frontier rewrites, disclosure comments in env, hardcoded oracle constants in tests, test-side derivation logic without an env home, narrative cause-disclosure). GX9 and GX10 were added after a second batch (`counter-restore-replay`, `slot-lineage-drift`, `key-ring-alias`, `staple-cache-shadow`) collapsed despite passing GX1-GX8: GX9 catches the "instruction enumerates the test answer key" mode and GX10 catches the "instruction names both polarities of a binary field for one case" mode — two opposite-direction ways an `instruction.md` can cheat the difficulty contract. If any of these 23 checks returns FAIL, the task does not ship. `scripts/verifier_health.py` (repeat-oracle / randomized-order / partial-oracle ablations) is the empirical backstop. Section A24 below documents the reviewer-facing modes that depend on natural-language judgment and remain outside the mechanical gate. Post-upload evaluation on the platform is outside this repo-local gate.
 
+**Empirical difficulty is a separate, required gate that the mechanical stack does NOT measure.** The 23 collapse checks and `scripts/hard_difficulty_predictor.py` prove *structure* (the task is not gameable / pre-factored) and only *estimate* hardness from the spec — they cannot tell you whether real frontier models actually fail the task. That is measured only by running the agents: `./scripts/agent_test.sh run tasks/<task> --runs 5` then `./scripts/agent_test.sh report --latest --task <task>` (target ≤1/6 frontier pass, against the platform's current eval models — currently GPT-5.5 + Opus 4.8; `agent_test.py` `MODELS` is set to these). Never submit on the mechanical stack + proxies alone: tasks that passed every gate here still bounced `NEEDS_REVISION` "EASY/TRIVIAL — requires at least MEDIUM" because the real-agent run was deferred. A task whose difficulty was not measured by real agents is not submittable; if Portkey credits are exhausted, refill them rather than guessing. See `personal_docs/docs/difficulty_guidelines.md`.
+
 ## Solver-Visible Surface Policy
 
 Use the authoritative solver-visible file-surface policy from `@task-creation.mdc`'s discoverability principle when judging discoverability or collapse.
@@ -451,8 +453,8 @@ After agent evaluation on the platform, classify empirical difficulty using agen
 **Worked example:**
 
 ```text
-terminus-claude-opus-4-6: 100.0% (5/5 runs)  ← best model
-terminus-gpt5-2:          20.0% (1/5 runs)  ← worst model
+terminus-claude-opus-4-8: 100.0% (5/5 runs)  ← best model
+terminus-gpt5-5:          20.0% (1/5 runs)  ← worst model
 ```
 
 - HARD condition (1) fails because the best model scored 100% (> 20%).

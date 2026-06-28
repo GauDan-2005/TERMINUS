@@ -111,8 +111,12 @@ def test_files(task_dir: Path) -> list[Path]:
 STANDARD_NON_UI_TEST_SH_PREFIX_PATTERNS = (
     ("workdir guard", re.compile(r'^if\s+\[\s+"\$PWD"\s*=\s*"/"\s*\];\s+then$')),
     (
+        # Accept the official-skeleton trailing "before running this script." clause
+        # (every default-template / references_announcement skeleton + every
+        # platform-accepted task uses it). Reconciled 2026-06-15; see
+        # personal_docs/gate-reconciliations.md.
         "workdir guard message",
-        re.compile(r'^echo\s+"Error:\s+No\s+working\s+directory\s+set\.\s+Please\s+set\s+a\s+WORKDIR\s+in\s+your\s+Dockerfile\."$'),
+        re.compile(r'^echo\s+"Error:\s+No\s+working\s+directory\s+set\.\s+Please\s+set\s+a\s+WORKDIR\s+in\s+your\s+Dockerfile(?:\s+before\s+running\s+this\s+script)?\."$'),
     ),
     ("workdir guard exit", re.compile(r"^exit\s+1$")),
     ("workdir guard close", re.compile(r"^fi$")),

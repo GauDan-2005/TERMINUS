@@ -2,7 +2,7 @@
 
 Practical, command-level guide for taking a task from idea → spec → build →
 tests → validation → zip → rubric → submission, with the exact rules, documents,
-commands, and gotchas. Derived from the full `abi-feature-backtrack` lifecycle
+commands, and gotchas. Derived from a full task lifecycle
 (authoring, compliance audit, redesign-for-hardness, upstream-CI fix).
 
 > Repo root in this environment:
@@ -20,7 +20,7 @@ commands, and gotchas. Derived from the full `abi-feature-backtrack` lifecycle
 |---|---|---|
 | harbor CLI | `/tmp/opencode/harbor-venv/bin/harbor` (v0.7.0) | NOT on PATH; call by full path. Registered agents include `oracle`, `nop`, `terminus-2` (NOT `terminus`). |
 | ruff | `/tmp/opencode/harbor-venv/bin/ruff` (0.15.13) | NOT on default PATH → local `check-task.sh` **skips lint** unless you put this on PATH. Upstream CI runs it → put it on PATH locally to get parity. |
-| stb CLI | `~/.local/bin/stb` (v2.2.0) | Platform CLI; `stb keys show` emits AI creds (OpenAI/Portkey). `stb login` is interactive (browser) — only the user can do it. |
+| stb CLI | `~/.local/bin/stb` (v2.4.0) | Platform CLI; `stb keys show` emits AI creds (OpenAI/Portkey). `stb login` is interactive (browser) — only the user can do it. |
 | Docker | system `docker` (v28.x) | Daemon must be up (`docker ps`). harbor builds task images here. |
 | python3 | system (3.12) | Repo harness scripts are stdlib-only. |
 
@@ -32,8 +32,8 @@ eval "$(stb keys show)"                               # exports OPENAI_API_KEY/O
 docker ps >/dev/null && echo "docker up"
 ```
 Credential reality: `stb keys show` provides **OpenAI/Portkey only**. Anthropic
-models route via Portkey using the OpenAI-compatible id `openai/claude-opus-4-6`
-(NOT `anthropic/claude-opus-4-6`, which fails "Missing Anthropic API Key").
+models route via Portkey using the OpenAI-compatible id `openai/claude-opus-4-8`
+(NOT `anthropic/claude-opus-4-8`, which fails "Missing Anthropic API Key").
 `stb harbor check` (Step 3a-Q) uses a Claude-Code evaluator and is **infeasible**
 with these creds — it is opt-in and `approve_task.py` passes without it.
 
@@ -53,14 +53,13 @@ with these creds — it is opt-in and `approve_task.py` passes without it.
 | `../.cursor/rules/task-creation.mdc` | Step 2b construction contract (layout, instruction, Dockerfile, test.sh, solve.sh) |
 | `../.cursor/rules/difficulty-calibration.mdc` | Collapse audit Part A (RC/CR/GX) + Part B per-test feasibility |
 | `../.cursor/rules/review-and-submit.mdc` | Step 3b structural review §1-7 + ACCEPT/REJECT criteria |
-| `announcement.md` | Project updates: `allow_internet=false`, Hard→Medium→Easy thresholds, Docker best-practices |
-| `references_announcement/docker.md` | **Dockerfile & image best-practices — reviewer-verified, NOT gated** (mirrored in `task-creation.mdc` env/Dockerfile + `review-and-submit.mdc` §2) |
-| `references_announcement/long_context.md` | `long_context` corpus standard (only if subcategory=`long_context`) |
+| `../docs/DOCKER_REQUIREMENTS.md` | **Dockerfile & image best-practices — reviewer-verified, NOT gated** (mirrored in `task-creation.mdc` env/Dockerfile + `review-and-submit.mdc` §2) |
+| `docs/long_context.md` | `long_context` corpus standard (only if subcategory=`long_context`) |
 | `../specs/validation_schema.json` | Exact schema for the Step 2a evidence JSON |
 | `../specs/README.md` | Spec-file schema docs |
 | `../TASK_PROPOSAL_RUBRIC.md` | **Scoring-rubric authoring guidelines** (the per-task agent-behavior rubric) |
 | `../web/TASK_PROPOSAL_RUBRIC.md` | Phase-1 idea-screening rubric (different artifact — Accept/Reject template) |
-| `CLI_installation.md` | `stb` CLI install/usage + real-agent commands |
+| `AGENT SETUP MANIFEST.txt` | Environment + `stb` CLI install/versions; CLI usage & real-agent commands in `../commands.md` and §4 below |
 
 Golden rule: **never invent paths/fields/commands from memory** — open the file
 or `commands.md`. Anti-collapse philosophy: a task is only acceptable if it stays
@@ -233,16 +232,20 @@ broken baseline should fail the tests' required keys → guarantees NOP=0.
 
 ---
 
-## STEP 2b — Docker/image compliance (reviewer-verified — the gates do NOT check this)
+## STEP 2b — Docker/image compliance (`scripts/dockerfile_check.py` automates most; rest reviewer-verified)
 
-`announcement.md` added a Dockerfile & image best-practices standard
-(`references_announcement/docker.md`), now mirrored in
+`docs/DOCKER_REQUIREMENTS.md` is the canonical Dockerfile & image best-practices standard,
+mirrored in
 `.cursor/rules/task-creation.mdc` "environment/Dockerfile" and
 `review-and-submit.mdc` §2. **None of `run_static_checks.py`, `collapse_check.py`,
 or `approve_task.py` enforce most of it** — a task can pass every gate and still
 violate these rules (the shipped `async-executor-liveness` image did: no
-tmux/asciinema, no `.dockerignore`, `COPY . /app`, no OCI labels). Verify each by
-hand before zipping; this checklist is part of the acceptance definition:
+tmux/asciinema, no `.dockerignore`, `COPY . /app`, no OCI labels). **Now automated:**
+`python3 scripts/dockerfile_check.py tasks/<t>` checks most of this list (digest-pinned
+FROM, tmux+asciinema, pinned deps, narrow `COPY`, `.dockerignore`, OCI labels,
+multi-stage) → exit 0 PASS / 2 WARN / 1 FAIL. Run it before zipping; still hand-verify
+what it can't see (resource sizing from real peak use, `long_context` corpus). This
+checklist is part of the acceptance definition:
 
 - [ ] `tmux` AND `asciinema` installed (base image or pinned). **Missing either →
       real-agent (`terminus-2`) runs fail even though the oracle passes.**
@@ -255,7 +258,7 @@ hand before zipping; this checklist is part of the acceptance definition:
 - [ ] source as files, not Dockerfile heredocs; `COPY --chmod`/`--chown`, not recursive `chmod -R`/`chown -R`
 - [ ] no `.git`/`.env`/credentials/caches in the image; OpenContainers labels (`org.opencontainers.image.*`)
 - [ ] `[environment]` declares `cpus`/`memory_mb`/`storage_mb`/`build_timeout_sec`/`gpus`/`gpu_types`/`docker_flags` from real peak use
-- [ ] (only if subcategory=`long_context`) corpus ≥50k document tokens, shipped not generated, authoritative, not grep-solvable — see `references_announcement/long_context.md`
+- [ ] (only if subcategory=`long_context`) corpus ≥50k document tokens, shipped not generated, authoritative, not grep-solvable — see `docs/long_context.md`
 
 ---
 
@@ -263,8 +266,8 @@ hand before zipping; this checklist is part of the acceptance definition:
 
 - Verifier health (order/partial-oracle): `python3 scripts/verifier_health.py
   --task-dir tasks/<t> --output-json /tmp/<t>-vh.json`.
-- Quality check (GPT-5.2/Claude rubric): `stb harbor check tasks/<t> -m
-  "openai/gpt-5.2" -o /tmp/<t>-qc.json` then `python3
+- Quality check (GPT-5.5/Claude rubric): `stb harbor check tasks/<t> -m
+  "openai/gpt-5.5" -o /tmp/<t>-qc.json` then `python3
   scripts/quality_check_adjudicate.py --task-dir tasks/<t> --qc-output /tmp/<t>-qc.json`.
   **Env note:** `stb harbor check` is Claude-Code-based and fails with
   OpenAI/Portkey-only creds ("Claude Code returned an error result"). It is
@@ -330,12 +333,20 @@ only if Step 3a-V ran. The `--actionability-report`/`--no-hidden-contracts-repor
 (Step 2b); `--first-look-result` from the first-look packet (sub-step 1b).
 
 4) **Empirical difficulty** (the real hard-only test — the mechanical gates do
-NOT measure it). Use the registered reference agent `terminus-2`:
+NOT measure it; `hard_difficulty_predictor.py`/`reviewer_simulation.py` only
+*estimate* it and must NOT be used to skip this). Standardized runner
+(`scripts/agent_test.sh` wraps `stb harbor run` + parses pass rates → band):
 ```bash
-$H run -a terminus-2 -m "openai/gpt-5.2"          -p "tasks/<t>" --job-name <t>-gpt-N  -y
-$H run -a terminus-2 -m "openai/claude-opus-4-6"  -p "tasks/<t>" --job-name <t>-opus-N -y
+eval "$(stb keys show)"; export PATH="/tmp/opencode/harbor-venv/bin:$PATH"
+./scripts/agent_test.sh run tasks/<t> --runs 5        # GPT-5.5 + Opus, writes jobs/
+./scripts/agent_test.sh report --latest --task <t>    # pass rates + HARD/MEDIUM/EASY verdict
 ```
-Method: cheap **2-run probe** (1 GPT-5.2 + 1 Opus). If ≤1 solve → full **6-run
+Or drive harbor directly with the registered reference agent `terminus-2`:
+```bash
+$H run -a terminus-2 -m "openai/gpt-5.5"          -p "tasks/<t>" --job-name <t>-gpt-N  -y
+$H run -a terminus-2 -m "openai/claude-opus-4-8"  -p "tasks/<t>" --job-name <t>-opus-N -y
+```
+Method: cheap **2-run probe** (1 GPT-5.5 + 1 Opus). If ≤1 solve → full **6-run
 matrix** (×3 each) for the verdict. Target **≤1/6** frontier pass. 100% pass =
 too easy (REJECT-level under review-and-submit §7); 0/6 with a deterministic
 oracle 10/10 + an expert path = genuinely hard (good). An import/format-only
@@ -355,7 +366,7 @@ stb submissions list -p PROJECT_ID
 Rubric files (`rubric.txt`/`rubrics.txt`) are in `scripts/validate_submission_zip.py`
 `FORBIDDEN_ROOT_FILES`. Keep the rubric **outside** the repo (e.g.
 `…/AirDawg/<task>-rubric.md`). Follow `TERMINUS/TASK_PROPOSAL_RUBRIC.md`:
-- Every line starts `Agent ` and ends `, [Score]`.
+- Every line starts `Agent ` and ends `, +N` / `, -N` (ASCII `-`).
 - Scores only ±1, ±2, ±3, ±5 (NEVER ±4). Critical ±5 / Major ±3 / Minor ±1-2.
 - Binary; ≥5 checks; **≥3 negative** checks; positive phrasing always.
 - **Total cumulative positive ∈ [10, 40]** (per milestone for milestone tasks).
@@ -392,7 +403,7 @@ workload, do NOT `system prune -af` (it removes unrelated images).
 | collapse `GX1 FAIL` | `BUG:`/correctional comments in env | neutral plausible code; no correctional vocab |
 | collapse `GX6 FAIL` | instruction explains WHY/WHEN | terse symptoms-only WHAT; cut after/when/so/because |
 | `Unknown agent type: TERMINUS` | `terminus` unregistered in harbor 0.7.0 | use `-a terminus-2` |
-| `Missing Anthropic API Key` | `-m anthropic/...` with Portkey creds | use `-m openai/claude-opus-4-6` |
+| `Missing Anthropic API Key` | `-m anthropic/...` with Portkey creds | use `-m openai/claude-opus-4-8` |
 | approve `source/zip mismatch` | stale zip / nested dotfile (`state/.keep`) | rebuild zip with `*/.*` excluded |
 | approve `step2b checksum` FAIL | task file edited after preflight | re-run `check-task.sh` (dirty-flag) |
 

@@ -188,6 +188,30 @@ python3 scripts/migrate_internet_disabled.py --task <task-name>
 
 ---
 
+## `environment/.dockerignore` is required in the task dir and the zip
+
+**Reviewer feedback pattern:** "There is no `.dockerignore` in the submission
+zip / in `environment/`."
+
+**Clarification:** Non-trivial tasks must commit
+`tasks/<task-name>/environment/.dockerignore` for Docker build-context hygiene
+(`scripts/dockerfile_check.py` warns when it is absent). The name starts with
+`.`, so many editors hide it unless "show hidden files" is on — confirm with
+`ls -la tasks/<task-name>/environment/.dockerignore`.
+
+**Packaging:** the Step 4 zip excludes task-root dotfile sentinels but **keeps**
+`environment/.dockerignore`. A submission zip that omits `environment/.dockerignore`
+when the task tree contains one is a **packaging defect**: the source↔zip parity
+check in `scripts/approve_task.py` will fail. Build the zip with
+`scripts/package_task.py` (which preserves the packaged dotfile), not an ad-hoc
+`zip` that strips all dotfiles.
+
+**Action:** add or refresh `environment/.dockerignore` (template in
+`.cursor/rules/task-creation.mdc`), then repackage with the standard Step 4
+command in `commands.md`.
+
+---
+
 ## Verifier timeout must be generous — but capped at 1800s
 
 **Reviewer feedback pattern:** "Verifier timeout of 1200 s is potentially

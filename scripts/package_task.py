@@ -27,7 +27,9 @@ FORBIDDEN_ANYWHERE_FILENAMES = {
     ".step2b-checksum",
     ".step2b-metrics.jsonl",
     ".gitignore",
-    ".dockerignore",
+    # .dockerignore is intentionally NOT forbidden: platform reviewer feedback
+    # requires it to ship inside the archive (see
+    # validate_submission_zip.PACKAGED_DOTFILE_ALLOWLIST).
     "AGENTS.md",
     "CLAUDE.md",
     "skills.md",
@@ -60,8 +62,16 @@ def should_package(rel: PurePosixPath) -> tuple[bool, str | None]:
         return False, "not part of submission root"
     if any(part in FORBIDDEN_ANYWHERE_DIRS for part in parts):
         return False, "forbidden local/cache directory"
-    if any(is_dot_part(part) for part in parts):
-        return False, "dotfile or dotdir metadata"
+    dot_parts = [part for part in parts if is_dot_part(part)]
+    if dot_parts:
+        basename = parts[-1]
+        allowed_dotfile = (
+            len(dot_parts) == 1
+            and dot_parts[0] == basename
+            and basename in validate_submission_zip.PACKAGED_DOTFILE_ALLOWLIST
+        )
+        if not allowed_dotfile:
+            return False, "dotfile or dotdir metadata"
     if any(part in FORBIDDEN_ANYWHERE_FILENAMES for part in parts):
         return False, "forbidden local metadata file"
     if rel.suffix == ".pyc":

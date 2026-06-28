@@ -22,6 +22,29 @@ Follow @difficulty-calibration.mdc Part A for the collapse audit and Part E for 
 Follow docs/HARD_BUT_FAIR_AUTHORING.md for the hard-but-fair policy.
 Use specs/validation_schema.json as the evidence contract for each attempt.
 
+**Blocked categories (BLOCKING — check first):** If the seed or spec would set
+`category = software-engineering` or `category = debugging`, STOP and remap to
+one of the seven accepted categories before continuing. Repair work uses
+`repair_existing_system` under an accepted domain — never the blocked debugging category.
+
+**Seed uniqueness (BLOCKING):** Before attempt 1, run:
+
+```bash
+python3 scripts/seed_uniqueness_check.py check \
+  --seed-id <seed-id> \
+  --topology "<topology phrase>" \
+  --category <accepted-category> \
+  --task-name <planned-slug>
+```
+
+Reject on topology/slug collision. After GO, register with `seed_uniqueness_check.py register`.
+
+**Hard-only bar:** GO is forbidden if the idea would empirically land as easy/medium
+(worst-model pass >20%). Python tasks must pass `hard_difficulty_predictor.py` ≤20%
+predicted worst-model pass before Step 2b.
+
+**Language:** if the idea or seed does not already specify an implementation language, stop and ask the author to choose from all **9 accepted families** in `@task-creation.mdc` § Accepted implementation languages (AskQuestion with the full list). Do not default to Python.
+
 Required shape-level fields in both the markdown authoring spec and evidence JSON:
 - platform_files
 - task_files

@@ -223,12 +223,18 @@ def evaluate(
     difficulty, languages, env_files = _task_metadata(task_dir)
     is_python = _is_python_task(languages, combined)
 
-    if difficulty and difficulty not in {"hard"}:
+    # The platform accepts "at least MEDIUM" (✅ MEDIUM is a passing grade; only
+    # EASY/TRIVIAL fail with "Requires at least MEDIUM"), and the reviewer
+    # explicitly sanctioned difficulty=medium for async-executor-liveness. Aligned
+    # with run_static_checks.py ALLOWED_DIFFICULTIES per the 2026-06-15 gate
+    # reconciliation (personal_docs/gate-reconciliations.md). The genuine hardness
+    # bar is enforced below by the worst-model pass-rate prediction, not the label.
+    if difficulty and difficulty not in {"hard", "medium"}:
         findings.append(
             Finding(
                 severity="FAIL" if strict else "WARN",
                 kind="invalid_difficulty",
-                message=f"Tasks must target difficulty=hard; found {difficulty!r}",
+                message=f"Task difficulty must be at least 'medium' (platform accepts ≥ MEDIUM); found {difficulty!r}",
             )
         )
 
@@ -270,7 +276,10 @@ def evaluate(
             )
         )
 
-    mechanism_count = len(MECHANISM_RE.findall(spec_text))
+    # MECHANISM_RE is anchored at line start; count per line (findall without
+    # re.MULTILINE only matches the whole-string start and undercounts a real
+    # difficulty_mechanism_plan to 0). Consistent with _extract_failure_modes.
+    mechanism_count = sum(1 for line in spec_text.splitlines() if MECHANISM_RE.match(line))
     if spec_text and mechanism_count < 4:
         findings.append(
             Finding(

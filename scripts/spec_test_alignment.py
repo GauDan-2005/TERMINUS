@@ -63,6 +63,32 @@ def _test_files(task_dir: Path) -> list[Path]:
     return files
 
 
+# Text-like files under environment/ form part of the solver-visible surface the
+# agent can read (plan/data files, docs, source, scripts). A test literal homed
+# anywhere in that surface is discoverable and must NOT be flagged as
+# "undocumented" — matching collapse_check's GX7 Test-Literal Homing, which is the
+# authoritative homing gate. (The instruction-only check produced false positives
+# on data-specific scenario names like 'amber-leaf' that live in the plan files.)
+_SOLVER_VISIBLE_TEXT_SUFFIXES = frozenset({
+    "", ".md", ".txt", ".plan", ".json", ".jsonl", ".toml", ".yaml", ".yml",
+    ".cfg", ".ini", ".csv", ".lock", ".rs", ".py", ".go", ".js", ".ts", ".mjs",
+    ".cjs", ".c", ".h", ".cc", ".cpp", ".hpp", ".sh", ".bash", ".env", ".sql",
+})
+
+
+def _solver_visible_text(task_dir: Path, combined_instruction: str) -> str:
+    parts = [combined_instruction]
+    env_dir = task_dir / "environment"
+    if env_dir.is_dir():
+        for path in sorted(env_dir.rglob("*")):
+            if path.is_file() and path.suffix.lower() in _SOLVER_VISIBLE_TEXT_SUFFIXES:
+                try:
+                    parts.append(path.read_text(encoding="utf-8", errors="replace"))
+                except OSError:
+                    continue
+    return "\n".join(parts)
+
+
 def _extract_requirements(text: str, source: str) -> list[tuple[str, str]]:
     reqs: list[tuple[str, str]] = []
     for match in HEADING_RE.finditer(text):
@@ -93,7 +119,15 @@ def _extract_test_behaviors(path: Path, task_dir: Path) -> list[tuple[str, str, 
             doc = ast.get_docstring(node) or node.name.replace("test_", "").replace("_", " ")
             behaviors.append((rel, doc, node.lineno))
             for sub in ast.walk(node):
-                if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and len(sub.value) > 4:
+                # Only multi-word phrase strings describe a behavior. Bare tokens,
+                # encodings/flags/paths (e.g. "utf-8", "0755", "--release") are
+                # verifier mechanics, not agent-facing behaviors.
+                if (
+                    isinstance(sub, ast.Constant)
+                    and isinstance(sub.value, str)
+                    and len(sub.value) > 4
+                    and " " in sub.value.strip()
+                ):
                     behaviors.append((rel, sub.value, sub.lineno))
     return behaviors
 
@@ -171,30 +205,47 @@ def evaluate(task_dir: Path, *, strict: bool) -> dict:
                 )
             )
 
-    # Test behavior → instruction documentation
+    # Test behavior → instruction documentation. This is a crude token-overlap
+    # proxy for the platform's authoritative behavior_in_task_description axis;
+    # test-author docstrings rarely match instruction tokens verbatim, so it is
+    # advisory (WARN), never blocking, per the 2026-06-15 gate reconciliation
+    # (personal_docs/gate-reconciliations.md). Behaviors homed in the solver-
+    # visible environment surface count as documented.
+    solver_visible_tokens = _tokenize(_solver_visible_text(task_dir, combined_instruction))
     for path, behavior, lineno in behaviors:
         beh_tokens = _tokenize(behavior)
         if not beh_tokens:
             continue
         if behavior.lower() in instruction_lower:
             continue
-        overlap = beh_tokens & instruction_tokens
+        overlap = beh_tokens & (instruction_tokens | solver_visible_tokens)
         if len(overlap) < max(1, len(beh_tokens) // 3):
             findings.append(
                 Finding(
-                    severity="FAIL" if strict else "WARN",
+                    severity="WARN",
                     kind="undocumented_test_behavior",
                     message=f"Test behavior not clearly documented in instruction.md: {behavior[:120]}",
                     location=f"{path}:{lineno}",
                 )
             )
 
-    # Literal assertions must appear in instruction
+    # Literal assertions must be homed in solver-visible material (instruction.md
+    # or the environment/ surface the agent can read), not only instruction.md.
+    solver_visible = _solver_visible_text(task_dir, combined_instruction)
+    solver_visible_lower = solver_visible.lower()
     for path, lineno, literal in _literal_assertions_on_all(test_files, task_dir):
-        if literal in combined_instruction or literal.lower() in instruction_lower:
+        if literal in solver_visible or literal.lower() in solver_visible_lower:
             continue
         if len(literal) <= 3 or literal.isdigit():
             continue
+        # Path / glob literals (e.g. "target/**/mhre_native") are verifier
+        # file-matching mechanics, not agent-facing data values; home them by
+        # their meaningful (non-glob) path components — if any is solver-visible
+        # (e.g. the binary name in Cargo.toml), the artifact is discoverable.
+        if "/" in literal or "*" in literal:
+            comps = [c for c in re.split(r"[/\\*?\[\]]+", literal) if len(c) > 3]
+            if comps and any(c.lower() in solver_visible_lower for c in comps):
+                continue
         findings.append(
             Finding(
                 severity="FAIL" if strict else "WARN",

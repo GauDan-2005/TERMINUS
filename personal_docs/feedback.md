@@ -10,7 +10,7 @@ Replace placeholders before running:
 
 | Placeholder       | Example                                                            |
 | ----------------- | ------------------------------------------------------------------ |
-| `{task_name}`     | `autograd-tape-alias`                                              |
+| `{task_name}`     | `sparse-block-preconditioner`                                      |
 | `{project_id}`    | `bfe79c33-8ab0-4061-9849-08d3207c9927`                             |
 | `{submission_id}` | from `stb submissions list` or `tasks/{task_name}/.snorkel_config` |
 

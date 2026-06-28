@@ -56,12 +56,30 @@ class PackageTaskTest(unittest.TestCase):
         self.assertIn("task.toml", members)
         self.assertIn("environment/Dockerfile", members)
         self.assertNotIn("environment/.gitignore", members)
-        self.assertNotIn("environment/.dockerignore", members)
+        # .dockerignore is allowlisted: platform reviewer feedback requires it to
+        # ship inside the archive so it takes effect when the image is built from
+        # the unpacked submission (FEEDBACK > local strip-all-dotfiles policy).
+        self.assertIn("environment/.dockerignore", members)
         self.assertNotIn(".step2b-checksum", members)
         self.assertNotIn(".step2b-metrics.jsonl", members)
         self.assertNotIn("output_contract.toml", members)
         self.assertNotIn("construction_manifest.json", members)
         self.assertFalse(any(name.startswith("demo-task/") for name in members))
+
+    def test_package_includes_allowlisted_dockerignore_and_parity_holds(self) -> None:
+        from scripts import approve_task
+
+        report = package_task.create_package(self.task_dir, self.zip_path)
+        self.assertEqual(report["status"], "PASS")
+        self.assertIn("environment/.dockerignore", self._members())
+
+        # The approval source/zip parity manifest must also include the
+        # allowlisted dotfile, otherwise it would flag it as extra-in-zip.
+        source_manifest = approve_task.build_source_package_manifest(self.task_dir)
+        self.assertIn("environment/.dockerignore", source_manifest)
+        self.assertNotIn("environment/.gitignore", source_manifest)
+        zip_manifest = approve_task.build_zip_manifest(self.zip_path)
+        self.assertEqual(set(source_manifest), set(zip_manifest))
 
     def test_validate_submission_zip_passes_package_task_output(self) -> None:
         report = package_task.create_package(self.task_dir, self.zip_path)

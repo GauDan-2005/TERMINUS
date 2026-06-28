@@ -22,6 +22,10 @@ Rubrics are **not** shipped in the zip (`rubrics.txt` / `rubric.txt` banned).
 - Warning signs of synthetic-unrealism: Greek/rubric-shaped module names, `op_a`/`phase_b`/`reconcile_c`-style symbols, contract fields that restate test verdicts, metaphor-only instructions, generated witnesses under `environment/`, or test schemas invented to match the bug rather than program behavior
 - Record `realism_source.source_type`, `evidence_basis`, `upstream_or_synthetic_rationale`, `minimization_preserves`, and `synthetic_exception_review` before handoff
 - Every line starts with "Agent" and ends with ", [Score]"
+- **Rubric section headers:** every task (milestone and non-milestone) must include
+  at least `# Rubric 1` on its own line before the first criterion. Milestone tasks
+  add `# Rubric 2`, `# Rubric 3`, … for each additional milestone. Non-milestone
+  tasks use a single `# Rubric 1` section only.
 - Only use +1, +2, +3, +5, -1, -2, -3, -5 (NEVER use +4, -4)
 - **Negative score character:** Write minus only as the ASCII hyphen-minus `-` (U+002D), e.g. `-2`, `-5`. Do **not** use Unicode minus `−` (U+2212), en dash `–` (U+2013), em dash `—` (U+2014), or any other non-ASCII dash; copy/paste and some editors silently substitute the wrong character.
 - Every check must be **binary** (yes/no evaluation from the trace)

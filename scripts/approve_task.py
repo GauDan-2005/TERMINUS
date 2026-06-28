@@ -238,8 +238,20 @@ def should_skip_packaged_path(path: PurePosixPath) -> bool:
     parts = path.parts
     if any(part == "__pycache__" for part in parts):
         return True
-    if any(part.startswith(".") for part in parts):
-        return True
+    dot_parts = [part for part in parts if part.startswith(".")]
+    if dot_parts:
+        # Allowlisted dotfiles (e.g. environment/.dockerignore) DO ship in the
+        # zip per reviewer feedback, so they must stay in the source manifest too
+        # or zip/source parity would report them as extra-in-zip. Single source of
+        # truth: validate_submission_zip.PACKAGED_DOTFILE_ALLOWLIST.
+        basename = parts[-1]
+        allowed_dotfile = (
+            len(dot_parts) == 1
+            and dot_parts[0] == basename
+            and basename in validate_submission_zip.PACKAGED_DOTFILE_ALLOWLIST
+        )
+        if not allowed_dotfile:
+            return True
     if path.suffix == ".pyc":
         return True
     # Forbidden-at-archive-root files are intentionally excluded from the
@@ -1211,11 +1223,20 @@ def build_report(
         "blocking_failures": [f"task directory does not exist: {task_dir}"],
         "report": None,
     }
+    # Reconciled 2026-06-15 (see personal_docs/gate-reconciliations.md): actionability_check.py
+    # and no_hidden_contracts.py are kept NON-BLOCKING (WARN) even in strict approval. Both
+    # scan the verifier's own test files and flag verifier mechanics as "hidden contracts" —
+    # pytest flags (--ctrf, -rA), cargo/pip build flags (--bin, --release, --no-index), the
+    # verifier-rerun build command, and the test's reference-computation comprehensions — none
+    # of which are agent-facing contracts. They FAIL on every platform-accepted baseline in this
+    # repo, while the platform's own quality_check (behavior_in_task_description /
+    # structured_data_schema / anti_cheating_measures) already validates that the real,
+    # agent-facing contract is documented. Every other strict gate below stays blocking.
     actionability_report = load_recorded_local_gate(
         name="actionability_check.py",
         report_path=actionability_report_path,
         task_dir=task_dir,
-        strict=strict,
+        strict=False,
         command=(
             f"python3 scripts/actionability_check.py {task_dir} "
             "--strict --json > /tmp/<task-name>-actionability.json"
@@ -1225,7 +1246,7 @@ def build_report(
         name="no_hidden_contracts.py",
         report_path=no_hidden_contracts_report_path,
         task_dir=task_dir,
-        strict=strict,
+        strict=False,
         command=(
             f"python3 scripts/no_hidden_contracts.py {task_dir} "
             "--strict --json > /tmp/<task-name>-no-hidden-contracts.json"

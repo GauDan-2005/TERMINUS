@@ -44,7 +44,7 @@ Use `--include-repeat-oracle` only when diagnosing Step 4 repeat-oracle flakines
 When platform `harbor tasks check` reports LLMaJ failures:
 
 ```bash
-harbor tasks check tasks/<task-name> -m openai/@openai/gpt-5.2
+harbor tasks check tasks/<task-name> -m openai/@openai/gpt-5.5
 python3 scripts/quality_check_adjudicate.py tasks/<task-name> --strict
 ```
 

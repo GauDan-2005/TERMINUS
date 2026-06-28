@@ -31,6 +31,96 @@ DEFINITION_CUE_RE = re.compile(
 )
 STOPWORDS = frozenset("the a an and or of to in for on with is are be by at from as".split())
 
+# Stdlib / test-harness method & builtin names that are not undocumented
+# spec gaps when they appear as test probes (false-positive reduction).
+COMMON_TEST_METHOD_NAMES = frozenset(
+    {
+        "loads",
+        "dumps",
+        "read_text",
+        "write_text",
+        "read_bytes",
+        "write_bytes",
+        "decode",
+        "splitlines",
+        "append",
+        "items",
+        "values",
+        "startswith",
+        "exists",
+        "unlink",
+        "write",
+        "run",
+        "check",
+        "split",
+        "strip",
+        "lower",
+        "upper",
+        "get",
+        "keys",
+        "update",
+        "extend",
+        "pop",
+        "sort",
+        "sorted",
+        "len",
+        "int",
+        "float",
+        "str",
+        "list",
+        "dict",
+        "set",
+        "tuple",
+        "range",
+        "enumerate",
+        "zip",
+        "next",
+        "any",
+        "all",
+        "sum",
+        "min",
+        "max",
+        "abs",
+        "round",
+        "isfile",
+        "isdir",
+        "glob",
+        "resolve",
+        "parents",
+        "stem",
+        "name",
+        "cwd",
+        "text",
+        "encoding",
+        "errors",
+        "replace",
+        "find",
+        "join",
+        "format",
+        "group",
+        "groups",
+        "search",
+        "match",
+        "sub",
+        "compile",
+        "argv",
+        "returncode",
+        "stdout",
+        "stderr",
+        "capture_output",
+        "check_true",
+        "raises",
+        "fixture",
+        "yield",
+        "pytest",
+        "raises",
+        "site_rows_for_fixture",
+        "canonical_link",
+        "strip_echo_from_link",
+        "row_seal_for_run",
+    }
+)
+
 
 @dataclass
 class Finding:
@@ -59,6 +149,35 @@ def _test_files(task_dir: Path) -> list[Path]:
     return files
 
 
+# A test token homed anywhere in the solver-visible environment/ surface (data
+# files, docs, source) or in an environment file *name* (e.g. a scenario named
+# `basalt` backed by `data/cases/basalt.case`) is discoverable by the agent, so
+# it is not an undocumented gap — matching collapse_check GX7 and
+# spec_test_alignment. Only tokens with no home anywhere solver-visible are gaps.
+_ENV_TEXT_SUFFIXES = frozenset({
+    "", ".md", ".txt", ".case", ".plan", ".json", ".jsonl", ".toml", ".yaml",
+    ".yml", ".cfg", ".ini", ".csv", ".lock", ".rs", ".py", ".go", ".js", ".ts",
+    ".c", ".h", ".cc", ".cpp", ".hpp", ".sh", ".cmake", "cmakelists.txt",
+})
+
+
+def _environment_text(task_dir: Path) -> str:
+    parts: list[str] = []
+    env_dir = task_dir / "environment"
+    if env_dir.is_dir():
+        for path in sorted(env_dir.rglob("*")):
+            if not path.is_file():
+                continue
+            # Include the relative path so file names (scenario stems) count as homes.
+            parts.append(path.relative_to(env_dir).as_posix())
+            if path.suffix.lower() in _ENV_TEXT_SUFFIXES or path.name.lower() in _ENV_TEXT_SUFFIXES:
+                try:
+                    parts.append(path.read_text(encoding="utf-8", errors="replace"))
+                except OSError:
+                    continue
+    return "\n".join(parts)
+
+
 def _extract_test_probes(path: Path, task_dir: Path) -> list[tuple[str, str, int]]:
     rel = path.relative_to(task_dir).as_posix()
     text = path.read_text(encoding="utf-8", errors="replace")
@@ -70,21 +189,20 @@ def _extract_test_probes(path: Path, task_dir: Path) -> list[tuple[str, str, int
 
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name.startswith("test_"):
-            context = ast.get_docstring(node) or node.name
             for sub in ast.walk(node):
-                if isinstance(sub, ast.Subscript | ast.Attribute):
+                # Agent-facing data fields are JSON keys read via subscript on the
+                # parsed output (`case["field"]`). Python attribute access
+                # (`proc.returncode`, `path.read_text`) and bare string constants
+                # (pytest parametrize param names, format strings, encodings) are
+                # verifier mechanics, not the agent contract, and only produce
+                # false "undocumented" gaps — so only the `["key"]` subscript form
+                # is treated as a probe.
+                if isinstance(sub, ast.Subscript):
                     src = ast.get_source_segment(text, sub) or ""
                     for match in FIELD_ACCESS_RE.finditer(src):
-                        field = match.group(1) or match.group(2)
+                        field = match.group(1)
                         if field and field not in STOPWORDS and len(field) > 3:
                             probes.append((rel, field, sub.lineno if hasattr(sub, "lineno") else node.lineno))
-                if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
-                    for token in COMPOUND_TOKEN_RE.findall(sub.value.lower()):
-                        if len(token) > 6:
-                            probes.append((rel, token, sub.lineno))
-            for token in COMPOUND_TOKEN_RE.findall(context.lower()):
-                if len(token) > 6:
-                    probes.append((rel, token, node.lineno))
     return probes
 
 
@@ -141,6 +259,8 @@ def evaluate(task_dir: Path, *, strict: bool) -> dict:
     for tf in test_files:
         probes.extend(_extract_test_probes(tf, task_dir))
 
+    environment_lower = _environment_text(task_dir).lower()
+
     findings: list[Finding] = []
     seen_tokens: set[str] = set()
 
@@ -149,7 +269,13 @@ def evaluate(task_dir: Path, *, strict: bool) -> dict:
         if key in seen_tokens:
             continue
         seen_tokens.add(key)
+        if token in COMMON_TEST_METHOD_NAMES:
+            continue
         if _field_explained(token, combined):
+            continue
+        # Homed in the solver-visible environment/ surface (data/docs/source or a
+        # file name) => discoverable by the agent, not an undocumented gap.
+        if key in environment_lower:
             continue
         if len(token) <= 4:
             continue

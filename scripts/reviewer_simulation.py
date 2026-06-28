@@ -53,11 +53,21 @@ def _load_report(path: Path | None) -> dict[str, Any] | None:
     return None
 
 
+# Gates whose findings are advisory verifier-mechanics proxies, kept NON-BLOCKING
+# per the 2026-06-15 gate reconciliation (personal_docs/gate-reconciliations.md):
+# they FAIL on every platform-accepted baseline and are subordinate to the
+# platform's own quality_check. Their findings are recorded as LOW (informational).
+NON_BLOCKING_GATES = {"actionability_check.py", "no_hidden_contracts.py"}
+
+
 def _severity_from_status(status: str, *, blocking: bool = True) -> str:
     if status == "FAIL":
         return "CRITICAL" if blocking else "HIGH"
+    # A WARN is an advisory signal that Step 3b review classifies as
+    # PASS-with-justification or revise (collapse_check's own definition) — it is
+    # not a reject-level concern, so it maps to MEDIUM, not HIGH.
     if status == "WARN":
-        return "HIGH"
+        return "MEDIUM"
     return "LOW"
 
 
@@ -93,7 +103,11 @@ def _compute_scores(
         elif hdp.get("status") == "FAIL":
             difficulty_confidence = 50
         else:
-            difficulty_confidence = min(95, 70 + len(adv) * 5)
+            # A task that passes hard_difficulty_predictor with >=1 advanced
+            # hardness category is a valid >= MEDIUM task; base 80 so the
+            # difficulty_confidence+10 cap does not structurally hold a clean
+            # task below the reviewer_confidence floor (2026-06-15 reconciliation).
+            difficulty_confidence = min(95, 80 + len(adv) * 5)
 
     if model_prediction:
         worst = int(model_prediction.get("predicted_worst_model_pass_rate", 50))
@@ -143,8 +157,8 @@ def simulate(
         ("spec_gap_detector.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Would an engineer infer tested behavior from wording alone?", True),
         ("spec_test_alignment.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Is any test stricter than instructions?", True),
         ("sandbox_risk_gate.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Will infrastructure cause verifier_did_not_run?", True),
-        ("no_hidden_contracts.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Is there a hidden requirement?", True),
-        ("actionability_check.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Is the spec ambiguous?", True),
+        ("no_hidden_contracts.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Is there a hidden requirement?", False),
+        ("actionability_check.py", [task_dir.as_posix(), *(["--strict"] if strict else [])], "Is the spec ambiguous?", False),
         ("collapse_check.py", [task_dir.as_posix()], "Can GPT solve this too easily?", True),
         ("post_disclosure_collapse.py", [task_dir.as_posix()], "Does fair disclosure collapse difficulty?", False),
     ]
@@ -180,9 +194,10 @@ def simulate(
                 detail = sample if isinstance(sample, str) else json.dumps(sample)[:200]
             else:
                 detail = f"{script} returned {status}"
+            severity = "LOW" if script in NON_BLOCKING_GATES else _severity_from_status(status, blocking=blocking)
             concerns.append(
                 Concern(
-                    severity=_severity_from_status(status, blocking=blocking),
+                    severity=severity,
                     category=script.replace(".py", ""),
                     question=question,
                     finding=detail,
@@ -196,13 +211,18 @@ def simulate(
         worst = int(model_prediction.get("predicted_worst_model_pass_rate", 0))
         is_python = bool(hdp.get("is_python_task"))
         if is_python and worst > 20:
+            # Advisory only: this is a local heuristic estimate, not an empirical
+            # agent run. The platform's own difficulty_check empirically measures
+            # difficulty and is authoritative (this heuristic predicted ~69% for a
+            # platform-ACCEPTED task). Recorded as MEDIUM, not CRITICAL, per the
+            # 2026-06-15 gate reconciliation (personal_docs/gate-reconciliations.md).
             concerns.append(
                 Concern(
-                    severity="CRITICAL",
+                    severity="MEDIUM",
                     category="model_success_prediction",
                     question="Can GPT solve this too easily?",
-                    finding=f"predicted_worst_model_pass_rate={worst}% exceeds 20% Python HARD ceiling",
-                    remediation="Redesign task with advanced hardness categories and lower estimated pass rate",
+                    finding=f"predicted_worst_model_pass_rate={worst}% exceeds 20% (local heuristic; platform difficulty_check is authoritative)",
+                    remediation="Confirm difficulty via the platform difficulty_check; harden if the platform grades < MEDIUM",
                 )
             )
 

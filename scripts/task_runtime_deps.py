@@ -138,6 +138,43 @@ def strip_line_comment(line: str) -> str:
     return line
 
 
+# Shell keywords that legitimately precede a command word
+# (`exec cargo ...`, `sudo node ...`, `xargs make ...`).
+COMMAND_WRAPPER_TOKENS = frozenset(
+    {"exec", "sudo", "command", "xargs", "env", "time", "nohup", "nice", "then", "do", "else"}
+)
+
+
+def is_invocation_context(line: str, start: int, end: int) -> bool:
+    """Does a COMMAND_RE match sit where a command is actually *invoked*?
+
+    The regex alone matches a runtime name anywhere it appears as a word, which
+    fires on ordinary prose inside Python docstrings and comments (e.g. "build
+    the node hierarchy", "with cargo build"). A real invocation is either a
+    quoted argv token (`subprocess.run(["cargo", ...])`, `run("node app.js")`),
+    sits in shell command position (line start, after a control operator, after
+    an env-var assignment prefix, or after a wrapper keyword), or is immediately
+    followed by a CLI flag. Everything else is treated as prose and skipped.
+    """
+    prev = line[start - 1] if start > 0 else ""
+    nxt = line[end] if end < len(line) else ""
+    # Quoted argv token, immediately adjacent to a quote on either side.
+    if prev in {"'", '"', "`"} or nxt in {"'", '"', "`"}:
+        return True
+    before = line[:start].rstrip()
+    if before == "":
+        return True
+    if before[-1] in {"&", "|", ";", "(", "`", "{", "="}:
+        return True
+    last_token = before.split()[-1] if before.split() else ""
+    if last_token in COMMAND_WRAPPER_TOKENS or "=" in last_token:
+        return True
+    # Followed by a CLI flag, e.g. `node --version` / `go -h`.
+    if line[end:].lstrip().startswith("-"):
+        return True
+    return False
+
+
 def scan_commands(task_dir: Path) -> list[CommandUse]:
     uses: list[CommandUse] = []
     seen_files: set[Path] = set()
@@ -151,6 +188,8 @@ def scan_commands(task_dir: Path) -> list[CommandUse]:
             if not line:
                 continue
             for match in COMMAND_RE.finditer(line):
+                if not is_invocation_context(line, match.start(1), match.end(1)):
+                    continue
                 command = match.group(1)
                 uses.append(CommandUse(command, f"{rel(task_dir, path)}:{line_no}", line))
     return uses
@@ -177,9 +216,14 @@ def dockerfile_providers(text: str) -> set[str]:
         if "gcc" in image or "buildpack-deps" in image:
             providers.update({"make", "gcc"})
 
+    # Join backslash line-continuations first so a multi-line
+    # `apt-get install ... \\ cargo=... \\ rustc=... \\ ...` block is scanned as one
+    # logical command — package names routinely sit on continuation lines, not on the
+    # line that holds the literal `apt-get install` token.
+    joined = re.sub(r"\\\s*\n\s*", " ", lowered)
     install_text = " ".join(
         line.strip()
-        for line in lowered.splitlines()
+        for line in joined.splitlines()
         if any(token in line for token in ("apt-get install", "apt install", "apk add", "dnf install", "yum install"))
     )
     if re.search(r"\bpython3(?:-minimal)?\b", install_text):

@@ -130,7 +130,7 @@ python3 scripts/harbor_gate.py tasks/<task-name> --oracle --oracle-stress 3 --no
 
 Oracle must score 1.0; NOP must score 0.0. Do **not** run oracle 10x
 here — that is `tb3-packager`'s job in Step 4. Optional platform CI mirror:
-`harbor tasks check tasks/<task-name> -m openai/@openai/gpt-5.2` (see
+`harbor tasks check tasks/<task-name> -m openai/@openai/gpt-5.5` (see
 `docs/EDITION2_SUBMISSION_GUIDE.md`).
 
 If either fails, fix, then rerun preflight (the checksum is now

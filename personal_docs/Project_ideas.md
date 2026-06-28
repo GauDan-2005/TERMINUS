@@ -1,6 +1,6 @@
 # Project Ideas
 
-Legend: **✅** = implemented in `tasks/` with oracle, verifier, Step 2b preflight complete, and a validated submission zip in `Task_Ready_To_Submit/`.
+Legend: **✅** = attempted/submitted at least once, including tasks still in revision and tasks already accepted.
 
 ---
 
@@ -355,7 +355,7 @@ Legend: **✅** = implemented in `tasks/` with oracle, verifier, Step 2b preflig
 
 ## 9. scientific-computing
 
-### adaptive-mesh-conservation
+### ✅ adaptive-mesh-conservation
 
 - **Languages:** C++
 - **Idea:** A finite-volume simulation loses conservation after adaptive mesh refinement, coarsening, and checkpoint restart.
@@ -386,9 +386,229 @@ Legend: **✅** = implemented in `tasks/` with oracle, verifier, Step 2b preflig
 
 ---
 
+## 10. candidate-seed-bank-2026-06-22
+
+These are preliminary Step 1 seeds generated from:
+
+- `web/terminal-bench-task-creation.md`
+- `.cursor/rules/difficulty-calibration.mdc`
+- `.cursor/rules/idea-validation.mdc`
+
+Constraints applied: hard-only target, offline verifier path, no new UI-building tasks, no new multi-container tasks, no hidden contracts, avoid Python unless strongly justified, and preserve enough residual discovery/design work after an honest `instruction.md`.
+
+### system-administration
+
+#### journaled-quota-resurrection
+
+- **Shape:** repair_existing_system
+- **Profile:** filesystem_state_reconstruction
+- **Idea:** A quota/accounting daemon recovers after crash but silently double-counts project usage when stale journal records and remapped IDs interact.
+- **Hardness hook:** Requires reconstructing state across journals, xattrs, remap metadata, persisted totals, and misleading clean-recovery output.
+
+#### mount-propagation-epoch-cleanup
+
+- **Shape:** repair_existing_system
+- **Profile:** config_policy_precedence
+- **Idea:** A namespace setup tool leaves bind mounts visible through the wrong propagation epoch after root remapping.
+- **Hardness hook:** Requires diagnosing mount graph state, cleanup ordering, propagation policy, and path resolution across restart-like setup phases.
+
+#### service-unit-env-precedence-drift
+
+- **Shape:** reverse_engineering
+- **Profile:** config_policy_precedence
+- **Idea:** A local service launcher computes effective environment variables from unit files, drop-ins, and runtime overrides, but precedence is wrong only across restart/reload boundaries.
+- **Hardness hook:** Requires inferring precedence from artifacts and runtime traces rather than transcribing one documented knob.
+
+### build-and-dependency-management
+
+#### split-toolchain-provenance-lock
+
+- **Shape:** repair_existing_system
+- **Profile:** build_dependency_toolchain
+- **Idea:** A mixed Rust/C++ build cache reuses stale generated bindings when codegen inputs change through an indirect template.
+- **Hardness hook:** Requires coordinating cache keys, generated-file provenance, cross-language build stages, and incremental invalidation.
+
+#### abi-cache-relink-drift
+
+- **Shape:** repair_existing_system
+- **Profile:** build_dependency_toolchain
+- **Idea:** Incremental builds pass, but binaries link against stale ABI artifacts after a feature-flag rollback.
+- **Hardness hook:** Requires finding the dependency edge between generated headers, linker inputs, feature metadata, and reused build directories.
+
+#### pkgconfig-sysroot-shadow
+
+- **Shape:** reverse_engineering
+- **Profile:** build_dependency_toolchain
+- **Idea:** An offline cross-build resolves headers from one sysroot and libraries from another because pkg-config metadata is merged incorrectly.
+- **Hardness hook:** Requires reverse-engineering resolution order and repairing provenance rather than hardcoding one package path.
+
+### data-processing
+
+#### window-lineage-replay
+
+- **Shape:** repair_existing_system
+- **Profile:** distributed_reconciliation
+- **Idea:** A stream compactor handles late events with correct row counts but wrong lineage after checkpoint replay.
+- **Hardness hook:** Requires understanding watermark state, checkpoint boundaries, idempotent replay, and lineage identity.
+
+#### dictionary-rollover-nesting
+
+- **Shape:** repair_existing_system
+- **Profile:** file_format_serialization
+- **Idea:** A small columnar format corrupts nested records when dictionary pages roll over mid-batch.
+- **Hardness hook:** Requires reasoning across dictionary reuse, offset tables, null runs, page boundaries, and materialized query semantics.
+
+#### cdc-tombstone-merge-order
+
+- **Shape:** reverse_engineering
+- **Profile:** distributed_reconciliation
+- **Idea:** Change-data-capture shards reconcile inserts, deletes, and tombstones differently depending on replay order.
+- **Hardness hook:** Requires inferring canonical source rules, tombstone survival, provenance traces, and idempotent merge semantics.
+
+### games
+
+#### rollback-input-fork
+
+- **Shape:** repair_existing_system
+- **Profile:** concurrency_ordering
+- **Idea:** A headless rollback engine replays matches incorrectly after reconnect because input forks are merged by arrival order instead of simulation tick.
+- **Hardness hook:** Requires diagnosing deterministic replay, snapshot boundaries, queued input ordering, and trace/hash agreement without relying on UI.
+
+#### ecs-authority-snapshot-drift
+
+- **Shape:** repair_existing_system
+- **Profile:** distributed_reconciliation
+- **Idea:** Entity snapshots restore with plausible positions but wrong network authority ownership after stale snapshots merge.
+- **Hardness hook:** Requires coordinating snapshot versions, ownership transfer, reconciliation order, and stale entity lineage.
+
+#### pathfinder-replay-cost-skew
+
+- **Shape:** adversarial_generalization
+- **Profile:** floating_point_numeric_policy
+- **Idea:** A deterministic pathfinding simulator must preserve route choices across replay when terrain costs are normalized from multiple artifact sources.
+- **Hardness hook:** Requires robust numeric policy, stable tie-breaking, replay determinism, and adversarial map fixtures.
+
+### software-engineering
+
+#### hot-reload-epoch-shadow
+
+- **Shape:** repair_existing_system
+- **Profile:** state_recovery_crash_consistency
+- **Idea:** A plugin host hot-reloads modules but keeps stale symbols alive through an epoch cache.
+- **Hardness hook:** Requires tracing module cache boundaries, lifecycle hooks, dependency reloads, migrations, and state ownership.
+
+#### incremental-type-index-phantom
+
+- **Shape:** repair_existing_system
+- **Profile:** build_dependency_toolchain
+- **Idea:** A code indexer reports definitions from removed generated files after package alias precedence changes.
+- **Hardness hook:** Requires coordinating generated-source provenance, package alias resolution, workspace events, and incremental invalidation.
+
+#### plugin-capability-contract-leak
+
+- **Shape:** formal_reasoning
+- **Profile:** security_authority_split
+- **Idea:** A plugin capability model needs enforceable invariants so plugins cannot gain authority through transitive dependency metadata.
+- **Hardness hook:** Requires designing and validating authority invariants across manifests, runtime grants, dependency edges, and audit output.
+
+### machine-learning
+
+#### optimizer-checkpoint-alias-drift
+
+- **Shape:** repair_existing_system
+- **Profile:** ml_adversarial_robustness
+- **Idea:** A small tensor trainer resumes with plausible loss but wrong optimizer slots after parameter reordering.
+- **Hardness hook:** Requires diagnosing checkpoint schema, parameter identity, optimizer-state aliasing, deterministic resume, and held-out training traces.
+
+#### quantized-calibration-split-leak
+
+- **Shape:** repair_existing_system
+- **Profile:** floating_point_numeric_policy
+- **Idea:** Quantized inference passes smoke accuracy while calibration state leaks across dataset chunks.
+- **Hardness hook:** Requires reasoning about numeric tolerances, calibration windows, chunk provenance, and state isolation.
+
+#### feature-store-backfill-poisoning
+
+- **Shape:** adversarial_generalization
+- **Profile:** ml_adversarial_robustness
+- **Idea:** A feature backfill pipeline must prevent future-derived aggregates from leaking into historical training windows.
+- **Hardness hook:** Requires detecting temporal leakage, split provenance, adversarial held-out rows, and metric/report consistency.
+
+### debugging
+
+#### compaction-crash-replay-gap
+
+- **Shape:** repair_existing_system
+- **Profile:** state_recovery_crash_consistency
+- **Idea:** An LSM-like store recovers cleanly but loses tombstone ordering after compaction interruption.
+- **Hardness hook:** Requires reconstructing crash sequence from manifests, logs, table files, replay order, and semantic state digests.
+
+#### async-finalizer-shadow
+
+- **Shape:** repair_existing_system
+- **Profile:** concurrency_ordering
+- **Idea:** Nested async cancellation finalizes parent resources before child cleanup has actually drained.
+- **Hardness hook:** Requires diagnosing cancellation propagation, finalizer ownership, bounded queues, trace order, and repeatable scheduler behavior.
+
+#### trace-correlator-clock-skew
+
+- **Shape:** reverse_engineering
+- **Profile:** distributed_reconciliation
+- **Idea:** A local trace correlator must reconstruct causal order from logs with skewed clocks, retries, and duplicate spans.
+- **Hardness hook:** Requires inferring causal links from artifacts instead of trusting timestamps or count-only checks.
+
+### security
+
+#### delegated-token-revocation-lag
+
+- **Shape:** repair_existing_system
+- **Profile:** security_authority_split
+- **Idea:** A local verifier accepts revoked delegated tokens when batch verification and negative caching interact.
+- **Hardness hook:** Requires coordinating authority boundaries, cache invalidation, delegated chains, batch isolation, and audit evidence.
+
+#### archive-attestation-confused-root
+
+- **Shape:** repair_existing_system
+- **Profile:** security_authority_split
+- **Idea:** An offline artifact verifier trusts embedded root metadata after mirror rollback and key rotation.
+- **Hardness hook:** Requires separating trusted local policy from untrusted archive claims across signatures, root epochs, mirror state, and provenance graphs.
+
+#### policy-canonicalization-bypass
+
+- **Shape:** adversarial_generalization
+- **Profile:** config_policy_precedence
+- **Idea:** Authorization policy paths normalize differently across parser, matcher, and audit layers.
+- **Hardness hook:** Requires robust canonicalization across equivalent path forms, policy precedence, denial evidence, and adversarial fixtures.
+
+### scientific-computing
+
+#### stencil-halo-checkpoint-drift
+
+- **Shape:** repair_existing_system
+- **Profile:** floating_point_numeric_policy
+- **Idea:** A stencil solver resumes with matching coarse checksums but wrong halo regions after mesh refinement.
+- **Hardness hook:** Requires diagnosing checkpoint layout, halo ownership, mesh refinement boundaries, and numeric comparison policy.
+
+#### sparse-preconditioner-lineage
+
+- **Shape:** repair_existing_system
+- **Profile:** floating_point_numeric_policy
+- **Idea:** An iterative sparse solver reports convergence while using a stale preconditioner after duplicate constraints are coalesced.
+- **Hardness hook:** Requires distinguishing acceptable floating-point variance from invalid matrix/preconditioner lineage.
+
+#### adaptive-quadrature-cache-policy
+
+- **Shape:** optimization_under_constraints
+- **Profile:** floating_point_numeric_policy
+- **Idea:** A numeric integration cache must remain reproducible while adapting subdivision strategy across equivalent but differently ordered inputs.
+- **Hardness hook:** Requires designing deterministic cache keys, tolerance policy, reduction order, and adversarial input coverage without timing thresholds.
+
+---
+
 ## Summary
 
 | Status  | Count | Tasks                                                                                                                                                                                                                                                                                                                                   |
 | ------- | ----: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ✅ Done |    15 | staged-snapshot-drift, timer-replay-coalescence, abi-feature-backtrack, late-window-lineage, rollback-combat-desync, fog-state-resume, incremental-index-invalidation, module-hot-reload-epoch, quantized-beam-alignment, autograd-tape-alias, async-executor-liveness, allocator-free-list-drift, policy-revocation-shadow, artifact-provenance-timewarp, sparse-block-preconditioner |
-| Pending |     3 | cross-toolchain-cache-poison, column-shard-rehydrate, adaptive-mesh-conservation                                                                                                                                                                                                                                                                                                                      |
+| ✅ Attempted |    16 | staged-snapshot-drift, timer-replay-coalescence, abi-feature-backtrack, late-window-lineage, rollback-combat-desync, fog-state-resume, incremental-index-invalidation, module-hot-reload-epoch, quantized-beam-alignment, autograd-tape-alias, async-executor-liveness, allocator-free-list-drift, policy-revocation-shadow, artifact-provenance-timewarp, adaptive-mesh-conservation, sparse-block-preconditioner |
+| Pending |     2 | cross-toolchain-cache-poison, column-shard-rehydrate                                                                                                                                                                                                                                                                                                                                                  |
+| Candidate seeds |    27 | journaled-quota-resurrection, mount-propagation-epoch-cleanup, service-unit-env-precedence-drift, split-toolchain-provenance-lock, abi-cache-relink-drift, pkgconfig-sysroot-shadow, window-lineage-replay, dictionary-rollover-nesting, cdc-tombstone-merge-order, rollback-input-fork, ecs-authority-snapshot-drift, pathfinder-replay-cost-skew, hot-reload-epoch-shadow, incremental-type-index-phantom, plugin-capability-contract-leak, optimizer-checkpoint-alias-drift, quantized-calibration-split-leak, feature-store-backfill-poisoning, compaction-crash-replay-gap, async-finalizer-shadow, trace-correlator-clock-skew, delegated-token-revocation-lag, archive-attestation-confused-root, policy-canonicalization-bypass, stencil-halo-checkpoint-drift, sparse-preconditioner-lineage, adaptive-quadrature-cache-policy |
